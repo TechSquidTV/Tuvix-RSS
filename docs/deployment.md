@@ -344,14 +344,14 @@ npx wrangler d1 create tuvix
 # database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # Copy this ID
 #
 # For local development: Set D1_DATABASE_ID environment variable with this ID
-# For CI/CD: Add this ID as CLOUDFLARE_D1_DATABASE_ID GitHub secret
+# For CI/CD: Add this ID as D1_DATABASE_ID GitHub secret
 ```
 
 ### Step 2: Configure wrangler.toml
 
 **Note**: 
 - Rate limit `namespace_id` values are user-defined positive integers that you choose yourself (e.g., `"1001"`, `"1002"`). They don't need to be created via CLI or dashboard.
-- The `database_id` uses environment variable substitution (`${D1_DATABASE_ID}`). Set this environment variable for local development.
+- The `database_id` uses `${D1_DATABASE_ID}` placeholder syntax. For local dev, use `wrangler.toml.local`. For CI/CD, envsubst automatically substitutes it from GitHub secrets.
 
 The `wrangler.toml` file is already configured with environment variable placeholders:
 
@@ -372,11 +372,12 @@ compatibility_date = "2024-11-10"
 compatibility_flags = ["nodejs_als"]
 
 # D1 Database binding
-# Uses environment variable substitution - set D1_DATABASE_ID env var
+# For local dev: Create wrangler.toml.local with your actual database_id
+# For CI/CD: envsubst substitutes ${D1_DATABASE_ID} before deployment
 [[d1_databases]]
 binding = "DB"
 database_name = "tuvix"
-database_id = "${D1_DATABASE_ID}"  # Environment variable
+database_id = "${D1_DATABASE_ID}"  # Substituted by envsubst in CI/CD, or override in wrangler.toml.local
 
 # Rate Limit Bindings
 # namespace_id: A positive integer you define, unique to your Cloudflare account
@@ -403,28 +404,65 @@ crons = ["*/5 * * * *"]
 **Security Notes**:
 - ✅ **Safe to commit**: Environment variable placeholders (e.g., `${D1_DATABASE_ID}`), structure, names, bindings
 - ❌ **Never commit**: Filled-in `database_id` values (account-specific)
-- 🔒 **Use secrets**: 
-  - For CI/CD: Set `CLOUDFLARE_D1_DATABASE_ID` GitHub secret
-  - For local dev: Set `D1_DATABASE_ID` environment variable (or use `wrangler.toml.local` to override)
-  - Other secrets: Use `wrangler secret put`
+- 🔒 **Use GitHub Secrets** (not Variables) for sensitive data:
+  - For CI/CD: Set `D1_DATABASE_ID` as a GitHub **Secret** (encrypted, masked in logs)
+  - For local dev: Create `wrangler.toml.local` with your actual database_id
+  - Other secrets: Use `wrangler secret put` for Cloudflare Worker secrets
 
 **Local Development Setup:**
-```bash
-# Set environment variable (recommended)
-export D1_DATABASE_ID="your-database-id-from-step-1.2"
 
-# Or create wrangler.toml.local to override values (optional)
-# This file is gitignored and will override wrangler.toml
+Wrangler doesn't support environment variable substitution in `wrangler.toml`. For local development, create `wrangler.toml.local`:
+
+```bash
+cd packages/api
+
+# Copy the example file
+cp wrangler.toml.local.example wrangler.toml.local
+
+# Edit wrangler.toml.local and replace "your-database-id-here" with your actual D1 database ID
+# Example: database_id = "7078240d-69e3-46fb-bb21-aa8e5208de9b"
 ```
+
+**Note:** `wrangler.toml.local` is gitignored and will override values in `wrangler.toml`. This is the recommended approach for local development.
+
+**CI/CD Setup:**
+
+The GitHub Actions workflow automatically substitutes `${D1_DATABASE_ID}` in `wrangler.toml` before deployment using `envsubst` (available on Ubuntu runners). 
+
+**To configure:**
+
+1. Go to your GitHub repository → Settings → Secrets and variables → Actions
+2. Click the **"Secrets"** tab (not "Variables" - we use Secrets for sensitive data)
+3. Click "New repository secret"
+4. Name: `D1_DATABASE_ID` (must match exactly)
+5. Value: Your D1 database ID (from `wrangler d1 create tuvix`)
+6. Click "Add secret"
+
+**Why Secrets instead of Variables?**
+- **Secrets** are encrypted and masked in logs (use for sensitive data like database IDs, API keys)
+- **Variables** are plain text and visible in logs (use for non-sensitive configuration)
+
+The workflow automatically:
+- Reads the `D1_DATABASE_ID` **secret** from GitHub (via `${{ secrets.D1_DATABASE_ID }}`)
+- Sets it as an environment variable in the step's `env` block for use by `envsubst`
+- Substitutes `${D1_DATABASE_ID}` in `wrangler.toml` before deployment
+- Verifies the secret is set and substitution succeeded
+- Never logs or leaks the secret value (secrets are automatically masked)
+
+No additional configuration needed once the secret is set.
 
 ### Step 3: Set Secrets
 
-Set required secrets before deployment:
+Set required secrets:
 
 ```bash
+# Make sure you're in the packages/api directory
+cd packages/api
+
 # Required: Better Auth secret (min 32 chars)
 npx wrangler secret put BETTER_AUTH_SECRET
 # Generate with: openssl rand -base64 32
+# This will prompt you to enter the secret value
 
 # Required: CORS origin (frontend URL)
 npx wrangler secret put CORS_ORIGIN

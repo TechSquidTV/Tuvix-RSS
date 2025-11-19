@@ -3,10 +3,13 @@
 # ============================================================================
 # IMPORTANT: This file uses environment variable substitution for sensitive IDs.
 # DO NOT commit filled-in database_id values - they are account-specific.
-# For local dev: Set D1_DATABASE_ID environment variable (or use wrangler.toml.local)
-# For CI/CD: Set CLOUDFLARE_D1_DATABASE_ID GitHub secret
+# 
+# Local dev: Create wrangler.toml.local with your actual database_id
+# CI/CD: envsubst substitutes ${D1_DATABASE_ID} from GitHub secret before deployment
 # ============================================================================
 
+# Worker name - Wrangler uses this to identify which worker to deploy/secrets to manage
+# When running wrangler commands, they target the worker named "tuvix-api"
 name = "tuvix-api"
 main = "src/adapters/cloudflare.ts"
 compatibility_date = "2024-11-10"
@@ -19,11 +22,13 @@ compatibility_flags = ["nodejs_als"]
 binding = "CF_VERSION_METADATA"
 
 # D1 Database binding
-# Set D1_DATABASE_ID environment variable (or use wrangler.toml.local to override)
+# For local dev: Create wrangler.toml.local with your actual database_id (see wrangler.toml.local.example)
+# For CI/CD: envsubst substitutes ${D1_DATABASE_ID} before deployment (see .github/workflows/deploy-cloudflare.yml)
+# Note: Wrangler expects migrations in ./migrations/ folder (copied from ./drizzle/ by db:migrate:d1 script)
 [[d1_databases]]
 binding = "DB"
 database_name = "tuvix"
-database_id = "${D1_DATABASE_ID}" # Environment variable
+database_id = "${D1_DATABASE_ID}" # Substituted by envsubst in CI/CD, or override in wrangler.toml.local for local dev
 
 # Rate Limit Bindings for API and Public Feed rate limiting
 # Uses Cloudflare Workers rate limit bindings

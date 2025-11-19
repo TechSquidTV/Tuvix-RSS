@@ -55,7 +55,7 @@ Configure these secrets in your GitHub repository settings:
 ### Cloudflare Secrets
 - `CLOUDFLARE_API_TOKEN` - Cloudflare API token with Workers and Pages permissions
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
-- `CLOUDFLARE_D1_DATABASE_ID` - Your D1 database ID (from `wrangler d1 create tuvix`)
+- `D1_DATABASE_ID` - Your D1 database ID (from `wrangler d1 create tuvix`)
 - `CLOUDFLARE_WORKER_NAME` - Name of your Cloudflare Worker (e.g., `tuvix-api`)
 - `CLOUDFLARE_PAGES_PROJECT_NAME` - Name of your Cloudflare Pages project
 - `VITE_API_URL` - API URL for the frontend build (e.g., `https://api.yourdomain.com/trpc`)
@@ -73,7 +73,13 @@ Configure these secrets in your GitHub repository settings:
 3. **D1 Database ID:**
    - Run `npx wrangler d1 create tuvix` locally
    - Copy the `database_id` from the output
-   - Add it as `CLOUDFLARE_D1_DATABASE_ID` secret in GitHub
+   - Go to GitHub repository → Settings → Secrets and variables → Actions
+   - Click the **"Secrets"** tab (not "Variables" - we use Secrets for sensitive data)
+   - Click "New repository secret"
+   - Name: `D1_DATABASE_ID` (must match exactly - this is used by the workflow)
+   - Value: Paste your database ID
+   - Click "Add secret"
+   - The workflow reads this secret (via `${{ secrets.D1_DATABASE_ID }}`) and sets it as an environment variable for the deployment step
 
 4. **Worker Name:**
    - Check `packages/api/wrangler.toml` → `name` field

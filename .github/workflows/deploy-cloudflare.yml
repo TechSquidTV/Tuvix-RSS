@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.event.inputs.version || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -51,6 +53,42 @@ jobs:
       - name: Build API
         run: pnpm run build:api
 
+      - name: Substitute D1 database ID
+        env:
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          # Verify secret is set (without leaking value)
+          if [ -z "$D1_DATABASE_ID" ]; then
+            echo "::error::D1_DATABASE_ID secret is not set"
+            exit 1
+          fi
+          
+          # Verify placeholder exists in file
+          if ! grep -q '\${D1_DATABASE_ID}' packages/api/wrangler.toml; then
+            echo "::error::Placeholder \${D1_DATABASE_ID} not found in wrangler.toml"
+            exit 1
+          fi
+          
+          # Perform substitution with explicit variable list
+          envsubst '$D1_DATABASE_ID' < packages/api/wrangler.toml > packages/api/wrangler.toml.tmp
+          
+          # Verify substitution succeeded (placeholder should be gone)
+          if grep -q '\${D1_DATABASE_ID}' packages/api/wrangler.toml.tmp; then
+            echo "::error::Substitution failed - placeholder still present"
+            exit 1
+          fi
+          
+          # Verify database_id is not empty after substitution
+          if grep -q 'database_id = ""' packages/api/wrangler.toml.tmp; then
+            echo "::error::database_id is empty after substitution"
+            exit 1
+          fi
+          
+          # Move substituted file into place
+          mv packages/api/wrangler.toml.tmp packages/api/wrangler.toml
+          
+          echo "✅ Successfully substituted D1_DATABASE_ID (value not logged for security)"
+
       - name: Get worker name
         id: worker-name
         run: |
@@ -65,8 +103,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: deploy
-        env:
-          D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
 
       - name: Output API deployment URL
         if: success()
@@ -83,13 +119,14 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
-          command: d1 migrations apply DB --remote
+          command: d1 migrations apply tuvix --remote
         env:
-          D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
 
   deploy-app:
     name: Deploy App to Cloudflare Pages
     runs-on: ubuntu-latest
+    needs: [deploy-api]
     environment:
       name: production
     steps:

@@ -129,6 +129,7 @@ temp/
 .wrangler/
 .dev.vars
 wrangler.toml.local
+packages/api/migrations/  # Generated folder for Wrangler (copied from drizzle/)
 
 # ============================================
 # Docker

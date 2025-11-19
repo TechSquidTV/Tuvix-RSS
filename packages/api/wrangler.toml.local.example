@@ -1,0 +1,12 @@
+# ============================================================================
+# Local Development Override for wrangler.toml
+# ============================================================================
+# Copy this file to wrangler.toml.local and fill in your actual database_id
+# This file is gitignored and will override values in wrangler.toml
+# ============================================================================
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tuvix"
+database_id = "your-database-id-here"  # Replace with your actual D1 database ID
+
