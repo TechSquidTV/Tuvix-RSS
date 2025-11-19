@@ -104,7 +104,7 @@ jobs:
           retention-days: 3
 
       - name: Upload API coverage to GitHub
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: always()
         with:
           files: packages/api/coverage/lcov.info
@@ -145,7 +145,7 @@ jobs:
           retention-days: 3
 
       - name: Upload App coverage to GitHub
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: always()
         with:
           files: packages/app/coverage/lcov.info
