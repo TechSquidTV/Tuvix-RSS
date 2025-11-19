@@ -96,7 +96,7 @@ jobs:
         run: pnpm run test:coverage:api || true
 
       - name: Upload API test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: api-coverage
@@ -137,7 +137,7 @@ jobs:
         run: pnpm run test:coverage:app || true
 
       - name: Upload App test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: app-coverage
@@ -181,7 +181,7 @@ jobs:
         run: pnpm run build:app
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifacts
           path: |

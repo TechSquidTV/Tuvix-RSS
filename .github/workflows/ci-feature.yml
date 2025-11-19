@@ -96,7 +96,7 @@ jobs:
         run: pnpm run test:coverage:api || true
 
       - name: Upload API test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: api-coverage-pr-${{ github.event.pull_request.number }}
@@ -137,7 +137,7 @@ jobs:
         run: pnpm run test:coverage:app || true
 
       - name: Upload App test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: app-coverage-pr-${{ github.event.pull_request.number }}
