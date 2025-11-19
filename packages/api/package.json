@@ -39,8 +39,8 @@
   },
   "dependencies": {
     "@react-email/components": "^1.0.1",
-    "@sentry/cloudflare": "^8.48.0",
-    "@sentry/node": "^8.48.0",
+    "@sentry/cloudflare": "^10.25.0",
+    "@sentry/node": "^10.25.0",
     "@trpc/server": "^11.7.1",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.0.0",
@@ -51,11 +51,11 @@
     "drizzle-zod": "^0.8.3",
     "eslint-plugin-drizzle": "^0.2.3",
     "express": "^5.1.0",
-    "feedsmith": "^2.4.0",
-    "jose": "^6.1.1",
+    "feedsmith": "^2.5.0",
+    "jose": "^6.1.2",
     "node-cron": "^4.2.1",
     "react-email": "^5.0.4",
-    "resend": "^6.4.2",
+    "resend": "^6.5.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
