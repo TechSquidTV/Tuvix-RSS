@@ -47,6 +47,7 @@ export const Route = createFileRoute("/app/articles")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       category_id: Number(search?.category_id) || undefined,
+      subscription_id: Number(search?.subscription_id) || undefined,
     };
   },
 });
@@ -75,9 +76,10 @@ function ArticlesPage() {
   const startY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Build filters from search params (only category, not read/saved)
+  // Build filters from search params (only category and subscription, not read/saved)
   const filters: Record<string, unknown> = {};
   if (search.category_id) filters.categoryId = search.category_id;
+  if (search.subscription_id) filters.subscriptionId = search.subscription_id;
 
   // Fetch all articles (unfiltered by read/saved state)
   const {

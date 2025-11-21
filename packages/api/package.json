@@ -25,6 +25,7 @@
     "db:migrate:local": "drizzle-kit migrate",
     "db:migrate:d1": "bash scripts/migrate-d1.sh",
     "db:migrate:d1:local": "mkdir -p migrations && cp drizzle/*.sql migrations/ 2>/dev/null || true && wrangler d1 migrations apply tuvix --local && rm -rf migrations",
+    "db:reset": "tsx src/db/reset-local.ts",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
     "validate:cloudflare": "tsx scripts/validate-cloudflare-config.ts",

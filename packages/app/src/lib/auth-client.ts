@@ -11,9 +11,19 @@ import type { createAuth } from "@tuvix/api";
 
 // Better Auth needs to point to the API server, not the frontend
 // VITE_API_URL is like "http://localhost:3001/trpc", so we extract the origin
-const baseURL = import.meta.env.VITE_API_URL
-  ? new URL(import.meta.env.VITE_API_URL).origin
+const viteApiUrl = import.meta.env.VITE_API_URL;
+const baseURL = viteApiUrl
+  ? new URL(viteApiUrl).origin
   : "http://localhost:3001"; // Default to API server in development
+
+// Debug logging in development
+if (import.meta.env.DEV) {
+  console.log("🔧 Better Auth Client Configuration:", {
+    VITE_API_URL: viteApiUrl,
+    baseURL,
+    mode: import.meta.env.MODE,
+  });
+}
 
 export const authClient = createAuthClient({
   baseURL,

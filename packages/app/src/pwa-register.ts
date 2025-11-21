@@ -3,6 +3,16 @@ import { toast } from "sonner";
 
 // Register service worker with auto-update
 export function registerPWA() {
+  // In development, unregister any existing service workers to avoid caching issues
+  if (import.meta.env.DEV && "serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        registration.unregister();
+        console.log("Unregistered service worker in dev mode");
+      });
+    });
+  }
+
   const updateSW = registerSW({
     onNeedRefresh() {
       // Show a toast notification to reload the page when new content is available

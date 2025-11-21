@@ -722,6 +722,89 @@ describe("Articles Router - Subscription Filters", () => {
       });
       expect(drmResult.items).toHaveLength(0);
     });
+
+    it("should filter by both categoryId and subscriptionId together", async () => {
+      // Disable filtering on both subscriptions for this test
+      await db
+        .update(schema.subscriptions)
+        .set({ filterEnabled: false })
+        .where(eq(schema.subscriptions.id, testSubscription1.id));
+      await db
+        .update(schema.subscriptions)
+        .set({ filterEnabled: false })
+        .where(eq(schema.subscriptions.id, testSubscription2.id));
+
+      // Create categories
+      const [techCategory] = await db
+        .insert(schema.categories)
+        .values({
+          userId: testUser.id,
+          name: "tech",
+          color: "#10B981",
+        })
+        .returning();
+
+      const [drmCategory] = await db
+        .insert(schema.categories)
+        .values({
+          userId: testUser.id,
+          name: "drm",
+          color: "#e6a37a",
+        })
+        .returning();
+
+      // Assign tech category to subscription1
+      // Assign drm category to subscription2
+      await db.insert(schema.subscriptionCategories).values([
+        {
+          subscriptionId: testSubscription1.id,
+          categoryId: techCategory.id,
+        },
+        {
+          subscriptionId: testSubscription2.id,
+          categoryId: drmCategory.id,
+        },
+      ]);
+
+      // Create articles for both sources
+      await createArticle(testSource1.id, { title: "Tech Article 1" });
+      await createArticle(testSource1.id, { title: "Tech Article 2" });
+      await createArticle(testSource2.id, { title: "DRM Article" });
+
+      const caller = createCaller();
+
+      // Filter by tech category + subscription1 - should only get articles from subscription1
+      const combinedResult = await caller.list({
+        limit: 20,
+        offset: 0,
+        categoryId: techCategory.id,
+        subscriptionId: testSubscription1.id,
+      });
+      expect(combinedResult.items).toHaveLength(2);
+      expect(
+        combinedResult.items.every((a) => a.title.startsWith("Tech")),
+      ).toBe(true);
+
+      // Filter by tech category + subscription2 - should return nothing
+      // (subscription2 has drm category, not tech)
+      const noMatchResult = await caller.list({
+        limit: 20,
+        offset: 0,
+        categoryId: techCategory.id,
+        subscriptionId: testSubscription2.id,
+      });
+      expect(noMatchResult.items).toHaveLength(0);
+
+      // Filter by drm category + subscription2 - should get DRM article
+      const drmCombinedResult = await caller.list({
+        limit: 20,
+        offset: 0,
+        categoryId: drmCategory.id,
+        subscriptionId: testSubscription2.id,
+      });
+      expect(drmCombinedResult.items).toHaveLength(1);
+      expect(drmCombinedResult.items[0].title).toBe("DRM Article");
+    });
   });
 
   describe("Edge Cases", () => {

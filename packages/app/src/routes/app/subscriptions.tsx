@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   useSubscriptions,
   useCreateSubscription,
@@ -31,10 +31,16 @@ import {
   Download,
   Upload,
   X,
+  Newspaper,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -1073,32 +1079,66 @@ function SubscriptionsPage() {
                 </div>
                 {editingId !== sub.id && (
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        handleEdit(
-                          sub.id,
-                          sub.customTitle || sub.source?.title || "",
-                          sub.categories || [],
-                        )
-                      }
-                      aria-label={`Edit subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
-                    >
-                      <Edit2 className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(sub.id)}
-                      disabled={deleteSubscription.isPending}
-                      aria-label={`Delete subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
-                    >
-                      <Trash2
-                        className="size-4 text-destructive"
-                        aria-hidden="true"
-                      />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          aria-label={`View articles from ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
+                        >
+                          <Link
+                            to="/app/articles"
+                            search={{ subscription_id: sub.id }}
+                          >
+                            <Newspaper className="size-4" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View Articles</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            handleEdit(
+                              sub.id,
+                              sub.customTitle || sub.source?.title || "",
+                              sub.categories || [],
+                            )
+                          }
+                          aria-label={`Edit subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
+                        >
+                          <Edit2 className="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit Subscription</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(sub.id)}
+                          disabled={deleteSubscription.isPending}
+                          aria-label={`Delete subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
+                        >
+                          <Trash2
+                            className="size-4 text-destructive"
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Subscription</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 )}
               </div>

@@ -106,7 +106,7 @@ export default defineConfig({
         clientsClaim: true,
       },
       devOptions: {
-        enabled: true,
+        enabled: false, // Disable PWA in dev to avoid service worker caching issues with code splitting
         type: "module",
         navigateFallback: "index.html",
       },

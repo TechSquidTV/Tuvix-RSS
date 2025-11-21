@@ -14,6 +14,7 @@
     "db:generate": "cd packages/api && pnpm run db:generate",
     "db:migrate:d1": "cd packages/api && pnpm run db:migrate:d1",
     "db:migrate": "cd packages/api && pnpx tsx src/db/migrate-local.ts",
+    "db:reset": "cd packages/api && pnpm run db:reset",
     "db:push": "cd packages/api && pnpm run db:push",
     "db:studio": "cd packages/api && pnpm run db:studio",
     "clear-articles": "cd packages/api && pnpm run clear-articles",
