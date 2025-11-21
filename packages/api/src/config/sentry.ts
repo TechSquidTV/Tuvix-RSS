@@ -26,18 +26,6 @@ export function getSentryConfig(env: Env) {
     environment,
     release,
     tracesSampleRate: 0.1, // 10% sampling for performance
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    beforeSend(event: any) {
-      // Filter out health check noise
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-      const url = event.request?.url;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      if (url?.includes("/health") || url?.includes("/debug-sentry")) {
-        return null;
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return event;
-    },
   };
 }
 

@@ -22,33 +22,43 @@ function DebugSentryPage() {
 
   const isSentryEnabled = !!import.meta.env.VITE_SENTRY_DSN;
 
-  const triggerError = () => {
+  const triggerError = async () => {
     setLastError(null);
     setLastSuccess(null);
     try {
       throw new Error("Test Sentry Error - This is a test error for debugging");
     } catch (error) {
-      Sentry.captureException(error);
-      setLastError("Error captured and sent to Sentry!");
+      const eventId = await Sentry.captureException(error);
+      console.log("Sentry captureException called, event ID:", eventId);
+      setLastError(
+        `Error captured and sent to Sentry! Event ID: ${eventId || "unknown"}`,
+      );
     }
   };
 
   const triggerUnhandledError = () => {
     setLastError(null);
     setLastSuccess(null);
-    // This will be caught by the global error handler
+    // This will be caught by the global error handler in main.tsx
+    console.log("Triggering unhandled error...");
     setTimeout(() => {
-      throw new Error(
+      const error = new Error(
         "Test Unhandled Error - This simulates an unhandled error",
       );
+      console.log("Throwing unhandled error:", error);
+      throw error;
     }, 100);
   };
 
   const triggerUnhandledRejection = () => {
     setLastError(null);
     setLastSuccess(null);
-    // This will be caught by the unhandled rejection handler
-    Promise.reject(new Error("Test Unhandled Promise Rejection"));
+    // This will be caught by the unhandled rejection handler in main.tsx
+    console.log("Triggering unhandled promise rejection...");
+    const error = new Error("Test Unhandled Promise Rejection");
+    Promise.reject(error).catch(() => {
+      // Swallow the error to prevent console noise, but it should still be captured by Sentry
+    });
   };
 
   const triggerTransaction = async () => {

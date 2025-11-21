@@ -16,7 +16,9 @@
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "predeploy": "pnpm run type-check && pnpm run build",
+    "deploy": "pnpm predeploy && bash scripts/deploy.sh"
   },
   "dependencies": {
     "@tuvix/api": "workspace:*",

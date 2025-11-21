@@ -588,6 +588,18 @@ npx wrangler secret put BASE_URL
 # Cross-subdomain cookies (if frontend/API on different subdomains)
 npx wrangler secret put COOKIE_DOMAIN
 # Enter: example.com  (root domain, not subdomain like api.example.com)
+
+# Sentry Error Tracking (Optional but recommended)
+# Get DSN from: https://techsquidtv.sentry.io/settings/projects/tuvix-api/keys/
+npx wrangler secret put SENTRY_DSN
+# Enter: https://xxx@xxx.ingest.sentry.io/xxx
+
+npx wrangler secret put SENTRY_ENVIRONMENT
+# Enter: production (or staging, development, etc.)
+
+# Optional: Release tracking (git commit SHA or version)
+npx wrangler secret put SENTRY_RELEASE
+# Enter: v1.0.0 or git commit SHA
 ```
 
 #### Step 4: Database Migrations
@@ -1239,6 +1251,9 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
 | `D1_DATABASE_ID` | Yes | Your D1 database ID (from `wrangler d1 create tuvix`) - used for envsubst substitution |
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | Yes | Cloudflare Pages project name |
 | `VITE_API_URL` | Yes | API URL for frontend builds (e.g., `https://api.example.com/trpc` or `https://your-worker.workers.dev/trpc`) |
+| `VITE_SENTRY_DSN` | No | Frontend Sentry DSN (for error tracking) - Get from Sentry project settings |
+| `VITE_SENTRY_ENVIRONMENT` | No | Frontend Sentry environment (e.g., `production`, `staging`) |
+| `VITE_SENTRY_RELEASE` | No | Frontend Sentry release (e.g., git commit SHA or version tag) |
 
 **Note:** The worker name is automatically read from `packages/api/wrangler.toml` → `name` field. No secret needed.
 
@@ -1294,6 +1309,71 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
 - ✅ **Environment Protection:** Production deployments use GitHub environments
 - ✅ **Release Tag Checkout:** Ensures correct code version is deployed
 - ✅ **Deployment URLs:** Displayed in workflow summary
+
+### Sentry Error Tracking Setup
+
+**Purpose:** Monitor errors and performance across frontend and backend with distributed tracing.
+
+**Projects:**
+- **Backend:** `tuvix-api` (Cloudflare Workers)
+- **Frontend:** `tuvix-app` (Cloudflare Pages)
+
+**Setup Steps:**
+
+1. **Get Sentry DSNs:**
+   - Go to https://techsquidtv.sentry.io/settings/projects/
+   - Click on `tuvix-api` → Settings → Client Keys (DSN)
+   - Copy the DSN (format: `https://xxx@xxx.ingest.sentry.io/xxx`)
+   - Repeat for `tuvix-app`
+
+2. **Set Backend Secrets (Cloudflare Workers):**
+   ```bash
+   cd packages/api
+   
+   # Required: Backend DSN
+   npx wrangler secret put SENTRY_DSN
+   # Enter: https://xxx@xxx.ingest.sentry.io/xxx (from tuvix-api project)
+   
+   # Required: Environment name
+   npx wrangler secret put SENTRY_ENVIRONMENT
+   # Enter: production (or staging, development, etc.)
+   
+   # Optional: Release tracking (git commit SHA or version)
+   npx wrangler secret put SENTRY_RELEASE
+   # Enter: v1.0.0 or git commit SHA
+   ```
+
+3. **Set Frontend Secrets (GitHub Actions):**
+   - Go to GitHub → Settings → Secrets and variables → Actions
+   - Add `VITE_SENTRY_DSN` (from `tuvix-app` project)
+   - Add `VITE_SENTRY_ENVIRONMENT` (e.g., `production`)
+   - Add `VITE_SENTRY_RELEASE` (optional, e.g., git commit SHA)
+
+4. **Verify Setup:**
+   ```bash
+   # Test backend Sentry
+   curl https://api.tuvix.app/debug-sentry
+   # Should return error response and create Sentry event
+   
+   # Check Sentry dashboard for events
+   # https://techsquidtv.sentry.io/issues/
+   ```
+
+**Distributed Tracing:**
+- ✅ **Automatic:** Frontend automatically propagates trace headers to backend
+- ✅ **Trace Propagation:** Configured in `packages/app/src/main.tsx` → `tracePropagationTargets`
+- ✅ **Backend Handling:** Cloudflare Workers automatically accepts trace headers via `Sentry.withSentry()`
+- ✅ **View Traces:** In Sentry, click on an error → "View Trace" to see full request flow
+
+**What Gets Tracked:**
+- Frontend: JavaScript errors, unhandled promise rejections, React errors, performance metrics
+- Backend: API errors, D1 database queries, rate limit errors, performance metrics
+- Distributed: Full request flow from frontend → backend with trace context
+
+**Troubleshooting:**
+- **No events in Sentry:** Check DSNs are set correctly, check browser console for Sentry initialization logs
+- **No distributed traces:** Verify `tracePropagationTargets` includes your API URL (e.g., `api.tuvix.app`)
+- **Backend not logging:** Check Worker logs (`npx wrangler tail`) for Sentry initialization messages
 
 ### Troubleshooting CI/CD
 

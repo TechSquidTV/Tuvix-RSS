@@ -30,10 +30,38 @@ const t = initTRPC.context<Context>().create({
 // Base router and procedure helpers
 export const router = t.router;
 
-// Base procedure
-// Note: Sentry tRPC middleware will be applied automatically if Sentry is initialized
-// The middleware is added via Sentry's automatic instrumentation when available
-export const publicProcedure = t.procedure;
+/**
+ * Sentry tRPC middleware (optional)
+ * Creates spans and improves error capturing for tRPC handlers
+ * See: https://docs.sentry.io/platforms/javascript/guides/cloudflare/configuration/integrations/trpc
+ *
+ * The middleware is created at module load time, but will only create spans
+ * if Sentry is initialized (checked internally by Sentry).
+ */
+let sentryMiddleware: ReturnType<typeof t.middleware> | null = null;
+try {
+  // Try to import Sentry and create middleware
+  // This will work in Cloudflare Workers where @sentry/cloudflare is available
+  // In Node.js, this will fail gracefully and we'll continue without it
+  const SentryModule = await import("@sentry/cloudflare");
+  if (SentryModule.trpcMiddleware) {
+    sentryMiddleware = t.middleware(
+      SentryModule.trpcMiddleware({
+        attachRpcInput: true, // Include RPC input in error context for debugging
+      }),
+    );
+  }
+} catch {
+  // Sentry not available (e.g., in Node.js environment or not installed)
+  // Continue without Sentry middleware - it's optional
+  sentryMiddleware = null;
+}
+
+// Base procedure with Sentry middleware if available
+// The middleware will only create spans if Sentry is initialized at runtime
+export const publicProcedure = sentryMiddleware
+  ? t.procedure.use(sentryMiddleware)
+  : t.procedure;
 
 // Auth middleware - ensures user is authenticated and not banned
 const isAuthed = t.middleware(async ({ ctx, next }) => {

@@ -82,12 +82,23 @@ const workerHandler = {
       return {
         "Access-Control-Allow-Origin": allowOrigin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, sentry-trace, baggage",
         "Access-Control-Allow-Credentials": "true",
       };
     };
 
     const requestOrigin = request.headers.get("Origin");
+
+    // Handle CORS preflight globally (before any endpoint-specific checks)
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          ...getCorsHeaders(requestOrigin),
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
 
     // Health check endpoint
     if (url.pathname === "/health") {
@@ -106,6 +117,17 @@ const workerHandler = {
     if (url.pathname === "/debug-sentry") {
       if (requestEnv.SENTRY_DSN) {
         try {
+          const testError = new Error("Test Sentry error!");
+          // Explicitly capture the exception
+          const eventId = await Sentry.captureException(testError, {
+            tags: { test: "debug-sentry" },
+            extra: {
+              endpoint: "/debug-sentry",
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          // Also create a span for tracing
           await Sentry.startSpan(
             {
               op: "test",
@@ -113,12 +135,15 @@ const workerHandler = {
             },
             async () => {
               await new Promise((resolve) => setTimeout(resolve, 100));
-              throw new Error("Test Sentry error!");
             },
           );
-          // This should never be reached since the span throws an error
+
           return new Response(
-            JSON.stringify({ error: "Unexpected: error was not thrown" }),
+            JSON.stringify({
+              error: "Test error captured by Sentry",
+              message: testError.message,
+              eventId: eventId || "unknown",
+            }),
             {
               status: 500,
               headers: {
@@ -128,11 +153,13 @@ const workerHandler = {
             },
           );
         } catch (error) {
-          // Error was thrown and captured by Sentry
+          // Fallback: capture any unexpected errors
+          const eventId = await Sentry.captureException(error);
           return new Response(
             JSON.stringify({
-              error: "Test error thrown and captured by Sentry",
+              error: "Unexpected error occurred",
               message: error instanceof Error ? error.message : String(error),
+              eventId: eventId || "unknown",
             }),
             {
               status: 500,
@@ -191,16 +218,6 @@ const workerHandler = {
           },
         );
       }
-    }
-
-    // Handle CORS preflight
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          ...getCorsHeaders(requestOrigin),
-          "Access-Control-Max-Age": "86400",
-        },
-      });
     }
 
     // Public RSS feed endpoint

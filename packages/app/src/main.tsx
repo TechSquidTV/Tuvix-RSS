@@ -38,6 +38,13 @@ if (dsn) {
     "development";
   const release = import.meta.env.VITE_SENTRY_RELEASE;
 
+  console.log("🔧 Sentry Configuration:", {
+    dsn: dsn.substring(0, 20) + "...", // Log partial DSN for debugging
+    environment,
+    release,
+    hasApiUrl: !!import.meta.env.VITE_API_URL,
+  });
+
   Sentry.init({
     dsn,
     environment,
@@ -67,26 +74,91 @@ if (dsn) {
 
     // Trace propagation for distributed tracing
     // This enables tracing from frontend → backend tRPC calls
-    tracePropagationTargets: [
-      /^https:\/\/api\.tuvix\.dev/,
-      /^http:\/\/localhost:3001/,
-      /^https:\/\/.*\.workers\.dev/,
-    ],
+    // Uses VITE_API_URL to determine the API origin, with fallbacks for common patterns
+    tracePropagationTargets: (() => {
+      const targets: (string | RegExp)[] = [];
+
+      // Add API URL from environment (extract origin from VITE_API_URL)
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl) {
+        try {
+          const url = new URL(apiUrl);
+          targets.push(url.origin);
+        } catch {
+          // Invalid URL, skip
+        }
+      }
+
+      // Add custom trace propagation targets from environment (comma-separated)
+      const customTargets = import.meta.env
+        .VITE_SENTRY_TRACE_PROPAGATION_TARGETS;
+      if (customTargets) {
+        customTargets.split(",").forEach((target) => {
+          const trimmed = target.trim();
+          if (trimmed) {
+            // Support regex patterns (if starts with /^ and ends with $/)
+            if (trimmed.startsWith("/^") && trimmed.endsWith("$/")) {
+              try {
+                const regexStr = trimmed.slice(1, -1); // Remove leading / and trailing $/
+                targets.push(new RegExp(regexStr));
+              } catch {
+                // Invalid regex, add as string
+                targets.push(trimmed);
+              }
+            } else {
+              targets.push(trimmed);
+            }
+          }
+        });
+      }
+
+      // Fallback defaults if no environment variables set
+      if (targets.length === 0) {
+        targets.push(
+          /^https:\/\/api\.tuvix\.app/, // Production API
+          /^https:\/\/api\.tuvix\.dev/, // Development API
+          /^http:\/\/localhost:3001/, // Local development
+          /^https:\/\/.*\.workers\.dev/, // Cloudflare Workers (any subdomain)
+        );
+      }
+
+      return targets;
+    })(),
 
     // Filter out noise
     beforeSend(event) {
-      // Filter out health check and test routes
-      if (
-        event.request?.url?.includes("/health") ||
-        event.request?.url?.includes("/debug-sentry")
-      ) {
-        return null;
+      // Only filter out actual API requests to health/debug endpoints, not page URLs
+      // Check if this is an API request (not a page navigation)
+      const requestUrl = event.request?.url;
+      if (requestUrl) {
+        // Filter out API health check requests
+        if (requestUrl.includes("/health")) {
+          return null;
+        }
+        // Only filter /debug-sentry if it's an API request (contains /api/ or /trpc/)
+        // Don't filter if it's just the page URL
+        if (
+          requestUrl.includes("/debug-sentry") &&
+          (requestUrl.includes("/api/") || requestUrl.includes("/trpc/"))
+        ) {
+          return null;
+        }
       }
       return event;
     },
   });
 
   console.log("✅ Sentry initialized for frontend");
+
+  // Test Sentry is working
+  Sentry.captureMessage(
+    "Sentry test message - initialization complete",
+    "info",
+  );
+} else {
+  console.warn(
+    "⚠️ Sentry DSN not configured. Set VITE_SENTRY_DSN to enable error tracking.",
+  );
 }
 
 // Register PWA service worker

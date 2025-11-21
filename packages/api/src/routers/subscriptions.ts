@@ -1603,6 +1603,9 @@ export const subscriptionsRouter = router({
 
           if (existingSources.length > 0) {
             sourceId = existingSources[0].id;
+            console.log(
+              `[OPML Import] Found existing source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`,
+            );
             await ctx.db
               .update(schema.sources)
               .set({
@@ -1625,6 +1628,9 @@ export const subscriptionsRouter = router({
               })
               .returning();
             sourceId = newSource[0].id;
+            console.log(
+              `[OPML Import] Created new source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`,
+            );
           }
 
           // Check if already subscribed
@@ -1641,6 +1647,9 @@ export const subscriptionsRouter = router({
 
           if (existingSubscription.length > 0) {
             // Already subscribed, skip
+            console.log(
+              `[OPML Import] Already subscribed: userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`,
+            );
             successCount++;
             continue;
           }
@@ -1679,6 +1688,9 @@ export const subscriptionsRouter = router({
             .returning();
 
           const subscriptionId = newSubscription[0].id;
+          console.log(
+            `[OPML Import] Created subscription: subscriptionId=${subscriptionId}, userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`,
+          );
 
           // Create/link categories (using normalization helper to prevent duplicates)
           if (feedInfo.categories.length > 0) {

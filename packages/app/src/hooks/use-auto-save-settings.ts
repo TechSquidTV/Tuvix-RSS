@@ -7,6 +7,24 @@ interface UseAutoSaveSettingsOptions<T> {
   debounceMs?: number;
 }
 
+// Server-managed fields that should be excluded from change detection and save operations
+const SERVER_MANAGED_FIELDS = new Set(["updatedAt", "createdAt", "userId"]);
+
+/**
+ * Filters out server-managed fields from an object
+ */
+function excludeServerManagedFields<T extends Record<string, unknown>>(
+  obj: T,
+): Partial<T> {
+  const filtered: Partial<T> = {};
+  Object.keys(obj).forEach((key) => {
+    if (!SERVER_MANAGED_FIELDS.has(key)) {
+      filtered[key as keyof T] = obj[key];
+    }
+  });
+  return filtered;
+}
+
 export function useAutoSaveSettings<T extends Record<string, unknown>>({
   settings,
   onSave,
@@ -19,13 +37,15 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>({
   // Load settings into form when they're fetched
   useEffect(() => {
     if (settings) {
-      const settingsSnapshot = JSON.stringify(settings);
+      // Compare only user-editable fields (exclude server-managed fields)
+      const userEditableSettings = excludeServerManagedFields(settings);
+      const settingsSnapshot = JSON.stringify(userEditableSettings);
 
       // Only update formData if settings actually changed
       // This prevents updating formData when settings updates from our own save
       if (lastSavedSnapshotRef.current !== settingsSnapshot) {
         setFormData(settings);
-        // Update the snapshot to match what we just loaded
+        // Update the snapshot to match what we just loaded (user-editable fields only)
         lastSavedSnapshotRef.current = settingsSnapshot;
       }
 
@@ -45,25 +65,29 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>({
   useEffect(() => {
     if (!settings || !debouncedFormData || isInitialLoad) return;
 
-    // Check if any value actually changed from the loaded settings
-    const hasChanges = Object.keys(debouncedFormData).some(
-      (key) => debouncedFormData[key] !== settings[key],
+    // Filter out server-managed fields for comparison
+    const userEditableFormData = excludeServerManagedFields(debouncedFormData);
+    const userEditableSettings = excludeServerManagedFields(settings);
+
+    // Check if any user-editable value actually changed from the loaded settings
+    const hasChanges = Object.keys(userEditableFormData).some(
+      (key) => userEditableFormData[key] !== userEditableSettings[key],
     );
 
     if (hasChanges) {
-      // Create a partial update object with only changed values
+      // Create a partial update object with only changed user-editable values
       const updates: Partial<T> = {};
-      Object.keys(debouncedFormData).forEach((key) => {
-        if (debouncedFormData[key] !== settings[key]) {
-          updates[key as keyof T] = debouncedFormData[key];
+      Object.keys(userEditableFormData).forEach((key) => {
+        if (userEditableFormData[key] !== userEditableSettings[key]) {
+          updates[key as keyof T] = userEditableFormData[key];
         }
       });
 
-      // Only save if there are actual updates
+      // Only save if there are actual updates (should always be true here, but double-check)
       if (Object.keys(updates).length > 0) {
-        // Create snapshot of the full formData we're about to save
+        // Create snapshot of the user-editable formData we're about to save
         // This prevents saving the same data twice if the effect runs multiple times
-        const formDataSnapshot = JSON.stringify(debouncedFormData);
+        const formDataSnapshot = JSON.stringify(userEditableFormData);
 
         // Only save if this is different from what we last saved
         if (lastSavedSnapshotRef.current !== formDataSnapshot) {
