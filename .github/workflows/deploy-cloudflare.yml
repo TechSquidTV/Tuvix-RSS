@@ -24,6 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
+    env:
+      # Set from secret for conditional step execution
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,7 +106,7 @@ jobs:
           echo "Release version: $RELEASE_VERSION"
 
       - name: Set Sentry Release (Backend)
-        if: secrets.SENTRY_DSN != ''
+        if: env.SENTRY_DSN != ''
         run: |
           # Only set if SENTRY_DSN secret exists (Sentry is configured)
           # Set secret using wrangler with stdin (non-interactive)
