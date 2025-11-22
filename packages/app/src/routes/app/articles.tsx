@@ -13,7 +13,7 @@ import {
 } from "@/components/app/tabs-animate";
 import { Badge } from "@/components/ui/badge";
 import { useInView } from "react-intersection-observer";
-import { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Inbox, CheckCheck, Clock, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -59,8 +59,14 @@ function ArticlesPage() {
   const { data: userSettings } = useUserSettings();
   const { ref, inView } = useInView();
   const isMobile = useIsMobile();
-  const [showFirstTimeTooltip, setShowFirstTimeTooltip] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [showFirstTimeTooltip, setShowFirstTimeTooltip] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const hasSeenTooltip = localStorage.getItem("hasSeenArticleTooltip");
+    return !hasSeenTooltip;
+  });
+  const [activeFilter, setActiveFilter] = useState(() => {
+    return userSettings?.defaultFilter || "all";
+  });
   const [markAllDialogOpen, setMarkAllDialogOpen] = useState(false);
   const [markOldDialogOpen, setMarkOldDialogOpen] = useState(false);
 
@@ -91,14 +97,28 @@ function ArticlesPage() {
     isError,
   } = useInfiniteArticles(filters);
 
-  // Show first-time tooltip
+  // Mark tooltip as seen when shown
   useEffect(() => {
-    const hasSeenTooltip = localStorage.getItem("hasSeenArticleTooltip");
-    if (!hasSeenTooltip && userSettings) {
-      setShowFirstTimeTooltip(true);
+    if (showFirstTimeTooltip) {
       localStorage.setItem("hasSeenArticleTooltip", "true");
     }
-  }, [userSettings]);
+  }, [showFirstTimeTooltip]);
+
+  // Update filter when userSettings changes after initial mount
+  const prevDefaultFilterRef = useRef(userSettings?.defaultFilter);
+  useEffect(() => {
+    if (
+      userSettings?.defaultFilter &&
+      userSettings.defaultFilter !== prevDefaultFilterRef.current &&
+      userSettings.defaultFilter !== activeFilter
+    ) {
+      prevDefaultFilterRef.current = userSettings.defaultFilter;
+      // Use startTransition to avoid blocking render
+      React.startTransition(() => {
+        setActiveFilter(userSettings.defaultFilter);
+      });
+    }
+  }, [userSettings?.defaultFilter, activeFilter]);
 
   // Get all articles and calculate counts
   // Backend returns paginated response: {items: Article[], total: number, hasMore: boolean}
@@ -188,13 +208,6 @@ function ArticlesPage() {
         return true;
     }
   });
-
-  // Set initial filter from user settings
-  useEffect(() => {
-    if (userSettings?.defaultFilter) {
-      setActiveFilter(userSettings.defaultFilter);
-    }
-  }, [userSettings]);
 
   // Load more when scrolling to bottom (only for "all" filter)
   // Other filters are client-side filtered, so we shouldn't fetch more pages
