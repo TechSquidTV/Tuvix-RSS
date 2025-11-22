@@ -9,6 +9,8 @@
 import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzleD1 } from "drizzle-orm/d1";
 import Database from "better-sqlite3";
+import * as fs from "fs";
+import * as path from "path";
 import * as schema from "./schema";
 import type { Env } from "../types";
 
@@ -28,6 +30,13 @@ export function createDatabase(env: Env) {
   } else {
     // Node.js/Docker with better-sqlite3
     const dbPath = env.DATABASE_PATH || "./data/tuvix.db";
+
+    // Ensure data directory exists
+    const dataDir = path.dirname(dbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
     const sqlite = new Database(dbPath);
 
     // Enable WAL mode for better concurrency
