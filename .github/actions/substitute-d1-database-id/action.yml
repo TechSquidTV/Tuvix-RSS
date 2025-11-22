@@ -18,6 +18,9 @@ runs:
       env:
         D1_DATABASE_ID: ${{ inputs.d1-database-id }}
       run: |
+        # Store absolute path to wrangler.toml for consistency
+        WRANGLER_TOML_PATH=$(cd "$(dirname "${{ inputs.wrangler-toml-path }}")" && pwd)/$(basename "${{ inputs.wrangler-toml-path }}")
+        
         # Verify secret is set (without leaking value)
         if [ -z "$D1_DATABASE_ID" ]; then
           echo "::error::D1_DATABASE_ID secret is not set"
@@ -25,28 +28,34 @@ runs:
         fi
         
         # Verify placeholder exists in file
-        if ! grep -q '\${D1_DATABASE_ID}' ${{ inputs.wrangler-toml-path }}; then
+        if ! grep -q '\${D1_DATABASE_ID}' "$WRANGLER_TOML_PATH"; then
           echo "::error::Placeholder \${D1_DATABASE_ID} not found in wrangler.toml"
           exit 1
         fi
         
         # Perform substitution with explicit variable list
-        envsubst '$D1_DATABASE_ID' < ${{ inputs.wrangler-toml-path }} > ${{ inputs.wrangler-toml-path }}.tmp
+        envsubst '$D1_DATABASE_ID' < "$WRANGLER_TOML_PATH" > "$WRANGLER_TOML_PATH".tmp
         
         # Verify substitution succeeded (placeholder should be gone)
-        if grep -q '\${D1_DATABASE_ID}' ${{ inputs.wrangler-toml-path }}.tmp; then
+        if grep -q '\${D1_DATABASE_ID}' "$WRANGLER_TOML_PATH".tmp; then
           echo "::error::Substitution failed - placeholder still present"
           exit 1
         fi
         
         # Verify database_id is not empty after substitution
-        if grep -q 'database_id = ""' ${{ inputs.wrangler-toml-path }}.tmp; then
+        if grep -q 'database_id = ""' "$WRANGLER_TOML_PATH".tmp; then
           echo "::error::database_id is empty after substitution"
           exit 1
         fi
         
-        # Move substituted file into place
-        mv ${{ inputs.wrangler-toml-path }}.tmp ${{ inputs.wrangler-toml-path }}
+        # Clean up the database_id line to ensure it ends with just a newline (no trailing whitespace)
+        # This fixes TOML parsing issues where trailing characters after the value cause errors
+        # Remove any trailing whitespace after the closing quote on the database_id line
+        sed -i 's/^\(database_id = ".*"\)[[:space:]]*$/\1/' "$WRANGLER_TOML_PATH".tmp
+        
+        # Move substituted file into place (using absolute path for consistency)
+        # Note: TOML syntax will be validated by wrangler during deployment
+        mv "$WRANGLER_TOML_PATH".tmp "$WRANGLER_TOML_PATH"
         
         echo "✅ Successfully substituted D1_DATABASE_ID (value not logged for security)"
 

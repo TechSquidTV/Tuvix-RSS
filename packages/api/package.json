@@ -29,6 +29,7 @@
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
     "validate:cloudflare": "tsx scripts/validate-cloudflare-config.ts",
+    "test:toml-substitution": "bash scripts/test-toml-substitution.sh",
     "predeploy": "pnpm validate:cloudflare && pnpm build",
     "deploy": "pnpm predeploy && bash scripts/deploy.sh",
     "create-admin": "tsx src/cli/create-admin.ts",
