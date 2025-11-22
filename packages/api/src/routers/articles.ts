@@ -573,9 +573,14 @@ export const articlesRouter = router({
 
       // Get existing states to preserve 'saved' flags
       // Batch the query to avoid exceeding D1's 100-parameter limit
+      // Note: WHERE clause has userId (1 param) + inArray (batch.length params)
+      // So chunk size must be D1_MAX_PARAMETERS - 1 to stay within limit
       const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
         [];
-      const batches = chunkArray(input.articleIds, D1_MAX_PARAMETERS);
+      const batches = chunkArray(
+        input.articleIds,
+        D1_MAX_PARAMETERS - 1
+      );
 
       for (const batch of batches) {
         const batchStates = await ctx.db
@@ -669,9 +674,11 @@ export const articlesRouter = router({
 
       // Get existing states to preserve 'saved' flags
       // Batch the query to avoid exceeding D1's 100-parameter limit
+      // Note: WHERE clause has userId (1 param) + inArray (batch.length params)
+      // So chunk size must be D1_MAX_PARAMETERS - 1 to stay within limit
       const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
         [];
-      const batches = chunkArray(articleIds, D1_MAX_PARAMETERS);
+      const batches = chunkArray(articleIds, D1_MAX_PARAMETERS - 1);
 
       for (const batch of batches) {
         const batchStates = await ctx.db

@@ -73,6 +73,7 @@ This guide covers development and release processes for both Docker Compose and 
       - [Automatic Deployment (Recommended)](#automatic-deployment-recommended)
       - [Manual Deployment](#manual-deployment)
     - [Workflow Features](#workflow-features)
+    - [Sentry Error Tracking Setup](#sentry-error-tracking-setup)
     - [Troubleshooting CI/CD](#troubleshooting-cicd)
   - [Security Checklist](#security-checklist)
     - [Both Deployments](#both-deployments)
@@ -1260,12 +1261,24 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
 **Getting Cloudflare Credentials:**
 
 1. **API Token:** Cloudflare Dashboard → My Profile → API Tokens → Create token with: Account.Cloudflare Workers:Edit, Account.Cloudflare Pages:Edit
-2. **Account ID:** Found in Cloudflare Dashboard → Right sidebar
+2. **Account ID:** 
+   - **Via Wrangler (Recommended):** Run `npx wrangler whoami` - displays your account ID
+   - **Via Dashboard:** Cloudflare Dashboard → Right sidebar (under your account name)
 3. **D1 Database ID:** Run `npx wrangler d1 create tuvix` locally, copy the `database_id` from output, add as `D1_DATABASE_ID` secret
-4. **Pages Project:** Create via CLI (`npx wrangler pages project create tuvix-app`) or Dashboard, add project name as `CLOUDFLARE_PAGES_PROJECT_NAME` secret (must match exactly, case-sensitive)
+4. **Pages Project:** 
+   - **List existing projects:** Run `npx wrangler pages project list` to see all your Pages projects
+   - **Create new project:** Run `npx wrangler pages project create tuvix-app` (or create via Dashboard)
+   - **Add project name:** Use the project name as `CLOUDFLARE_PAGES_PROJECT_NAME` secret (must match exactly, case-sensitive)
 5. **Worker Name:** Automatically read from `packages/api/wrangler.toml` → `name` field (no secret needed)
 
 ### Deployment Process
+
+**Important:** 
+- **Pushing directly to `main` will NOT trigger a deployment** (or any CI checks)
+- **CI workflows only run on pull requests**, not direct pushes
+- **Deployments only happen when:**
+  - A GitHub release is published (automatic)
+  - The workflow is manually triggered via GitHub Actions UI
 
 #### Automatic Deployment (Recommended)
 
@@ -1309,6 +1322,7 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
 - ✅ **Environment Protection:** Production deployments use GitHub environments
 - ✅ **Release Tag Checkout:** Ensures correct code version is deployed
 - ✅ **Deployment URLs:** Displayed in workflow summary
+- ✅ **Automatic Sentry Release Tracking:** Release version automatically passed to Sentry for both backend and frontend
 
 ### Sentry Error Tracking Setup
 
@@ -1338,8 +1352,10 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
    npx wrangler secret put SENTRY_ENVIRONMENT
    # Enter: production (or staging, development, etc.)
    
-   # Optional: Release tracking (git commit SHA or version)
-   npx wrangler secret put SENTRY_RELEASE
+   # Optional: Release tracking (automatically set during deployment)
+   # The deployment workflow automatically sets SENTRY_RELEASE from the release tag
+   # You can manually set it if needed:
+   # npx wrangler secret put SENTRY_RELEASE
    # Enter: v1.0.0 or git commit SHA
    ```
 
@@ -1347,7 +1363,8 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
    - Go to GitHub → Settings → Secrets and variables → Actions
    - Add `VITE_SENTRY_DSN` (from `tuvix-app` project)
    - Add `VITE_SENTRY_ENVIRONMENT` (e.g., `production`)
-   - Add `VITE_SENTRY_RELEASE` (optional, e.g., git commit SHA)
+   - **Note:** `VITE_SENTRY_RELEASE` is automatically set during deployment from the release tag
+   - You can manually set it if needed (optional, e.g., git commit SHA)
 
 4. **Verify Setup:**
    ```bash
@@ -1365,10 +1382,17 @@ Configure these in **Settings → Secrets and variables → Actions** → **Secr
 - ✅ **Backend Handling:** Cloudflare Workers automatically accepts trace headers via `Sentry.withSentry()`
 - ✅ **View Traces:** In Sentry, click on an error → "View Trace" to see full request flow
 
+**Release Tracking:**
+- ✅ **Automatic:** Release version is automatically extracted from GitHub release tag or manual input
+- ✅ **Backend:** `SENTRY_RELEASE` secret is automatically updated during deployment workflow
+- ✅ **Frontend:** `VITE_SENTRY_RELEASE` is automatically passed as environment variable during build
+- ✅ **Fallback:** If no release tag is provided, uses git commit SHA
+
 **What Gets Tracked:**
 - Frontend: JavaScript errors, unhandled promise rejections, React errors, performance metrics
 - Backend: API errors, D1 database queries, rate limit errors, performance metrics
 - Distributed: Full request flow from frontend → backend with trace context
+- Release: All errors are tagged with the release version for easy tracking
 
 **Troubleshooting:**
 - **No events in Sentry:** Check DSNs are set correctly, check browser console for Sentry initialization logs
