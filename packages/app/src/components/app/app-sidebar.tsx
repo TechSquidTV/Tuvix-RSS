@@ -28,6 +28,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/animate-ui/components/radix/sidebar";
 import {
   Accordion,
@@ -46,8 +47,50 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: subscriptionsData } = useSubscriptions();
   const { data: sessionData, isLoading: isUserLoading } = useCurrentUser();
   const location = useLocation();
+  const { state, setOpen } = useSidebar();
   // Better Auth's useSession() returns {data: {user, session}, ...}
   const user = sessionData?.user;
+
+  // State for controlled accordions
+  const [accordionValues, setAccordionValues] = React.useState({
+    subscriptions: "subscriptions",
+    categories: "categories",
+  });
+
+  // Helper function to open sidebar if collapsed
+  const ensureSidebarOpen = React.useCallback(() => {
+    if (state === "collapsed") {
+      setOpen(true);
+    }
+  }, [state, setOpen]);
+
+  // Prevents accordion toggle when sidebar is collapsed - only opens sidebar
+  const handleAccordionTriggerClick = React.useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (state === "collapsed") {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(true);
+      }
+      // When sidebar is expanded, allow normal accordion behavior
+    },
+    [state, setOpen],
+  );
+
+  // Creates a handler for accordion value changes that prevents changes when sidebar is collapsed
+  const createAccordionChangeHandler = React.useCallback(
+    (key: keyof typeof accordionValues) => (value: string) => {
+      if (state !== "collapsed") {
+        setAccordionValues((prev) => ({ ...prev, [key]: value }));
+      }
+    },
+    [state],
+  );
+
+  const handleSubscriptionsAccordionChange =
+    createAccordionChangeHandler("subscriptions");
+  const handleCategoriesAccordionChange =
+    createAccordionChangeHandler("categories");
 
   // Get current search params from URL
   const currentCategoryId = location.search?.category_id
@@ -79,6 +122,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Link
           to="/app"
           className="flex items-center gap-2 px-2 py-1 hover:no-underline group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          onClick={ensureSidebarOpen}
         >
           <div className="bg-primary text-primary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
             <TuvixLogo className="size-5" />
@@ -96,7 +140,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/app/articles" search={{ category_id: undefined }}>
+                  <Link
+                    to="/app/articles"
+                    search={{ category_id: undefined }}
+                    onClick={ensureSidebarOpen}
+                  >
                     <Newspaper />
                     <span>Articles</span>
                   </Link>
@@ -106,7 +154,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuItem>
                 <Accordion
                   type="single"
-                  defaultValue="subscriptions"
+                  value={accordionValues.subscriptions}
+                  onValueChange={handleSubscriptionsAccordionChange}
                   collapsible
                 >
                   <AccordionItem value="subscriptions">
@@ -115,6 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <AccordionTrigger
                           showArrow={false}
                           className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&[data-state=open]>svg:last-child]:rotate-90 [&[data-state=open]>svg:not(:last-child)]:!rotate-0"
+                          onClick={handleAccordionTriggerClick}
                         >
                           <Rss />
                           <span>Subscriptions</span>
@@ -136,6 +186,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 category_id: undefined,
                                 subscription_id: undefined,
                               }}
+                              onClick={ensureSidebarOpen}
                             >
                               <span>All Subscriptions</span>
                             </Link>
@@ -164,6 +215,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                           subscription_id: sub.id,
                                         }
                                   }
+                                  onClick={ensureSidebarOpen}
                                 >
                                   <FeedAvatar
                                     feedName={subscriptionTitle}
@@ -185,7 +237,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         {subscriptions.length > 10 && (
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton asChild>
-                              <Link to="/app/subscriptions">
+                              <Link
+                                to="/app/subscriptions"
+                                onClick={ensureSidebarOpen}
+                              >
                                 <span className="font-semibold">
                                   View More →
                                 </span>
@@ -206,13 +261,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupLabel>Categories</SidebarGroupLabel>
           <SidebarGroupContent>
-            <Accordion type="single" defaultValue="categories" collapsible>
+            <Accordion
+              type="single"
+              value={accordionValues.categories}
+              onValueChange={handleCategoriesAccordionChange}
+              collapsible
+            >
               <AccordionItem value="categories">
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <AccordionTrigger
                       showArrow={false}
                       className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground [&[data-state=open]>svg]:rotate-90 flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0"
+                      onClick={handleAccordionTriggerClick}
                     >
                       <Tag />
                       <span>Categories</span>
@@ -228,6 +289,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           <Link
                             to="/app/articles"
                             search={{ category_id: category.id }}
+                            onClick={ensureSidebarOpen}
                           >
                             <CategoryBadge
                               category={category}
@@ -240,7 +302,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     ))}
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild>
-                        <Link to="/app/categories">
+                        <Link to="/app/categories" onClick={ensureSidebarOpen}>
                           <span className="font-semibold">View All →</span>
                         </Link>
                       </SidebarMenuSubButton>
@@ -259,7 +321,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/app/feeds">
+                  <Link to="/app/feeds" onClick={ensureSidebarOpen}>
                     <Rss />
                     <span>Public Feeds</span>
                   </Link>
@@ -267,7 +329,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/app/settings">
+                  <Link to="/app/settings" onClick={ensureSidebarOpen}>
                     <Settings2 />
                     <span>Settings</span>
                   </Link>
@@ -285,7 +347,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link to="/app/admin">
+                    <Link to="/app/admin" onClick={ensureSidebarOpen}>
                       <Shield />
                       <span>Dashboard</span>
                     </Link>
@@ -293,7 +355,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link to="/app/admin/users">
+                    <Link to="/app/admin/users" onClick={ensureSidebarOpen}>
                       <Users />
                       <span>Users</span>
                     </Link>
@@ -301,7 +363,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link to="/app/admin/plans">
+                    <Link to="/app/admin/plans" onClick={ensureSidebarOpen}>
                       <CreditCard />
                       <span>Plans</span>
                     </Link>
@@ -309,7 +371,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link to="/app/admin/settings">
+                    <Link to="/app/admin/settings" onClick={ensureSidebarOpen}>
                       <Settings2 />
                       <span>Admin Settings</span>
                     </Link>
