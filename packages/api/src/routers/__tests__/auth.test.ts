@@ -266,7 +266,7 @@ describe("Auth Router", () => {
         (log) => log.action === "password_reset_request"
       );
       expect(requestLog).toBeDefined();
-      // Better Auth's forgetPassword may throw if email service isn't properly configured
+      // Better Auth's requestPasswordReset may throw if email service isn't properly configured
       // or if there's an issue, which would result in success=false
       // For this test, we just verify that logging happened
       // The actual success value depends on Better Auth's internal behavior
@@ -313,7 +313,7 @@ describe("Auth Router", () => {
         (log) => log.action === "password_reset_email_sent"
       );
       // Email logging happens in sendResetPassword callback, which may not be called
-      // when using auth.api.forgetPassword() directly. For now, we verify request logging.
+      // when using auth.api.requestPasswordReset() directly. For now, we verify request logging.
       if (emailLog) {
         expect(emailLog.success).toBe(true);
       }
@@ -358,7 +358,7 @@ describe("Auth Router", () => {
 
       // Check security audit log for email send event
       // Note: Email failure logging happens in Better Auth's sendResetPassword callback
-      // which may not be called when using auth.api.forgetPassword() directly
+      // which may not be called when using auth.api.requestPasswordReset() directly
       const logs = await db
         .select()
         .from(schema.securityAuditLog)

@@ -69,7 +69,7 @@ Better Auth automatically handles these endpoints at `/api/auth/*`:
 - `POST /api/auth/sign-out` - Logout
 - `GET /api/auth/session` - Get current session
 - `POST /api/auth/change-password` - Change password
-- `POST /api/auth/forget-password` - Request password reset
+- `POST /api/auth/request-password-reset` - Request password reset
 - `POST /api/auth/reset-password` - Reset password with token
 
 ### Frontend Client
@@ -365,7 +365,7 @@ Body: { currentPassword, newPassword }
 
 #### Request Password Reset
 ```typescript
-POST /api/auth/forget-password
+POST /api/auth/request-password-reset
 Body: { email, redirectTo }
 ```
 
@@ -421,7 +421,7 @@ auth.requestPasswordReset({
   email: string
 })
 ```
-Uses Better Auth's `forgetPassword` internally.
+Uses Better Auth's `requestPasswordReset` internally.
 
 #### Reset Password
 ```typescript

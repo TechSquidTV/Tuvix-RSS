@@ -359,7 +359,10 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 const userWithPlugins = user as BetterAuthUser;
                 const emailResult = await sendWelcomeEmail(env, {
                   to: user.email,
-                  username: userWithPlugins.username || user.name || "User",
+                  username:
+                    (userWithPlugins.username as string | undefined) ||
+                    user.name ||
+                    "User",
                   appUrl,
                 });
 
@@ -453,7 +456,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
         }
 
         // Handle password reset request events
-        if (ctx.path.startsWith("/forget-password")) {
+        if (ctx.path.startsWith("/request-password-reset")) {
           // Get IP and user agent from headers
           const headers: Record<string, string | undefined> = {};
           if (ctx.headers) {

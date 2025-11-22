@@ -197,7 +197,7 @@ await sendVerificationEmail(env, {
 
 **When Sent**:
 - When user requests password reset via `auth.requestPasswordReset`
-- Triggered by Better Auth's `forgetPassword` endpoint
+- Triggered by Better Auth's `requestPasswordReset` endpoint
 
 **Parameters**:
 - `to`: Recipient email address

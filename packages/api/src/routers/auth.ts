@@ -527,7 +527,7 @@ export const authRouter = router({
 
   /**
    * Request password reset token
-   * Uses Better Auth forgetPassword
+   * Uses Better Auth requestPasswordReset
    * SECURITY: Token is sent via email, never returned in API response
    */
   requestPasswordReset: publicProcedure
@@ -572,7 +572,7 @@ export const authRouter = router({
       const userAgent = getUserAgent(ctx.headers);
 
       try {
-        await auth.api.forgetPassword({
+        await auth.api.requestPasswordReset({
           body: {
             email: input.email,
             redirectTo: `${getBaseUrl(ctx.env, ctx.headers)}/reset-password`,
