@@ -1,0 +1,16 @@
+node_modules
+.pnpm-store
+dist
+build
+coverage
+data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+**/*.gen.*
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+

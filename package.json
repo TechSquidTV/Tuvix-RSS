@@ -25,12 +25,13 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:up": "docker compose up -d",
+    "format:root": "prettier --write \"*.{js,json,md}\" \"scripts/*.js\"",
     "format:api": "cd packages/api && pnpm run format --check",
     "format:app": "cd packages/app && pnpm format",
     "format:fix:api": "cd packages/api && pnpm run format",
     "format:fix:app": "cd packages/app && pnpm format",
-    "format:fix": "pnpm run format:fix:api && pnpm run format:fix:app",
-    "format": "pnpm run format:api && pnpm run format:app",
+    "format:fix": "pnpm run format:root && pnpm run format:fix:api && pnpm run format:fix:app",
+    "format": "pnpm run format:root && pnpm run format:api && pnpm run format:app",
     "generate:routes": "pnpm run --filter app generate:routes",
     "generate:icons": "pnpm run --filter app generate:icons",
     "lint:api": "cd packages/api && pnpm run lint",
@@ -84,6 +85,7 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "nyc": "^17.1.0",
+    "prettier": "^3.6.2",
     "shadcn": "^3.5.0"
   }
 }
