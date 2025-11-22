@@ -55,8 +55,8 @@ describe("Database Helpers", () => {
           schema.categories,
           9999, // Non-existent ID
           user.id,
-          "Category",
-        ),
+          "Category"
+        )
       ).rejects.toThrow(TRPCError);
 
       try {
@@ -65,7 +65,7 @@ describe("Database Helpers", () => {
           schema.categories,
           9999,
           user.id,
-          "Category",
+          "Category"
         );
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
@@ -94,8 +94,8 @@ describe("Database Helpers", () => {
           schema.categories,
           category.id,
           user2.id, // Different user
-          "Category",
-        ),
+          "Category"
+        )
       ).rejects.toThrow(TRPCError);
     });
 
@@ -121,7 +121,7 @@ describe("Database Helpers", () => {
         db,
         schema.feeds,
         user.id,
-        "nonexistent-slug",
+        "nonexistent-slug"
       );
 
       expect(exists).toBe(false);
@@ -189,7 +189,7 @@ describe("Database Helpers", () => {
         schema.feeds,
         user.id,
         "test-slug",
-        feed.id,
+        feed.id
       );
 
       expect(exists).toBe(false);
@@ -224,7 +224,7 @@ describe("Database Helpers", () => {
         schema.feeds,
         user.id,
         "test-slug",
-        feed2.id,
+        feed2.id
       );
 
       expect(exists).toBe(true);
@@ -239,7 +239,7 @@ describe("Database Helpers", () => {
         db,
         schema.categories,
         user.id,
-        "Nonexistent",
+        "Nonexistent"
       );
 
       expect(exists).toBe(false);
@@ -253,7 +253,7 @@ describe("Database Helpers", () => {
         db,
         schema.categories,
         user.id,
-        "technology",
+        "technology"
       );
 
       expect(exists).toBe(true);
@@ -267,7 +267,7 @@ describe("Database Helpers", () => {
         db,
         schema.categories,
         user.id,
-        "TECHNOLOGY",
+        "TECHNOLOGY"
       );
 
       expect(exists).toBe(true);
@@ -281,7 +281,7 @@ describe("Database Helpers", () => {
         db,
         schema.categories,
         user.id,
-        "TeCHNoLoGy",
+        "TeCHNoLoGy"
       );
 
       expect(exists).toBe(true);
@@ -303,7 +303,7 @@ describe("Database Helpers", () => {
         db,
         schema.categories,
         user2.id,
-        "Technology",
+        "Technology"
       );
 
       expect(exists).toBe(false);
@@ -320,7 +320,7 @@ describe("Database Helpers", () => {
         schema.categories,
         user.id,
         "Technology",
-        category.id,
+        category.id
       );
 
       expect(exists).toBe(false);
@@ -343,19 +343,19 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription.id,
         schema.subscriptionCategories.categoryId,
-        [category1.id, category2.id],
+        [category1.id, category2.id]
       );
 
       const links = await db
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, subscription.id),
+          eq(schema.subscriptionCategories.subscriptionId, subscription.id)
         );
 
       expect(links).toHaveLength(2);
       expect(
-        links.map((l: { categoryId: number }) => l.categoryId).sort(),
+        links.map((l: { categoryId: number }) => l.categoryId).sort()
       ).toEqual([category1.id, category2.id].sort());
     });
 
@@ -375,7 +375,7 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription.id,
         schema.subscriptionCategories.categoryId,
-        [category1.id, category2.id],
+        [category1.id, category2.id]
       );
 
       // Replace with new relationships
@@ -385,14 +385,14 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription.id,
         schema.subscriptionCategories.categoryId,
-        [category3.id],
+        [category3.id]
       );
 
       const links = await db
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, subscription.id),
+          eq(schema.subscriptionCategories.subscriptionId, subscription.id)
         );
 
       expect(links).toHaveLength(1);
@@ -413,7 +413,7 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription.id,
         schema.subscriptionCategories.categoryId,
-        [category1.id],
+        [category1.id]
       );
 
       // Remove all relationships
@@ -423,14 +423,14 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription.id,
         schema.subscriptionCategories.categoryId,
-        [],
+        []
       );
 
       const links = await db
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, subscription.id),
+          eq(schema.subscriptionCategories.subscriptionId, subscription.id)
         );
 
       expect(links).toHaveLength(0);
@@ -453,7 +453,7 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription1.id,
         schema.subscriptionCategories.categoryId,
-        [category1.id],
+        [category1.id]
       );
 
       await updateManyToMany(
@@ -462,7 +462,7 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription2.id,
         schema.subscriptionCategories.categoryId,
-        [category2.id],
+        [category2.id]
       );
 
       // Update subscription1 relationships
@@ -472,7 +472,7 @@ describe("Database Helpers", () => {
         schema.subscriptionCategories.subscriptionId,
         subscription1.id,
         schema.subscriptionCategories.categoryId,
-        [category2.id],
+        [category2.id]
       );
 
       // Check subscription2 relationships are unchanged
@@ -480,7 +480,7 @@ describe("Database Helpers", () => {
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, subscription2.id),
+          eq(schema.subscriptionCategories.subscriptionId, subscription2.id)
         );
 
       expect(links2).toHaveLength(1);

@@ -71,7 +71,7 @@ export const adminRouter = router({
         plan: z.string().optional(), // Plan ID filter - validated at runtime
         banned: z.boolean().optional(),
         search: z.string().optional(), // Search by username or email
-      }),
+      })
     )
     .output(createPaginatedSchema(AdminUserSchema))
     .query(async ({ ctx, input }) => {
@@ -88,7 +88,7 @@ export const adminRouter = router({
       }
       if (input.search) {
         conditions.push(
-          sql`(LOWER(COALESCE(${schema.user.username}, ${schema.user.name})) LIKE LOWER(${`%${input.search}%`}) OR LOWER(${schema.user.email}) LIKE LOWER(${`%${input.search}%`}))`,
+          sql`(LOWER(COALESCE(${schema.user.username}, ${schema.user.name})) LIKE LOWER(${`%${input.search}%`}) OR LOWER(${schema.user.email}) LIKE LOWER(${`%${input.search}%`}))`
         );
       }
 
@@ -108,20 +108,20 @@ export const adminRouter = router({
         .select()
         .from(schema.usageStats)
         .where(
-          sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`,
+          sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
         );
 
       const customLimitsRecords = await ctx.db
         .select()
         .from(schema.userLimits)
         .where(
-          sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`,
+          sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
         );
 
       // Create maps for quick lookup
       const usageMap = new Map(usageRecords.map((u) => [u.userId, u]));
       const customLimitsMap = new Map(
-        customLimitsRecords.map((l) => [l.userId, l]),
+        customLimitsRecords.map((l) => [l.userId, l])
       );
 
       // Build results with usage and limits
@@ -178,7 +178,7 @@ export const adminRouter = router({
               : null,
             rateLimitEnabled,
           };
-        }),
+        })
       );
 
       return createPaginatedResponse(allResults, input.limit, input.offset);
@@ -266,7 +266,7 @@ export const adminRouter = router({
         userId: z.number(),
         banned: z.boolean(),
         reason: z.string().optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -309,7 +309,7 @@ export const adminRouter = router({
       z.object({
         userId: z.number(),
         plan: z.string(), // Plan ID - validated at runtime
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -346,7 +346,7 @@ export const adminRouter = router({
         maxPublicFeeds: z.number().nullable().optional(),
         maxCategories: z.number().nullable().optional(),
         notes: z.string().nullable().optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -498,7 +498,7 @@ export const adminRouter = router({
         lastRssFetchAt: z.date().nullable(),
         lastPruneAt: z.date().nullable(),
         updatedAt: z.date(),
-      }),
+      })
     )
     .query(async ({ ctx }) => {
       const [settings] = await ctx.db
@@ -575,7 +575,7 @@ export const adminRouter = router({
           .optional(),
         fetchIntervalMinutes: z.number().int().min(5).max(1440).optional(),
         pruneDays: z.number().int().min(0).max(365).optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -654,8 +654,8 @@ export const adminRouter = router({
           features: z.string().nullable(),
           createdAt: z.date(),
           updatedAt: z.date(),
-        }),
-      ),
+        })
+      )
     )
     .query(async ({ ctx }) => {
       return await getAllPlans(ctx.db);
@@ -679,7 +679,7 @@ export const adminRouter = router({
         features: z.string().nullable(),
         createdAt: z.date(),
         updatedAt: z.date(),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const [plan] = await ctx.db
@@ -717,7 +717,7 @@ export const adminRouter = router({
         publicFeedRateLimitPerMinute: z.number().int().min(1).max(10000),
         priceCents: z.number().int().min(0),
         features: descriptionValidator,
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -765,7 +765,7 @@ export const adminRouter = router({
           .optional(),
         priceCents: z.number().int().min(0).optional(),
         features: descriptionValidator.optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -851,7 +851,7 @@ export const adminRouter = router({
         totalPublicFeeds: z.number(),
         totalCategories: z.number(),
         totalArticles: z.number(),
-      }),
+      })
     )
     .query(async ({ ctx }) => {
       // Get all users
@@ -888,11 +888,11 @@ export const adminRouter = router({
 
       const totalSources = allUsageStats.reduce(
         (sum, stat) => sum + stat.sourceCount,
-        0,
+        0
       );
       const totalPublicFeeds = allUsageStats.reduce(
         (sum, stat) => sum + stat.publicFeedCount,
-        0,
+        0
       );
 
       // Count categories directly from categories table (more accurate)
@@ -924,7 +924,7 @@ export const adminRouter = router({
       z.object({
         totalPublicFeedAccessLast24h: z.number(),
         rateLimitEnabled: z.boolean(),
-      }),
+      })
     )
     .query(async ({ ctx }) => {
       // Get public feed access count from last 24 hours
@@ -933,7 +933,7 @@ export const adminRouter = router({
         .select()
         .from(schema.publicFeedAccessLog)
         .where(
-          sql`${schema.publicFeedAccessLog.accessedAt} > ${twentyFourHoursAgo.toISOString()}`,
+          sql`${schema.publicFeedAccessLog.accessedAt} > ${twentyFourHoursAgo.toISOString()}`
         );
 
       const totalPublicFeedAccessLast24h = accessLogs.length;
@@ -957,7 +957,7 @@ export const adminRouter = router({
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
         feedId: z.number().optional(),
-      }),
+      })
     )
     .output(
       z.object({
@@ -970,10 +970,10 @@ export const adminRouter = router({
             ipAddress: z.string(),
             userAgent: z.string().nullable(),
             accessedAt: z.date(),
-          }),
+          })
         ),
         total: z.number(),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       // Build WHERE conditions
@@ -1009,11 +1009,11 @@ export const adminRouter = router({
             from: (table: unknown) => {
               innerJoin: (
                 table: unknown,
-                condition: unknown,
+                condition: unknown
               ) => {
                 innerJoin: (
                   table: unknown,
-                  condition: unknown,
+                  condition: unknown
                 ) => {
                   where: (condition: unknown) => {
                     orderBy: (order: unknown) => {
@@ -1034,7 +1034,7 @@ export const adminRouter = router({
           feedSlug: schema.feeds.slug,
           ownerUsername:
             sql<string>`COALESCE(${schema.user.username}, ${schema.user.name})`.as(
-              "ownerUsername",
+              "ownerUsername"
             ),
           ipAddress: schema.publicFeedAccessLog.ipAddress,
           userAgent: schema.publicFeedAccessLog.userAgent,
@@ -1043,7 +1043,7 @@ export const adminRouter = router({
         .from(schema.publicFeedAccessLog)
         .innerJoin(
           schema.feeds,
-          eq(schema.publicFeedAccessLog.feedId, schema.feeds.id),
+          eq(schema.publicFeedAccessLog.feedId, schema.feeds.id)
         )
         .innerJoin(schema.user, eq(schema.feeds.userId, schema.user.id))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -1074,7 +1074,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1082,9 +1082,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1125,7 +1125,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1133,9 +1133,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1176,7 +1176,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1184,9 +1184,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1200,19 +1200,19 @@ export const adminRouter = router({
           or(
             and(
               sql`${schema.articles.publishedAt} IS NOT NULL`,
-              gte(schema.articles.publishedAt, startDate),
+              gte(schema.articles.publishedAt, startDate)
             )!,
             and(
               sql`${schema.articles.publishedAt} IS NULL`,
-              gte(schema.articles.createdAt, startDate),
-            )!,
-          )!,
+              gte(schema.articles.createdAt, startDate)
+            )!
+          )!
         )
         .then((rows) =>
           rows.map((row) => ({
             publishedAt: row.publishedAt,
             createdAt: row.createdAt,
-          })),
+          }))
         );
 
       // Group by day using publishedAt or createdAt
@@ -1248,7 +1248,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1256,9 +1256,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1299,7 +1299,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1307,15 +1307,15 @@ export const adminRouter = router({
           z.object({
             endpoint: z.string(),
             count: z.number(),
-          }),
+          })
         ),
         overTime: z.array(
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1328,7 +1328,7 @@ export const adminRouter = router({
           rows.map((row) => ({
             endpoint: row.endpoint,
             createdAt: row.createdAt,
-          })),
+          }))
         );
 
       // Group by endpoint
@@ -1336,7 +1336,7 @@ export const adminRouter = router({
       logs.forEach((log) => {
         endpointCounts.set(
           log.endpoint,
-          (endpointCounts.get(log.endpoint) || 0) + 1,
+          (endpointCounts.get(log.endpoint) || 0) + 1
         );
       });
 
@@ -1376,7 +1376,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1385,9 +1385,9 @@ export const adminRouter = router({
             date: z.string(),
             logins: z.number(),
             failedLogins: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1401,7 +1401,7 @@ export const adminRouter = router({
             action: row.action,
             createdAt: row.createdAt,
             success: row.success,
-          })),
+          }))
         );
 
       // Group by day and action type
@@ -1449,7 +1449,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1457,9 +1457,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1500,7 +1500,7 @@ export const adminRouter = router({
     .input(
       z.object({
         days: z.number().min(1).max(365).default(30),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1508,9 +1508,9 @@ export const adminRouter = router({
           z.object({
             date: z.string(),
             count: z.number(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
@@ -1521,8 +1521,8 @@ export const adminRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.read, true),
-            gte(schema.userArticleStates.updatedAt, startDate),
-          ),
+            gte(schema.userArticleStates.updatedAt, startDate)
+          )
         )
         .then((rows) => rows.map((row) => ({ updatedAt: row.updatedAt })));
 

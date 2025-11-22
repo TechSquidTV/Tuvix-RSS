@@ -25,7 +25,7 @@ async function seedTestFeed(
     description?: string;
     public?: boolean;
     categoryIds?: number[];
-  },
+  }
 ) {
   const [feed] = await db
     .insert(schema.feeds)
@@ -122,7 +122,7 @@ describe("Feeds Router", () => {
 
       expect(result.items).toHaveLength(2);
       expect(result.items.every((feed) => feed.userId === testUser.id)).toBe(
-        true,
+        true
       );
       expect(result.hasMore).toBe(false);
     });
@@ -207,7 +207,7 @@ describe("Feeds Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(caller.getById({ id: otherFeed.id })).rejects.toThrow(
-        "Feed",
+        "Feed"
       );
     });
   });
@@ -288,7 +288,7 @@ describe("Feeds Router", () => {
           slug: "existing",
           title: "Duplicate",
           public: true,
-        }),
+        })
       ).rejects.toThrow("already exists");
     });
 
@@ -314,7 +314,7 @@ describe("Feeds Router", () => {
           slug: "invalid slug", // Contains space
           title: "Test",
           public: true,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -490,7 +490,7 @@ describe("Feeds Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(
-        caller.update({ id: feed.id, slug: "existing" }),
+        caller.update({ id: feed.id, slug: "existing" })
       ).rejects.toThrow("already exists");
     });
 
@@ -513,7 +513,7 @@ describe("Feeds Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(
-        caller.update({ id: otherFeed.id, title: "Hacked" }),
+        caller.update({ id: otherFeed.id, title: "Hacked" })
       ).rejects.toThrow("Feed");
     });
   });
@@ -628,7 +628,7 @@ describe("Feeds Router", () => {
         caller.getPublicXml({
           username: "nonexistent",
           slug: "feed",
-        }),
+        })
       ).rejects.toThrow("User not found");
     });
 
@@ -638,7 +638,7 @@ describe("Feeds Router", () => {
         caller.getPublicXml({
           username: testUser.username || "",
           slug: "nonexistent",
-        }),
+        })
       ).rejects.toThrow("Feed not found");
     });
 
@@ -653,7 +653,7 @@ describe("Feeds Router", () => {
         caller.getPublicXml({
           username: testUser.username || "",
           slug: "private-feed",
-        }),
+        })
       ).rejects.toThrow("Feed not found");
     });
   });

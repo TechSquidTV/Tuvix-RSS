@@ -81,8 +81,8 @@ export function mockFetchRssFeed(feedXml: string = MOCK_RSS_FEED) {
         headers: {
           "Content-Type": "application/rss+xml",
         },
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -97,8 +97,8 @@ export function mockFetchAtomFeed(feedXml: string = MOCK_ATOM_FEED) {
         headers: {
           "Content-Type": "application/atom+xml",
         },
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -112,7 +112,7 @@ export function mockFetchJsonFeed(feedJson: string = MOCK_JSON_FEED) {
       headers: {
         "Content-Type": "application/json",
       },
-    }),
+    })
   );
 }
 
@@ -131,7 +131,7 @@ export function mockFetch404() {
     new Response("Not Found", {
       status: 404,
       statusText: "Not Found",
-    }),
+    })
   );
 }
 
@@ -143,7 +143,7 @@ export function mockFetchTimeout() {
     () =>
       new Promise((_, reject) => {
         setTimeout(() => reject(new Error("Request timeout")), 100);
-      }),
+      })
   );
 }
 

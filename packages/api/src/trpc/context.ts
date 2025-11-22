@@ -22,7 +22,7 @@ import type { BetterAuthUser } from "../types/better-auth";
  * - User authentication (from Better Auth session)
  */
 export const createContext = async (
-  opts: FetchCreateContextFnOptions & { env: Env },
+  opts: FetchCreateContextFnOptions & { env: Env }
 ) => {
   const { req, env } = opts;
 
@@ -47,8 +47,8 @@ export const createContext = async (
               Object.entries(req.headers).map(([k, v]) => [
                 k,
                 Array.isArray(v) ? v[0] : v,
-              ]),
-            ) as Record<string, string>,
+              ])
+            ) as Record<string, string>
           );
 
     const session = await auth.api.getSession({ headers: authHeaders });

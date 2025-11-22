@@ -78,7 +78,7 @@ export type PaginationInput = z.infer<typeof paginationInputSchema>;
 export function createPaginatedResponse<T>(
   items: T[],
   limit: number,
-  offset: number,
+  offset: number
 ): PaginatedResponse<T> {
   const hasMore = items.length > limit;
   const trimmedItems = items.slice(0, limit);
@@ -125,7 +125,7 @@ export function validatePaginationInput(limit: number, offset: number): void {
 export function calculatePaginationMeta(
   total: number,
   limit: number,
-  offset: number,
+  offset: number
 ) {
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(total / limit);

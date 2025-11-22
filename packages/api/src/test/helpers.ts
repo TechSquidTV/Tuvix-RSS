@@ -34,7 +34,7 @@ export function wait(ms: number): Promise<void> {
  */
 export async function expectError(
   fn: () => Promise<any>,
-  expectedMessage?: string | RegExp,
+  expectedMessage?: string | RegExp
 ): Promise<Error> {
   try {
     await fn();
@@ -45,13 +45,13 @@ export async function expectError(
         if (typeof expectedMessage === "string") {
           if (!error.message.includes(expectedMessage)) {
             throw new Error(
-              `Expected error message to include "${expectedMessage}", but got "${error.message}"`,
+              `Expected error message to include "${expectedMessage}", but got "${error.message}"`
             );
           }
         } else {
           if (!expectedMessage.test(error.message)) {
             throw new Error(
-              `Expected error message to match ${expectedMessage}, but got "${error.message}"`,
+              `Expected error message to match ${expectedMessage}, but got "${error.message}"`
             );
           }
         }
@@ -71,7 +71,7 @@ export function createMockResponse(
     status?: number;
     statusText?: string;
     headers?: Record<string, string>;
-  },
+  }
 ): Response {
   return new Response(body, {
     status: options?.status || 200,
@@ -87,7 +87,7 @@ import type { Database } from "@/db/client";
  */
 export async function getTableCount(
   db: Database,
-  table: SQLiteTable,
+  table: SQLiteTable
 ): Promise<number> {
   const result = await db.select().from(table);
   return result.length;
@@ -99,7 +99,7 @@ export async function getTableCount(
 export async function assertRecordExists(
   db: Database,
   table: SQLiteTable & { id: SQLiteColumn },
-  id: number,
+  id: number
 ): Promise<void> {
   const result = await db.select().from(table).where(eq(table.id, id));
   if (result.length === 0) {
@@ -113,7 +113,7 @@ export async function assertRecordExists(
 export async function assertRecordNotExists(
   db: any,
   table: any,
-  id: number,
+  id: number
 ): Promise<void> {
   const result = await db.select().from(table).where(eq(table.id, id));
   if (result.length > 0) {

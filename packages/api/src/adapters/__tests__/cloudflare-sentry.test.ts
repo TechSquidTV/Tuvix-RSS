@@ -71,7 +71,7 @@ describe("Cloudflare Adapter - Sentry Integration", () => {
     vi.spyOn(Sentry.default, "instrumentD1WithSentry").mockImplementation(
       () => {
         throw new Error("Instrumentation failed");
-      },
+      }
     );
 
     // Should handle error gracefully (tested in adapter code)
@@ -92,7 +92,7 @@ describe("Cloudflare Adapter - Sentry Error Handling", () => {
       testError,
       expect.objectContaining({
         tags: { test: "sentry-test" },
-      }),
+      })
     );
     expect(eventId).toBe("test-event-id");
   });
@@ -104,7 +104,7 @@ describe("Cloudflare Adapter - Sentry Error Handling", () => {
       { op: "test", name: "Test Span" },
       async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
-      },
+      }
     );
 
     expect(Sentry.default.startSpan).toHaveBeenCalled();

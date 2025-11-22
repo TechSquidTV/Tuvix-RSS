@@ -44,7 +44,7 @@ const workerHandler = {
     const authSecret = requestEnv.BETTER_AUTH_SECRET;
     if (!authSecret) {
       console.error(
-        "❌ FATAL: BETTER_AUTH_SECRET environment variable is required",
+        "❌ FATAL: BETTER_AUTH_SECRET environment variable is required"
       );
       return new Response(
         JSON.stringify({
@@ -54,7 +54,7 @@ const workerHandler = {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -109,7 +109,7 @@ const workerHandler = {
             "Content-Type": "application/json",
             ...getCorsHeaders(requestOrigin),
           },
-        },
+        }
       );
     }
 
@@ -135,7 +135,7 @@ const workerHandler = {
             },
             async () => {
               await new Promise((resolve) => setTimeout(resolve, 100));
-            },
+            }
           );
 
           return new Response(
@@ -150,7 +150,7 @@ const workerHandler = {
                 "Content-Type": "application/json",
                 ...getCorsHeaders(requestOrigin),
               },
-            },
+            }
           );
         } catch (error) {
           // Fallback: capture any unexpected errors
@@ -167,7 +167,7 @@ const workerHandler = {
                 "Content-Type": "application/json",
                 ...getCorsHeaders(requestOrigin),
               },
-            },
+            }
           );
         }
       } else {
@@ -178,7 +178,7 @@ const workerHandler = {
               "Content-Type": "application/json",
               ...getCorsHeaders(requestOrigin),
             },
-          },
+          }
         );
       }
     }
@@ -193,7 +193,7 @@ const workerHandler = {
             {
               status: 500,
               headers: { "Content-Type": "application/json" },
-            },
+            }
           );
         }
 
@@ -215,7 +215,7 @@ const workerHandler = {
           {
             status: 500,
             headers: { "Content-Type": "application/json" },
-          },
+          }
         );
       }
     }
@@ -239,7 +239,7 @@ const workerHandler = {
           .select()
           .from(schema.user)
           .where(
-            sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`,
+            sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`
           )
           .limit(1);
 
@@ -257,7 +257,7 @@ const workerHandler = {
           requestEnv,
           user.id,
           planId,
-          limits.publicFeedRateLimitPerMinute,
+          limits.publicFeedRateLimitPerMinute
         );
 
         if (!rateLimitResult.allowed) {
@@ -273,7 +273,7 @@ const workerHandler = {
                 "Content-Type": "application/json",
                 ...getCorsHeaders(requestOrigin),
               },
-            },
+            }
           );
         }
 
@@ -292,10 +292,7 @@ const workerHandler = {
             .select()
             .from(schema.feeds)
             .where(
-              and(
-                eq(schema.feeds.userId, user.id),
-                eq(schema.feeds.slug, slug),
-              ),
+              and(eq(schema.feeds.userId, user.id), eq(schema.feeds.slug, slug))
             )
             .limit(1);
 
@@ -353,7 +350,7 @@ const workerHandler = {
           {
             status,
             headers: { "Content-Type": "application/json" },
-          },
+          }
         );
       }
     }
@@ -446,10 +443,10 @@ const workerHandler = {
         console.log("✅ RSS fetch completed");
       } else {
         const minutesSinceLastFetch = Math.floor(
-          (now.getTime() - settings.lastRssFetchAt!.getTime()) / (60 * 1000),
+          (now.getTime() - settings.lastRssFetchAt!.getTime()) / (60 * 1000)
         );
         console.log(
-          `⏭️ Skipping RSS fetch (last fetch was ${minutesSinceLastFetch} minutes ago, interval: ${settings.fetchIntervalMinutes} minutes)`,
+          `⏭️ Skipping RSS fetch (last fetch was ${minutesSinceLastFetch} minutes ago, interval: ${settings.fetchIntervalMinutes} minutes)`
         );
       }
 
@@ -469,14 +466,14 @@ const workerHandler = {
           .where(eq(schema.globalSettings.id, 1));
 
         console.log(
-          `✅ Prune completed (deleted ${result.deletedCount} articles)`,
+          `✅ Prune completed (deleted ${result.deletedCount} articles)`
         );
       } else {
         const hoursSinceLastPrune = Math.floor(
-          (now.getTime() - settings.lastPruneAt!.getTime()) / (60 * 60 * 1000),
+          (now.getTime() - settings.lastPruneAt!.getTime()) / (60 * 60 * 1000)
         );
         console.log(
-          `⏭️ Skipping prune (last prune was ${hoursSinceLastPrune} hours ago)`,
+          `⏭️ Skipping prune (last prune was ${hoursSinceLastPrune} hours ago)`
         );
       }
 

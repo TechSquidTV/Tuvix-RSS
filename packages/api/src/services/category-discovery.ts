@@ -62,7 +62,7 @@ function extractCategoryName(cat: unknown): string | null {
  */
 export function discoverCategoriesFromFeed(
   feedData: AnyFeed,
-  maxEntries: number = 10,
+  maxEntries: number = 10
 ): CategorySuggestion[] {
   const categoryMap = new Map<string, number>();
 
@@ -98,7 +98,7 @@ export function discoverCategoriesFromFeed(
   // Convert to suggestions with confidence scores
   const totalMentions = Array.from(categoryMap.values()).reduce(
     (sum, count) => sum + count,
-    0,
+    0
   );
 
   const suggestions: CategorySuggestion[] = Array.from(categoryMap.entries())
@@ -123,7 +123,7 @@ export function discoverCategoriesFromFeed(
  */
 export async function fetchAndDiscoverCategories(
   feedUrl: string,
-  maxEntries: number = 10,
+  maxEntries: number = 10
 ): Promise<CategorySuggestion[]> {
   const feedData = await fetchAndParseFeed(feedUrl);
   return discoverCategoriesFromFeed(feedData, maxEntries);

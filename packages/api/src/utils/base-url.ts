@@ -21,7 +21,7 @@ import type { Env } from "@/types";
  */
 export function getBaseUrl(
   env: Env,
-  headers?: Record<string, string | undefined>,
+  headers?: Record<string, string | undefined>
 ): string {
   // Priority 1: Use BASE_URL from environment if set
   if (env.BASE_URL) {

@@ -41,7 +41,7 @@ export async function requireOwnership<T>(
   table: TableWithOwnership,
   resourceId: number,
   userId: number,
-  resourceName: string,
+  resourceName: string
 ): Promise<T> {
   const result = await db
     .select()
@@ -87,7 +87,7 @@ export async function slugExists(
   table: TableWithSlug,
   userId: number,
   slug: string,
-  excludeId?: number,
+  excludeId?: number
 ): Promise<boolean> {
   const conditions: SQL[] = [eq(table.userId, userId), eq(table.slug, slug)];
 
@@ -126,7 +126,7 @@ export async function categoryNameExists(
   table: TableWithName,
   userId: number,
   name: string,
-  excludeId?: number,
+  excludeId?: number
 ): Promise<boolean> {
   const conditions: SQL[] = [
     eq(table.userId, userId),
@@ -172,7 +172,7 @@ export async function findOrCreateCategory(
   categoriesTable: CategoryTable,
   userId: number,
   name: string,
-  generateColor: (name: string) => string,
+  generateColor: (name: string) => string
 ): Promise<number> {
   // Normalize name (trim whitespace)
   const normalizedName = name.trim();
@@ -184,8 +184,8 @@ export async function findOrCreateCategory(
     .where(
       and(
         eq(categoriesTable.userId, userId),
-        sql`LOWER(${categoriesTable.name}) = LOWER(${normalizedName})`,
-      ),
+        sql`LOWER(${categoriesTable.name}) = LOWER(${normalizedName})`
+      )
     )
     .limit(1);
 
@@ -254,7 +254,7 @@ export async function updateManyToMany(
   parentIdColumn: ColumnReference,
   parentId: number,
   childIdColumn: ColumnReference,
-  newChildIds: number[],
+  newChildIds: number[]
 ): Promise<void> {
   // Delete all existing links
   await db.delete(linkTable).where(eq(parentIdColumn, parentId));

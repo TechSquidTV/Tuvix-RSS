@@ -133,7 +133,7 @@ describe("Admin Router", () => {
       });
 
       expect(result.items.some((u) => u.username.includes("regular"))).toBe(
-        true,
+        true
       );
     });
 
@@ -161,7 +161,7 @@ describe("Admin Router", () => {
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.listUsers({ limit: 10, offset: 0 }),
+        userCaller.listUsers({ limit: 10, offset: 0 })
       ).rejects.toThrow();
     });
   });
@@ -181,14 +181,14 @@ describe("Admin Router", () => {
     it("should throw error when user not found", async () => {
       const caller = createAdminCaller();
       await expect(caller.getUser({ userId: 99999 })).rejects.toThrow(
-        "User not found",
+        "User not found"
       );
     });
 
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.getUser({ userId: regularUser.id }),
+        userCaller.getUser({ userId: regularUser.id })
       ).rejects.toThrow();
     });
   });
@@ -238,7 +238,7 @@ describe("Admin Router", () => {
         caller.banUser({
           userId: adminUser.id,
           banned: true,
-        }),
+        })
       ).rejects.toThrow("Cannot ban your own account");
     });
 
@@ -263,7 +263,7 @@ describe("Admin Router", () => {
         userCaller.banUser({
           userId: otherUser.id,
           banned: true,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -293,7 +293,7 @@ describe("Admin Router", () => {
         caller.changePlan({
           userId: regularUser.id,
           plan: "nonexistent-plan",
-        }),
+        })
       ).rejects.toThrow("does not exist");
     });
 
@@ -304,7 +304,7 @@ describe("Admin Router", () => {
         userCaller.changePlan({
           userId: regularUser.id,
           plan: plan.id,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -378,7 +378,7 @@ describe("Admin Router", () => {
         caller.setCustomLimits({
           userId: 99999,
           maxSources: 100,
-        }),
+        })
       ).rejects.toThrow("User not found");
     });
 
@@ -388,7 +388,7 @@ describe("Admin Router", () => {
         userCaller.setCustomLimits({
           userId: regularUser.id,
           maxSources: 100,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -417,7 +417,7 @@ describe("Admin Router", () => {
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.removeCustomLimits({ userId: regularUser.id }),
+        userCaller.removeCustomLimits({ userId: regularUser.id })
       ).rejects.toThrow();
     });
   });
@@ -435,7 +435,7 @@ describe("Admin Router", () => {
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.recalculateUsage({ userId: regularUser.id }),
+        userCaller.recalculateUsage({ userId: regularUser.id })
       ).rejects.toThrow();
     });
   });
@@ -457,14 +457,14 @@ describe("Admin Router", () => {
     it("should prevent deleting yourself", async () => {
       const caller = createAdminCaller();
       await expect(caller.deleteUser({ userId: adminUser.id })).rejects.toThrow(
-        "Cannot delete your own account",
+        "Cannot delete your own account"
       );
     });
 
     it("should throw error when user not found", async () => {
       const caller = createAdminCaller();
       await expect(caller.deleteUser({ userId: 99999 })).rejects.toThrow(
-        "User not found",
+        "User not found"
       );
     });
 
@@ -482,7 +482,7 @@ describe("Admin Router", () => {
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.deleteUser({ userId: otherUser.id }),
+        userCaller.deleteUser({ userId: otherUser.id })
       ).rejects.toThrow();
     });
   });
@@ -572,14 +572,14 @@ describe("Admin Router", () => {
       await expect(
         caller.updateGlobalSettings({
           maxLoginAttempts: 0, // Below minimum
-        }),
+        })
       ).rejects.toThrow();
     });
 
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.updateGlobalSettings({ maxLoginAttempts: 10 }),
+        userCaller.updateGlobalSettings({ maxLoginAttempts: 10 })
       ).rejects.toThrow();
     });
   });
@@ -615,14 +615,14 @@ describe("Admin Router", () => {
     it("should throw error when plan not found", async () => {
       const caller = createAdminCaller();
       await expect(caller.getPlan({ planId: "nonexistent" })).rejects.toThrow(
-        "Plan not found",
+        "Plan not found"
       );
     });
 
     it("should require admin role", async () => {
       const userCaller = createUserCaller();
       await expect(
-        userCaller.getPlan({ planId: "test-plan" }),
+        userCaller.getPlan({ planId: "test-plan" })
       ).rejects.toThrow();
     });
   });
@@ -666,7 +666,7 @@ describe("Admin Router", () => {
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
           features: "Test features",
-        }),
+        })
       ).rejects.toThrow("already exists");
     });
 
@@ -682,7 +682,7 @@ describe("Admin Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -698,7 +698,7 @@ describe("Admin Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -730,7 +730,7 @@ describe("Admin Router", () => {
         caller.updatePlan({
           id: "nonexistent",
           name: "Updated",
-        }),
+        })
       ).rejects.toThrow("not found");
     });
 
@@ -741,7 +741,7 @@ describe("Admin Router", () => {
         userCaller.updatePlan({
           id: "test-plan",
           name: "Hacked",
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -771,7 +771,7 @@ describe("Admin Router", () => {
 
       const caller = createAdminCaller();
       await expect(caller.deletePlan({ planId: plan.id })).rejects.toThrow(
-        "users are assigned",
+        "users are assigned"
       );
     });
 
@@ -779,7 +779,7 @@ describe("Admin Router", () => {
       await seedTestPlan(db, { id: "test-plan" });
       const userCaller = createUserCaller();
       await expect(
-        userCaller.deletePlan({ planId: "test-plan" }),
+        userCaller.deletePlan({ planId: "test-plan" })
       ).rejects.toThrow();
     });
   });
@@ -960,7 +960,7 @@ describe("Admin Router", () => {
       it("should require admin role", async () => {
         const userCaller = createUserCaller();
         await expect(
-          userCaller.getPublicFeedAccessLog({ limit: 10, offset: 0 }),
+          userCaller.getPublicFeedAccessLog({ limit: 10, offset: 0 })
         ).rejects.toThrow();
       });
     });
@@ -1023,7 +1023,7 @@ describe("Admin Router", () => {
         expect(Array.isArray(result.data)).toBe(true);
         expect(result.data.length).toBe(7);
         expect(
-          result.data.every((d) => d.date && typeof d.count === "number"),
+          result.data.every((d) => d.date && typeof d.count === "number")
         ).toBe(true);
       });
 
@@ -1269,7 +1269,7 @@ describe("Admin Router", () => {
 
         // Should have endpoint counts
         const articlesEndpoint = result.byEndpoint.find(
-          (e) => e.endpoint === "/api/articles.list",
+          (e) => e.endpoint === "/api/articles.list"
         );
         expect(articlesEndpoint).toBeDefined();
         expect(articlesEndpoint!.count).toBe(2);
@@ -1329,7 +1329,7 @@ describe("Admin Router", () => {
         const result = await caller.getApiUsage({ days: 7 });
 
         expect(result.byEndpoint[0].count).toBeGreaterThanOrEqual(
-          result.byEndpoint[1]?.count || 0,
+          result.byEndpoint[1]?.count || 0
         );
       });
     });
@@ -1369,9 +1369,8 @@ describe("Admin Router", () => {
         expect(
           result.data.every(
             (d) =>
-              typeof d.logins === "number" &&
-              typeof d.failedLogins === "number",
-          ),
+              typeof d.logins === "number" && typeof d.failedLogins === "number"
+          )
         ).toBe(true);
       });
 

@@ -59,7 +59,7 @@ export interface LimitCheckResult {
  */
 export async function getUserLimits(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<UserLimits> {
   // Get user's plan
   const [user] = await db
@@ -116,7 +116,7 @@ export async function getUserLimits(
  */
 export async function getUserUsage(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<UserUsage> {
   const [usage] = await db
     .select()
@@ -150,7 +150,7 @@ export async function getUserUsage(
  */
 export async function checkSourceLimit(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<LimitCheckResult> {
   const limits = await getUserLimits(db, userId);
   const usage = await getUserUsage(db, userId);
@@ -173,7 +173,7 @@ export async function checkSourceLimit(
  */
 export async function checkPublicFeedLimit(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<LimitCheckResult> {
   const limits = await getUserLimits(db, userId);
   const usage = await getUserUsage(db, userId);
@@ -195,7 +195,7 @@ export async function checkPublicFeedLimit(
  */
 export async function checkCategoryLimit(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<LimitCheckResult> {
   const limits = await getUserLimits(db, userId);
   const usage = await getUserUsage(db, userId);
@@ -229,7 +229,7 @@ export async function checkCategoryLimit(
 export async function checkLimit(
   db: Database,
   userId: number,
-  resource: "sources" | "publicFeeds" | "categories",
+  resource: "sources" | "publicFeeds" | "categories"
 ): Promise<LimitCheckResult> {
   switch (resource) {
     case "sources":
@@ -253,7 +253,7 @@ export async function checkLimit(
  */
 export async function incrementSourceCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -274,7 +274,7 @@ export async function incrementSourceCount(
  */
 export async function decrementSourceCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -295,7 +295,7 @@ export async function decrementSourceCount(
  */
 export async function incrementPublicFeedCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -316,7 +316,7 @@ export async function incrementPublicFeedCount(
  */
 export async function decrementPublicFeedCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -337,7 +337,7 @@ export async function decrementPublicFeedCount(
  */
 export async function incrementCategoryCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -358,7 +358,7 @@ export async function incrementCategoryCount(
  */
 export async function decrementCategoryCount(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   const usage = await getUserUsage(db, userId);
 
@@ -380,7 +380,7 @@ export async function decrementCategoryCount(
  */
 export async function recalculateUsage(
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<void> {
   // Count unique sources
   const subscriptions = await db

@@ -51,7 +51,7 @@ describe("publicProcedure", () => {
         resHeaders: {} as any,
         info: {} as any,
         env,
-      }),
+      })
     );
 
     const result = await caller.test();
@@ -76,7 +76,7 @@ describe("publicProcedure", () => {
         resHeaders: {} as any,
         info: {} as any,
         env,
-      }),
+      })
     );
 
     const result = await caller.test();
@@ -108,7 +108,7 @@ describe("rateLimitedProcedure", () => {
         resHeaders: {} as any,
         info: {} as any,
         env,
-      }),
+      })
     );
 
     await expect(caller.test()).rejects.toThrow(TRPCError);
@@ -147,7 +147,7 @@ describe("rateLimitedProcedure", () => {
           api: {
             getSession: getSessionMock,
           },
-        }) as any,
+        }) as any
     );
 
     const testRouter = router({
@@ -202,7 +202,7 @@ describe("Sentry Middleware Integration", () => {
         resHeaders: {} as any,
         info: {} as any,
         env,
-      }),
+      })
     );
 
     const result = await caller.test();
@@ -227,7 +227,7 @@ describe("Sentry Middleware Integration", () => {
         resHeaders: {} as any,
         info: {} as any,
         env,
-      }),
+      })
     );
 
     // Should work even if Sentry is not available

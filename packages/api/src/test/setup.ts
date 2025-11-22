@@ -62,7 +62,7 @@ export async function seedTestUser(
     password?: string;
     role?: "user" | "admin";
     plan?: string;
-  },
+  }
 ) {
   const username = overrides?.username || "testuser";
   const email = overrides?.email || "test@example.com";
@@ -97,7 +97,7 @@ export async function seedTestUser(
       sqliteClient
         .prepare(
           `INSERT INTO users (id, username, email, password, role, plan, banned, created_at, updated_at) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           user.id,
@@ -108,7 +108,7 @@ export async function seedTestUser(
           plan,
           0, // banned as integer (false)
           now,
-          now,
+          now
         );
     }
   } catch (error) {
@@ -153,7 +153,7 @@ export async function seedTestPlan(
     publicFeedRateLimitPerMinute?: number;
     priceCents?: number;
     features?: string[];
-  },
+  }
 ) {
   const planId = overrides?.id || "test-plan";
   const planName = overrides?.name || "Test Plan";
@@ -193,7 +193,7 @@ export async function seedTestSource(
     url?: string;
     title?: string;
     description?: string;
-  },
+  }
 ) {
   const [source] = await db
     .insert(schema.sources)
@@ -219,7 +219,7 @@ export async function seedTestSubscription(
     customTitle?: string;
     filterEnabled?: boolean;
     filterMode?: "include" | "exclude";
-  },
+  }
 ) {
   const [subscription] = await db
     .insert(schema.subscriptions)
@@ -244,7 +244,7 @@ export async function seedTestCategory(
   overrides?: {
     name?: string;
     color?: string;
-  },
+  }
 ) {
   const [category] = await db
     .insert(schema.categories)

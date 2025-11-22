@@ -126,7 +126,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
         if (!emailResult.success) {
           console.error(
             "Failed to send password reset email:",
-            emailResult.error,
+            emailResult.error
           );
         }
       },
@@ -204,7 +204,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
         if (!emailResult.success) {
           console.error(
             "Failed to send verification email:",
-            emailResult.error,
+            emailResult.error
           );
         }
       },
@@ -294,7 +294,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 sqliteClient
                   .prepare(
                     `INSERT OR IGNORE INTO users (id, username, email, password, role, plan, banned, created_at, updated_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
                   )
                   .run(
                     Number(user.id),
@@ -305,14 +305,14 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     plan,
                     0, // banned as integer (false)
                     now,
-                    now,
+                    now
                   );
               }
             } catch (error) {
               // If users table doesn't exist or insert fails, log but don't fail registration
               // This is a compatibility layer for old migrations
               console.warn(
-                `Failed to create user in legacy users table: ${error instanceof Error ? error.message : "Unknown error"}`,
+                `Failed to create user in legacy users table: ${error instanceof Error ? error.message : "Unknown error"}`
               );
             }
 
@@ -366,7 +366,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 if (!emailResult.success) {
                   console.error(
                     `Failed to send welcome email to ${user.email}:`,
-                    emailResult.error,
+                    emailResult.error
                   );
                 }
               }
@@ -411,7 +411,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             } catch (error) {
               console.error(
                 `Failed to log login event for user ${user.id}:`,
-                error instanceof Error ? error.message : "Unknown error",
+                error instanceof Error ? error.message : "Unknown error"
               );
               // Don't throw - logging failures shouldn't prevent login
             }

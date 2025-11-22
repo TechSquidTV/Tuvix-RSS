@@ -61,7 +61,7 @@ export const subscriptionsRouter = router({
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(eq(schema.subscriptions.userId, userId))
         .limit(input.limit + 1)
@@ -75,11 +75,11 @@ export const subscriptionsRouter = router({
 
       const categoriesMap = await fetchSubscriptionCategories(
         ctx.db,
-        subscriptionIds,
+        subscriptionIds
       );
       const filtersMap = await fetchSubscriptionFilters(
         ctx.db,
-        subscriptionIds,
+        subscriptionIds
       );
 
       // Build results with categories and filters
@@ -91,7 +91,7 @@ export const subscriptionsRouter = router({
           subscription,
           source,
           categoriesMap.get(subscription.id) || [],
-          filtersMap.get(subscription.id) || [],
+          filtersMap.get(subscription.id) || []
         );
       });
 
@@ -113,13 +113,13 @@ export const subscriptionsRouter = router({
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.id, input.id),
-            eq(schema.subscriptions.userId, userId),
-          ),
+            eq(schema.subscriptions.userId, userId)
+          )
         )
         .limit(1);
 
@@ -145,7 +145,7 @@ export const subscriptionsRouter = router({
         subscription,
         source,
         categoriesMap.get(subscription.id) || [],
-        filtersMap.get(subscription.id) || [],
+        filtersMap.get(subscription.id) || []
       );
     }),
 
@@ -161,7 +161,7 @@ export const subscriptionsRouter = router({
         newCategoryNames: categoryNamesArrayValidator.optional(),
         iconUrl: urlValidator.optional(),
         iconType: z.enum(["auto", "custom", "none"]).optional(),
-      }),
+      })
     )
     .output(subscriptionResponseSchema)
     .mutation(async ({ ctx, input }) => {
@@ -264,8 +264,8 @@ export const subscriptionsRouter = router({
         .where(
           and(
             eq(schema.subscriptions.userId, userId),
-            eq(schema.subscriptions.sourceId, sourceId),
-          ),
+            eq(schema.subscriptions.sourceId, sourceId)
+          )
         )
         .limit(1);
 
@@ -324,7 +324,7 @@ export const subscriptionsRouter = router({
             schema.categories,
             userId,
             name,
-            generateColorFromString,
+            generateColorFromString
           );
           categoryIds.push(categoryId);
         }
@@ -348,7 +348,7 @@ export const subscriptionsRouter = router({
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(eq(schema.subscriptions.id, subscriptionId))
         .limit(1);
@@ -365,7 +365,7 @@ export const subscriptionsRouter = router({
         subscription,
         source,
         categoriesMap.get(subscriptionId) || [],
-        [], // New subscriptions have no filters
+        [] // New subscriptions have no filters
       );
     }),
 
@@ -381,7 +381,7 @@ export const subscriptionsRouter = router({
         newCategoryNames: categoryNamesArrayValidator.optional(),
         filterEnabled: z.boolean().optional(),
         filterMode: z.enum(["include", "exclude"]).optional(),
-      }),
+      })
     )
     .output(subscriptionResponseSchema)
     .mutation(async ({ ctx, input }) => {
@@ -393,7 +393,7 @@ export const subscriptionsRouter = router({
         schema.subscriptions,
         input.id,
         userId,
-        "Subscription",
+        "Subscription"
       );
 
       // Build update object for subscription fields
@@ -433,7 +433,7 @@ export const subscriptionsRouter = router({
             schema.categories,
             userId,
             name,
-            generateColorFromString,
+            generateColorFromString
           );
           allCategoryIds.push(categoryId);
         }
@@ -468,7 +468,7 @@ export const subscriptionsRouter = router({
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(eq(schema.subscriptions.id, input.id))
         .limit(1);
@@ -486,7 +486,7 @@ export const subscriptionsRouter = router({
         subscription,
         source,
         categoriesMap.get(input.id) || [],
-        filtersMap.get(input.id) || [],
+        filtersMap.get(input.id) || []
       );
     }),
 
@@ -518,8 +518,8 @@ export const subscriptionsRouter = router({
         .where(
           and(
             eq(schema.subscriptions.userId, userId),
-            eq(schema.subscriptions.sourceId, sourceId),
-          ),
+            eq(schema.subscriptions.sourceId, sourceId)
+          )
         )
         .limit(1);
 
@@ -543,8 +543,8 @@ export const subscriptionsRouter = router({
           title: z.string(),
           type: z.enum(["rss", "atom"]),
           description: z.string().optional(),
-        }),
-      ),
+        })
+      )
     )
     .mutation(async ({ ctx: _ctx, input }) => {
       const { parseFeed } = await import("feedsmith");
@@ -658,7 +658,7 @@ export const subscriptionsRouter = router({
 
       // Try common paths relative to base domain
       await Promise.all(
-        commonPaths.map((path) => checkFeed(`${baseUrl}${path}`)),
+        commonPaths.map((path) => checkFeed(`${baseUrl}${path}`))
       );
 
       // Also try common paths relative to the input URL's pathname
@@ -675,8 +675,8 @@ export const subscriptionsRouter = router({
         ];
         await Promise.all(
           pathRelativePaths.map((path) =>
-            checkFeed(`${baseUrl}${inputPathname}${path}`),
-          ),
+            checkFeed(`${baseUrl}${inputPathname}${path}`)
+          )
         );
       }
 
@@ -749,7 +749,7 @@ export const subscriptionsRouter = router({
         siteUrl: z.string().optional(),
         iconUrl: z.string().optional(),
         suggestedCategories: z.array(CategorySuggestionSchema),
-      }),
+      })
     )
     .query(async ({ ctx: _ctx, input }) => {
       const { parseFeed } = await import("feedsmith");
@@ -903,17 +903,17 @@ export const subscriptionsRouter = router({
       .from(schema.subscriptions)
       .innerJoin(
         schema.sources,
-        eq(schema.subscriptions.sourceId, schema.sources.id),
+        eq(schema.subscriptions.sourceId, schema.sources.id)
       )
       .where(eq(schema.subscriptions.userId, userId));
 
     // Bulk fetch categories and filters for all subscriptions (prevents N+1 query)
     const subscriptionIds = subscriptionsWithData.map(
-      (row) => row.subscriptions.id,
+      (row) => row.subscriptions.id
     );
     const categoriesMap = await fetchSubscriptionCategories(
       ctx.db,
-      subscriptionIds,
+      subscriptionIds
     );
     const filtersMap = await fetchSubscriptionFilters(ctx.db, subscriptionIds);
 
@@ -922,7 +922,7 @@ export const subscriptionsRouter = router({
     for (const [subscriptionId, categories] of categoriesMap.entries()) {
       categoryNameMap.set(
         subscriptionId,
-        categories.map((cat) => cat.name),
+        categories.map((cat) => cat.name)
       );
     }
 
@@ -972,7 +972,7 @@ export const subscriptionsRouter = router({
               matchType: f.matchType,
               pattern: f.pattern,
               caseSensitive: f.caseSensitive,
-            })),
+            }))
           );
         }
 
@@ -1020,7 +1020,7 @@ export const subscriptionsRouter = router({
             matchType: f.matchType,
             pattern: f.pattern,
             caseSensitive: f.caseSensitive,
-          })),
+          }))
         );
       }
 
@@ -1074,7 +1074,7 @@ export const subscriptionsRouter = router({
           .max(STRING_LIMITS.OPML_CONTENT.max, {
             message: `OPML file is too large (max ${STRING_LIMITS.OPML_CONTENT.max / 1000000}MB)`,
           }),
-      }),
+      })
     )
     .output(
       z.object({
@@ -1096,15 +1096,15 @@ export const subscriptionsRouter = router({
                   matchType: z.enum(["contains", "regex", "exact"]),
                   pattern: z.string(),
                   caseSensitive: z.boolean(),
-                }),
+                })
               )
               .optional(),
             filterEnabled: z.boolean().optional(),
             filterMode: z.enum(["include", "exclude"]).optional(),
-          }),
+          })
         ),
         totalCount: z.number(),
-      }),
+      })
     )
     .mutation(async ({ ctx: _ctx, input }) => {
       const { parseOpml } = await import("feedsmith");
@@ -1157,7 +1157,7 @@ export const subscriptionsRouter = router({
 
       // Helper to parse filters JSON
       const parseFiltersJson = (
-        jsonString: string | undefined,
+        jsonString: string | undefined
       ): Array<{
         field: "title" | "content" | "description" | "author" | "any";
         matchType: "contains" | "regex" | "exact";
@@ -1172,7 +1172,7 @@ export const subscriptionsRouter = router({
           return parsed
             .filter(
               (
-                f,
+                f
               ): f is {
                 field: "title" | "content" | "description" | "author" | "any";
                 matchType: "contains" | "regex" | "exact";
@@ -1190,11 +1190,11 @@ export const subscriptionsRouter = router({
                   typeof matchType === "string" &&
                   typeof pattern === "string" &&
                   ["title", "content", "description", "author", "any"].includes(
-                    field,
+                    field
                   ) &&
                   ["contains", "regex", "exact"].includes(matchType)
                 );
-              },
+              }
             )
             .map((f) => ({
               field: f.field,
@@ -1210,7 +1210,7 @@ export const subscriptionsRouter = router({
 
       // Helper to parse categories JSON
       const parseCategoriesJson = (
-        jsonString: string | undefined,
+        jsonString: string | undefined
       ): string[] | null => {
         if (!jsonString) return null;
         try {
@@ -1218,7 +1218,7 @@ export const subscriptionsRouter = router({
           if (!Array.isArray(parsed)) return null;
           // Validate that all items are strings
           return parsed.filter(
-            (cat): cat is string => typeof cat === "string" && cat.length > 0,
+            (cat): cat is string => typeof cat === "string" && cat.length > 0
           );
         } catch {
           return null;
@@ -1250,7 +1250,7 @@ export const subscriptionsRouter = router({
       // Recursive function to traverse OPML outlines
       const traverseOutlines = (
         outlines: OPMLOutlineWithExtensions[],
-        parentCategories: string[] = [],
+        parentCategories: string[] = []
       ) => {
         for (const outline of outlines) {
           // Check if this is a feed or a category
@@ -1331,14 +1331,14 @@ export const subscriptionsRouter = router({
             message: `OPML file is too large (max ${STRING_LIMITS.OPML_CONTENT.max / 1000000}MB)`,
           }),
         selectedUrls: z.array(urlValidator).max(1000).optional(),
-      }),
+      })
     )
     .output(
       z.object({
         successCount: z.number(),
         errorCount: z.number(),
         errors: z.array(z.object({ url: z.string(), error: z.string() })),
-      }),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
@@ -1392,7 +1392,7 @@ export const subscriptionsRouter = router({
 
       // Helper to parse filters JSON (same as parseOpml)
       const parseFiltersJson = (
-        jsonString: string | undefined,
+        jsonString: string | undefined
       ): Array<{
         field: "title" | "content" | "description" | "author" | "any";
         matchType: "contains" | "regex" | "exact";
@@ -1407,7 +1407,7 @@ export const subscriptionsRouter = router({
           return parsed
             .filter(
               (
-                f,
+                f
               ): f is {
                 field: "title" | "content" | "description" | "author" | "any";
                 matchType: "contains" | "regex" | "exact";
@@ -1425,11 +1425,11 @@ export const subscriptionsRouter = router({
                   typeof matchType === "string" &&
                   typeof pattern === "string" &&
                   ["title", "content", "description", "author", "any"].includes(
-                    field,
+                    field
                   ) &&
                   ["contains", "regex", "exact"].includes(matchType)
                 );
-              },
+              }
             )
             .map((f) => ({
               field: f.field,
@@ -1445,7 +1445,7 @@ export const subscriptionsRouter = router({
 
       // Helper to parse categories JSON
       const parseCategoriesJson = (
-        jsonString: string | undefined,
+        jsonString: string | undefined
       ): string[] | null => {
         if (!jsonString) return null;
         try {
@@ -1453,7 +1453,7 @@ export const subscriptionsRouter = router({
           if (!Array.isArray(parsed)) return null;
           // Validate that all items are strings
           return parsed.filter(
-            (cat): cat is string => typeof cat === "string" && cat.length > 0,
+            (cat): cat is string => typeof cat === "string" && cat.length > 0
           );
         } catch {
           return null;
@@ -1484,7 +1484,7 @@ export const subscriptionsRouter = router({
 
       const traverseOutlines = (
         outlines: OPMLOutlineWithExtensions[],
-        parentCategories: string[] = [],
+        parentCategories: string[] = []
       ) => {
         for (const outline of outlines) {
           if (outline.xmlUrl) {
@@ -1604,7 +1604,7 @@ export const subscriptionsRouter = router({
           if (existingSources.length > 0) {
             sourceId = existingSources[0].id;
             console.log(
-              `[OPML Import] Found existing source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`,
+              `[OPML Import] Found existing source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`
             );
             await ctx.db
               .update(schema.sources)
@@ -1629,7 +1629,7 @@ export const subscriptionsRouter = router({
               .returning();
             sourceId = newSource[0].id;
             console.log(
-              `[OPML Import] Created new source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`,
+              `[OPML Import] Created new source: url=${feedInfo.url}, sourceId=${sourceId}, userId=${userId}`
             );
           }
 
@@ -1640,15 +1640,15 @@ export const subscriptionsRouter = router({
             .where(
               and(
                 eq(schema.subscriptions.userId, userId),
-                eq(schema.subscriptions.sourceId, sourceId),
-              ),
+                eq(schema.subscriptions.sourceId, sourceId)
+              )
             )
             .limit(1);
 
           if (existingSubscription.length > 0) {
             // Already subscribed, skip
             console.log(
-              `[OPML Import] Already subscribed: userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`,
+              `[OPML Import] Already subscribed: userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`
             );
             successCount++;
             continue;
@@ -1689,7 +1689,7 @@ export const subscriptionsRouter = router({
 
           const subscriptionId = newSubscription[0].id;
           console.log(
-            `[OPML Import] Created subscription: subscriptionId=${subscriptionId}, userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`,
+            `[OPML Import] Created subscription: subscriptionId=${subscriptionId}, userId=${userId}, sourceId=${sourceId}, url=${feedInfo.url}`
           );
 
           // Create/link categories (using normalization helper to prevent duplicates)
@@ -1704,7 +1704,7 @@ export const subscriptionsRouter = router({
                 schema.categories,
                 userId,
                 categoryName,
-                generateColorFromString,
+                generateColorFromString
               );
 
               // Only link if we haven't already linked this category
@@ -1804,7 +1804,7 @@ export const subscriptionsRouter = router({
         schema.subscriptions,
         input.subscriptionId,
         userId,
-        "Subscription",
+        "Subscription"
       );
 
       // Get filters
@@ -1812,7 +1812,7 @@ export const subscriptionsRouter = router({
         .select()
         .from(schema.subscriptionFilters)
         .where(
-          eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId),
+          eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId)
         );
 
       return filters.map(transformSubscriptionFilter);
@@ -1834,7 +1834,7 @@ export const subscriptionsRouter = router({
             message: `Pattern must not exceed ${STRING_LIMITS.FILTER_PATTERN.max} characters`,
           }),
         caseSensitive: z.boolean().default(false),
-      }),
+      })
     )
     .output(selectSubscriptionFilterSchema)
     .mutation(async ({ ctx, input }) => {
@@ -1848,7 +1848,7 @@ export const subscriptionsRouter = router({
         schema.subscriptions,
         input.subscriptionId,
         userId,
-        "Subscription",
+        "Subscription"
       );
 
       // Validate regex if matchType is 'regex'
@@ -1905,7 +1905,7 @@ export const subscriptionsRouter = router({
           })
           .optional(),
         caseSensitive: z.boolean().optional(),
-      }),
+      })
     )
     .output(selectSubscriptionFilterSchema)
     .mutation(async ({ ctx, input }) => {
@@ -1917,7 +1917,7 @@ export const subscriptionsRouter = router({
         schema.subscriptions,
         input.subscriptionId,
         userId,
-        "Subscription",
+        "Subscription"
       );
 
       // Verify filter exists and belongs to subscription
@@ -1927,8 +1927,8 @@ export const subscriptionsRouter = router({
         .where(
           and(
             eq(schema.subscriptionFilters.id, input.filterId),
-            eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId),
-          ),
+            eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId)
+          )
         )
         .limit(1);
 
@@ -1981,7 +1981,7 @@ export const subscriptionsRouter = router({
       z.object({
         subscriptionId: z.number(),
         filterId: z.number(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -1993,7 +1993,7 @@ export const subscriptionsRouter = router({
         schema.subscriptions,
         input.subscriptionId,
         userId,
-        "Subscription",
+        "Subscription"
       );
 
       // Delete filter
@@ -2002,8 +2002,8 @@ export const subscriptionsRouter = router({
         .where(
           and(
             eq(schema.subscriptionFilters.id, input.filterId),
-            eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId),
-          ),
+            eq(schema.subscriptionFilters.subscriptionId, input.subscriptionId)
+          )
         );
 
       return { success: true };
@@ -2024,13 +2024,13 @@ export const subscriptionsRouter = router({
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.id, input.subscriptionId),
-            eq(schema.subscriptions.userId, userId),
-          ),
+            eq(schema.subscriptions.userId, userId)
+          )
         )
         .limit(1);
 
@@ -2046,7 +2046,7 @@ export const subscriptionsRouter = router({
       // Use category discovery service
       try {
         const categorySuggestions = await fetchAndDiscoverCategories(
-          source.url,
+          source.url
         );
 
         // Convert to expected format with colors

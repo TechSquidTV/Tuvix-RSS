@@ -24,7 +24,7 @@ const FETCH_TIMEOUT = 5000;
  */
 export async function discoverFavicon(
   feedUrl: string,
-  feedIconUrl?: string,
+  feedIconUrl?: string
 ): Promise<{
   iconUrl: string | null;
   iconData: Uint8Array | null;

@@ -98,7 +98,7 @@ describe("Email Service", () => {
           from: env.EMAIL_FROM,
           to: "user@example.com",
           subject: "Reset Your TuvixRSS Password",
-        }),
+        })
       );
     });
 
@@ -190,7 +190,7 @@ describe("Email Service", () => {
           from: env.EMAIL_FROM,
           to: "user@example.com",
           subject: "Welcome to Tuvix!",
-        }),
+        })
       );
     });
 

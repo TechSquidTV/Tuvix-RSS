@@ -17,6 +17,9 @@ importers:
       nyc:
         specifier: ^17.1.0
         version: 17.1.0
+      prettier:
+        specifier: ^3.6.2
+        version: 3.6.2
       shadcn:
         specifier: ^3.5.0
         version: 3.5.0(@types/node@24.10.0)(typescript@5.9.3)

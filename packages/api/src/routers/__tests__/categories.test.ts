@@ -103,7 +103,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(caller.getById({ id: otherCategory.id })).rejects.toThrow(
-        "Category",
+        "Category"
       );
     });
   });
@@ -148,7 +148,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(caller.create({ name: "Existing" })).rejects.toThrow(
-        "already exists",
+        "already exists"
       );
     });
 
@@ -157,7 +157,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(caller.create({ name: "EXISTING" })).rejects.toThrow(
-        "already exists",
+        "already exists"
       );
     });
 
@@ -183,11 +183,11 @@ describe("Categories Router", () => {
       const caller = createCaller(testUser.id);
 
       await expect(
-        caller.create({ name: "Test", color: "invalid" }),
+        caller.create({ name: "Test", color: "invalid" })
       ).rejects.toThrow();
 
       await expect(
-        caller.create({ name: "Test", color: "#GGGGGG" }),
+        caller.create({ name: "Test", color: "#GGGGGG" })
       ).rejects.toThrow();
     });
   });
@@ -265,7 +265,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(
-        caller.update({ id: category.id, name: "Existing" }),
+        caller.update({ id: category.id, name: "Existing" })
       ).rejects.toThrow("already exists");
     });
 
@@ -292,7 +292,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(
-        caller.update({ id: otherCategory.id, name: "Hacked" }),
+        caller.update({ id: otherCategory.id, name: "Hacked" })
       ).rejects.toThrow("Category");
     });
   });
@@ -310,7 +310,7 @@ describe("Categories Router", () => {
 
       // Verify it's deleted
       await expect(caller.getById({ id: category.id })).rejects.toThrow(
-        "Category",
+        "Category"
       );
     });
 
@@ -321,7 +321,7 @@ describe("Categories Router", () => {
 
       const caller = createCaller(testUser.id);
       await expect(caller.delete({ id: otherCategory.id })).rejects.toThrow(
-        "Category",
+        "Category"
       );
     });
 
@@ -343,7 +343,7 @@ describe("Categories Router", () => {
 
       expect(result.length).toBeGreaterThan(0);
       expect(
-        result.every((cat) => cat.name.toLowerCase().startsWith("a")),
+        result.every((cat) => cat.name.toLowerCase().startsWith("a"))
       ).toBe(true);
     });
 

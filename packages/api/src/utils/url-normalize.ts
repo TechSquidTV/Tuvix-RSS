@@ -83,7 +83,7 @@ export function normalizeFeedUrl(url: string): string {
       const queryString = filteredParams
         .map(
           ([key, value]) =>
-            `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+            `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         )
         .join("&");
       urlObj.search = queryString;

@@ -121,7 +121,7 @@ describe("initSentryNode", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(console.log).toHaveBeenCalledWith(
-      expect.stringContaining("SENTRY_DSN not provided"),
+      expect.stringContaining("SENTRY_DSN not provided")
     );
   });
 
@@ -196,7 +196,7 @@ describe("initSentryCloudflare", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(console.log).toHaveBeenCalledWith(
-      expect.stringContaining("SENTRY_DSN not provided"),
+      expect.stringContaining("SENTRY_DSN not provided")
     );
   });
 

@@ -165,7 +165,7 @@ describe("Auth Router", () => {
           to: "newuser@example.com",
           username: "newuser",
           appUrl: "https://test.com",
-        }),
+        })
       );
     });
 
@@ -263,7 +263,7 @@ describe("Auth Router", () => {
         .where(eq(schema.securityAuditLog.userId, testUser.id));
 
       const requestLog = logs.find(
-        (log) => log.action === "password_reset_request",
+        (log) => log.action === "password_reset_request"
       );
       expect(requestLog).toBeDefined();
       // Better Auth's forgetPassword may throw if email service isn't properly configured
@@ -310,7 +310,7 @@ describe("Auth Router", () => {
         .where(eq(schema.securityAuditLog.userId, testUser.id));
 
       const emailLog = logs.find(
-        (log) => log.action === "password_reset_email_sent",
+        (log) => log.action === "password_reset_email_sent"
       );
       // Email logging happens in sendResetPassword callback, which may not be called
       // when using auth.api.forgetPassword() directly. For now, we verify request logging.
@@ -320,7 +320,7 @@ describe("Auth Router", () => {
 
       // At minimum, verify request was logged
       const requestLog = logs.find(
-        (log) => log.action === "password_reset_request",
+        (log) => log.action === "password_reset_request"
       );
       expect(requestLog).toBeDefined();
     });
@@ -365,7 +365,7 @@ describe("Auth Router", () => {
         .where(eq(schema.securityAuditLog.userId, testUser.id));
 
       const emailLog = logs.find(
-        (log) => log.action === "password_reset_email_sent",
+        (log) => log.action === "password_reset_email_sent"
       );
       // Email logging happens in sendResetPassword callback
       // If it exists, verify it logged the failure correctly
@@ -379,7 +379,7 @@ describe("Auth Router", () => {
 
       // At minimum, verify request was logged
       const requestLog = logs.find(
-        (log) => log.action === "password_reset_request",
+        (log) => log.action === "password_reset_request"
       );
       expect(requestLog).toBeDefined();
     });

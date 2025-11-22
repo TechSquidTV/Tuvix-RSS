@@ -32,8 +32,8 @@ export const plansRouter = router({
           features: z.string().nullable(),
           createdAt: z.date(),
           updatedAt: z.date(),
-        }),
-      ),
+        })
+      )
     )
     .query(async ({ ctx }) => {
       return await getAllPlans(ctx.db);
@@ -60,7 +60,7 @@ export const plansRouter = router({
           createdAt: z.date(),
           updatedAt: z.date(),
         })
-        .nullable(),
+        .nullable()
     )
     .query(async ({ ctx, input }) => {
       return await getPlanById(ctx.db, input.planId);
@@ -81,7 +81,7 @@ export const plansRouter = router({
         publicFeedRateLimitPerMinute: z.number().int().positive(),
         priceCents: z.number().int().nonnegative(),
         features: z.string().nullable().optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -128,7 +128,7 @@ export const plansRouter = router({
         publicFeedRateLimitPerMinute: z.number().int().positive().optional(),
         priceCents: z.number().int().nonnegative().optional(),
         features: z.string().nullable().optional(),
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

@@ -37,7 +37,7 @@ export type RateLimitType = "api" | "publicFeed";
 function getBindingForPlan(
   env: Env,
   planId: string,
-  type: RateLimitType,
+  type: RateLimitType
 ):
   | Env["FREE_API_RATE_LIMIT"]
   | Env["PRO_API_RATE_LIMIT"]
@@ -59,7 +59,7 @@ function getBindingForPlan(
     default:
       // Fallback to free plan binding for unknown plans
       console.warn(
-        `Unknown plan '${planId}', using free plan rate limit binding`,
+        `Unknown plan '${planId}', using free plan rate limit binding`
       );
       return env.FREE_API_RATE_LIMIT;
   }
@@ -86,7 +86,7 @@ export async function checkRateLimit(
   planId: string,
   limit: number,
   windowMs: number,
-  type: RateLimitType,
+  type: RateLimitType
 ): Promise<RateLimitResult> {
   // Docker Compose: Always allow (no rate limiting)
   if (env.RUNTIME === "nodejs") {
@@ -106,7 +106,7 @@ export async function checkRateLimit(
     if (!binding) {
       console.error(
         `❌ Rate limit binding missing for plan: ${planId}, type: ${type}. ` +
-          `Rate limiting disabled for this request.`,
+          `Rate limiting disabled for this request.`
       );
       // Fallback: allow request but log warning
       return {
@@ -132,7 +132,7 @@ export async function checkRateLimit(
       if (debugMode) {
         console.log(
           `[Rate Limit Debug] plan=${planId}, type=${type}, userId=${userId}, key=${key}, result:`,
-          JSON.stringify(result, null, 2),
+          JSON.stringify(result, null, 2)
         );
       }
 
@@ -140,7 +140,7 @@ export async function checkRateLimit(
       if (!result || typeof result !== "object") {
         console.error(
           `❌ Rate limit binding returned invalid result for ${key}:`,
-          result,
+          result
         );
         // Fallback: allow request but log error
         return {
@@ -166,7 +166,7 @@ export async function checkRateLimit(
       if (debugMode || !allowed) {
         console.log(
           `[Rate Limit] plan=${planId}, type=${type}, userId=${userId}, ` +
-            `limit=${limit}, allowed=${allowed}, resetAt=${resetAt.toISOString()}`,
+            `limit=${limit}, allowed=${allowed}, resetAt=${resetAt.toISOString()}`
         );
       }
 
@@ -210,7 +210,7 @@ export async function checkApiRateLimit(
   env: Env,
   userId: number,
   planId: string,
-  limitPerMinute: number,
+  limitPerMinute: number
 ): Promise<RateLimitResult> {
   return checkRateLimit(env, userId, planId, limitPerMinute, 60 * 1000, "api");
 }
@@ -228,7 +228,7 @@ export async function checkPublicFeedRateLimit(
   env: Env,
   userId: number,
   planId: string,
-  limitPerMinute: number,
+  limitPerMinute: number
 ): Promise<RateLimitResult> {
   return checkRateLimit(
     env,
@@ -236,6 +236,6 @@ export async function checkPublicFeedRateLimit(
     planId,
     limitPerMinute,
     60 * 1000,
-    "publicFeed",
+    "publicFeed"
   );
 }

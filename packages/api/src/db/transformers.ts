@@ -13,7 +13,7 @@ import * as schema from "@/db/schema";
  * Transform subscription filter row to properly typed filter
  */
 export function transformSubscriptionFilter(
-  filter: typeof schema.subscriptionFilters.$inferSelect,
+  filter: typeof schema.subscriptionFilters.$inferSelect
 ): {
   id: number;
   subscriptionId: number;
@@ -43,7 +43,7 @@ export function transformSubscriptionFilter(
  */
 export async function fetchSubscriptionCategories(
   db: Database,
-  subscriptionIds: number[],
+  subscriptionIds: number[]
 ): Promise<Map<number, (typeof schema.categories.$inferSelect)[]>> {
   if (subscriptionIds.length === 0) {
     return new Map();
@@ -54,10 +54,10 @@ export async function fetchSubscriptionCategories(
     .from(schema.subscriptionCategories)
     .innerJoin(
       schema.categories,
-      eq(schema.subscriptionCategories.categoryId, schema.categories.id),
+      eq(schema.subscriptionCategories.categoryId, schema.categories.id)
     )
     .where(
-      inArray(schema.subscriptionCategories.subscriptionId, subscriptionIds),
+      inArray(schema.subscriptionCategories.subscriptionId, subscriptionIds)
     );
 
   // Group by subscription ID
@@ -88,7 +88,7 @@ export async function fetchSubscriptionCategories(
  */
 export async function fetchSubscriptionFilters(
   db: Database,
-  subscriptionIds: number[],
+  subscriptionIds: number[]
 ): Promise<Map<number, ReturnType<typeof transformSubscriptionFilter>[]>> {
   if (subscriptionIds.length === 0) {
     return new Map();
@@ -134,7 +134,7 @@ export function buildSubscriptionResponse(
   subscription: typeof schema.subscriptions.$inferSelect,
   source: typeof schema.sources.$inferSelect,
   categories: (typeof schema.categories.$inferSelect)[],
-  filters: ReturnType<typeof transformSubscriptionFilter>[],
+  filters: ReturnType<typeof transformSubscriptionFilter>[]
 ): {
   id: number;
   userId: number;
@@ -199,7 +199,7 @@ export function buildSubscriptionResponse(
  */
 export async function fetchCompleteSubscription(
   db: Database,
-  subscriptionId: number,
+  subscriptionId: number
 ): Promise<ReturnType<typeof buildSubscriptionResponse> | null> {
   // Fetch subscription with source
   const result = await db
@@ -207,7 +207,7 @@ export async function fetchCompleteSubscription(
     .from(schema.subscriptions)
     .innerJoin(
       schema.sources,
-      eq(schema.subscriptions.sourceId, schema.sources.id),
+      eq(schema.subscriptions.sourceId, schema.sources.id)
     )
     .where(eq(schema.subscriptions.id, subscriptionId))
     .limit(1);
@@ -225,7 +225,7 @@ export async function fetchCompleteSubscription(
     .from(schema.subscriptionCategories)
     .innerJoin(
       schema.categories,
-      eq(schema.subscriptionCategories.categoryId, schema.categories.id),
+      eq(schema.subscriptionCategories.categoryId, schema.categories.id)
     )
     .where(eq(schema.subscriptionCategories.subscriptionId, subscriptionId));
 
@@ -253,7 +253,7 @@ export async function fetchCompleteSubscription(
  */
 export async function fetchFeedCategories(
   db: Database,
-  feedIds: number[],
+  feedIds: number[]
 ): Promise<Map<number, number[]>> {
   if (feedIds.length === 0) {
     return new Map();

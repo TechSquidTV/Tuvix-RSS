@@ -72,7 +72,7 @@ type ArticleWithSubscription = ReturnType<typeof transformArticleRow>;
  */
 function matchesFilter(
   article: ArticleWithSubscription,
-  filter: typeof schema.subscriptionFilters.$inferSelect,
+  filter: typeof schema.subscriptionFilters.$inferSelect
 ): boolean {
   const fieldValue = (() => {
     switch (filter.field) {
@@ -117,7 +117,7 @@ function matchesFilter(
       try {
         const regex = new RegExp(
           filter.pattern,
-          filter.caseSensitive ? "" : "i",
+          filter.caseSensitive ? "" : "i"
         );
         return regex.test(fieldValue);
       } catch {
@@ -136,7 +136,7 @@ function matchesFilter(
 function matchesSubscriptionFilters(
   article: ArticleWithSubscription,
   filters: (typeof schema.subscriptionFilters.$inferSelect)[],
-  filterMode: "include" | "exclude",
+  filterMode: "include" | "exclude"
 ): boolean {
   // If no filters exist but filtering is enabled, exclude the article
   // (This matches the Go implementation behavior)
@@ -166,7 +166,7 @@ export const articlesRouter = router({
         subscriptionId: z.number().optional(),
         read: z.boolean().optional(),
         saved: z.boolean().optional(),
-      }),
+      })
     )
     .output(createPaginatedSchema(articleWithSourceSchema))
     .query(async ({ ctx, input }) => {
@@ -178,21 +178,21 @@ export const articlesRouter = router({
         .from(schema.articles)
         .innerJoin(
           schema.sources,
-          eq(schema.articles.sourceId, schema.sources.id),
+          eq(schema.articles.sourceId, schema.sources.id)
         )
         .innerJoin(
           schema.subscriptions,
           and(
             eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-            eq(schema.subscriptions.userId, userId),
-          ),
+            eq(schema.subscriptions.userId, userId)
+          )
         )
         .leftJoin(
           schema.userArticleStates,
           and(
             eq(schema.userArticleStates.articleId, schema.articles.id),
-            eq(schema.userArticleStates.userId, userId),
-          ),
+            eq(schema.userArticleStates.userId, userId)
+          )
         )
         .$dynamic();
 
@@ -206,10 +206,10 @@ export const articlesRouter = router({
           and(
             eq(
               schema.subscriptionCategories.subscriptionId,
-              schema.subscriptions.id,
+              schema.subscriptions.id
             ),
-            eq(schema.subscriptionCategories.categoryId, input.categoryId),
-          ),
+            eq(schema.subscriptionCategories.categoryId, input.categoryId)
+          )
         );
       }
 
@@ -226,8 +226,8 @@ export const articlesRouter = router({
           conditions.push(
             or(
               isNull(schema.userArticleStates.read),
-              eq(schema.userArticleStates.read, false),
-            )!,
+              eq(schema.userArticleStates.read, false)
+            )!
           );
         }
       }
@@ -240,8 +240,8 @@ export const articlesRouter = router({
           conditions.push(
             or(
               isNull(schema.userArticleStates.saved),
-              eq(schema.userArticleStates.saved, false),
-            )!,
+              eq(schema.userArticleStates.saved, false)
+            )!
           );
         }
       }
@@ -284,8 +284,8 @@ export const articlesRouter = router({
           .where(
             inArray(
               schema.subscriptionFilters.subscriptionId,
-              subscriptionIdsArray,
-            ),
+              subscriptionIdsArray
+            )
           );
 
         // Group filters by subscription ID
@@ -309,13 +309,13 @@ export const articlesRouter = router({
         return matchesSubscriptionFilters(
           article,
           filters,
-          article._subscription.filterMode,
+          article._subscription.filterMode
         );
       });
 
       // Remove the internal _subscription field before returning
       const cleanedResults = filteredResults.map(
-        ({ _subscription, ...article }) => article,
+        ({ _subscription, ...article }) => article
       );
 
       // Apply pagination to filtered results
@@ -344,21 +344,21 @@ export const articlesRouter = router({
         .from(schema.articles)
         .innerJoin(
           schema.sources,
-          eq(schema.articles.sourceId, schema.sources.id),
+          eq(schema.articles.sourceId, schema.sources.id)
         )
         .innerJoin(
           schema.subscriptions,
           and(
             eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-            eq(schema.subscriptions.userId, userId),
-          ),
+            eq(schema.subscriptions.userId, userId)
+          )
         )
         .leftJoin(
           schema.userArticleStates,
           and(
             eq(schema.userArticleStates.articleId, schema.articles.id),
-            eq(schema.userArticleStates.userId, userId),
-          ),
+            eq(schema.userArticleStates.userId, userId)
+          )
         )
         .where(eq(schema.articles.id, input.id))
         .limit(1);
@@ -392,8 +392,8 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            eq(schema.userArticleStates.articleId, input.id),
-          ),
+            eq(schema.userArticleStates.articleId, input.id)
+          )
         )
         .limit(1);
 
@@ -436,8 +436,8 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            eq(schema.userArticleStates.articleId, input.id),
-          ),
+            eq(schema.userArticleStates.articleId, input.id)
+          )
         )
         .limit(1);
 
@@ -480,8 +480,8 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            eq(schema.userArticleStates.articleId, input.id),
-          ),
+            eq(schema.userArticleStates.articleId, input.id)
+          )
         )
         .limit(1);
 
@@ -524,8 +524,8 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            eq(schema.userArticleStates.articleId, input.id),
-          ),
+            eq(schema.userArticleStates.articleId, input.id)
+          )
         )
         .limit(1);
 
@@ -560,7 +560,7 @@ export const articlesRouter = router({
       z.object({
         articleIds: z.array(z.number()).max(500), // Limit to prevent DoS
         read: z.boolean(),
-      }),
+      })
     )
     .output(z.object({ updated: z.number() }))
     .mutation(async ({ ctx, input }) => {
@@ -577,13 +577,13 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            inArray(schema.userArticleStates.articleId, input.articleIds),
-          ),
+            inArray(schema.userArticleStates.articleId, input.articleIds)
+          )
         );
 
       // Create a map for quick lookup
       const stateMap = new Map(
-        existingStates.map((s) => [s.articleId, s.saved]),
+        existingStates.map((s) => [s.articleId, s.saved])
       );
 
       // Batch operations: D1 supports batch(), better-sqlite3 requires sequential
@@ -605,7 +605,7 @@ export const articlesRouter = router({
               read: input.read,
               updatedAt: new Date(),
             },
-          }),
+          })
       );
 
       await executeBatch(ctx.db, statements);
@@ -621,7 +621,7 @@ export const articlesRouter = router({
     .input(
       z.object({
         olderThanDays: z.number().optional(),
-      }),
+      })
     )
     .output(z.object({ updated: z.number() }))
     .mutation(async ({ ctx, input }) => {
@@ -635,8 +635,8 @@ export const articlesRouter = router({
           schema.subscriptions,
           and(
             eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-            eq(schema.subscriptions.userId, userId),
-          ),
+            eq(schema.subscriptions.userId, userId)
+          )
         )
         .$dynamic();
 
@@ -645,7 +645,7 @@ export const articlesRouter = router({
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - input.olderThanDays);
         queryBuilder = queryBuilder.where(
-          lt(schema.articles.publishedAt, cutoffDate),
+          lt(schema.articles.publishedAt, cutoffDate)
         );
       }
 
@@ -665,13 +665,13 @@ export const articlesRouter = router({
         .where(
           and(
             eq(schema.userArticleStates.userId, userId),
-            inArray(schema.userArticleStates.articleId, articleIds),
-          ),
+            inArray(schema.userArticleStates.articleId, articleIds)
+          )
         );
 
       // Create a map for quick lookup
       const stateMap = new Map(
-        existingStates.map((s) => [s.articleId, s.saved]),
+        existingStates.map((s) => [s.articleId, s.saved])
       );
 
       // Batch operations: D1 supports batch(), better-sqlite3 requires sequential
@@ -693,7 +693,7 @@ export const articlesRouter = router({
               read: true,
               updatedAt: new Date(),
             },
-          }),
+          })
       );
 
       await executeBatch(ctx.db, statements);
@@ -709,7 +709,7 @@ export const articlesRouter = router({
       z.object({
         message: z.string(),
         triggered: z.boolean(),
-      }),
+      })
     )
     .mutation(async ({ ctx }) => {
       // Import RSS fetcher
@@ -719,7 +719,7 @@ export const articlesRouter = router({
       fetchAllFeeds(ctx.db)
         .then((result) => {
           console.log(
-            `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`,
+            `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`
           );
         })
         .catch((error) => {

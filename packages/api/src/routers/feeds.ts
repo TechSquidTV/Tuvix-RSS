@@ -109,7 +109,7 @@ export const feedsRouter = router({
         schema.feeds,
         input.id,
         userId,
-        "Feed",
+        "Feed"
       );
 
       // Get category IDs
@@ -154,7 +154,7 @@ export const feedsRouter = router({
         const feed = await ctx.db.query.feeds.findFirst({
           where: and(
             eq(schema.feeds.id, link.feedId),
-            eq(schema.feeds.userId, userId),
+            eq(schema.feeds.userId, userId)
           ),
         });
 
@@ -197,7 +197,7 @@ export const feedsRouter = router({
         description: z.string().optional(),
         public: z.boolean().default(true),
         categoryIds: z.array(z.number()).optional(),
-      }),
+      })
     )
     .output(selectFeedSchema)
     .mutation(async ({ ctx, input }) => {
@@ -278,7 +278,7 @@ export const feedsRouter = router({
         description: z.string().optional(),
         public: z.boolean().optional(),
         categoryIds: z.array(z.number()).optional(),
-      }),
+      })
     )
     .output(selectFeedSchema)
     .mutation(async ({ ctx, input }) => {
@@ -296,7 +296,7 @@ export const feedsRouter = router({
           schema.feeds,
           userId,
           input.slug,
-          input.id, // Exclude current feed from check
+          input.id // Exclude current feed from check
         );
 
         if (exists) {
@@ -360,7 +360,7 @@ export const feedsRouter = router({
           schema.feedCategories.feedId,
           input.id,
           schema.feedCategories.categoryId,
-          input.categoryIds,
+          input.categoryIds
         );
         categoryIds = input.categoryIds;
       } else {
@@ -400,7 +400,7 @@ export const feedsRouter = router({
         schema.feeds,
         input.id,
         userId,
-        "Feed",
+        "Feed"
       );
 
       const wasPublic = feed.public;
@@ -424,7 +424,7 @@ export const feedsRouter = router({
       z.object({
         username: z.string(),
         slug: z.string(),
-      }),
+      })
     )
     .output(z.string()) // RSS 2.0 XML
     .query(async ({ ctx, input }) => {
@@ -433,7 +433,7 @@ export const feedsRouter = router({
         .select()
         .from(schema.user)
         .where(
-          sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${input.username}`,
+          sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${input.username}`
         )
         .limit(1);
 
@@ -453,8 +453,8 @@ export const feedsRouter = router({
         .where(
           and(
             eq(schema.feeds.userId, user.id),
-            eq(schema.feeds.slug, input.slug),
-          ),
+            eq(schema.feeds.slug, input.slug)
+          )
         )
         .limit(1);
 
@@ -499,11 +499,11 @@ export const feedsRouter = router({
           .select()
           .from(schema.subscriptionCategories)
           .where(
-            inArray(schema.subscriptionCategories.categoryId, categoryIds),
+            inArray(schema.subscriptionCategories.categoryId, categoryIds)
           );
 
         const subscriptionIds = subscriptionLinks.map(
-          (link) => link.subscriptionId,
+          (link) => link.subscriptionId
         );
 
         if (subscriptionIds.length > 0) {
@@ -514,8 +514,8 @@ export const feedsRouter = router({
             .where(
               and(
                 eq(schema.subscriptions.userId, user.id),
-                inArray(schema.subscriptions.id, subscriptionIds),
-              ),
+                inArray(schema.subscriptions.id, subscriptionIds)
+              )
             );
 
           const sourceIds = subscriptions.map((sub) => sub.sourceId);

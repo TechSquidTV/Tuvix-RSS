@@ -78,7 +78,7 @@ describe("Express Adapter - Sentry Error Handling", () => {
       { op: "test", name: "Test Span" },
       async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
-      },
+      }
     );
 
     expect(Sentry.default.startSpan).toHaveBeenCalled();

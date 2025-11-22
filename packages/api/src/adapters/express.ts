@@ -55,7 +55,7 @@ if (!authSecret) {
     "❌ FATAL: BETTER_AUTH_SECRET environment variable is required.\n" +
       "   Generate a secure secret with: openssl rand -base64 32\n" +
       "   Or: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"\n" +
-      "   Then set BETTER_AUTH_SECRET in your .env file or environment.",
+      "   Then set BETTER_AUTH_SECRET in your .env file or environment."
   );
   process.exit(1);
 }
@@ -63,7 +63,7 @@ if (!authSecret) {
 // Warn if using development mode with default settings
 if (env.NODE_ENV === "production" && authSecret.length < 32) {
   console.warn(
-    "⚠️  WARNING: BETTER_AUTH_SECRET should be at least 32 characters for production use.",
+    "⚠️  WARNING: BETTER_AUTH_SECRET should be at least 32 characters for production use."
   );
 }
 
@@ -79,7 +79,7 @@ const allowedOrigins = env.CORS_ORIGIN
 if (env.NODE_ENV === "production" && allowedOrigins.length === 0) {
   console.warn(
     "⚠️  WARNING: CORS_ORIGIN not set in production. All origins will be blocked.\n" +
-      "   Set CORS_ORIGIN environment variable to your frontend URL(s).",
+      "   Set CORS_ORIGIN environment variable to your frontend URL(s)."
   );
 }
 
@@ -112,7 +112,7 @@ app.use(
       "sentry-trace",
       "baggage",
     ],
-  }),
+  })
 );
 
 // Better Auth route handler - MUST be before express.json() middleware
@@ -129,7 +129,7 @@ app.use("/api/auth", (req, res) => {
   res.on("finish", () => {
     if (res.statusCode >= 400) {
       console.error(
-        `❌ Better Auth Error Response: ${res.statusCode} for ${req.method} ${req.path}`,
+        `❌ Better Auth Error Response: ${res.statusCode} for ${req.method} ${req.path}`
       );
     }
   });
@@ -160,7 +160,7 @@ app.get("/debug-sentry", async (_req, res) => {
         async () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
           throw new Error("Test Sentry error!");
-        },
+        }
       );
       // This should never be reached since the span throws an error
       res.status(500).json({ error: "Unexpected: error was not thrown" });
@@ -190,7 +190,7 @@ app.get("/public/:username/:slug", async (req, res) => {
       .select()
       .from(schema.user)
       .where(
-        sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`,
+        sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`
       )
       .limit(1);
 
@@ -205,7 +205,7 @@ app.get("/public/:username/:slug", async (req, res) => {
       ctx.env,
       user.id,
       planId,
-      limits.publicFeedRateLimitPerMinute,
+      limits.publicFeedRateLimitPerMinute
     );
 
     if (!rateLimitResult.allowed) {
@@ -231,7 +231,7 @@ app.get("/public/:username/:slug", async (req, res) => {
         .select()
         .from(schema.feeds)
         .where(
-          and(eq(schema.feeds.userId, user.id), eq(schema.feeds.slug, slug)),
+          and(eq(schema.feeds.userId, user.id), eq(schema.feeds.slug, slug))
         )
         .limit(1);
 
@@ -323,7 +323,7 @@ app.use(
         input,
       });
     },
-  }),
+  })
 );
 
 // Initialize cron jobs
@@ -361,7 +361,7 @@ app.use(
     err: unknown,
     _req: express.Request,
     res: express.Response,
-    _next: express.NextFunction,
+    _next: express.NextFunction
   ) => {
     console.error("❌ Unhandled Express Error:", err);
     const error = err as { status?: number; message?: string; stack?: string };
@@ -369,7 +369,7 @@ app.use(
       error: error.message || "Internal server error",
       ...(env.NODE_ENV === "development" && { stack: error.stack }),
     });
-  },
+  }
 );
 
 // Start server

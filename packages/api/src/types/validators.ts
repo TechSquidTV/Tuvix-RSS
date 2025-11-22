@@ -59,7 +59,7 @@ export const regexPatternValidator = z
         return false;
       }
     },
-    { message: "Invalid regular expression pattern" },
+    { message: "Invalid regular expression pattern" }
   );
 
 export const slugValidator = z
@@ -70,7 +70,7 @@ export const slugValidator = z
   })
   .regex(
     /^[a-z0-9-]+$/,
-    "Slug must contain only lowercase letters, numbers, and hyphens",
+    "Slug must contain only lowercase letters, numbers, and hyphens"
   );
 
 export const hexColorValidator = z

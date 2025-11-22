@@ -28,7 +28,7 @@ type Database =
  */
 export async function initializeAdmin(
   db: Database,
-  env: Env,
+  env: Env
 ): Promise<{ created: boolean; message: string }> {
   // Check if admin credentials are provided
   const adminUsername = env.ADMIN_USERNAME;
@@ -179,7 +179,7 @@ export async function hasAdminUser(db: Database): Promise<boolean> {
 export async function promoteToAdmin(
   db: Database,
   userId: number,
-  reason: string,
+  reason: string
 ): Promise<void> {
   await db
     .update(schema.user)

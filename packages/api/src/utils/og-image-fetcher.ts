@@ -17,7 +17,7 @@ interface OgImageOptions {
  */
 export async function extractOgImage(
   url: string,
-  options: OgImageOptions = {},
+  options: OgImageOptions = {}
 ): Promise<string | null> {
   const {
     maxBufferSize = 50 * 1024, // 50KB
@@ -75,7 +75,7 @@ export async function extractOgImage(
     if ((error as Error).name !== "AbortError") {
       console.warn(
         `OG image fetch failed for ${url}:`,
-        (error as Error).message,
+        (error as Error).message
       );
     }
     return null;

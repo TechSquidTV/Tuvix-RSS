@@ -78,13 +78,13 @@ function isEmailConfigured(env: Env): boolean {
 function logEmailAttempt(
   type: EmailType,
   to: string,
-  details: Record<string, unknown>,
+  details: Record<string, unknown>
 ): void {
   if (process.env.NODE_ENV !== "production") {
     console.log(`📧 Email (${type}) would be sent to: ${to}`);
     console.log(`   Details:`, JSON.stringify(details, null, 2));
     console.log(
-      `   ⚠️  Configure RESEND_API_KEY and EMAIL_FROM to send emails`,
+      `   ⚠️  Configure RESEND_API_KEY and EMAIL_FROM to send emails`
     );
   }
 }
@@ -152,7 +152,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
  */
 export async function sendVerificationEmail(
   env: Env,
-  params: VerificationEmailParams,
+  params: VerificationEmailParams
 ): Promise<SendEmailResult> {
   const { to, username, verificationUrl } = params;
 
@@ -178,7 +178,7 @@ export async function sendVerificationEmail(
  */
 export async function sendPasswordResetEmail(
   env: Env,
-  params: PasswordResetEmailParams,
+  params: PasswordResetEmailParams
 ): Promise<SendEmailResult> {
   const { to, username, resetUrl } = params;
 
@@ -201,7 +201,7 @@ export async function sendPasswordResetEmail(
  */
 export async function sendWelcomeEmail(
   env: Env,
-  params: WelcomeEmailParams,
+  params: WelcomeEmailParams
 ): Promise<SendEmailResult> {
   const { to, username, appUrl } = params;
 

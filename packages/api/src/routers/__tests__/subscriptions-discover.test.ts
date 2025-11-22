@@ -69,7 +69,7 @@ describe("Feed Discovery - Deduplication", () => {
     const links = feedLinks
       .map(
         (url) =>
-          `<link rel="alternate" type="application/rss+xml" href="${url}">`,
+          `<link rel="alternate" type="application/rss+xml" href="${url}">`
       )
       .join("\n");
     return {
@@ -108,11 +108,11 @@ describe("Feed Discovery - Deduplication", () => {
       const mockResponses = Array(12).fill({ ok: false });
       mockResponses[0] = createMockRssResponse(
         "https://example.com/feed.xml",
-        "Feed",
+        "Feed"
       ); // /feed
       mockResponses[1] = createMockRssResponse(
         "https://example.com/feed.xml",
-        "Feed",
+        "Feed"
       ); // /rss
       mockResponses.push(createMockHtmlResponse([])); // HTML fetch
 
@@ -152,7 +152,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockHtmlResponse([
               "https://example.com/feed",
               "https://example.com/rss",
-            ]),
+            ])
           );
         }
         if (
@@ -160,7 +160,7 @@ describe("Feed Discovery - Deduplication", () => {
           url === "https://example.com/rss"
         ) {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed.xml", "Feed"),
+            createMockRssResponse("https://example.com/feed.xml", "Feed")
           );
         }
         return Promise.resolve({ ok: false });
@@ -183,16 +183,16 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/feed?utm_source=twitter",
-              "Feed",
-            ),
+              "Feed"
+            )
           );
         }
         if (url === "https://example.com/feed?utm_source=facebook") {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/feed?utm_source=facebook",
-              "Feed",
-            ),
+              "Feed"
+            )
           );
         }
         if (url === "https://example.com") {
@@ -200,7 +200,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockHtmlResponse([
               "https://example.com/feed?utm_source=twitter",
               "https://example.com/feed?utm_source=facebook",
-            ]),
+            ])
           );
         }
         return Promise.resolve({ ok: false });
@@ -222,16 +222,16 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/feed?category=tech",
-              "Tech Feed",
-            ),
+              "Tech Feed"
+            )
           );
         }
         if (url === "https://example.com/feed?category=sports") {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/feed?category=sports",
-              "Sports Feed",
-            ),
+              "Sports Feed"
+            )
           );
         }
         if (url === "https://example.com") {
@@ -239,7 +239,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockHtmlResponse([
               "https://example.com/feed?category=tech",
               "https://example.com/feed?category=sports",
-            ]),
+            ])
           );
         }
         return Promise.resolve({ ok: false });
@@ -264,12 +264,12 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/feed/") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed/", "Feed"),
+            createMockRssResponse("https://example.com/feed/", "Feed")
           );
         }
         if (url === "https://example.com/feed") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed", "Feed"),
+            createMockRssResponse("https://example.com/feed", "Feed")
           );
         }
         if (url === "https://example.com") {
@@ -295,7 +295,7 @@ describe("Feed Discovery - Deduplication", () => {
         if (url.includes("/feed")) {
           // Simulate redirect to different case hostname
           return Promise.resolve(
-            createMockRssResponse("https://Example.com/feed", "Feed"),
+            createMockRssResponse("https://Example.com/feed", "Feed")
           );
         }
         if (url === "https://example.com") {
@@ -319,7 +319,7 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/feed") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed.xml", "Feed"),
+            createMockRssResponse("https://example.com/feed.xml", "Feed")
           );
         }
         if (url === "https://example.com") {
@@ -343,7 +343,7 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/feed") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed", "RSS Feed"),
+            createMockRssResponse("https://example.com/feed", "RSS Feed")
           );
         }
         if (url === "https://example.com") {
@@ -363,7 +363,7 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/atom") {
           return Promise.resolve(
-            createMockAtomResponse("https://example.com/atom", "Atom Feed"),
+            createMockAtomResponse("https://example.com/atom", "Atom Feed")
           );
         }
         if (url === "https://example.com") {
@@ -388,7 +388,7 @@ describe("Feed Discovery - Deduplication", () => {
       });
 
       await expect(
-        caller.discover({ url: "https://example.com" }),
+        caller.discover({ url: "https://example.com" })
       ).rejects.toThrow("No RSS or Atom feeds found");
     });
 
@@ -399,7 +399,7 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockRejectedValue(new Error("Network error"));
 
       await expect(
-        caller.discover({ url: "https://example.com" }),
+        caller.discover({ url: "https://example.com" })
       ).rejects.toThrow("No RSS or Atom feeds found");
     });
   });
@@ -413,15 +413,15 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/feed") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/feed", "Main Feed"),
+            createMockRssResponse("https://example.com/feed", "Main Feed")
           );
         }
         if (url === "https://example.com/comments/feed") {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/comments/feed",
-              "Comments Feed",
-            ),
+              "Comments Feed"
+            )
           );
         }
         if (url === "https://example.com") {
@@ -429,7 +429,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockHtmlResponse([
               "https://example.com/feed",
               "https://example.com/comments/feed",
-            ]),
+            ])
           );
         }
         return Promise.resolve({ ok: false });
@@ -480,7 +480,7 @@ describe("Feed Discovery - Deduplication", () => {
         }
         if (url === "https://example.com") {
           return Promise.resolve(
-            createMockHtmlResponse(["https://example.com/atom.xml"]),
+            createMockHtmlResponse(["https://example.com/atom.xml"])
           );
         }
         return Promise.resolve({ ok: false });
@@ -536,7 +536,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockHtmlResponse([
               "https://example.com/atom",
               "https://example.com/atom.xml",
-            ]),
+            ])
           );
         }
         return Promise.resolve({ ok: false });
@@ -599,8 +599,8 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/blog/rss.xml",
-              "Blog Feed",
-            ),
+              "Blog Feed"
+            )
           );
         }
         // HTML fetch for /blog/
@@ -630,8 +630,8 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/blog/rss.xml",
-              "Blog Feed",
-            ),
+              "Blog Feed"
+            )
           );
         }
         // HTML fetch for /blog
@@ -655,7 +655,7 @@ describe("Feed Discovery - Deduplication", () => {
         // Base domain path
         if (url === "https://example.com/rss.xml") {
           return Promise.resolve(
-            createMockRssResponse("https://example.com/rss.xml", "Root Feed"),
+            createMockRssResponse("https://example.com/rss.xml", "Root Feed")
           );
         }
         // HTML fetch for /blog/
@@ -685,8 +685,8 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/blog/rss.xml",
-              "Blog RSS Feed",
-            ),
+              "Blog RSS Feed"
+            )
           );
         }
         // HTML fetch
@@ -712,8 +712,8 @@ describe("Feed Discovery - Deduplication", () => {
           return Promise.resolve(
             createMockRssResponse(
               "https://example.com/blog/feed.xml",
-              "Blog Feed XML",
-            ),
+              "Blog Feed XML"
+            )
           );
         }
         if (url === "https://example.com") {

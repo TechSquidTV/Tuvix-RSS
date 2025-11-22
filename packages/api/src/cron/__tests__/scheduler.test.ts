@@ -105,7 +105,7 @@ describe("Cron Scheduler", () => {
       // Should schedule RSS fetch
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/60 * * * *", // Every 60 minutes
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -115,7 +115,7 @@ describe("Cron Scheduler", () => {
       // Should schedule prune at 2 AM
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "0 2 * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -149,7 +149,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/30 * * * *", // Every 30 minutes
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -183,7 +183,7 @@ describe("Cron Scheduler", () => {
 
       // Get the RSS fetch callback
       const rssFetchCall = mockCronSchedule.mock.calls.find(
-        (call) => call[0] === "*/60 * * * *",
+        (call) => call[0] === "*/60 * * * *"
       );
       expect(rssFetchCall).toBeDefined();
 
@@ -196,7 +196,7 @@ describe("Cron Scheduler", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "❌ RSS fetch cron job error:",
-        error,
+        error
       );
 
       consoleErrorSpy.mockRestore();
@@ -232,7 +232,7 @@ describe("Cron Scheduler", () => {
 
       // Get the prune callback
       const pruneCall = mockCronSchedule.mock.calls.find(
-        (call) => call[0] === "0 2 * * *",
+        (call) => call[0] === "0 2 * * *"
       );
       expect(pruneCall).toBeDefined();
 
@@ -245,7 +245,7 @@ describe("Cron Scheduler", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "❌ Prune cron job error:",
-        error,
+        error
       );
 
       consoleErrorSpy.mockRestore();
@@ -259,10 +259,10 @@ describe("Cron Scheduler", () => {
       expect(consoleSpy).toHaveBeenCalledWith("⏰ Initializing cron jobs...");
       expect(consoleSpy).toHaveBeenCalledWith("✅ Cron jobs initialized");
       expect(consoleSpy).toHaveBeenCalledWith(
-        "   - RSS fetch: every 60 minutes",
+        "   - RSS fetch: every 60 minutes"
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        "   - Article prune: daily at 2 AM",
+        "   - Article prune: daily at 2 AM"
       );
 
       consoleSpy.mockRestore();
@@ -279,7 +279,7 @@ describe("Cron Scheduler", () => {
       await expect(initCronJobs(env)).rejects.toThrow("Database error");
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "❌ Failed to initialize cron jobs:",
-        error,
+        error
       );
 
       consoleErrorSpy.mockRestore();
@@ -337,7 +337,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/5 * * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -353,7 +353,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/15 * * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -369,7 +369,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/60 * * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -385,7 +385,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "0 */2 * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -401,7 +401,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "0 0 * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -417,7 +417,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "0 */3 * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -433,7 +433,7 @@ describe("Cron Scheduler", () => {
 
       expect(mockCronSchedule).toHaveBeenCalledWith(
         "*/1 * * * *",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
   });

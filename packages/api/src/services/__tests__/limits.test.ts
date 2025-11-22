@@ -121,7 +121,7 @@ describe("User Limits Service", () => {
 
     it("should throw error for non-existent user", async () => {
       await expect(getUserUsage(db, 9999)).rejects.toThrow(
-        "Usage stats not found",
+        "Usage stats not found"
       );
     });
   });

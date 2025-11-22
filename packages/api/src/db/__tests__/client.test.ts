@@ -130,7 +130,7 @@ describe("createDatabase", () => {
       };
 
       expect(() => createDatabase(env)).toThrow(
-        "D1 database binding (DB) not found",
+        "D1 database binding (DB) not found"
       );
     });
 
@@ -142,7 +142,7 @@ describe("createDatabase", () => {
       };
 
       expect(() => createDatabase(env)).toThrow(
-        "D1 database binding (DB) not found",
+        "D1 database binding (DB) not found"
       );
     });
   });

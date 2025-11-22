@@ -278,16 +278,16 @@ describe("User Settings Router", () => {
 
       // Valid filters
       await expect(
-        caller.update({ defaultFilter: "all" }),
+        caller.update({ defaultFilter: "all" })
       ).resolves.toBeDefined();
       await expect(
-        caller.update({ defaultFilter: "unread" }),
+        caller.update({ defaultFilter: "unread" })
       ).resolves.toBeDefined();
       await expect(
-        caller.update({ defaultFilter: "read" }),
+        caller.update({ defaultFilter: "read" })
       ).resolves.toBeDefined();
       await expect(
-        caller.update({ defaultFilter: "saved" }),
+        caller.update({ defaultFilter: "saved" })
       ).resolves.toBeDefined();
     });
   });
@@ -484,7 +484,7 @@ describe("User Settings Router", () => {
 
       // Banned users are blocked by auth middleware
       await expect(caller.getUsage()).rejects.toThrow(
-        "Account banned. Please contact support.",
+        "Account banned. Please contact support."
       );
     });
 

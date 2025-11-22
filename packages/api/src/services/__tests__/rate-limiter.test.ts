@@ -42,7 +42,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(limit);
@@ -63,7 +63,7 @@ describe("Rate Limiter Service", () => {
           "free",
           limit,
           windowMs,
-          "api",
+          "api"
         );
         expect(result.allowed).toBe(true);
         expect(result.remaining).toBe(limit);
@@ -82,7 +82,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result1.allowed).toBe(true);
       expect(result1.remaining).toBe(limit);
@@ -93,7 +93,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result2.allowed).toBe(true);
       expect(result2.remaining).toBe(limit);
@@ -111,7 +111,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(apiResult.allowed).toBe(true);
 
@@ -121,7 +121,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "publicFeed",
+        "publicFeed"
       );
       expect(feedResult.allowed).toBe(true);
     });
@@ -139,7 +139,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(user1Result.allowed).toBe(true);
 
@@ -149,7 +149,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(user2Result.allowed).toBe(true);
     });
@@ -164,7 +164,7 @@ describe("Rate Limiter Service", () => {
         env,
         userId,
         "free",
-        limitPerMinute,
+        limitPerMinute
       );
 
       expect(result.allowed).toBe(true);
@@ -182,7 +182,7 @@ describe("Rate Limiter Service", () => {
           env,
           userId,
           "free",
-          limitPerMinute,
+          limitPerMinute
         );
         expect(result.allowed).toBe(true);
         expect(result.remaining).toBe(limitPerMinute);
@@ -199,7 +199,7 @@ describe("Rate Limiter Service", () => {
         env,
         userId,
         "free",
-        limitPerMinute,
+        limitPerMinute
       );
 
       expect(result.allowed).toBe(true);
@@ -217,7 +217,7 @@ describe("Rate Limiter Service", () => {
           env,
           userId,
           "free",
-          limitPerMinute,
+          limitPerMinute
         );
         expect(result.allowed).toBe(true);
         expect(result.remaining).toBe(limitPerMinute);
@@ -232,7 +232,7 @@ describe("Rate Limiter Service", () => {
         env,
         userId,
         "free",
-        limitPerMinute,
+        limitPerMinute
       );
 
       expect(result.allowed).toBe(true);
@@ -260,7 +260,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result.allowed).toBe(true);
       // Note: In production, bindings would be configured and rate limiting would be enforced
@@ -283,7 +283,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result.allowed).toBe(true);
     });
@@ -305,7 +305,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result.allowed).toBe(true);
     });
@@ -324,7 +324,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result1.allowed).toBe(true);
       expect(result1.remaining).toBe(limit);
@@ -335,7 +335,7 @@ describe("Rate Limiter Service", () => {
         "free",
         limit,
         windowMs,
-        "api",
+        "api"
       );
       expect(result2.allowed).toBe(true);
       expect(result2.remaining).toBe(limit);
@@ -354,7 +354,7 @@ describe("Rate Limiter Service", () => {
           "free",
           limit,
           windowMs,
-          "api",
+          "api"
         );
         expect(result.allowed).toBe(true);
         expect(result.remaining).toBe(limit);

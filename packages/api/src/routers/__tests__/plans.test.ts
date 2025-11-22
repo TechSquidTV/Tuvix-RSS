@@ -83,7 +83,7 @@ describe("Plans Router", () => {
 
       // Find our test plans (there may be others from migrations)
       const testPlans = result.filter((p) =>
-        ["test-premium", "test-free", "test-pro"].includes(p.id),
+        ["test-premium", "test-free", "test-pro"].includes(p.id)
       );
 
       expect(testPlans.length).toBe(3);
@@ -125,7 +125,7 @@ describe("Plans Router", () => {
       // Features might be stored as JSON string or null
       expect(
         plan?.features === JSON.stringify(["Feature list"]) ||
-          plan?.features === null,
+          plan?.features === null
       ).toBe(true);
       expect(plan?.createdAt).toBeInstanceOf(Date);
       expect(plan?.updatedAt).toBeInstanceOf(Date);
@@ -253,7 +253,7 @@ describe("Plans Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow("already exists");
     });
 
@@ -271,7 +271,7 @@ describe("Plans Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -288,7 +288,7 @@ describe("Plans Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -305,7 +305,7 @@ describe("Plans Router", () => {
           apiRateLimitPerMinute: 60,
           publicFeedRateLimitPerMinute: 2,
           priceCents: 0,
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -480,7 +480,7 @@ describe("Plans Router", () => {
         caller.update({
           id: "nonexistent",
           name: "Updated",
-        }),
+        })
       ).rejects.toThrow("not found");
     });
 
@@ -492,7 +492,7 @@ describe("Plans Router", () => {
         userCaller.update({
           id: "test-plan",
           name: "Hacked",
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -516,7 +516,7 @@ describe("Plans Router", () => {
     it("should throw error when plan does not exist", async () => {
       const caller = createAdminCaller();
       await expect(caller.delete({ id: "nonexistent" })).rejects.toThrow(
-        "not found",
+        "not found"
       );
     });
 
@@ -530,7 +530,7 @@ describe("Plans Router", () => {
 
       const caller = createAdminCaller();
       await expect(caller.delete({ id: "popular-plan" })).rejects.toThrow(
-        "user(s) are currently assigned",
+        "user(s) are currently assigned"
       );
     });
 

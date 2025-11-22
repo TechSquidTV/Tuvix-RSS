@@ -82,13 +82,13 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings> {
     settings.fetchIntervalMinutes > 1440
   ) {
     throw new Error(
-      `Invalid global setting: fetchIntervalMinutes must be between 5-1440, got ${settings.fetchIntervalMinutes}`,
+      `Invalid global setting: fetchIntervalMinutes must be between 5-1440, got ${settings.fetchIntervalMinutes}`
     );
   }
 
   if (settings.pruneDays < 0 || settings.pruneDays > 365) {
     throw new Error(
-      `Invalid global setting: pruneDays must be between 0-365, got ${settings.pruneDays}`,
+      `Invalid global setting: pruneDays must be between 0-365, got ${settings.pruneDays}`
     );
   }
 

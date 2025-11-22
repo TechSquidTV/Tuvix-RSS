@@ -136,7 +136,7 @@ export const sources = sqliteTable(
   (table) => [
     index("idx_sources_url").on(table.url),
     index("idx_sources_icon_url").on(table.iconUrl),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -172,7 +172,7 @@ export const subscriptions = sqliteTable(
   (table) => [
     index("idx_subscriptions_user_id").on(table.userId),
     index("idx_subscriptions_source_id").on(table.sourceId),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -202,7 +202,7 @@ export const subscriptionFilters = sqliteTable(
   },
   (table) => [
     index("idx_subscription_filters_subscription_id").on(table.subscriptionId),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -233,7 +233,7 @@ export const articles = sqliteTable(
     index("idx_articles_published_at").on(table.publishedAt),
     index("idx_articles_guid").on(table.guid),
     unique().on(table.sourceId, table.guid),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -260,7 +260,7 @@ export const userArticleStates = sqliteTable(
     index("idx_user_article_states_user_id").on(table.userId),
     index("idx_user_article_states_read").on(table.read),
     index("idx_user_article_states_saved").on(table.saved),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -288,9 +288,9 @@ export const categories = sqliteTable(
     index("idx_categories_user_id").on(table.userId),
     uniqueIndex("idx_categories_user_id_name_normalized").on(
       table.userId,
-      sql`LOWER(${table.name})`,
+      sql`LOWER(${table.name})`
     ),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -310,10 +310,10 @@ export const subscriptionCategories = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.subscriptionId, table.categoryId] }),
     index("idx_subscription_categories_subscription_id").on(
-      table.subscriptionId,
+      table.subscriptionId
     ),
     index("idx_subscription_categories_category_id").on(table.categoryId),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -342,7 +342,7 @@ export const feeds = sqliteTable(
     index("idx_feeds_user_id").on(table.userId),
     index("idx_feeds_slug").on(table.slug),
     unique().on(table.userId, table.slug),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -363,7 +363,7 @@ export const feedCategories = sqliteTable(
     primaryKey({ columns: [table.feedId, table.categoryId] }),
     index("idx_feed_categories_feed_id").on(table.feedId),
     index("idx_feed_categories_category_id").on(table.categoryId),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -404,7 +404,7 @@ export const userSettings = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => [index("idx_user_settings_user_id").on(table.userId)],
+  (table) => [index("idx_user_settings_user_id").on(table.userId)]
 );
 
 // ============================================================================
@@ -428,7 +428,7 @@ export const passwordResetTokens = sqliteTable(
   (table) => [
     index("idx_password_reset_tokens_token").on(table.token),
     index("idx_password_reset_tokens_user_id").on(table.userId),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -455,7 +455,7 @@ export const securityAuditLog = sqliteTable(
     index("idx_security_audit_log_user_id").on(table.userId),
     index("idx_security_audit_log_action").on(table.action),
     index("idx_security_audit_log_created_at").on(table.createdAt),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -517,7 +517,7 @@ export const plans = sqliteTable("plans", {
   maxCategories: integer("max_categories"),
   apiRateLimitPerMinute: integer("api_rate_limit_per_minute").notNull(),
   publicFeedRateLimitPerMinute: integer(
-    "public_feed_rate_limit_per_minute",
+    "public_feed_rate_limit_per_minute"
   ).notNull(),
   priceCents: integer("price_cents").notNull(),
   features: text("features"), // JSON string
@@ -590,7 +590,7 @@ export const publicFeedAccessLog = sqliteTable(
   (table) => [
     index("idx_public_feed_access_log_feed_id").on(table.feedId),
     index("idx_public_feed_access_log_accessed_at").on(table.accessedAt),
-  ],
+  ]
 );
 
 // ============================================================================
@@ -617,5 +617,5 @@ export const apiUsageLog = sqliteTable(
     index("idx_api_usage_log_user_id").on(table.userId),
     index("idx_api_usage_log_created_at").on(table.createdAt),
     index("idx_api_usage_log_endpoint").on(table.endpoint),
-  ],
+  ]
 );

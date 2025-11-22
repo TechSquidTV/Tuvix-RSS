@@ -22,11 +22,11 @@ import * as React from "react";
  */
 export async function renderEmailTemplate<P extends Record<string, unknown>>(
   _component: React.ComponentType<P>,
-  _props: P,
+  _props: P
 ): Promise<{ html: string; text: string }> {
   // This would require react-email/render but we're not using it
   // Resend handles React components directly via the 'react' prop
   throw new Error(
-    "renderEmailTemplate is not currently used - Resend handles React components directly",
+    "renderEmailTemplate is not currently used - Resend handles React components directly"
   );
 }

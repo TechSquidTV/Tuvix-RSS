@@ -46,7 +46,7 @@ describe("Articles Router - Subscription Filters", () => {
       testSource1.id,
       {
         filterEnabled: false, // No filtering initially
-      },
+      }
     );
     testSubscription2 = await seedTestSubscription(
       db,
@@ -55,7 +55,7 @@ describe("Articles Router - Subscription Filters", () => {
       {
         filterEnabled: true,
         filterMode: "include",
-      },
+      }
     );
   });
 
@@ -73,7 +73,7 @@ describe("Articles Router - Subscription Filters", () => {
       description?: string;
       content?: string;
       author?: string;
-    },
+    }
   ) {
     const [article] = await db
       .insert(schema.articles)
@@ -782,7 +782,7 @@ describe("Articles Router - Subscription Filters", () => {
       });
       expect(combinedResult.items).toHaveLength(2);
       expect(
-        combinedResult.items.every((a) => a.title.startsWith("Tech")),
+        combinedResult.items.every((a) => a.title.startsWith("Tech"))
       ).toBe(true);
 
       // Filter by tech category + subscription2 - should return nothing

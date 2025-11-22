@@ -62,7 +62,7 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
     try {
       const result = await fetchSingleFeed(source.id, source.url, db);
       console.log(
-        `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`,
+        `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
       );
       successCount++;
     } catch (error) {
@@ -79,7 +79,7 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
   }
 
   console.log(
-    `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length}`,
+    `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length}`
   );
 
   return {
@@ -96,7 +96,7 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
 export async function fetchSingleFeed(
   sourceId: number,
   feedUrl: string,
-  db: Database,
+  db: Database
 ): Promise<FetchSingleResult> {
   // 1. Fetch feed with timeout
   const response = await fetch(feedUrl, {
@@ -135,7 +135,7 @@ export async function fetchSingleFeed(
     console.log(`Parsed ${feedUrl} as ${feedFormat}`);
   } catch (error) {
     throw new Error(
-      `Failed to parse feed: ${error instanceof Error ? error.message : "Unknown"}`,
+      `Failed to parse feed: ${error instanceof Error ? error.message : "Unknown"}`
     );
   }
 
@@ -146,7 +146,7 @@ export async function fetchSingleFeed(
   const { articlesAdded, articlesSkipped } = await storeArticles(
     sourceId,
     feed,
-    db,
+    db
   );
 
   return {
@@ -166,7 +166,7 @@ export async function fetchSingleFeed(
 async function updateSourceMetadata(
   sourceId: number,
   feed: AnyFeed,
-  db: Database,
+  db: Database
 ): Promise<boolean> {
   const updates: Partial<typeof schema.sources.$inferInsert> = {
     lastFetched: new Date(),
@@ -218,7 +218,7 @@ async function updateSourceMetadata(
 async function storeArticles(
   sourceId: number,
   feed: AnyFeed,
-  db: Database,
+  db: Database
 ): Promise<{ articlesAdded: number; articlesSkipped: number }> {
   // Extract items/entries from feed
   const items = extractFeedItems(feed);
@@ -363,7 +363,7 @@ function extractPublishedDate(item: AnyItem): Date | null {
 async function extractArticleData(
   item: AnyItem,
   sourceId: number,
-  guid: string,
+  guid: string
 ): Promise<typeof schema.articles.$inferInsert> {
   // Title
   const title = ("title" in item && item.title) || "Untitled";
@@ -481,7 +481,7 @@ async function extractArticleData(
   // RSS enclosure
   else if ("enclosures" in item && Array.isArray(item.enclosures)) {
     const imageEnclosure = item.enclosures.find((enc) =>
-      enc.type?.startsWith("image/"),
+      enc.type?.startsWith("image/")
     );
     if (imageEnclosure?.url) {
       imageUrl = imageEnclosure.url;
@@ -500,7 +500,7 @@ async function extractArticleData(
       imageUrl = media.thumbnail.url;
     } else if (Array.isArray(media?.content)) {
       const imageContent = media.content.find((c) =>
-        c.type?.startsWith("image/"),
+        c.type?.startsWith("image/")
       );
       if (imageContent?.url) {
         imageUrl = imageContent.url;

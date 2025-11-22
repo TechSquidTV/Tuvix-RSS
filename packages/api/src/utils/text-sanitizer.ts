@@ -36,10 +36,10 @@ export function stripHtml(html: string | null | undefined): string {
 
   // Decode numeric HTML entities
   text = text.replace(/&#(\d+);/g, (_, dec: string) =>
-    String.fromCharCode(parseInt(dec, 10)),
+    String.fromCharCode(parseInt(dec, 10))
   );
   text = text.replace(/&#x([0-9A-Fa-f]+);/g, (_, hex: string) =>
-    String.fromCharCode(parseInt(hex, 16)),
+    String.fromCharCode(parseInt(hex, 16))
   );
 
   // Remove excessive whitespace
@@ -60,7 +60,7 @@ export function stripHtml(html: string | null | undefined): string {
 export function truncateText(
   text: string | null | undefined,
   maxLength: number,
-  suffix: string = "...",
+  suffix: string = "..."
 ): string {
   if (!text) return "";
 
@@ -89,7 +89,7 @@ export function truncateText(
  */
 export function extractTextExcerpt(
   html: string | null | undefined,
-  maxLength: number = 300,
+  maxLength: number = 300
 ): string {
   const plainText = stripHtml(html);
   return truncateText(plainText, maxLength);

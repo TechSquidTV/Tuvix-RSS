@@ -38,7 +38,7 @@ const DEFAULT_SETTINGS = {
  * Format settings from database with proper type casting
  */
 const formatUserSettings = (
-  settings: typeof schema.userSettings.$inferSelect,
+  settings: typeof schema.userSettings.$inferSelect
 ) => ({
   ...settings,
   theme: settings.theme as "system" | "light" | "dark",
@@ -50,7 +50,7 @@ const formatUserSettings = (
  */
 const getOrCreateSettings = async (
   db: Database,
-  userId: number,
+  userId: number
 ): Promise<typeof schema.userSettings.$inferSelect> => {
   // Try to get existing settings
   const existing = await db
@@ -100,7 +100,7 @@ export const userSettingsRouter = router({
         userId: true,
         createdAt: true,
         updatedAt: true,
-      }),
+      })
     )
     .output(selectUserSettingsSchema)
     .mutation(async ({ ctx, input }) => {
@@ -169,7 +169,7 @@ export const userSettingsRouter = router({
           maxCategories: z.number().nullable(),
         }),
         rateLimitEnabled: z.boolean(),
-      }),
+      })
     )
     .query(async ({ ctx }) => {
       const { userId } = ctx.user;

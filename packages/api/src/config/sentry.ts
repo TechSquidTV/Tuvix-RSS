@@ -75,7 +75,7 @@ export function initSentryCloudflare(env: Env): void {
     .catch((error) => {
       console.error(
         "Failed to initialize Sentry for Cloudflare Workers:",
-        error,
+        error
       );
     });
 }

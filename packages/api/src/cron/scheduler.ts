@@ -50,7 +50,7 @@ export async function initCronJobs(env: Env): Promise<void> {
     // Get global settings to determine fetch interval
     const settings = await getGlobalSettings(db);
     const fetchCronExpression = minutesToCronExpression(
-      settings.fetchIntervalMinutes,
+      settings.fetchIntervalMinutes
     );
 
     // Schedule RSS fetch with dynamic interval
@@ -75,7 +75,7 @@ export async function initCronJobs(env: Env): Promise<void> {
 
     console.log("✅ Cron jobs initialized");
     console.log(
-      `   - RSS fetch: every ${settings.fetchIntervalMinutes} minutes`,
+      `   - RSS fetch: every ${settings.fetchIntervalMinutes} minutes`
     );
     console.log("   - Article prune: daily at 2 AM");
   } catch (error) {

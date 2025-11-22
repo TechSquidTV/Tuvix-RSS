@@ -60,7 +60,7 @@ async function _handleArticlePrune(env: Env): Promise<{
 
     // Calculate cutoff date (convert to timestamp for SQLite)
     const cutoffDate = new Date(
-      Date.now() - settings.pruneDays * 24 * 60 * 60 * 1000,
+      Date.now() - settings.pruneDays * 24 * 60 * 60 * 1000
     );
     const cutoffTimestamp = cutoffDate.getTime();
 
@@ -77,9 +77,9 @@ async function _handleArticlePrune(env: Env): Promise<{
           // Articles without publishedAt but with createdAt older than cutoff
           and(
             isNull(schema.articles.publishedAt),
-            lt(schema.articles.createdAt, cutoffDateForComparison),
-          )!,
-        )!,
+            lt(schema.articles.createdAt, cutoffDateForComparison)
+          )!
+        )!
       );
 
     const articleIds = articlesToDelete.map((a) => a.id);
@@ -103,7 +103,7 @@ async function _handleArticlePrune(env: Env): Promise<{
     }
 
     console.log(
-      `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days`,
+      `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days`
     );
 
     return { deletedCount };
@@ -123,7 +123,7 @@ export async function handleRSSFetch(env: Env): Promise<void> {
         withMonitor: (
           name: string,
           handler: () => Promise<void>,
-          options: { schedule: { type: string; value: string } },
+          options: { schedule: { type: string; value: string } }
         ) => Promise<void>;
       };
       await Sentry.withMonitor("rss-fetch", () => _handleRSSFetch(env), {
@@ -147,7 +147,7 @@ export async function handleArticlePrune(env: Env): Promise<{
         withMonitor: <T>(
           name: string,
           handler: () => Promise<T>,
-          options: { schedule: { type: string; value: string } },
+          options: { schedule: { type: string; value: string } }
         ) => Promise<T>;
       };
       return await Sentry.withMonitor(
@@ -155,7 +155,7 @@ export async function handleArticlePrune(env: Env): Promise<{
         () => _handleArticlePrune(env),
         {
           schedule: { type: "crontab", value: "0 2 * * *" },
-        },
+        }
       );
     } catch {
       // Sentry not available, use regular handler

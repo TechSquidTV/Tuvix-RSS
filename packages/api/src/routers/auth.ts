@@ -44,7 +44,7 @@ export const authRouter = router({
         username: usernameValidator,
         email: emailValidator,
         password: z.string().min(8), // Better Auth default minimum
-      }),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       // Check if registration is allowed
@@ -67,8 +67,8 @@ export const authRouter = router({
                 Object.entries(ctx.req.headers || {}).map(([k, v]) => [
                   k,
                   Array.isArray(v) ? v[0] : v,
-                ]),
-              ) as Record<string, string>,
+                ])
+              ) as Record<string, string>
             );
 
       try {
@@ -118,7 +118,7 @@ export const authRouter = router({
             role = "admin";
             plan = ADMIN_PLAN;
             console.log(
-              "⚠️  First user registered - automatically promoted to admin",
+              "⚠️  First user registered - automatically promoted to admin"
             );
 
             // Update user role and plan in Better Auth user table
@@ -205,7 +205,7 @@ export const authRouter = router({
       z.object({
         username: z.string(),
         password: z.string(),
-      }),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
@@ -219,8 +219,8 @@ export const authRouter = router({
                 Object.entries(ctx.req.headers || {}).map(([k, v]) => [
                   k,
                   Array.isArray(v) ? v[0] : v,
-                ]),
-              ) as Record<string, string>,
+                ])
+              ) as Record<string, string>
             );
 
       try {
@@ -323,7 +323,7 @@ export const authRouter = router({
       z.object({
         requiresVerification: z.boolean(),
         emailVerified: z.boolean(),
-      }),
+      })
     )
     .query(async ({ ctx }) => {
       const settings = await getGlobalSettings(ctx.db);
@@ -357,7 +357,7 @@ export const authRouter = router({
       z.object({
         success: z.boolean(),
         message: z.string(),
-      }),
+      })
     )
     .mutation(async ({ ctx }) => {
       const { checkRateLimit } = await import("@/services/rate-limiter");
@@ -407,7 +407,7 @@ export const authRouter = router({
         planId,
         1,
         5 * 60 * 1000, // 5 minutes
-        "api",
+        "api"
       );
 
       if (!rateLimitResult.allowed) {
@@ -486,7 +486,7 @@ export const authRouter = router({
       z.object({
         currentPassword: z.string(),
         newPassword: z.string().min(8), // Better Auth default minimum
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -501,8 +501,8 @@ export const authRouter = router({
                 Object.entries(ctx.req.headers || {}).map(([k, v]) => [
                   k,
                   Array.isArray(v) ? v[0] : v,
-                ]),
-              ) as Record<string, string>,
+                ])
+              ) as Record<string, string>
             );
 
       try {
@@ -534,13 +534,13 @@ export const authRouter = router({
     .input(
       z.object({
         email: emailValidator,
-      }),
+      })
     )
     .output(
       z.object({
         success: z.boolean(),
         message: z.string(),
-      }),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
@@ -557,8 +557,8 @@ export const authRouter = router({
                 Object.entries(ctx.req.headers || {}).map(([k, v]) => [
                   k,
                   Array.isArray(v) ? v[0] : v,
-                ]),
-              ) as Record<string, string>,
+                ])
+              ) as Record<string, string>
             );
 
       // Try to find user for logging
@@ -633,7 +633,7 @@ export const authRouter = router({
       z.object({
         token: z.string(),
         newPassword: z.string().min(8), // Better Auth default minimum
-      }),
+      })
     )
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -648,8 +648,8 @@ export const authRouter = router({
                 Object.entries(ctx.req.headers || {}).map(([k, v]) => [
                   k,
                   Array.isArray(v) ? v[0] : v,
-                ]),
-              ) as Record<string, string>,
+                ])
+              ) as Record<string, string>
             );
 
       try {

@@ -31,7 +31,7 @@ export const selectUserSettingsSchema = createSelectSchema(
     theme: (s) => s,
     defaultFilter: (s) => s,
     autoAgeDays: (s) => s.int().min(0).max(365),
-  },
+  }
 );
 export const insertUserSettingsSchema = createInsertSchema(
   schema.userSettings,
@@ -39,7 +39,7 @@ export const insertUserSettingsSchema = createInsertSchema(
     theme: (s) => s,
     defaultFilter: (s) => s,
     autoAgeDays: (s) => s.int().min(0).max(365),
-  },
+  }
 );
 export const updateUserSettingsSchema = insertUserSettingsSchema.partial();
 
@@ -71,10 +71,10 @@ export const updateCategorySchema = insertCategorySchema.partial();
 // ============================================================================
 
 export const selectSubscriptionSchema = createSelectSchema(
-  schema.subscriptions,
+  schema.subscriptions
 );
 export const insertSubscriptionSchema = createInsertSchema(
-  schema.subscriptions,
+  schema.subscriptions
 );
 export const updateSubscriptionSchema = insertSubscriptionSchema.partial();
 
@@ -83,7 +83,7 @@ export const updateSubscriptionSchema = insertSubscriptionSchema.partial();
 // ============================================================================
 
 export const selectSubscriptionFilterSchema = createSelectSchema(
-  schema.subscriptionFilters,
+  schema.subscriptionFilters
 );
 
 /**
@@ -100,7 +100,7 @@ export const subscriptionResponseSchema = selectSubscriptionSchema.extend({
   filters: z.array(selectSubscriptionFilterSchema),
 });
 export const insertSubscriptionFilterSchema = createInsertSchema(
-  schema.subscriptionFilters,
+  schema.subscriptionFilters
 );
 export const updateSubscriptionFilterSchema =
   insertSubscriptionFilterSchema.partial();
@@ -128,10 +128,10 @@ export const articleWithSourceSchema = selectArticleSchema.extend({
 // ============================================================================
 
 export const selectUserArticleStateSchema = createSelectSchema(
-  schema.userArticleStates,
+  schema.userArticleStates
 );
 export const insertUserArticleStateSchema = createInsertSchema(
-  schema.userArticleStates,
+  schema.userArticleStates
 );
 export const updateUserArticleStateSchema =
   insertUserArticleStateSchema.partial();
@@ -153,13 +153,13 @@ export const selectGlobalSettingsSchema = createSelectSchema(
   {
     fetchIntervalMinutes: (s) => s.int().min(5).max(1440),
     pruneDays: (s) => s.int().min(0).max(365),
-  },
+  }
 );
 export const insertGlobalSettingsSchema = createInsertSchema(
   schema.globalSettings,
   {
     fetchIntervalMinutes: (s) => s.int().min(5).max(1440),
     pruneDays: (s) => s.int().min(0).max(365),
-  },
+  }
 );
 export const updateGlobalSettingsSchema = insertGlobalSettingsSchema.partial();

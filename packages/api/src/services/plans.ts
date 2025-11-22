@@ -42,7 +42,7 @@ export async function createPlanSchema(db: Database): Promise<z.ZodString> {
  */
 export async function validatePlanExists(
   db: Database,
-  planId: string,
+  planId: string
 ): Promise<boolean> {
   const plan = await db.query.plans.findFirst({
     where: eq(schema.plans.id, planId),

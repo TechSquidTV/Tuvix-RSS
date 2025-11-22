@@ -99,7 +99,7 @@ describe("Global Settings Service", () => {
       });
 
       await expect(getGlobalSettings(db)).rejects.toThrow(
-        "fetchIntervalMinutes must be between 5-1440",
+        "fetchIntervalMinutes must be between 5-1440"
       );
 
       // Clean up
@@ -120,7 +120,7 @@ describe("Global Settings Service", () => {
       });
 
       await expect(getGlobalSettings(db)).rejects.toThrow(
-        "fetchIntervalMinutes must be between 5-1440",
+        "fetchIntervalMinutes must be between 5-1440"
       );
     });
 
@@ -138,7 +138,7 @@ describe("Global Settings Service", () => {
       });
 
       await expect(getGlobalSettings(db)).rejects.toThrow(
-        "pruneDays must be between 0-365",
+        "pruneDays must be between 0-365"
       );
 
       // Clean up
@@ -159,7 +159,7 @@ describe("Global Settings Service", () => {
       });
 
       await expect(getGlobalSettings(db)).rejects.toThrow(
-        "pruneDays must be between 0-365",
+        "pruneDays must be between 0-365"
       );
     });
 

@@ -15,13 +15,13 @@ const DEFAULT_SALT_ROUNDS = 12;
  */
 export async function hashPassword(
   password: string,
-  saltRounds: number = DEFAULT_SALT_ROUNDS,
+  saltRounds: number = DEFAULT_SALT_ROUNDS
 ): Promise<string> {
   try {
     return await bcrypt.hash(password, saltRounds);
   } catch (error) {
     throw new Error(
-      `Password hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Password hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 }
@@ -32,7 +32,7 @@ export async function hashPassword(
  */
 export async function verifyPassword(
   password: string,
-  hash: string,
+  hash: string
 ): Promise<boolean> {
   try {
     return await bcrypt.compare(password, hash);

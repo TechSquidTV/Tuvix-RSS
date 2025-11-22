@@ -85,7 +85,7 @@ describe("Cron Handlers", () => {
       await handleRSSFetch(env);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        "🔄 Starting scheduled RSS fetch...",
+        "🔄 Starting scheduled RSS fetch..."
       );
       expect(consoleSpy).toHaveBeenCalledWith("✅ RSS fetch completed:", {
         total: 3,
@@ -105,11 +105,11 @@ describe("Cron Handlers", () => {
       vi.mocked(fetchAllFeeds).mockRejectedValue(error);
 
       await expect(handleRSSFetch(env)).rejects.toThrow(
-        "Database connection failed",
+        "Database connection failed"
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "❌ RSS fetch failed:",
-        error,
+        error
       );
 
       consoleErrorSpy.mockRestore();
@@ -301,7 +301,7 @@ describe("Cron Handlers", () => {
 
       expect(consoleSpy).toHaveBeenCalledWith("🗑️ Starting article prune...");
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Pruned 1 articles older than 30 days"),
+        expect.stringContaining("Pruned 1 articles older than 30 days")
       );
 
       consoleSpy.mockRestore();
@@ -315,15 +315,15 @@ describe("Cron Handlers", () => {
       // Mock getGlobalSettings to throw an error
       const { getGlobalSettings } = await import("@/services/global-settings");
       vi.mocked(getGlobalSettings).mockRejectedValue(
-        new Error("Database connection failed"),
+        new Error("Database connection failed")
       );
 
       await expect(handleArticlePrune(env)).rejects.toThrow(
-        "Database connection failed",
+        "Database connection failed"
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "❌ Article prune failed:",
-        expect.any(Error),
+        expect.any(Error)
       );
 
       consoleErrorSpy.mockRestore();

@@ -51,7 +51,7 @@ async function main() {
       .select()
       .from(schema.user)
       .where(
-        sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`,
+        sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`
       )
       .limit(1);
 
@@ -89,7 +89,7 @@ async function main() {
     const err = error as { message?: string };
     console.error(
       "❌ Error promoting user to admin:",
-      err.message || "Unknown error",
+      err.message || "Unknown error"
     );
     process.exit(1);
   }

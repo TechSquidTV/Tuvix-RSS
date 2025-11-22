@@ -62,7 +62,7 @@ export const categoriesRouter = router({
         name: z.string().min(1).max(50),
         color: hexColorValidator.optional(),
         icon: z.string().optional(),
-      }),
+      })
     )
     .output(selectCategorySchema)
     .mutation(async ({ ctx, input }) => {
@@ -73,7 +73,7 @@ export const categoriesRouter = router({
         ctx.db,
         schema.categories,
         userId,
-        input.name,
+        input.name
       );
 
       if (exists) {
@@ -123,7 +123,7 @@ export const categoriesRouter = router({
         name: z.string().min(1).max(50).optional(),
         color: hexColorValidator.optional(),
         icon: z.string().optional(),
-      }),
+      })
     )
     .output(selectCategorySchema)
     .mutation(async ({ ctx, input }) => {
@@ -141,7 +141,7 @@ export const categoriesRouter = router({
           schema.categories,
           userId,
           input.name,
-          input.id, // Exclude current category from check
+          input.id // Exclude current category from check
         );
 
         if (exists) {
@@ -184,7 +184,7 @@ export const categoriesRouter = router({
         schema.categories,
         input.id,
         userId,
-        "Category",
+        "Category"
       );
 
       // Delete category (cascade will remove subscription_categories links)
@@ -214,8 +214,8 @@ export const categoriesRouter = router({
         .where(
           and(
             eq(schema.categories.userId, userId),
-            sql`LOWER(${schema.categories.name}) LIKE LOWER(${input.query + "%"})`,
-          ),
+            sql`LOWER(${schema.categories.name}) LIKE LOWER(${input.query + "%"})`
+          )
         )
         .orderBy(schema.categories.name)
         .limit(10);

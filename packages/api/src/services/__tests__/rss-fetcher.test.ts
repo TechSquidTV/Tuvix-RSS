@@ -111,7 +111,7 @@ describe("RSS Fetcher Service", () => {
       global.fetch = mockFetch404();
 
       await expect(
-        fetchSingleFeed(source.id, source.url, db),
+        fetchSingleFeed(source.id, source.url, db)
       ).rejects.toThrow();
     });
 
@@ -121,7 +121,7 @@ describe("RSS Fetcher Service", () => {
       global.fetch = mockFetchError();
 
       await expect(
-        fetchSingleFeed(source.id, source.url, db),
+        fetchSingleFeed(source.id, source.url, db)
       ).rejects.toThrow();
     });
 
@@ -218,14 +218,14 @@ describe("RSS Fetcher Service", () => {
             new Response(MOCK_RSS_FEED, {
               status: 200,
               headers: { "Content-Type": "application/rss+xml" },
-            }),
+            })
           );
         } else {
           return Promise.resolve(
             new Response("Not Found", {
               status: 404,
               statusText: "Not Found",
-            }),
+            })
           );
         }
       });
@@ -283,7 +283,7 @@ describe("RSS Fetcher Service", () => {
             new Response("Not Found", {
               status: 404,
               statusText: "Not Found",
-            }),
+            })
           );
         }
         // Success for other feed requests
@@ -291,7 +291,7 @@ describe("RSS Fetcher Service", () => {
           new Response(MOCK_RSS_FEED, {
             status: 200,
             headers: { "Content-Type": "application/rss+xml" },
-          }),
+          })
         );
       });
 
@@ -333,11 +333,11 @@ describe("RSS Fetcher Service", () => {
         new Response("not valid xml", {
           status: 200,
           headers: { "Content-Type": "application/rss+xml" },
-        }),
+        })
       );
 
       await expect(
-        fetchSingleFeed(source.id, source.url, db),
+        fetchSingleFeed(source.id, source.url, db)
       ).rejects.toThrow();
     });
 
@@ -348,11 +348,11 @@ describe("RSS Fetcher Service", () => {
         new Response("", {
           status: 200,
           headers: { "Content-Type": "application/rss+xml" },
-        }),
+        })
       );
 
       await expect(
-        fetchSingleFeed(source.id, source.url, db),
+        fetchSingleFeed(source.id, source.url, db)
       ).rejects.toThrow();
     });
 
@@ -364,7 +364,7 @@ describe("RSS Fetcher Service", () => {
       const result = await fetchSingleFeed(
         9999,
         "https://example.com/feed.xml",
-        db,
+        db
       );
 
       expect(result.articlesAdded).toBe(0);

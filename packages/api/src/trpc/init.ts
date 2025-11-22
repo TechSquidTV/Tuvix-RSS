@@ -48,7 +48,7 @@ try {
     sentryMiddleware = t.middleware(
       SentryModule.trpcMiddleware({
         attachRpcInput: true, // Include RPC input in error context for debugging
-      }),
+      })
     );
   }
 } catch {
@@ -161,7 +161,7 @@ export const protectedProcedure = t.procedure.use(isAuthed);
 // Protected procedure without email verification check
 // Use this for endpoints that unverified users need (e.g., checkVerificationStatus, resendVerificationEmail)
 export const protectedProcedureWithoutVerification = t.procedure.use(
-  isAuthedWithoutVerification,
+  isAuthedWithoutVerification
 );
 
 /**
@@ -172,7 +172,7 @@ export const protectedProcedureWithoutVerification = t.procedure.use(
  * @returns Middleware that checks the limit
  */
 export function withLimitCheck(
-  resource: "sources" | "publicFeeds" | "categories",
+  resource: "sources" | "publicFeeds" | "categories"
 ) {
   return t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
@@ -210,7 +210,7 @@ export function withLimitCheck(
 
 // Protected procedure with limit check helper
 export const createProtectedWithLimit = (
-  resource: "sources" | "publicFeeds" | "categories",
+  resource: "sources" | "publicFeeds" | "categories"
 ) => protectedProcedure.use(withLimitCheck(resource));
 
 /**
@@ -297,7 +297,7 @@ const withRateLimit = t.middleware(async ({ ctx, next }) => {
     ctx.env,
     ctx.user.userId,
     planId,
-    limits.apiRateLimitPerMinute,
+    limits.apiRateLimitPerMinute
   );
 
   if (!rateLimitResult.allowed) {

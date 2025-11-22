@@ -45,7 +45,7 @@ export function expressHeadersToWeb(headers: IncomingHttpHeaders): Headers {
  */
 export async function createContextFromExpressHeaders(
   headers: IncomingHttpHeaders,
-  env: Env,
+  env: Env
 ) {
   const webHeaders = expressHeadersToWeb(headers);
 
@@ -69,7 +69,7 @@ export async function createContextFromExpressHeaders(
  */
 export async function createContextFromCloudflareRequest(
   request: Request,
-  env: Env,
+  env: Env
 ) {
   return createContext({
     req: request,

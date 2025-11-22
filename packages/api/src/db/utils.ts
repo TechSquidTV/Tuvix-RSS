@@ -12,7 +12,7 @@ import type { Database } from "./client";
  */
 type DatabaseWithBatch = Database & {
   batch: (
-    statements: Array<{ execute: () => Promise<unknown> }>,
+    statements: Array<{ execute: () => Promise<unknown> }>
   ) => Promise<unknown[]>;
 };
 

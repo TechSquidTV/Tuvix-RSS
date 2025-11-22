@@ -41,7 +41,7 @@ export async function logSecurityEvent(
     userAgent?: string;
     metadata?: Record<string, unknown>;
     success: boolean;
-  },
+  }
 ): Promise<void> {
   try {
     await db.insert(securityAuditLog).values({
@@ -72,7 +72,7 @@ export function generateSecureToken(length: number = 32): string {
 export async function createPasswordResetToken(
   db: Database,
   userId: number,
-  expiresInMinutes: number = 60,
+  expiresInMinutes: number = 60
 ): Promise<string> {
   const token = generateSecureToken();
   const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
@@ -84,8 +84,8 @@ export async function createPasswordResetToken(
     .where(
       and(
         eq(passwordResetTokens.userId, userId),
-        eq(passwordResetTokens.used, false),
-      ),
+        eq(passwordResetTokens.used, false)
+      )
     );
 
   // Create new token
@@ -105,7 +105,7 @@ export async function createPasswordResetToken(
  */
 export async function validatePasswordResetToken(
   db: Database,
-  token: string,
+  token: string
 ): Promise<number | null> {
   const [resetToken] = await db
     .select()
@@ -159,7 +159,7 @@ export async function cleanupExpiredTokens(db: Database): Promise<number> {
  * Handles various proxy headers
  */
 export function getClientIp(
-  headers: Record<string, string | undefined>,
+  headers: Record<string, string | undefined>
 ): string | undefined {
   // Check various headers in order of preference
   const candidates = [
@@ -182,7 +182,7 @@ export function getClientIp(
  * Extract user agent from headers
  */
 export function getUserAgent(
-  headers: Record<string, string | undefined>,
+  headers: Record<string, string | undefined>
 ): string | undefined {
   return headers["user-agent"];
 }

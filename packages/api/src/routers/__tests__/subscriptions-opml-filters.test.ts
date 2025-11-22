@@ -39,7 +39,7 @@ function createRealisticRSSFeed(options: {
       ${item.description ? `<description><![CDATA[${item.description}]]></description>` : ""}
       <guid isPermaLink="false">${item.link || `https://example.com/item-${Math.random()}`}</guid>
       <pubDate>${new Date().toUTCString()}</pubDate>
-    </item>`,
+    </item>`
     )
     .join("");
 
@@ -72,7 +72,7 @@ function createRealisticAtomFeed(options: {
       ${entry.link ? `<link href="${entry.link}" rel="alternate"/>` : ""}
       ${entry.summary ? `<summary type="html"><![CDATA[${entry.summary}]]></summary>` : ""}
       <updated>${new Date().toISOString()}</updated>
-    </entry>`,
+    </entry>`
     )
     .join("");
 
@@ -115,7 +115,7 @@ function createRealisticJSONFeed(options: {
  * based on URL patterns, simulating real-world scenarios
  */
 function createRealisticFeedFetcher(
-  urlToFeedMap: Map<string, { content: string; contentType?: string }>,
+  urlToFeedMap: Map<string, { content: string; contentType?: string }>
 ): typeof global.fetch {
   return async (url: RequestInfo | URL) => {
     const urlStr = typeof url === "string" ? url : url.toString();
@@ -174,7 +174,7 @@ describe("OPML Filter and Category Export/Import", () => {
       testSource.id,
       {
         filterEnabled: true,
-      },
+      }
     );
   });
 
@@ -320,7 +320,7 @@ describe("OPML Filter and Category Export/Import", () => {
         {
           filterEnabled: true,
           filterMode: "exclude",
-        },
+        }
       );
 
       // Add filters to both subscriptions
@@ -362,10 +362,10 @@ describe("OPML Filter and Category Export/Import", () => {
       expect(outlines.length).toBeGreaterThanOrEqual(2);
 
       const outline1 = outlines.find(
-        (o) => o.xmlUrl === "https://example.com/feed.xml",
+        (o) => o.xmlUrl === "https://example.com/feed.xml"
       );
       const outline2 = outlines.find(
-        (o) => o.xmlUrl === "https://example.com/feed2.xml",
+        (o) => o.xmlUrl === "https://example.com/feed2.xml"
       );
 
       expect(outline1?.tuvixFilterMode).toBe("include");
@@ -527,7 +527,7 @@ describe("OPML Filter and Category Export/Import", () => {
       await expect(
         caller.parseOpml({
           opmlContent: fileLike,
-        } as any),
+        } as any)
       ).rejects.toThrow();
     });
 
@@ -545,28 +545,28 @@ describe("OPML Filter and Category Export/Import", () => {
         caller.parseOpml({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: null,
-        }),
+        })
       ).rejects.toThrow();
 
       await expect(
         caller.parseOpml({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: undefined,
-        }),
+        })
       ).rejects.toThrow();
 
       await expect(
         caller.parseOpml({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: 123,
-        }),
+        })
       ).rejects.toThrow();
 
       await expect(
         caller.parseOpml({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: {},
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -624,7 +624,7 @@ describe("OPML Filter and Category Export/Import", () => {
       await expect(
         caller.import({
           opmlContent: fileLike,
-        } as any),
+        } as any)
       ).rejects.toThrow();
     });
 
@@ -642,21 +642,21 @@ describe("OPML Filter and Category Export/Import", () => {
         caller.import({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: null,
-        }),
+        })
       ).rejects.toThrow();
 
       await expect(
         caller.import({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: undefined,
-        }),
+        })
       ).rejects.toThrow();
 
       await expect(
         caller.import({
           // @ts-expect-error - Intentionally passing wrong type
           opmlContent: 123,
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -672,7 +672,7 @@ describe("OPML Filter and Category Export/Import", () => {
       // Missing opmlContent should fail validation
       await expect(
         // @ts-expect-error - Intentionally omitting required field
-        caller.parseOpml({}),
+        caller.parseOpml({})
       ).rejects.toThrow();
     });
 
@@ -688,7 +688,7 @@ describe("OPML Filter and Category Export/Import", () => {
       // Missing opmlContent should fail validation
       await expect(
         // @ts-expect-error - Intentionally omitting required field
-        caller.import({}),
+        caller.import({})
       ).rejects.toThrow();
     });
 
@@ -772,7 +772,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .where(eq(schema.subscriptions.userId, testUser.id));
 
       const newSubscription = subscriptions.find(
-        (s) => s.id !== testSubscription.id,
+        (s) => s.id !== testSubscription.id
       );
       expect(newSubscription).toBeDefined();
       expect(newSubscription?.filterEnabled).toBe(true);
@@ -783,7 +783,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .select()
         .from(schema.subscriptionFilters)
         .where(
-          eq(schema.subscriptionFilters.subscriptionId, newSubscription!.id),
+          eq(schema.subscriptionFilters.subscriptionId, newSubscription!.id)
         );
 
       expect(filters).toHaveLength(1);
@@ -885,7 +885,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .where(eq(schema.subscriptions.userId, testUser.id));
 
       const newSubscription = subscriptions.find(
-        (s) => s.id !== testSubscription.id,
+        (s) => s.id !== testSubscription.id
       );
       expect(newSubscription?.filterEnabled).toBe(false);
     });
@@ -971,10 +971,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .select()
         .from(schema.subscriptionFilters)
         .where(
-          eq(
-            schema.subscriptionFilters.subscriptionId,
-            importedSubscription.id,
-          ),
+          eq(schema.subscriptionFilters.subscriptionId, importedSubscription.id)
         );
 
       expect(importedFilters).toHaveLength(2);
@@ -1031,7 +1028,7 @@ describe("OPML Filter and Category Export/Import", () => {
       expect(parsed.body?.outlines).toBeDefined();
       // Find the category folder (could be Technology or News)
       const categoryFolder = parsed.body?.outlines?.find(
-        (o) => o.text === "Technology" || o.text === "News",
+        (o) => o.text === "Technology" || o.text === "News"
       );
       expect(categoryFolder).toBeDefined();
       expect(categoryFolder?.outlines).toBeDefined();
@@ -1105,12 +1102,12 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Should have category folder
       const categoryFolder = parsed.body?.outlines?.find(
-        (o) => o.text === "Technology",
+        (o) => o.text === "Technology"
       );
       expect(categoryFolder).toBeDefined();
       expect(categoryFolder?.outlines).toBeDefined();
       expect(categoryFolder?.outlines?.[0]?.xmlUrl).toBe(
-        "https://example.com/feed.xml",
+        "https://example.com/feed.xml"
       );
 
       // Should also have category attribute
@@ -1173,7 +1170,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .where(eq(schema.subscriptions.userId, testUser.id));
 
       const newSubscription = subscriptions.find(
-        (s) => s.id !== testSubscription.id,
+        (s) => s.id !== testSubscription.id
       );
       expect(newSubscription).toBeDefined();
 
@@ -1193,7 +1190,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id),
+          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id)
         );
 
       expect(subscriptionCategories).toHaveLength(2);
@@ -1335,7 +1332,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .where(eq(schema.subscriptions.userId, testUser.id));
 
       const newSubscription = subscriptions.find(
-        (s) => s.id !== testSubscription.id,
+        (s) => s.id !== testSubscription.id
       );
       expect(newSubscription).toBeDefined();
 
@@ -1343,7 +1340,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id),
+          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id)
         );
 
       expect(subscriptionCategories).toHaveLength(3);
@@ -1441,7 +1438,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .where(eq(schema.subscriptions.userId, testUser.id));
 
       const newSubscription = subscriptions.find(
-        (s) => s.id !== testSubscription.id,
+        (s) => s.id !== testSubscription.id
       );
       expect(newSubscription).toBeDefined();
 
@@ -1449,7 +1446,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .select()
         .from(schema.subscriptionCategories)
         .where(
-          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id),
+          eq(schema.subscriptionCategories.subscriptionId, newSubscription!.id)
         );
 
       // Should not have duplicate links
@@ -1658,10 +1655,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptionFilters)
         .innerJoin(
           schema.subscriptions,
-          eq(
-            schema.subscriptionFilters.subscriptionId,
-            schema.subscriptions.id,
-          ),
+          eq(schema.subscriptionFilters.subscriptionId, schema.subscriptions.id)
         )
         .where(eq(schema.subscriptions.userId, newUser.id));
 
@@ -1674,30 +1668,30 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.sources)
         .innerJoin(
           schema.subscriptions,
-          eq(schema.sources.id, schema.subscriptions.sourceId),
+          eq(schema.sources.id, schema.subscriptions.sourceId)
         )
         .where(eq(schema.subscriptions.userId, newUser.id));
 
       // Verify each source has the correct metadata extracted from feeds
       const techSource = importedSources.find((s) =>
-        s.sources.url.includes("tech.example.com"),
+        s.sources.url.includes("tech.example.com")
       );
       expect(techSource).toBeDefined();
       expect(techSource?.sources.title).toBe("Tech Blog");
       expect(techSource?.sources.siteUrl).toBe("https://tech.example.com");
       expect(techSource?.sources.description).toBe(
-        "Latest technology news and updates",
+        "Latest technology news and updates"
       );
 
       const newsSource = importedSources.find((s) =>
-        s.sources.url.includes("news.example.com"),
+        s.sources.url.includes("news.example.com")
       );
       expect(newsSource).toBeDefined();
       expect(newsSource?.sources.title).toBe("News Site");
       expect(newsSource?.sources.siteUrl).toBe("https://news.example.com");
 
       const blogSource = importedSources.find((s) =>
-        s.sources.url.includes("blog.example.com"),
+        s.sources.url.includes("blog.example.com")
       );
       expect(blogSource).toBeDefined();
       expect(blogSource?.sources.title).toBe("Personal Blog");
@@ -1709,13 +1703,13 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.userId, newUser.id),
-            eq(schema.sources.url, "https://tech.example.com/feed.xml"),
-          ),
+            eq(schema.sources.url, "https://tech.example.com/feed.xml")
+          )
         )
         .limit(1);
 
@@ -1799,7 +1793,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(eq(schema.subscriptions.userId, newUser.id));
 
@@ -1925,7 +1919,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       const feedOutline = findFeedOutline(
         parsed.body?.outlines || [],
-        "https://custom-title.example.com/feed.xml",
+        "https://custom-title.example.com/feed.xml"
       );
       expect(feedOutline).toBeDefined();
       expect(feedOutline?.text).toBe("My Custom Title");
@@ -1982,13 +1976,13 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.userId, newUser.id),
-            eq(schema.sources.url, "https://custom-title.example.com/feed.xml"),
-          ),
+            eq(schema.sources.url, "https://custom-title.example.com/feed.xml")
+          )
         );
 
       expect(importedSubs.length).toBe(1);
@@ -2063,13 +2057,13 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.userId, testUser.id),
-            eq(schema.sources.url, "https://example.com/existing.xml"),
-          ),
+            eq(schema.sources.url, "https://example.com/existing.xml")
+          )
         );
 
       expect(existingSubs).toHaveLength(1);
@@ -2080,13 +2074,13 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(
           and(
             eq(schema.subscriptions.userId, testUser.id),
-            eq(schema.sources.url, "https://example.com/new.xml"),
-          ),
+            eq(schema.sources.url, "https://example.com/new.xml")
+          )
         );
 
       expect(newSubs).toHaveLength(1);
@@ -2324,10 +2318,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptionFilters)
         .innerJoin(
           schema.subscriptions,
-          eq(
-            schema.subscriptionFilters.subscriptionId,
-            schema.subscriptions.id,
-          ),
+          eq(schema.subscriptionFilters.subscriptionId, schema.subscriptions.id)
         )
         .where(eq(schema.subscriptions.userId, newUser.id));
 
@@ -2340,23 +2331,23 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.sources)
         .innerJoin(
           schema.subscriptions,
-          eq(schema.sources.id, schema.subscriptions.sourceId),
+          eq(schema.sources.id, schema.subscriptions.sourceId)
         )
         .where(eq(schema.subscriptions.userId, newUser.id));
 
       // Verify each source has correct metadata from feed parsing
       const tech1Source = importedSources.find((s) =>
-        s.sources.url.includes("tech1.com"),
+        s.sources.url.includes("tech1.com")
       );
       expect(tech1Source).toBeDefined();
       expect(tech1Source?.sources.title).toBe("Tech Site 1");
       expect(tech1Source?.sources.siteUrl).toBe("https://tech1.com");
       expect(tech1Source?.sources.description).toBe(
-        "Technology news and updates",
+        "Technology news and updates"
       );
 
       const news1Source = importedSources.find((s) =>
-        s.sources.url.includes("news1.com"),
+        s.sources.url.includes("news1.com")
       );
       expect(news1Source).toBeDefined();
       expect(news1Source?.sources.title).toBe("News Site 1");
@@ -2461,7 +2452,7 @@ describe("OPML Filter and Category Export/Import", () => {
         .from(schema.subscriptions)
         .innerJoin(
           schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id),
+          eq(schema.subscriptions.sourceId, schema.sources.id)
         )
         .where(eq(schema.subscriptions.userId, testUser.id));
 
@@ -2471,7 +2462,7 @@ describe("OPML Filter and Category Export/Import", () => {
       // CRITICAL: Verify metadata was extracted correctly for each supported format
       // This ensures schema changes and parsing logic changes would break the test
       const rssSource = importedSubs.find((s) =>
-        s.sources.url.includes("rss.example.com"),
+        s.sources.url.includes("rss.example.com")
       );
       expect(rssSource).toBeDefined();
       expect(rssSource?.sources.title).toBe("RSS Feed");
@@ -2479,7 +2470,7 @@ describe("OPML Filter and Category Export/Import", () => {
       expect(rssSource?.sources.description).toBe("RSS 2.0 format feed");
 
       const atomSource = importedSubs.find((s) =>
-        s.sources.url.includes("atom.example.com"),
+        s.sources.url.includes("atom.example.com")
       );
       expect(atomSource).toBeDefined();
       expect(atomSource?.sources.title).toBe("Atom Feed");
@@ -2489,7 +2480,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Verify JSON Feed was NOT imported (unsupported format)
       const jsonSource = importedSubs.find((s) =>
-        s.sources.url.includes("json.example.com"),
+        s.sources.url.includes("json.example.com")
       );
       expect(jsonSource).toBeUndefined();
     });
@@ -2521,7 +2512,7 @@ describe("OPML Filter and Category Export/Import", () => {
           customTitle: "My Custom Title",
           filterEnabled: true,
           filterMode: "exclude",
-        },
+        }
       );
 
       await db.insert(schema.subscriptionCategories).values({
@@ -2579,7 +2570,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       const feedOutline = findFeedOutline(
         parsed.body?.outlines || [],
-        "https://schema-test.example.com/feed.xml",
+        "https://schema-test.example.com/feed.xml"
       );
 
       expect(feedOutline).toBeDefined();
@@ -2630,7 +2621,7 @@ describe("OPML Filter and Category Export/Import", () => {
         {
           filterEnabled: true,
           filterMode: "include",
-        },
+        }
       );
 
       // Create filters with ALL possible field combinations
@@ -2710,7 +2701,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       const feedOutline = findFeedOutline(
         parsed.body?.outlines || [],
-        "https://filter-test.example.com/feed.xml",
+        "https://filter-test.example.com/feed.xml"
       );
 
       expect(feedOutline).toBeDefined();
@@ -2769,7 +2760,7 @@ describe("OPML Filter and Category Export/Import", () => {
       const subscription = await seedTestSubscription(
         db,
         uniqueUser.id,
-        source.id,
+        source.id
       );
 
       // Link subscription to ALL categories
@@ -2811,14 +2802,14 @@ describe("OPML Filter and Category Export/Import", () => {
 
       const feedOutline = findFeedOutline(
         parsed.body?.outlines || [],
-        "https://category-test.example.com/feed.xml",
+        "https://category-test.example.com/feed.xml"
       );
 
       expect(feedOutline).toBeDefined();
 
       // CRITICAL: Verify ALL categories are exported
       const exportedCategories = JSON.parse(
-        feedOutline?.tuvixCategories as string,
+        feedOutline?.tuvixCategories as string
       );
       expect(exportedCategories).toHaveLength(3);
 
@@ -2834,7 +2825,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Verify categories appear in folder structure
       const categoryFolders = (parsed.body?.outlines || []).filter(
-        (o) => o.outlines && !o.xmlUrl,
+        (o) => o.outlines && !o.xmlUrl
       );
       expect(categoryFolders.length).toBeGreaterThanOrEqual(3);
 
@@ -2907,7 +2898,7 @@ describe("OPML Filter and Category Export/Import", () => {
 
       const feedOutline = findFeedOutline(
         parsed.body?.outlines || [],
-        "https://metadata-test.example.com/feed.xml",
+        "https://metadata-test.example.com/feed.xml"
       );
 
       expect(feedOutline).toBeDefined();

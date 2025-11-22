@@ -49,7 +49,7 @@ async function main() {
 
     console.log(`⚠️  About to delete ${count} articles...`);
     console.log(
-      "   This will also delete all user article states (read/saved).",
+      "   This will also delete all user article states (read/saved)."
     );
 
     // Delete all articles (cascade will auto-delete user_article_states)
@@ -63,7 +63,7 @@ async function main() {
     const err = error as { message?: string };
     console.error(
       "❌ Error clearing articles:",
-      err.message || "Unknown error",
+      err.message || "Unknown error"
     );
     process.exit(1);
   }
