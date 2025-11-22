@@ -11,6 +11,7 @@ import { getGlobalSettings } from "@/services/global-settings";
 import { inArray, lt, or, isNull, and } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
+import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
 
 /**
  * Fetch all RSS feeds
@@ -90,12 +91,11 @@ async function _handleArticlePrune(env: Env): Promise<{
     }
 
     // Delete articles in batches (cascade will auto-delete user_article_states)
-    // SQLite has a limit on number of parameters, so batch in chunks of 999
-    const batchSize = 999;
+    // Cloudflare D1 has a limit of 100 parameters per query, so batch in chunks
+    const batches = chunkArray(articleIds, D1_MAX_PARAMETERS);
     let deletedCount = 0;
 
-    for (let i = 0; i < articleIds.length; i += batchSize) {
-      const batch = articleIds.slice(i, i + batchSize);
+    for (const batch of batches) {
       await db
         .delete(schema.articles)
         .where(inArray(schema.articles.id, batch));

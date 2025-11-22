@@ -236,7 +236,7 @@ describe("Cron Handlers", () => {
     it("should handle batch deletion for large numbers of articles", async () => {
       const oldDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
 
-      // Create 2000 articles (more than SQLite's 999 parameter limit)
+      // Create 2000 articles (more than Cloudflare D1's 100 parameter limit)
       const articles = Array.from({ length: 2000 }, (_, i) => ({
         sourceId: testSource.id,
         guid: `guid-${i}`,

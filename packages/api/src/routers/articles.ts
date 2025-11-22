@@ -13,6 +13,7 @@ import {
   createPaginatedSchema,
   paginationInputSchema,
 } from "@/types/pagination";
+import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
 import * as schema from "@/db/schema";
 import { executeBatch } from "@/db/utils";
 
@@ -571,15 +572,23 @@ export const articlesRouter = router({
       }
 
       // Get existing states to preserve 'saved' flags
-      const existingStates = await ctx.db
-        .select()
-        .from(schema.userArticleStates)
-        .where(
-          and(
-            eq(schema.userArticleStates.userId, userId),
-            inArray(schema.userArticleStates.articleId, input.articleIds)
-          )
-        );
+      // Batch the query to avoid exceeding D1's 100-parameter limit
+      const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
+        [];
+      const batches = chunkArray(input.articleIds, D1_MAX_PARAMETERS);
+
+      for (const batch of batches) {
+        const batchStates = await ctx.db
+          .select()
+          .from(schema.userArticleStates)
+          .where(
+            and(
+              eq(schema.userArticleStates.userId, userId),
+              inArray(schema.userArticleStates.articleId, batch)
+            )
+          );
+        existingStates.push(...batchStates);
+      }
 
       // Create a map for quick lookup
       const stateMap = new Map(
@@ -659,15 +668,23 @@ export const articlesRouter = router({
       }
 
       // Get existing states to preserve 'saved' flags
-      const existingStates = await ctx.db
-        .select()
-        .from(schema.userArticleStates)
-        .where(
-          and(
-            eq(schema.userArticleStates.userId, userId),
-            inArray(schema.userArticleStates.articleId, articleIds)
-          )
-        );
+      // Batch the query to avoid exceeding D1's 100-parameter limit
+      const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
+        [];
+      const batches = chunkArray(articleIds, D1_MAX_PARAMETERS);
+
+      for (const batch of batches) {
+        const batchStates = await ctx.db
+          .select()
+          .from(schema.userArticleStates)
+          .where(
+            and(
+              eq(schema.userArticleStates.userId, userId),
+              inArray(schema.userArticleStates.articleId, batch)
+            )
+          );
+        existingStates.push(...batchStates);
+      }
 
       // Create a map for quick lookup
       const stateMap = new Map(
