@@ -28,7 +28,9 @@ runs:
         fi
         
         # Trim any whitespace from the database ID value (prevents issues with secret formatting)
-        D1_DATABASE_ID=$(echo "$D1_DATABASE_ID" | xargs)
+        # Use parameter expansion instead of xargs to avoid quote issues
+        D1_DATABASE_ID="${D1_DATABASE_ID#"${D1_DATABASE_ID%%[![:space:]]*}"}"  # Remove leading whitespace
+        D1_DATABASE_ID="${D1_DATABASE_ID%"${D1_DATABASE_ID##*[![:space:]]}"}"  # Remove trailing whitespace
         
         # Verify the trimmed value is not empty
         if [ -z "$D1_DATABASE_ID" ]; then

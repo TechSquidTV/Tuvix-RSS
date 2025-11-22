@@ -50,7 +50,9 @@ fi
 echo "✅ Substitution successful"
 
 # Trim database ID value (same as CI)
-D1_DATABASE_ID=$(echo "$D1_DATABASE_ID" | xargs)
+# Use parameter expansion instead of xargs to avoid quote issues
+D1_DATABASE_ID="${D1_DATABASE_ID#"${D1_DATABASE_ID%%[![:space:]]*}"}"  # Remove leading whitespace
+D1_DATABASE_ID="${D1_DATABASE_ID%"${D1_DATABASE_ID##*[![:space:]]}"}"  # Remove trailing whitespace
 
 # Clean up using reconstruction approach (same as CI)
 # Extract the database ID value and reconstruct the line perfectly
