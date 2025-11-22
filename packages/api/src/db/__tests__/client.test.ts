@@ -11,17 +11,33 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 describe("createDatabase", () => {
-  const testDbPath = join(tmpdir(), `test-tuvix-${Date.now()}.db`);
+  const createdDbs: Array<{
+    db: ReturnType<typeof createDatabase>;
+    path?: string;
+  }> = [];
 
   afterEach(() => {
-    // Clean up test database files
-    if (existsSync(testDbPath)) {
+    // Close all database connections first
+    for (const { db, path } of createdDbs) {
       try {
-        unlinkSync(testDbPath);
+        const sqlite = (db as any).$client as Database.Database | undefined;
+        if (sqlite && typeof sqlite.close === "function") {
+          sqlite.close();
+        }
       } catch {
-        // Ignore cleanup errors
+        // Ignore close errors
+      }
+
+      // Then delete the file if it exists
+      if (path && existsSync(path)) {
+        try {
+          unlinkSync(path);
+        } catch {
+          // Ignore cleanup errors
+        }
       }
     }
+    createdDbs.length = 0;
   });
 
   describe("Node.js runtime", () => {
@@ -32,12 +48,17 @@ describe("createDatabase", () => {
       };
 
       const db = createDatabase(env);
+      createdDbs.push({ db, path: "./data/tuvix.db" });
 
       expect(db).toBeDefined();
       expect(db.$client).toBeDefined();
     });
 
     it("should create database with custom DATABASE_PATH", () => {
+      const testDbPath = join(
+        tmpdir(),
+        `test-tuvix-${Date.now()}-${Math.random().toString(36).substring(7)}.db`
+      );
       const env: Env = {
         RUNTIME: "nodejs",
         DATABASE_PATH: testDbPath,
@@ -45,6 +66,7 @@ describe("createDatabase", () => {
       };
 
       const db = createDatabase(env);
+      createdDbs.push({ db, path: testDbPath });
 
       expect(db).toBeDefined();
       expect(db.$client).toBeDefined();
@@ -52,6 +74,10 @@ describe("createDatabase", () => {
     });
 
     it("should enable WAL mode for better concurrency", () => {
+      const testDbPath = join(
+        tmpdir(),
+        `test-tuvix-${Date.now()}-${Math.random().toString(36).substring(7)}.db`
+      );
       const env: Env = {
         RUNTIME: "nodejs",
         DATABASE_PATH: testDbPath,
@@ -59,6 +85,7 @@ describe("createDatabase", () => {
       };
 
       const db = createDatabase(env);
+      createdDbs.push({ db, path: testDbPath });
       const sqlite = db.$client as Database.Database;
 
       // Check that WAL mode is enabled
@@ -69,6 +96,10 @@ describe("createDatabase", () => {
     });
 
     it("should enable foreign keys", () => {
+      const testDbPath = join(
+        tmpdir(),
+        `test-tuvix-${Date.now()}-${Math.random().toString(36).substring(7)}.db`
+      );
       const env: Env = {
         RUNTIME: "nodejs",
         DATABASE_PATH: testDbPath,
@@ -76,6 +107,7 @@ describe("createDatabase", () => {
       };
 
       const db = createDatabase(env);
+      createdDbs.push({ db, path: testDbPath });
       const sqlite = db.$client as Database.Database;
 
       // Check that foreign keys are enabled
@@ -92,6 +124,7 @@ describe("createDatabase", () => {
       };
 
       const db = createDatabase(env);
+      createdDbs.push({ db, path: "./data/tuvix.db" });
 
       expect(db).toBeDefined();
       expect(db.$client).toBeDefined();

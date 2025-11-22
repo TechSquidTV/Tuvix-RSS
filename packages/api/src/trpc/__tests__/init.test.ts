@@ -4,10 +4,10 @@
  * Tests for tRPC setup including Sentry middleware integration
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import { router, publicProcedure, rateLimitedProcedure } from "../init";
 import { TRPCError } from "@trpc/server";
-import { createTestDb, seedTestUser } from "@/test/setup";
+import { createTestDb, seedTestUser, cleanupTestDb } from "@/test/setup";
 import { createContext } from "../context";
 import type { Env } from "@/types";
 
@@ -22,6 +22,28 @@ vi.mock("@/auth/better-auth", () => {
   return {
     createAuth: mockCreateAuth,
   };
+});
+
+// Mock database client
+vi.mock("@/db/client", () => ({
+  createDatabase: vi.fn(),
+}));
+
+// Set up a test database for all tests
+let globalTestDb: ReturnType<typeof createTestDb>;
+
+beforeAll(() => {
+  globalTestDb = createTestDb();
+});
+
+afterAll(() => {
+  cleanupTestDb(globalTestDb);
+});
+
+beforeEach(async () => {
+  // Set default mock return value for all tests
+  const { createDatabase } = await import("@/db/client");
+  vi.mocked(createDatabase).mockReturnValue(globalTestDb as any);
 });
 
 describe("tRPC Router", () => {
@@ -88,13 +110,22 @@ describe("rateLimitedProcedure", () => {
   let db: ReturnType<typeof createTestDb>;
   let env: Env;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = createTestDb();
     env = {
       RUNTIME: "nodejs",
       BETTER_AUTH_SECRET: "test-secret",
       SKIP_RATE_LIMIT: "true", // Skip rate limiting in tests
     };
+
+    // Mock createDatabase to return our test db
+    const { createDatabase } = await import("@/db/client");
+    vi.mocked(createDatabase).mockReturnValue(db as any);
+  });
+
+  afterEach(() => {
+    cleanupTestDb(db);
+    vi.clearAllMocks();
   });
 
   it("should require authentication", async () => {
