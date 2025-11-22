@@ -18,8 +18,28 @@ runs:
       env:
         D1_DATABASE_ID: ${{ inputs.d1-database-id }}
       run: |
+        set -e  # Exit on any error
+        set -u  # Exit on undefined variables
+        
         # Store absolute path to wrangler.toml for consistency
         WRANGLER_TOML_PATH=$(cd "$(dirname "${{ inputs.wrangler-toml-path }}")" && pwd)/$(basename "${{ inputs.wrangler-toml-path }}")
+        
+        # Verify required commands are available
+        if ! command -v envsubst >/dev/null 2>&1; then
+          echo "::error::envsubst command not found. This is required for substitution."
+          exit 1
+        fi
+        
+        if ! command -v python3 >/dev/null 2>&1; then
+          echo "::error::python3 command not found. This is required for cleanup."
+          exit 1
+        fi
+        
+        # Verify file exists
+        if [ ! -f "$WRANGLER_TOML_PATH" ]; then
+          echo "::error::wrangler.toml file not found at: $WRANGLER_TOML_PATH"
+          exit 1
+        fi
         
         # Verify secret is set (without leaking value)
         if [ -z "$D1_DATABASE_ID" ]; then
@@ -44,6 +64,9 @@ runs:
           exit 1
         fi
         
+        # Export D1_DATABASE_ID for envsubst (it's already in env, but ensure it's available)
+        export D1_DATABASE_ID
+        
         # Perform substitution with explicit variable list
         envsubst '$D1_DATABASE_ID' < "$WRANGLER_TOML_PATH" > "$WRANGLER_TOML_PATH".tmp
         
@@ -59,108 +82,147 @@ runs:
           exit 1
         fi
         
-        # Clean up the database_id line to ensure it ends with just a newline (no trailing whitespace)
-        # This fixes TOML parsing issues where trailing characters after the value cause errors
-        # Extract the database ID value and reconstruct the line perfectly
-        echo "🔍 Extracting database_id value..."
-        DB_VALUE=$(grep '^database_id = ' "$WRANGLER_TOML_PATH".tmp | sed 's/^database_id = "\(.*\)".*/\1/')
-        if [ -z "$DB_VALUE" ]; then
-          echo "::error::Could not extract database_id value"
-          echo "Debug: Checking database_id line from file..."
-          RAW_LINE=$(grep '^database_id = ' "$WRANGLER_TOML_PATH".tmp || echo "NOT_FOUND")
-          if [ "$RAW_LINE" != "NOT_FOUND" ]; then
-            echo "Debug: Line found, length: ${#RAW_LINE}"
-            echo "Debug: Line starts with: ${RAW_LINE:0:20}..." # Only show "database_id = " part
-            echo "Debug: Contains quotes: $(echo "$RAW_LINE" | grep -q '"' && echo "yes" || echo "no")"
-            echo "Debug: Value portion length: $(( ${#RAW_LINE} - 20 ))" # Length of value part only
-          else
-            echo "Debug: database_id line not found in file"
-          fi
+        # Clean up the database_id line using Python - ensures proper TOML formatting
+        # This fixes any trailing whitespace or characters that might cause TOML parsing errors
+        echo "🔧 Cleaning database_id line with Python..."
+        
+        # Export WRANGLER_TOML_PATH for Python script
+        export WRANGLER_TOML_PATH
+        
+        # Create Python script in a temporary file to avoid YAML linting issues
+        PYTHON_SCRIPT_FILE=$(mktemp)
+        if [ -z "$PYTHON_SCRIPT_FILE" ]; then
+          echo "::error::Failed to create temporary file"
           exit 1
         fi
-        # Verify extracted value is not empty
-        if [ ${#DB_VALUE} -eq 0 ]; then
-          echo "::error::Extracted database_id value is empty"
-          echo "Debug: Extraction succeeded but value length is 0"
+        cat > "$PYTHON_SCRIPT_FILE.tmp" << 'EOF'
+        import re
+        import sys
+        import os
+        
+        # Get file path from environment
+        file_path = os.environ.get('WRANGLER_TOML_PATH')
+        if not file_path:
+            print('::error::WRANGLER_TOML_PATH environment variable not set')
+            sys.exit(1)
+        
+        file_path = file_path + '.tmp'
+        
+        # Verify temp file exists
+        if not os.path.exists(file_path):
+            print(f'::error::Temporary file not found: {file_path}')
+            sys.exit(1)
+        
+        # Read the file as text
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            print(f'::error::Failed to read file: {e}')
+            sys.exit(1)
+        
+        # Split into lines (preserve newlines in processing)
+        lines = content.splitlines(keepends=False)
+        
+        found = False
+        for i, line in enumerate(lines):
+            # Check if this is the database_id line (strip to handle whitespace)
+            stripped = line.strip()
+            if stripped.startswith('database_id = '):
+                # Extract the value using regex - handle any whitespace around =
+                match = re.search(r'database_id\s*=\s*"([^"]+)"', line)
+                if match:
+                    db_value = match.group(1).strip()
+                    if not db_value:
+                        print('::error::database_id value is empty')
+                        sys.exit(1)
+                    
+                    # Get indentation from original line (before stripping)
+                    indent_match = re.match(r'^(\s*)', line)
+                    indent_str = indent_match.group(1) if indent_match else ''
+                    
+                    # Create clean line: exactly "database_id = "value"" with no trailing content
+                    lines[i] = f'{indent_str}database_id = "{db_value}"'
+                    print(f'✅ Fixed line {i+1} (value length: {len(db_value)}, indent: {len(indent_str)})')
+                    found = True
+                    break
+        
+        if not found:
+            print('::error::database_id line not found in file')
+            sys.exit(1)
+        
+        # Join lines with newlines and write back
+        # Ensure each line ends with exactly one newline
+        output = '\n'.join(lines)
+        # Ensure file ends with exactly one newline (TOML requirement)
+        if output and not output.endswith('\n'):
+            output += '\n'
+        
+        # Write back the file
+        try:
+            with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(output)
+        except Exception as e:
+            print(f'::error::Failed to write file: {e}')
+            sys.exit(1)
+        EOF
+        # Strip leading 8 spaces from each line to fix indentation
+        if ! sed 's/^        //' "$PYTHON_SCRIPT_FILE.tmp" > "$PYTHON_SCRIPT_FILE"; then
+          echo "::error::Failed to process Python script"
+          rm -f "$PYTHON_SCRIPT_FILE.tmp" "$PYTHON_SCRIPT_FILE"
           exit 1
         fi
-        echo "✅ Extracted value successfully (length: ${#DB_VALUE}, format: ${DB_VALUE:0:8}...${DB_VALUE: -4})"
+        rm -f "$PYTHON_SCRIPT_FILE.tmp"
         
-        # Reconstruct the line perfectly: database_id = "value" with newline
-        # Use awk to replace the line with the perfectly formatted version
-        echo "🔧 Reconstructing database_id line..."
-        awk -v db_value="$DB_VALUE" '/^database_id = / { printf "database_id = \"%s\"\n", db_value; next } { print }' "$WRANGLER_TOML_PATH".tmp > "$WRANGLER_TOML_PATH".tmp2
-        if [ ! -s "$WRANGLER_TOML_PATH".tmp2 ]; then
-          echo "::error::Reconstruction failed - output file is empty"
-          exit 1
-        fi
-        mv "$WRANGLER_TOML_PATH".tmp2 "$WRANGLER_TOML_PATH".tmp
-        echo "✅ Line reconstructed successfully"
+        # Run Python script
+        python3 "$PYTHON_SCRIPT_FILE"
+        PYTHON_EXIT_CODE=$?
         
-        # Verify the database_id line exists and has content
-        # Since we reconstructed it with awk, we know it's correctly formatted
-        # Just verify it exists and the value is not empty
-        echo "🔍 Validating reconstructed line..."
-        DB_LINE=$(grep '^database_id = ' "$WRANGLER_TOML_PATH".tmp)
-        if [ -z "$DB_LINE" ]; then
-          echo "::error::database_id line not found after reconstruction"
-          echo "Debug: Checking if file exists and has content..."
-          ls -la "$WRANGLER_TOML_PATH".tmp || echo "File not found"
-          wc -l "$WRANGLER_TOML_PATH".tmp || echo "Cannot count lines"
-          exit 1
-        fi
-        echo "Debug: Line found, length: ${#DB_LINE}"
-        echo "Debug: Line starts with: ${DB_LINE:0:20}..."
+        # Clean up temporary Python script
+        rm -f "$PYTHON_SCRIPT_FILE"
         
-        # Verify the value we used for reconstruction is still in the line
-        # This confirms the reconstruction worked correctly
-        if ! echo "$DB_LINE" | grep -qF "\"$DB_VALUE\""; then
-          echo "::error::database_id line does not contain expected value after reconstruction"
-          echo "Debug: Expected value length: ${#DB_VALUE}"
-          echo "Debug: Expected value preview: ${DB_VALUE:0:8}...${DB_VALUE: -4}"
-          echo "Debug: Actual line preview: ${DB_LINE:0:60}..."
-          echo "Debug: Line ends with: ...${DB_LINE: -20}"
-          exit 1
-        fi
-        echo "✅ Value verification passed"
-        
-        # Basic sanity check: line should contain database_id = "
-        if ! echo "$DB_LINE" | grep -q 'database_id = "'; then
-          echo "::error::database_id line format is invalid"
-          echo "Debug: Line does not contain 'database_id = \"'"
-          echo "Debug: Line content: ${DB_LINE:0:50}..."
-          exit 1
-        fi
-        echo "✅ Format check passed"
-        
-        # Ensure the file ends with a newline (TOML requirement)
-        # Read the file, ensure last line ends with newline
-        if [ -s "$WRANGLER_TOML_PATH".tmp ]; then
-          # Check if file ends with newline, if not add one
-          LAST_BYTE=$(tail -c 1 "$WRANGLER_TOML_PATH".tmp | od -An -tx1 | tr -d ' ')
-          if [ "$LAST_BYTE" != "0a" ]; then
-            echo "" >> "$WRANGLER_TOML_PATH".tmp
-          fi
-        fi
-        
-        # Final verification: Check the database_id line one more time after all processing
-        DB_LINE_FINAL=$(grep '^database_id = ' "$WRANGLER_TOML_PATH".tmp)
-        if [ -z "$DB_LINE_FINAL" ]; then
-          echo "::error::database_id line missing in final file"
+        if [ $PYTHON_EXIT_CODE -ne 0 ]; then
+          echo "::error::Python cleanup failed with exit code $PYTHON_EXIT_CODE"
           exit 1
         fi
         
-        # Verify it's a single line (no embedded newlines)
-        LINE_COUNT=$(echo "$DB_LINE_FINAL" | wc -l)
-        if [ "$LINE_COUNT" -ne 1 ]; then
-          echo "::error::database_id line contains unexpected newlines"
-          echo "Line: $DB_LINE_FINAL"
+        # Verify temp file still exists after Python processing
+        if [ ! -f "$WRANGLER_TOML_PATH".tmp ]; then
+          echo "::error::Temporary file disappeared after Python processing"
+          exit 1
+        fi
+        
+        # Verify the line is properly formatted (no trailing content after quote)
+        # Match: optional whitespace, database_id, optional whitespace, =, optional whitespace, ", value, ", optional whitespace, end of line
+        if ! grep -qE '^[[:space:]]*database_id[[:space:]]*=[[:space:]]*"[^"]*"[[:space:]]*$' "$WRANGLER_TOML_PATH".tmp; then
+          echo "::error::database_id line format verification failed"
+          echo "Actual line content (with visible characters):"
+          grep -E '^\s*database_id\s*=' "$WRANGLER_TOML_PATH".tmp | cat -A || true
+          echo "Hex dump of the line:"
+          grep -E '^\s*database_id\s*=' "$WRANGLER_TOML_PATH".tmp | od -An -tx1 || true
+          exit 1
+        fi
+        
+        # Verify database_id value is not empty (double-check)
+        DB_VALUE_CHECK=$(grep -E '^\s*database_id\s*=' "$WRANGLER_TOML_PATH".tmp | sed -E 's/^[[:space:]]*database_id[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/')
+        if [ -z "$DB_VALUE_CHECK" ]; then
+          echo "::error::database_id value is empty after cleanup"
+          exit 1
+        fi
+        
+        echo "✅ Line cleaned and verified successfully"
+        
+        # Final verification: ensure the line exists and has content
+        if ! grep -qE '^\s*database_id\s*=\s*"[^"]+"' "$WRANGLER_TOML_PATH".tmp; then
+          echo "::error::Final verification failed - database_id line missing or malformed"
+          echo "File content around database_id:"
+          grep -A 3 -B 3 'database_id' "$WRANGLER_TOML_PATH".tmp || echo "No database_id line found"
           exit 1
         fi
         
         # Move substituted file into place (using absolute path for consistency)
         # Note: TOML syntax will be validated by wrangler during deployment
         mv "$WRANGLER_TOML_PATH".tmp "$WRANGLER_TOML_PATH"
+        echo "✅ File moved successfully"
         
         echo "✅ Successfully substituted D1_DATABASE_ID (value not logged for security)"
-
