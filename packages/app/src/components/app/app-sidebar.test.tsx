@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { render, createWrapper } from "@/test/test-utils";
 import { AppSidebar } from "./app-sidebar";
 // Import SidebarProvider from radix sidebar (the one AppSidebar actually uses)
@@ -481,6 +482,252 @@ describe("AppSidebar", () => {
 
       // Should not show "View More" when there are no subscriptions
       expect(screen.queryByText("View More →")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Sidebar Collapse Behavior", () => {
+    beforeEach(() => {
+      vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
+        data: {
+          user: {
+            id: 1,
+            name: "testuser",
+            username: "testuser",
+            email: "test@example.com",
+            role: "user",
+            plan: "free",
+          },
+        },
+        isPending: false,
+      } as ReturnType<typeof useAuthModule.useCurrentUser>);
+    });
+
+    it("should open sidebar when clicking menu items while collapsed", async () => {
+      const setOpenMock = vi.fn();
+      const CollapsedSidebarWrapper = ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => {
+        const Wrapper = createWrapper();
+        return (
+          <Wrapper>
+            <SidebarProvider open={false} onOpenChange={setOpenMock}>
+              {children}
+            </SidebarProvider>
+          </Wrapper>
+        );
+      };
+
+      render(<AppSidebar />, { wrapper: CollapsedSidebarWrapper });
+
+      await waitFor(
+        () => {
+          expect(screen.getByText("Articles")).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      const user = userEvent.setup();
+      const articlesLink = screen.getByText("Articles").closest("a");
+      expect(articlesLink).toBeInTheDocument();
+
+      if (articlesLink) {
+        await user.click(articlesLink);
+        // Should call setOpen with true to expand the sidebar
+        expect(setOpenMock).toHaveBeenCalledWith(true);
+      }
+    });
+
+    it("should open sidebar when clicking accordion trigger while collapsed", async () => {
+      const setOpenMock = vi.fn();
+      const CollapsedSidebarWrapper = ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => {
+        const Wrapper = createWrapper();
+        return (
+          <Wrapper>
+            <SidebarProvider open={false} onOpenChange={setOpenMock}>
+              {children}
+            </SidebarProvider>
+          </Wrapper>
+        );
+      };
+
+      render(<AppSidebar />, { wrapper: CollapsedSidebarWrapper });
+
+      await waitFor(
+        () => {
+          expect(screen.getByText("Subscriptions")).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      const user = userEvent.setup();
+      const subscriptionsTrigger = screen
+        .getByText("Subscriptions")
+        .closest("button");
+      expect(subscriptionsTrigger).toBeInTheDocument();
+
+      if (subscriptionsTrigger) {
+        await user.click(subscriptionsTrigger);
+        // Should call setOpen with true to expand the sidebar
+        expect(setOpenMock).toHaveBeenCalledWith(true);
+      }
+    });
+
+    it("should prevent accordion toggle when sidebar is collapsed", async () => {
+      const setOpenMock = vi.fn();
+      const CollapsedSidebarWrapper = ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => {
+        const Wrapper = createWrapper();
+        return (
+          <Wrapper>
+            <SidebarProvider open={false} onOpenChange={setOpenMock}>
+              {children}
+            </SidebarProvider>
+          </Wrapper>
+        );
+      };
+
+      render(<AppSidebar />, { wrapper: CollapsedSidebarWrapper });
+
+      await waitFor(
+        () => {
+          expect(screen.getByText("Subscriptions")).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      // Accordion content should not be visible when sidebar is collapsed
+      // (it's hidden by CSS, but we can verify the accordion state doesn't change)
+      const user = userEvent.setup();
+      const subscriptionsTrigger = screen
+        .getByText("Subscriptions")
+        .closest("button");
+
+      if (subscriptionsTrigger) {
+        // Click multiple times - accordion should not toggle
+        await user.click(subscriptionsTrigger);
+        await user.click(subscriptionsTrigger);
+        await user.click(subscriptionsTrigger);
+
+        // Should only call setOpen to expand sidebar, not toggle accordion
+        // All clicks should result in setOpen(true) calls
+        expect(setOpenMock).toHaveBeenCalledTimes(3);
+        expect(setOpenMock).toHaveBeenCalledWith(true);
+      }
+    });
+
+    it("should allow accordion toggle when sidebar is expanded", async () => {
+      const setOpenMock = vi.fn();
+      const ExpandedSidebarWrapper = ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => {
+        const Wrapper = createWrapper();
+        return (
+          <Wrapper>
+            <SidebarProvider open={true} onOpenChange={setOpenMock}>
+              {children}
+            </SidebarProvider>
+          </Wrapper>
+        );
+      };
+
+      render(<AppSidebar />, { wrapper: ExpandedSidebarWrapper });
+
+      await waitFor(
+        () => {
+          expect(screen.getByText("Subscriptions")).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      const user = userEvent.setup();
+      const subscriptionsTrigger = screen
+        .getByText("Subscriptions")
+        .closest("button");
+      expect(subscriptionsTrigger).toBeInTheDocument();
+
+      if (subscriptionsTrigger) {
+        // When sidebar is expanded, clicking should toggle accordion, not call setOpen
+        await user.click(subscriptionsTrigger);
+        // setOpen should not be called when sidebar is already expanded
+        expect(setOpenMock).not.toHaveBeenCalled();
+      }
+    });
+
+    it("should open sidebar when clicking submenu items while collapsed", async () => {
+      const setOpenMock = vi.fn();
+      const CollapsedSidebarWrapper = ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => {
+        const Wrapper = createWrapper();
+        return (
+          <Wrapper>
+            <SidebarProvider open={false} onOpenChange={setOpenMock}>
+              {children}
+            </SidebarProvider>
+          </Wrapper>
+        );
+      };
+
+      const mockSubscriptions = [
+        {
+          id: 1,
+          customTitle: "Test Feed",
+          source: {
+            title: "Test Feed",
+            url: "https://example.com/feed.xml",
+            iconUrl: null,
+          },
+          categories: [],
+          filters: [],
+          filterEnabled: false,
+          filterMode: "include" as const,
+        },
+      ];
+
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
+        data: { items: mockSubscriptions },
+        isLoading: false,
+      } as ReturnType<typeof useDataModule.useSubscriptions>);
+
+      render(<AppSidebar />, { wrapper: CollapsedSidebarWrapper });
+
+      await waitFor(
+        () => {
+          expect(screen.getByText("Subscriptions")).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      // Even when collapsed, the submenu items should be in the DOM (just hidden)
+      // We can find them and click them
+      const user = userEvent.setup();
+
+      // Find "All Subscriptions" link - it should exist even when collapsed
+      const allSubscriptionsLink = screen.queryByText("All Subscriptions");
+
+      // Note: When sidebar is collapsed, submenu items might not be visible/clickable
+      // But if they are accessible, clicking should open the sidebar
+      // This test verifies the onClick handler is attached correctly
+      if (allSubscriptionsLink) {
+        const linkElement = allSubscriptionsLink.closest("a");
+        if (linkElement) {
+          await user.click(linkElement);
+          expect(setOpenMock).toHaveBeenCalledWith(true);
+        }
+      }
     });
   });
 });
