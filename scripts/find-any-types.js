@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Find all explicit `any` types in TypeScript files
- * 
+ *
  * Usage:
  *   pnpm find-any-types
  *   pnpm find-any-types --fix  # Show files that need fixing
@@ -20,13 +20,13 @@ const EXCLUDE_PATTERNS = [
   /ui\/.*\.tsx$/, // UI library components
 ];
 
-const EXCLUDE_FILES = [
-  "eslint.config.js",
-];
+const EXCLUDE_FILES = ["eslint.config.js"];
 
 function shouldExclude(filePath) {
-  return EXCLUDE_PATTERNS.some(pattern => pattern.test(filePath)) ||
-         EXCLUDE_FILES.some(file => filePath.includes(file));
+  return (
+    EXCLUDE_PATTERNS.some((pattern) => pattern.test(filePath)) ||
+    EXCLUDE_FILES.some((file) => filePath.includes(file))
+  );
 }
 
 function findAnyTypes(dir, rootDir = dir, results = []) {
@@ -64,7 +64,7 @@ function findAnyTypes(dir, rootDir = dir, results = []) {
             /\{\s*\[[^\]]+\]:\s*any\s*\}/g,
           ];
 
-          anyMatches.forEach(regex => {
+          anyMatches.forEach((regex) => {
             let match;
             while ((match = regex.exec(line)) !== null) {
               // Skip if in comment
@@ -109,11 +109,13 @@ function main() {
       console.log(`✅ No explicit 'any' types found in ${pkg.name}`);
     } else {
       totalFound += results.length;
-      console.log(`\n❌ Found ${results.length} explicit 'any' type(s) in ${pkg.name}:\n`);
+      console.log(
+        `\n❌ Found ${results.length} explicit 'any' type(s) in ${pkg.name}:\n`
+      );
 
       // Group by file
       const byFile = {};
-      results.forEach(result => {
+      results.forEach((result) => {
         if (!byFile[result.file]) {
           byFile[result.file] = [];
         }
@@ -137,7 +139,9 @@ function main() {
     process.exit(0);
   } else {
     console.log(`❌ Total: ${totalFound} explicit 'any' type(s) found`);
-    console.log("\n💡 Tip: Use proper types instead of 'any' for better type safety.");
+    console.log(
+      "\n💡 Tip: Use proper types instead of 'any' for better type safety."
+    );
     console.log("   Consider using:");
     console.log("   - `unknown` for truly unknown types");
     console.log("   - Proper type definitions");
@@ -147,5 +151,3 @@ function main() {
 }
 
 main();
-
-

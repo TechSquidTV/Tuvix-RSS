@@ -26,5 +26,3 @@ docker run --rm \
 echo "✅ Migrations complete!"
 echo "📁 Database location: ./data/tuvix.db"
 
-
-

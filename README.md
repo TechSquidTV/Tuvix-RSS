@@ -29,23 +29,23 @@ pnpm run dev:app    # Frontend on :5173
 
 ---
 
-##  Available Scripts
+## Available Scripts
 
 ### **Development**
 
-| Command            | Description                                    |
-| ------------------ | ---------------------------------------------- |
-| `pnpm run dev`     | Run both API and app in parallel               |
-| `pnpm run dev:api` | Run tRPC API server with hot reload (tsx)      |
-| `pnpm run dev:app` | Run Vite dev server for frontend              |
+| Command            | Description                               |
+| ------------------ | ----------------------------------------- |
+| `pnpm run dev`     | Run both API and app in parallel          |
+| `pnpm run dev:api` | Run tRPC API server with hot reload (tsx) |
+| `pnpm run dev:app` | Run Vite dev server for frontend          |
 
 ### **Building**
 
-| Command              | Description                              |
-| -------------------- | ---------------------------------------- |
-| `pnpm run build`     | Build both API and app for production    |
-| `pnpm run build:api` | Build TypeScript API to `api/dist`       |
-| `pnpm run build:app` | Build frontend to `app/dist`             |
+| Command              | Description                           |
+| -------------------- | ------------------------------------- |
+| `pnpm run build`     | Build both API and app for production |
+| `pnpm run build:api` | Build TypeScript API to `api/dist`    |
+| `pnpm run build:app` | Build frontend to `app/dist`          |
 
 ### **Starting Production Build**
 
@@ -70,22 +70,22 @@ The API uses tRPC with end-to-end TypeScript type safety. No separate API docume
 
 ### **Linting & Formatting**
 
-| Command               | Description                           |
-| --------------------- | ------------------------------------- |
-| `pnpm run lint`       | Lint both API and app                 |
-| `pnpm run lint:api`   | Lint API code (TypeScript/ESLint)     |
-| `pnpm run lint:app`   | Lint frontend code                    |
-| `pnpm run format:api` | Format API code (Prettier)            |
+| Command               | Description                       |
+| --------------------- | --------------------------------- |
+| `pnpm run lint`       | Lint both API and app             |
+| `pnpm run lint:api`   | Lint API code (TypeScript/ESLint) |
+| `pnpm run lint:app`   | Lint frontend code                |
+| `pnpm run format:api` | Format API code (Prettier)        |
 
 ### **Database Management**
 
-| Command                 | Description                             |
-| ----------------------- | --------------------------------------- |
-| `pnpm run db:generate`  | Generate Drizzle migrations from schema |
-| `pnpm run db:migrate`   | Run database migrations (local SQLite)  |
-| `pnpm run db:migrate:d1`| Run migrations on Cloudflare D1         |
-| `pnpm run db:studio`    | Open Drizzle Studio (database GUI)      |
-| `pnpm run db:push`      | Push schema changes directly to DB      |
+| Command                  | Description                             |
+| ------------------------ | --------------------------------------- |
+| `pnpm run db:generate`   | Generate Drizzle migrations from schema |
+| `pnpm run db:migrate`    | Run database migrations (local SQLite)  |
+| `pnpm run db:migrate:d1` | Run migrations on Cloudflare D1         |
+| `pnpm run db:studio`     | Open Drizzle Studio (database GUI)      |
+| `pnpm run db:push`       | Push schema changes directly to DB      |
 
 ### **Docker**
 
@@ -148,6 +148,7 @@ TuvixRSS/
 TuvixRSS is configured entirely through environment variables.
 
 **Setup:**
+
 ```bash
 # Copy the example file
 cp .env.example .env
@@ -157,9 +158,11 @@ vim .env
 ```
 
 **Required:**
+
 - `BETTER_AUTH_SECRET` - Secret key for Better Auth (generate: `openssl rand -base64 32`)
 
 **Optional (with defaults):**
+
 - `DATABASE_PATH` - Database location (default: `../../data/tuvix.db` from api directory)
 - `PORT` - API port (default: `3001`)
 - `TUVIX_ENV` - Environment: `dev` or `prod` (default: `dev`)
@@ -181,6 +184,7 @@ The docker-compose.yml already includes sensible defaults. You only need to set 
 
 **Migration from config.yml:**
 If you were using `config.yml`, copy your settings to `.env` and update paths:
+
 - `database_path: /config/tuvix.db` → `DATABASE_PATH=/app/data/tuvix.db` (Docker)
 - `database_path: ./config/tuvix.db` → `DATABASE_PATH=../../data/tuvix.db` (local dev)
 - Remove the `./config:/config` volume mount from your docker-compose.yml
@@ -203,25 +207,25 @@ Comprehensive documentation is available in the [`docs/`](./docs/) directory:
 
 ---
 
-##  API Documentation
+## API Documentation
 
 The API uses tRPC with end-to-end TypeScript type safety. All API endpoints are available through the tRPC router at `/trpc`. Type definitions are automatically inferred from the backend, providing full type safety in the frontend.
 
 ### **Key Routers**
 
-| Category          | Procedures                                  |
-| ----------------- | ------------------------------------------- |
-| **Auth**          | `auth.register`, `auth.login`, `auth.me`   |
-| **Subscriptions** | `subscriptions.*` (CRUD operations)         |
+| Category          | Procedures                                   |
+| ----------------- | -------------------------------------------- |
+| **Auth**          | `auth.register`, `auth.login`, `auth.me`     |
+| **Subscriptions** | `subscriptions.*` (CRUD operations)          |
 | **Articles**      | `articles.*` with filtering, read/save state |
 | **Categories**    | `categories.*` (CRUD)                        |
-| **Feeds**         | `feeds.*` (CRUD for public RSS feeds)       |
-| **Settings**      | `userSettings.*` (GET, PUT)                 |
-| **Public**        | `feeds.getPublicFeed` (RSS XML)             |
+| **Feeds**         | `feeds.*` (CRUD for public RSS feeds)        |
+| **Settings**      | `userSettings.*` (GET, PUT)                  |
+| **Public**        | `feeds.getPublicFeed` (RSS XML)              |
 
 ---
 
-##  Development Workflow
+## Development Workflow
 
 ### **1. First Time Setup**
 
@@ -285,16 +289,16 @@ pnpm run docker:down
 
 ---
 
-##  Features
+## Features
 
--  Subscribe to RSS/Atom feeds
--  Organize with categories
--  Create custom public RSS feeds
--  Mark articles as read/saved
--  Background feed fetching
--  tRPC API with end-to-end TypeScript type safety
--  JWT authentication
--  SQLite database with WAL mode
+- Subscribe to RSS/Atom feeds
+- Organize with categories
+- Create custom public RSS feeds
+- Mark articles as read/saved
+- Background feed fetching
+- tRPC API with end-to-end TypeScript type safety
+- JWT authentication
+- SQLite database with WAL mode
 
 ---
 
@@ -306,7 +310,7 @@ The tRPC client handles authentication automatically - tokens are stored and sen
 
 ---
 
-##  License
+## License
 
 MIT
 
@@ -322,15 +326,17 @@ MIT
 
 ---
 
-##  Troubleshooting
+## Troubleshooting
 
 ### **Port already in use**
+
 ```bash
 # Change PORT in .env file
 PORT=3002
 ```
 
 ### **Database locked error**
+
 ```bash
 # Stop all running instances and reset
 pnpm run db:reset
@@ -350,9 +356,10 @@ If you were previously using `config.yml`:
 
 ---
 
-##  Support
+## Support
 
 For issues, please open a GitHub issue with:
+
 - Steps to reproduce
 - Expected vs actual behavior
 - Environment details (OS, Node version)
