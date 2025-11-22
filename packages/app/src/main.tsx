@@ -38,12 +38,15 @@ if (dsn) {
     "development";
   const release = import.meta.env.VITE_SENTRY_RELEASE;
 
-  console.log("🔧 Sentry Configuration:", {
-    dsn: dsn.substring(0, 20) + "...", // Log partial DSN for debugging
-    environment,
-    release,
-    hasApiUrl: !!import.meta.env.VITE_API_URL,
-  });
+  // Debug logging in development
+  if (import.meta.env.DEV) {
+    console.log("🔧 Sentry Configuration:", {
+      dsn: dsn.substring(0, 20) + "...", // Log partial DSN for debugging
+      environment,
+      release,
+      hasApiUrl: !!import.meta.env.VITE_API_URL,
+    });
+  }
 
   Sentry.init({
     dsn,
@@ -148,13 +151,18 @@ if (dsn) {
     },
   });
 
-  console.log("✅ Sentry initialized for frontend");
+  // Debug logging in development
+  if (import.meta.env.DEV) {
+    console.log("✅ Sentry initialized for frontend");
+  }
 
-  // Test Sentry is working
-  Sentry.captureMessage(
-    "Sentry test message - initialization complete",
-    "info",
-  );
+  // Test Sentry is working (only in development)
+  if (import.meta.env.DEV) {
+    Sentry.captureMessage(
+      "Sentry test message - initialization complete",
+      "info",
+    );
+  }
 } else {
   console.warn(
     "⚠️ Sentry DSN not configured. Set VITE_SENTRY_DSN to enable error tracking.",
