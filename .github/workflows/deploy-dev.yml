@@ -94,41 +94,23 @@ jobs:
           
           echo "✅ Successfully substituted D1_DATABASE_ID (value not logged for security)"
 
-      - name: Check if dev worker name override is set
-        id: check-dev-worker-name
-        run: |
-          # Check if secret exists and is not empty
-          if [ -n "${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}" ]; then
-            echo "override=true" >> $GITHUB_OUTPUT
-          else
-            echo "override=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Get worker name
+      - name: Get worker name and override for dev
         id: worker-name
         run: |
-          # Use dev worker name from secret if set, otherwise use default from wrangler.toml
-          if [ -n "${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}" ]; then
-            WORKER_NAME="${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}"
-          else
-            # Get the first 'name =' line (worker name), not rate limit binding names
-            WORKER_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
-          fi
-          echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
-          echo "Deploying to Worker: $WORKER_NAME"
-
-      - name: Override worker name for dev (if specified)
-        if: steps.check-dev-worker-name.outputs.override == 'true'
-        run: |
-          # Temporarily override worker name in wrangler.toml for dev deployment
-          WORKER_NAME="${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}"
+          # Get the first 'name =' line (worker name), not rate limit binding names
+          BASE_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
+          WORKER_NAME="${BASE_NAME}-dev"
+          
           cd packages/api
           # Backup original
           cp wrangler.toml wrangler.toml.backup
-          # Replace name line (works on both Linux and macOS)
+          # Replace name line with dev suffix (works on both Linux and macOS)
           sed -i.bak "s/^name = \".*\"/name = \"$WORKER_NAME\"/" wrangler.toml
           rm -f wrangler.toml.bak
-          echo "✅ Overridden worker name to: $WORKER_NAME"
+          
+          echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "WORKER_NAME=$WORKER_NAME" >> $GITHUB_ENV
+          echo "Deploying to Worker: $WORKER_NAME (dev)"
 
       - name: Get deployment version
         id: deployment-version
@@ -143,7 +125,6 @@ jobs:
           # Only set if SENTRY_DSN secret exists (Sentry is configured)
           # Set secret using wrangler with stdin (non-interactive)
           DEPLOYMENT_VERSION="${{ steps.deployment-version.outputs.version }}"
-          WORKER_NAME="${{ steps.worker-name.outputs.name }}"
           cd packages/api
           # Use --name flag to target the correct worker
           echo "$DEPLOYMENT_VERSION" | npx wrangler secret put SENTRY_RELEASE --name "$WORKER_NAME"
@@ -167,14 +148,14 @@ jobs:
       - name: Output API deployment URL
         if: success()
         run: |
-          API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
+          API_URL="https://${WORKER_NAME}.workers.dev"
           echo "API_URL=$API_URL" >> $GITHUB_OUTPUT
           echo "## API Deployment (Dev)" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Restore original wrangler.toml
-        if: always() && steps.check-dev-worker-name.outputs.override == 'true'
+        if: always()
         run: |
           cd packages/api
           if [ -f wrangler.toml.backup ]; then
@@ -190,6 +171,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: d1 migrations apply tuvix --remote
+          wranglerVersion: "3"
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
 
@@ -270,18 +252,14 @@ jobs:
       - name: Get worker name
         id: worker-name
         run: |
-          # Use dev worker name from secret if set, otherwise use default from wrangler.toml
-          if [ -n "${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}" ]; then
-            WORKER_NAME="${{ secrets.CLOUDFLARE_WORKER_NAME_DEV }}"
-          else
-            # Get the first 'name =' line (worker name), not rate limit binding names
-            WORKER_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
-          fi
+          # Get the first 'name =' line (worker name), not rate limit binding names
+          BASE_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
+          WORKER_NAME="${BASE_NAME}-dev"
           echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "WORKER_NAME=$WORKER_NAME" >> $GITHUB_ENV
 
       - name: Deployment Summary
         run: |
-          WORKER_NAME="${{ steps.worker-name.outputs.name }}"
           echo "## 🚀 Dev Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY

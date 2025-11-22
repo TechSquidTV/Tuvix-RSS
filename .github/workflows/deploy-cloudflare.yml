@@ -98,6 +98,7 @@ jobs:
           # Get the first 'name =' line (worker name), not rate limit binding names
           WORKER_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
           echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "WORKER_NAME=$WORKER_NAME" >> $GITHUB_ENV
 
       - name: Get release version
         id: release-version
@@ -113,7 +114,8 @@ jobs:
           # Set secret using wrangler with stdin (non-interactive)
           RELEASE_VERSION="${{ steps.release-version.outputs.version }}"
           cd packages/api
-          echo "$RELEASE_VERSION" | npx wrangler secret put SENTRY_RELEASE
+          # Use --name flag to target the correct worker
+          echo "$RELEASE_VERSION" | npx wrangler secret put SENTRY_RELEASE --name "$WORKER_NAME"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -126,11 +128,12 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: deploy
+          wranglerVersion: "3"
 
       - name: Output API deployment URL
         if: success()
         run: |
-          API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
+          API_URL="https://${WORKER_NAME}.workers.dev"
           echo "API_URL=$API_URL" >> $GITHUB_OUTPUT
           echo "## API Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
@@ -143,6 +146,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: d1 migrations apply tuvix --remote
+          wranglerVersion: "3"
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
 
@@ -213,6 +217,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-api, deploy-app]
     if: always()
+    environment:
+      name: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -223,10 +229,10 @@ jobs:
           # Get the first 'name =' line (worker name), not rate limit binding names
           WORKER_NAME=$(grep -m 1 '^name =' packages/api/wrangler.toml | cut -d'"' -f2)
           echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "WORKER_NAME=$WORKER_NAME" >> $GITHUB_ENV
 
       - name: Deployment Summary
         run: |
-          WORKER_NAME="${{ steps.worker-name.outputs.name }}"
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed version:** \`${{ github.event.release.tag_name || github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
