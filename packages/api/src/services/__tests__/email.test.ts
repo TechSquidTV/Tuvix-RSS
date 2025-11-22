@@ -8,14 +8,21 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../email";
 import type { Env } from "@/types";
 
-// Mock Resend
+// Mock Resend - use hoisted to create shared mock function
+const { mockSend } = vi.hoisted(() => {
+  const mockSend = vi.fn();
+  return { mockSend };
+});
+
 vi.mock("resend", () => {
+  class MockResend {
+    emails = {
+      send: mockSend,
+    };
+  }
+
   return {
-    Resend: vi.fn().mockImplementation(() => ({
-      emails: {
-        send: vi.fn(),
-      },
-    })),
+    Resend: MockResend,
   };
 });
 
@@ -28,6 +35,9 @@ describe("Email Service", () => {
   let env: Env;
 
   beforeEach(() => {
+    // Reset mock before each test
+    mockSend.mockClear();
+
     env = {
       BETTER_AUTH_SECRET: "test-secret",
       RUNTIME: "nodejs",
@@ -72,18 +82,17 @@ describe("Email Service", () => {
     });
 
     it("should send email when properly configured", async () => {
-      const { Resend } = await import("resend");
-      const mockSend = vi.fn().mockResolvedValue({
-        data: { id: "email-id-123" },
+      // Mock response matching Resend API structure from OpenAPI spec
+      // See: https://raw.githubusercontent.com/resend/resend-openapi/main/resend.yaml
+      mockSend.mockResolvedValue({
+        data: {
+          id: "email-id-123",
+          from: env.EMAIL_FROM,
+          to: ["user@example.com"],
+          created_at: new Date().toISOString(),
+        },
         error: null,
       });
-
-      // Mock the Resend instance
-      (Resend as any).mockImplementation(() => ({
-        emails: {
-          send: mockSend,
-        },
-      }));
 
       const result = await sendPasswordResetEmail(env, {
         to: "user@example.com",
@@ -103,17 +112,10 @@ describe("Email Service", () => {
     });
 
     it("should handle Resend API errors", async () => {
-      const { Resend } = await import("resend");
-      const mockSend = vi.fn().mockResolvedValue({
+      mockSend.mockResolvedValue({
         data: null,
         error: { message: "Invalid API key" },
       });
-
-      (Resend as any).mockImplementation(() => ({
-        emails: {
-          send: mockSend,
-        },
-      }));
 
       const result = await sendPasswordResetEmail(env, {
         to: "user@example.com",
@@ -127,14 +129,7 @@ describe("Email Service", () => {
     });
 
     it("should handle network errors", async () => {
-      const { Resend } = await import("resend");
-      const mockSend = vi.fn().mockRejectedValue(new Error("Network error"));
-
-      (Resend as any).mockImplementation(() => ({
-        emails: {
-          send: mockSend,
-        },
-      }));
+      mockSend.mockRejectedValue(new Error("Network error"));
 
       const result = await sendPasswordResetEmail(env, {
         to: "user@example.com",
@@ -166,17 +161,16 @@ describe("Email Service", () => {
     });
 
     it("should send welcome email when properly configured", async () => {
-      const { Resend } = await import("resend");
-      const mockSend = vi.fn().mockResolvedValue({
-        data: { id: "email-id-456" },
+      // Mock response matching Resend API structure from OpenAPI spec
+      mockSend.mockResolvedValue({
+        data: {
+          id: "email-id-456",
+          from: env.EMAIL_FROM,
+          to: ["user@example.com"],
+          created_at: new Date().toISOString(),
+        },
         error: null,
       });
-
-      (Resend as any).mockImplementation(() => ({
-        emails: {
-          send: mockSend,
-        },
-      }));
 
       const result = await sendWelcomeEmail(env, {
         to: "user@example.com",
@@ -195,16 +189,7 @@ describe("Email Service", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      const { Resend } = await import("resend");
-      const mockSend = vi
-        .fn()
-        .mockRejectedValue(new Error("Service unavailable"));
-
-      (Resend as any).mockImplementation(() => ({
-        emails: {
-          send: mockSend,
-        },
-      }));
+      mockSend.mockRejectedValue(new Error("Service unavailable"));
 
       const result = await sendWelcomeEmail(env, {
         to: "user@example.com",
