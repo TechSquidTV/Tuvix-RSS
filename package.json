@@ -50,7 +50,8 @@
     "type-check": "pnpm run type-check:api && pnpm run type-check:app",
     "find-any-types": "node scripts/find-any-types.js",
     "check-types": "pnpm run type-check && pnpm run find-any-types",
-    "email:preview": "cd packages/api && pnpm run email:preview"
+    "email:preview": "cd packages/api && pnpm run email:preview",
+    "update:all": "pnpm update --latest -r"
   },
   "keywords": [
     "rss",
