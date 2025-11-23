@@ -106,6 +106,24 @@ jobs:
           fi
           echo "✅ Prepared $(ls migrations/*.sql | wc -l) migration file(s)"
 
+      - name: Verify D1 database access
+        if: success()
+        working-directory: packages/api
+        run: |
+          echo "🔍 Verifying D1 database access..."
+          # Verify we can access the database (this will fail early if permissions are wrong)
+          pnpm exec wrangler d1 migrations list tuvix --remote || {
+            echo "::error::Failed to access D1 database. Check:"
+            echo "  1. API token has 'Account.Cloudflare D1:Edit' permission"
+            echo "  2. Account ID matches the database's account"
+            echo "  3. Database ID is correct for this account"
+            exit 1
+          }
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+
       - name: Run database migrations
         if: success()
         uses: cloudflare/wrangler-action@v3

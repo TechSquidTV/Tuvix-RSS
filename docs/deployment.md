@@ -1291,7 +1291,7 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 | Secret | Required | Description |
 |--------|----------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Yes | Cloudflare API token with Workers and Pages permissions |
+| `CLOUDFLARE_API_TOKEN` | Yes | Cloudflare API token with Workers, Pages, and D1 permissions (see below) |
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | Your Cloudflare account ID |
 | `D1_DATABASE_ID` | Yes | Your D1 database ID (from `wrangler d1 create tuvix`) - used for envsubst substitution |
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | Yes | Cloudflare Pages project name (production) |
@@ -1305,7 +1305,7 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 | Secret | Required | Description |
 |--------|----------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Yes | Cloudflare API token with Workers and Pages permissions (can be same as production) |
+| `CLOUDFLARE_API_TOKEN` | Yes | Cloudflare API token with Workers, Pages, and D1 permissions (can be same as production) |
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | Your Cloudflare account ID (same as production) |
 | `D1_DATABASE_ID` | Yes | Your D1 database ID (can be same as production or separate dev database) |
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | Yes | Cloudflare Pages project name (dev environment, e.g., `tuvix-app-dev`) |
@@ -1320,7 +1320,10 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 **Getting Cloudflare Credentials:**
 
-1. **API Token:** Cloudflare Dashboard → My Profile → API Tokens → Create token with: Account.Cloudflare Workers:Edit, Account.Cloudflare Pages:Edit
+1. **API Token:** Cloudflare Dashboard → My Profile → API Tokens → Create token with:
+   - `Account.Cloudflare Workers:Edit` (for deploying Workers)
+   - `Account.Cloudflare Pages:Edit` (for deploying Pages)
+   - `Account.Cloudflare D1:Edit` (for running D1 migrations) ⚠️ **Required for migrations**
 2. **Account ID:** 
    - **Via Wrangler (Recommended):** Run `npx wrangler whoami` - displays your account ID
    - **Via Dashboard:** Cloudflare Dashboard → Right sidebar (under your account name)
@@ -1541,9 +1544,10 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 - Check that `D1_DATABASE_ID` substitution succeeded (look for "Successfully substituted" message)
 
 **Deployment Fails:**
-- Verify Cloudflare API token permissions (Workers:Edit, Pages:Edit)
+- Verify Cloudflare API token permissions (Workers:Edit, Pages:Edit, **D1:Edit**)
 - Check that Worker and Pages projects exist
 - Verify `D1_DATABASE_ID` secret is set correctly (workflow will fail if missing)
+- If migrations fail with error code 7403: API token lacks D1 permissions or database belongs to different account
 - Review Cloudflare dashboard for errors
 - Ensure database migrations completed successfully (runs after API deployment)
 - Check that worker name in `wrangler.toml` matches your Cloudflare Worker
