@@ -31,7 +31,7 @@ jobs:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
@@ -135,7 +135,7 @@ jobs:
       name: development
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
@@ -205,7 +205,7 @@ jobs:
       name: development
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get worker name
         id: worker-name
