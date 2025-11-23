@@ -54,7 +54,7 @@
     "drizzle-zod": "^0.8.3",
     "eslint-plugin-drizzle": "^0.2.3",
     "express": "^5.1.0",
-    "feedsmith": "^2.5.0",
+    "feedsmith": "^2.6.0",
     "jose": "^6.1.2",
     "node-cron": "^4.2.1",
     "react-email": "^5.0.5",
