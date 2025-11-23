@@ -17,8 +17,8 @@ No installation needed - just sign up and start adding your favorite RSS feeds.
 ### Quick Start (Docker)
 
 ```bash
-git clone https://github.com/techsquidtv/TuvixRSS.git
-cd TuvixRSS
+git clone https://github.com/TechSquidTV/Tuvix-RSS.git
+cd Tuvix-RSS
 cp env.example .env
 # Edit .env and set BETTER_AUTH_SECRET (generate: openssl rand -base64 32)
 docker compose up -d
@@ -66,10 +66,13 @@ See `env.example` for all options.
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+2. Checkout the `dev` branch: `git checkout dev`
+3. Create your feature branch: `git checkout -b feature/amazing-feature`
+4. Commit your changes: `git commit -m 'Add amazing feature'`
+5. Push to the branch: `git push origin feature/amazing-feature`
+6. Open a Pull Request targeting the `dev` branch
+
+See the [developer documentation](./docs/developer/) for detailed contributor guidelines.
 
 ---
 
