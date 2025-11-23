@@ -681,8 +681,29 @@ export const subscriptionsRouter = router({
         }
       };
 
-      // Step 1: Try common feed paths
+      // Step 0: Try appending .rss, .atom, or .xml to the original URL path
+      // This handles cases like Mastodon where @username.rss is the feed
       const siteUrl = new URL(input.url);
+      const originalPathname = siteUrl.pathname;
+
+      // Only try this if the pathname doesn't already end with a feed extension
+      if (
+        originalPathname &&
+        !originalPathname.endsWith(".rss") &&
+        !originalPathname.endsWith(".atom") &&
+        !originalPathname.endsWith(".xml")
+      ) {
+        const pathExtensions = [".rss", ".atom", ".xml"];
+        await Promise.all(
+          pathExtensions.map((ext) =>
+            checkFeed(
+              `${siteUrl.protocol}//${siteUrl.hostname}${siteUrl.port ? ":" + siteUrl.port : ""}${originalPathname}${ext}`
+            )
+          )
+        );
+      }
+
+      // Step 1: Try common feed paths
       const baseUrl = `${siteUrl.protocol}//${siteUrl.hostname}${siteUrl.port ? ":" + siteUrl.port : ""}`;
       // Get the pathname and ensure it ends with / for proper path joining
       const inputPathname = siteUrl.pathname.endsWith("/")

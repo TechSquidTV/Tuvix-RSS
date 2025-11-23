@@ -727,5 +727,64 @@ describe("Feed Discovery - Deduplication", () => {
       expect(result).toHaveLength(1);
       expect(result[0].url).toBe("https://example.com/blog/feed.xml");
     });
+
+    it("should discover feeds by appending .rss to the original URL path (e.g., Mastodon)", async () => {
+      const caller = createCaller();
+
+      // Mock: Feed exists at /@username.rss (Mastodon-style)
+      (global.fetch as any).mockImplementation((url: string) => {
+        // Step 0: Try appending .rss to original path
+        if (url === "https://fosstodon.org/@techsquidtv.rss") {
+          return Promise.resolve(
+            createMockRssResponse(
+              "https://fosstodon.org/@techsquidtv.rss",
+              "TechSquidTV's Mastodon Feed"
+            )
+          );
+        }
+        // HTML fetch for the original URL
+        if (url === "https://fosstodon.org/@techsquidtv") {
+          return Promise.resolve(createMockHtmlResponse([]));
+        }
+        // All other paths fail
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({
+        url: "https://fosstodon.org/@techsquidtv",
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].url).toBe("https://fosstodon.org/@techsquidtv.rss");
+      expect(result[0].title).toBe("TechSquidTV's Mastodon Feed");
+    });
+
+    it("should try .atom and .xml extensions when appending to path", async () => {
+      const caller = createCaller();
+
+      // Mock: Feed exists at /user.atom
+      (global.fetch as any).mockImplementation((url: string) => {
+        if (url === "https://example.com/user.atom") {
+          return Promise.resolve(
+            createMockAtomResponse(
+              "https://example.com/user.atom",
+              "User Atom Feed"
+            )
+          );
+        }
+        if (url === "https://example.com/user") {
+          return Promise.resolve(createMockHtmlResponse([]));
+        }
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({
+        url: "https://example.com/user",
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].url).toBe("https://example.com/user.atom");
+      expect(result[0].type).toBe("atom");
+    });
   });
 });
