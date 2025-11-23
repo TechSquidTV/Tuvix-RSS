@@ -1574,4 +1574,366 @@ describe("Admin Router", () => {
       });
     });
   });
+
+  describe("Blocked Domains", () => {
+    describe("listBlockedDomains", () => {
+      it("should list all blocked domains with pagination", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values([
+          {
+            domain: "example.com",
+            reason: "spam",
+            createdBy: user.id,
+          },
+          {
+            domain: "spam.net",
+            reason: "spam",
+            createdBy: user.id,
+          },
+        ]);
+
+        const result = await caller.listBlockedDomains({
+          limit: 10,
+          offset: 0,
+        });
+
+        expect(result.items.length).toBeGreaterThanOrEqual(2);
+        expect(result.items.some((d) => d.domain === "example.com")).toBe(true);
+      });
+
+      it("should filter by search term", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values([
+          {
+            domain: "example.com",
+            reason: "spam",
+            createdBy: user.id,
+          },
+          {
+            domain: "spam.net",
+            reason: "spam",
+            createdBy: user.id,
+          },
+        ]);
+
+        const result = await caller.listBlockedDomains({
+          limit: 10,
+          offset: 0,
+          search: "example",
+        });
+
+        expect(result.items.every((d) => d.domain.includes("example"))).toBe(
+          true
+        );
+      });
+
+      it("should filter by reason", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values([
+          {
+            domain: "spam.com",
+            reason: "spam",
+            createdBy: user.id,
+          },
+          {
+            domain: "malware.net",
+            reason: "malware",
+            createdBy: user.id,
+          },
+        ]);
+
+        const result = await caller.listBlockedDomains({
+          limit: 10,
+          offset: 0,
+          reason: "spam",
+        });
+
+        expect(result.items.every((d) => d.reason === "spam")).toBe(true);
+      });
+    });
+
+    describe("addBlockedDomain", () => {
+      it("should add a blocked domain", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.addBlockedDomain({
+          domain: "example.com",
+          reason: "spam",
+          notes: "Test notes",
+        });
+
+        expect(result.domain).toBe("example.com");
+        expect(result.reason).toBe("spam");
+        expect(result.notes).toBe("Test notes");
+        expect(result.id).toBeDefined();
+      });
+
+      it("should normalize domain (lowercase, remove www)", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.addBlockedDomain({
+          domain: "WWW.EXAMPLE.COM",
+        });
+
+        expect(result.domain).toBe("example.com");
+      });
+
+      it("should reject duplicate domains", async () => {
+        const caller = createAdminCaller();
+
+        await caller.addBlockedDomain({
+          domain: "example.com",
+        });
+
+        await expect(
+          caller.addBlockedDomain({
+            domain: "example.com",
+          })
+        ).rejects.toThrow();
+      });
+
+      it("should accept wildcard patterns", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.addBlockedDomain({
+          domain: "*.example.com",
+          reason: "malware",
+        });
+
+        expect(result.domain).toBe("*.example.com");
+      });
+    });
+
+    describe("updateBlockedDomain", () => {
+      it("should update reason and notes", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        const [blocked] = await db
+          .insert(schema.blockedDomains)
+          .values({
+            domain: "example.com",
+            reason: "spam",
+            notes: "Old notes",
+            createdBy: user.id,
+          })
+          .returning();
+
+        const result = await caller.updateBlockedDomain({
+          id: blocked.id,
+          reason: "malware",
+          notes: "New notes",
+        });
+
+        expect(result.reason).toBe("malware");
+        expect(result.notes).toBe("New notes");
+      });
+
+      it("should reject updates to non-existent domain", async () => {
+        const caller = createAdminCaller();
+
+        await expect(
+          caller.updateBlockedDomain({
+            id: 99999,
+            reason: "spam",
+          })
+        ).rejects.toThrow();
+      });
+    });
+
+    describe("removeBlockedDomain", () => {
+      it("should remove a blocked domain", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        const [blocked] = await db
+          .insert(schema.blockedDomains)
+          .values({
+            domain: "example.com",
+            reason: "spam",
+            createdBy: user.id,
+          })
+          .returning();
+
+        const result = await caller.removeBlockedDomain({ id: blocked.id });
+
+        expect(result.success).toBe(true);
+
+        // Verify it's gone
+        const remaining = await db
+          .select()
+          .from(schema.blockedDomains)
+          .where(eq(schema.blockedDomains.id, blocked.id));
+        expect(remaining.length).toBe(0);
+      });
+    });
+
+    describe("bulkAddBlockedDomains", () => {
+      it("should add multiple domains", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.bulkAddBlockedDomains({
+          domains: "example.com\nspam.net\nmalware.org",
+          reason: "spam",
+        });
+
+        expect(result.added).toBe(3);
+        expect(result.skipped).toBe(0);
+        expect(result.errors).toEqual([]);
+      });
+
+      it("should skip duplicate domains", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values({
+          domain: "example.com",
+          reason: "spam",
+          createdBy: user.id,
+        });
+
+        const result = await caller.bulkAddBlockedDomains({
+          domains: "example.com\nspam.net",
+        });
+
+        expect(result.added).toBe(1);
+        expect(result.skipped).toBe(1);
+      });
+
+      it("should handle comma-separated domains", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.bulkAddBlockedDomains({
+          domains: "example.com, spam.net, malware.org",
+        });
+
+        expect(result.added).toBe(3);
+      });
+
+      it("should report validation errors", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.bulkAddBlockedDomains({
+          domains: "example.com\nnot a valid domain\nspam.net",
+        });
+
+        expect(result.added).toBe(2);
+        expect(result.errors.length).toBeGreaterThan(0);
+        expect(
+          result.errors.some((e) => e.domain === "not a valid domain")
+        ).toBe(true);
+      });
+
+      it("should handle large bulk inserts within parameter limits", async () => {
+        const caller = createAdminCaller();
+
+        // Create 30 domains (exceeds single chunk limit of 25)
+        // Each domain insert uses 4 parameters, so 25 domains = 100 parameters (at limit)
+        const domains = Array.from(
+          { length: 30 },
+          (_, i) => `domain${i}.com`
+        ).join("\n");
+
+        const result = await caller.bulkAddBlockedDomains({
+          domains,
+        });
+
+        // Should successfully add all 30 domains (split into 2 chunks: 25 + 5)
+        expect(result.added).toBe(30);
+        expect(result.skipped).toBe(0);
+        expect(result.errors).toEqual([]);
+      });
+    });
+
+    describe("bulkRemoveBlockedDomains", () => {
+      it("should remove multiple domains", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        const domains = await db
+          .insert(schema.blockedDomains)
+          .values([
+            {
+              domain: "example.com",
+              reason: "spam",
+              createdBy: user.id,
+            },
+            {
+              domain: "spam.net",
+              reason: "spam",
+              createdBy: user.id,
+            },
+            {
+              domain: "malware.org",
+              reason: "malware",
+              createdBy: user.id,
+            },
+          ])
+          .returning();
+
+        const result = await caller.bulkRemoveBlockedDomains({
+          ids: domains.map((d) => d.id),
+        });
+
+        expect(result.removed).toBe(3);
+      });
+
+      it("should handle empty array", async () => {
+        const caller = createAdminCaller();
+
+        const result = await caller.bulkRemoveBlockedDomains({ ids: [] });
+
+        expect(result.removed).toBe(0);
+      });
+    });
+
+    describe("exportBlockedDomains", () => {
+      it("should export domains as CSV", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values({
+          domain: "example.com",
+          reason: "spam",
+          notes: "Test notes",
+          createdBy: user.id,
+        });
+
+        const csv = await caller.exportBlockedDomains();
+
+        expect(csv).toContain("domain,reason,notes");
+        expect(csv).toContain("example.com");
+        expect(csv).toContain("spam");
+      });
+
+      it("should filter by reason when provided", async () => {
+        const caller = createAdminCaller();
+        const { user } = await seedTestUser(db, { role: "admin" });
+
+        await db.insert(schema.blockedDomains).values([
+          {
+            domain: "spam.com",
+            reason: "spam",
+            createdBy: user.id,
+          },
+          {
+            domain: "malware.net",
+            reason: "malware",
+            createdBy: user.id,
+          },
+        ]);
+
+        const csv = await caller.exportBlockedDomains({ reason: "spam" });
+
+        expect(csv).toContain("spam.com");
+        expect(csv).not.toContain("malware.net");
+      });
+    });
+  });
 });

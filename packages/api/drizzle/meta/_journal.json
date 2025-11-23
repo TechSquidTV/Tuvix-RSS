@@ -8,6 +8,13 @@
       "when": 1763527316068,
       "tag": "0000_empty_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1763865048772,
+      "tag": "0001_naive_shotgun",
+      "breakpoints": true
     }
   ]
 }

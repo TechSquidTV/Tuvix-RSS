@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, sql, desc, and, gte, or } from "drizzle-orm";
+import { eq, sql, desc, and, gte, or, inArray, like } from "drizzle-orm";
 import { router, adminProcedure } from "@/trpc/init";
 import * as schema from "@/db/schema";
 import {
@@ -21,7 +21,13 @@ import {
   createPaginatedResponse,
 } from "@/types/pagination";
 import { validatePlanExists, getAllPlans } from "@/services/plans";
-import { titleValidator, descriptionValidator } from "@/types/validators";
+import {
+  titleValidator,
+  descriptionValidator,
+  domainValidator,
+} from "@/types/validators";
+import { normalizeDomain } from "@/utils/domain-checker";
+import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
 
 // User with usage info for admin views
 const AdminUserSchema = z.object({
@@ -1547,5 +1553,419 @@ export const adminRouter = router({
       }
 
       return { data };
+    }),
+
+  // ============================================================================
+  // BLOCKED DOMAINS MANAGEMENT
+  // ============================================================================
+
+  /**
+   * List all blocked domains with pagination and filtering
+   */
+  listBlockedDomains: adminProcedure
+    .input(
+      paginationInputSchema.extend({
+        search: z.string().optional(),
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .optional(),
+      })
+    )
+    .output(
+      createPaginatedSchema(
+        z.object({
+          id: z.number(),
+          domain: z.string(),
+          reason: z
+            .enum([
+              "illegal_content",
+              "excessive_automation",
+              "spam",
+              "malware",
+              "copyright_violation",
+              "other",
+            ])
+            .nullable(),
+          notes: z.string().nullable(),
+          createdAt: z.date(),
+          updatedAt: z.date(),
+          createdBy: z.number().nullable(),
+        })
+      )
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [];
+
+      if (input.search) {
+        conditions.push(
+          like(schema.blockedDomains.domain, `%${input.search}%`)
+        );
+      }
+
+      if (input.reason !== undefined) {
+        conditions.push(eq(schema.blockedDomains.reason, input.reason));
+      }
+
+      const blocked = await ctx.db
+        .select()
+        .from(schema.blockedDomains)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(schema.blockedDomains.createdAt))
+        .limit(input.limit + 1)
+        .offset(input.offset);
+
+      return createPaginatedResponse(blocked, input.limit, input.offset);
+    }),
+
+  /**
+   * Add a blocked domain
+   */
+  addBlockedDomain: adminProcedure
+    .input(
+      z.object({
+        domain: domainValidator,
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .nullable()
+          .optional(),
+        notes: z.string().max(1000).nullable().optional(),
+      })
+    )
+    .output(
+      z.object({
+        id: z.number(),
+        domain: z.string(),
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .nullable(),
+        notes: z.string().nullable(),
+        createdAt: z.date(),
+        updatedAt: z.date(),
+        createdBy: z.number().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const normalizedDomain = normalizeDomain(input.domain);
+
+      // Check for duplicate
+      const existing = await ctx.db
+        .select()
+        .from(schema.blockedDomains)
+        .where(eq(schema.blockedDomains.domain, normalizedDomain))
+        .limit(1);
+
+      if (existing.length > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Domain already blocked",
+        });
+      }
+
+      const [blocked] = await ctx.db
+        .insert(schema.blockedDomains)
+        .values({
+          domain: normalizedDomain,
+          reason: input.reason || null,
+          notes: input.notes || null,
+          createdBy: ctx.user.userId,
+        })
+        .returning();
+
+      return blocked;
+    }),
+
+  /**
+   * Update a blocked domain (reason and notes only, domain cannot be changed)
+   */
+  updateBlockedDomain: adminProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .nullable()
+          .optional(),
+        notes: z.string().max(1000).nullable().optional(),
+      })
+    )
+    .output(
+      z.object({
+        id: z.number(),
+        domain: z.string(),
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .nullable(),
+        notes: z.string().nullable(),
+        createdAt: z.date(),
+        updatedAt: z.date(),
+        createdBy: z.number().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if domain exists
+      const [existing] = await ctx.db
+        .select()
+        .from(schema.blockedDomains)
+        .where(eq(schema.blockedDomains.id, input.id))
+        .limit(1);
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Blocked domain not found",
+        });
+      }
+
+      const updateData: {
+        reason?:
+          | "illegal_content"
+          | "excessive_automation"
+          | "spam"
+          | "malware"
+          | "copyright_violation"
+          | "other"
+          | null;
+        notes?: string | null;
+        updatedAt: Date;
+      } = {
+        updatedAt: new Date(),
+      };
+
+      if (input.reason !== undefined) {
+        updateData.reason = input.reason;
+      }
+
+      if (input.notes !== undefined) {
+        updateData.notes = input.notes;
+      }
+
+      const [updated] = await ctx.db
+        .update(schema.blockedDomains)
+        .set(updateData)
+        .where(eq(schema.blockedDomains.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  /**
+   * Remove a blocked domain
+   */
+  removeBlockedDomain: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .delete(schema.blockedDomains)
+        .where(eq(schema.blockedDomains.id, input.id));
+
+      return { success: true };
+    }),
+
+  /**
+   * Bulk add blocked domains
+   */
+  bulkAddBlockedDomains: adminProcedure
+    .input(
+      z.object({
+        domains: z.string(),
+        reason: z
+          .enum([
+            "illegal_content",
+            "excessive_automation",
+            "spam",
+            "malware",
+            "copyright_violation",
+            "other",
+          ])
+          .nullable()
+          .optional(),
+        notes: z.string().max(1000).nullable().optional(),
+      })
+    )
+    .output(
+      z.object({
+        added: z.number(),
+        skipped: z.number(),
+        errors: z.array(z.object({ domain: z.string(), error: z.string() })),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Parse domains: split by newlines and commas, trim whitespace
+      const domainStrings = input.domains
+        .split(/[\n,]+/)
+        .map((d) => d.trim())
+        .filter((d) => d.length > 0);
+
+      const errors: Array<{ domain: string; error: string }> = [];
+      const validDomains: string[] = [];
+      let added = 0;
+      let skipped = 0;
+
+      // Validate each domain
+      for (const domainStr of domainStrings) {
+        try {
+          const validated = domainValidator.parse(domainStr);
+          const normalized = normalizeDomain(validated);
+          validDomains.push(normalized);
+        } catch (error) {
+          errors.push({
+            domain: domainStr,
+            error:
+              error instanceof Error ? error.message : "Invalid domain format",
+          });
+        }
+      }
+
+      if (validDomains.length === 0) {
+        return { added: 0, skipped: 0, errors };
+      }
+
+      // Get existing domains to skip duplicates
+      const existingDomains = await ctx.db
+        .select()
+        .from(schema.blockedDomains)
+        .where(inArray(schema.blockedDomains.domain, validDomains));
+
+      const existingSet = new Set(existingDomains.map((e) => e.domain));
+      const domainsToAdd = validDomains.filter((d) => !existingSet.has(d));
+
+      skipped = validDomains.length - domainsToAdd.length;
+
+      if (domainsToAdd.length === 0) {
+        return { added: 0, skipped, errors };
+      }
+
+      // Batch insert (chunk for Cloudflare D1 parameter limit)
+      // Each domain insert has 4 parameters: domain, reason, notes, createdBy
+      // So we need to divide the parameter limit by 4 to get the max domains per chunk
+      const paramsPerRecord = 4;
+      const maxDomainsPerChunk = Math.floor(
+        D1_MAX_PARAMETERS / paramsPerRecord
+      );
+      const chunks = chunkArray(domainsToAdd, maxDomainsPerChunk);
+
+      for (const chunk of chunks) {
+        const values = chunk.map((domain) => ({
+          domain,
+          reason: input.reason || null,
+          notes: input.notes || null,
+          createdBy: ctx.user.userId,
+        }));
+
+        await ctx.db.insert(schema.blockedDomains).values(values);
+        added += chunk.length;
+      }
+
+      return { added, skipped, errors };
+    }),
+
+  /**
+   * Bulk remove blocked domains
+   */
+  bulkRemoveBlockedDomains: adminProcedure
+    .input(z.object({ ids: z.array(z.number()).max(1000) }))
+    .output(z.object({ removed: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.ids.length === 0) {
+        return { removed: 0 };
+      }
+
+      // Chunk IDs for Cloudflare D1 parameter limit
+      const chunks = chunkArray(input.ids, D1_MAX_PARAMETERS - 1);
+      let removed = 0;
+
+      for (const chunk of chunks) {
+        await ctx.db
+          .delete(schema.blockedDomains)
+          .where(inArray(schema.blockedDomains.id, chunk));
+        removed += chunk.length;
+      }
+
+      return { removed };
+    }),
+
+  /**
+   * Export blocked domains to CSV
+   */
+  exportBlockedDomains: adminProcedure
+    .input(
+      z
+        .object({
+          reason: z
+            .enum([
+              "illegal_content",
+              "excessive_automation",
+              "spam",
+              "malware",
+              "copyright_violation",
+              "other",
+            ])
+            .optional(),
+        })
+        .optional()
+    )
+    .output(z.string())
+    .query(async ({ ctx, input }) => {
+      const conditions = [];
+
+      if (input?.reason !== undefined) {
+        conditions.push(eq(schema.blockedDomains.reason, input.reason));
+      }
+
+      const blocked = await ctx.db
+        .select()
+        .from(schema.blockedDomains)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(schema.blockedDomains.createdAt));
+
+      // Format as CSV
+      const csvRows = [
+        "domain,reason,notes,created_at", // Header
+        ...blocked.map((b) => {
+          const domain = b.domain;
+          const reason = b.reason || "";
+          const notes = b.notes ? `"${b.notes.replace(/"/g, '""')}"` : "";
+          const createdAt = b.createdAt.toISOString();
+          return `${domain},${reason},${notes},${createdAt}`;
+        }),
+      ];
+
+      return csvRows.join("\n");
     }),
 });

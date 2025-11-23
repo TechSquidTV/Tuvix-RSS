@@ -122,6 +122,42 @@ export const urlValidator = z
   });
 
 /**
+ * Domain validator with wildcard pattern support
+ * Supports formats like 'example.com' or '*.example.com' for wildcard blocking
+ */
+export const domainValidator = z
+  .string()
+  .min(1, { message: "Domain is required" })
+  .max(253, { message: "Domain must not exceed 253 characters (RFC 1035)" })
+  .refine(
+    (val) => {
+      const normalized = val.toLowerCase().trim();
+      // Allow wildcard pattern: *.example.com
+      if (normalized.startsWith("*.")) {
+        const suffix = normalized.slice(2); // Remove '*.'
+        // Validate suffix is a valid domain (must have at least one dot)
+        return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(
+          suffix
+        );
+      }
+      // Regular domain validation
+      return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(
+        normalized
+      );
+    },
+    {
+      message:
+        "Invalid domain format. Use format like 'example.com' or '*.example.com' for wildcard",
+    }
+  )
+  .transform((val) =>
+    val
+      .toLowerCase()
+      .replace(/^www\./, "")
+      .trim()
+  );
+
+/**
  * Title validator with length constraints
  */
 export const titleValidator = z

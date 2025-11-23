@@ -18,6 +18,12 @@ import {
   STRING_LIMITS,
 } from "@/types/validators";
 import {
+  extractDomain,
+  isDomainBlocked,
+  getBlockedDomainReason,
+  getBlockedDomains,
+} from "@/utils/domain-checker";
+import {
   checkSourceLimit,
   incrementSourceCount,
   decrementSourceCount,
@@ -167,7 +173,52 @@ export const subscriptionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
 
-      // Step 1: Fetch and parse the feed to validate it
+      // Step 1: Check if domain is blocked (before fetching feed)
+      const domain = extractDomain(input.url);
+      if (domain) {
+        // Get user's plan for enterprise bypass
+        const users = await ctx.db
+          .select()
+          .from(schema.user)
+          .where(eq(schema.user.id, userId))
+          .limit(1);
+        const user = users[0];
+
+        const userPlan = user?.plan || "free";
+
+        // Get blocked domains and check
+        const blockedDomainsList = await getBlockedDomains(ctx.db);
+        const blockedDomains = blockedDomainsList.map((b) => b.domain);
+        const blockedDomainsWithReason = blockedDomainsList;
+
+        if (isDomainBlocked(domain, blockedDomains, userPlan)) {
+          const { reason } = getBlockedDomainReason(
+            domain,
+            blockedDomainsWithReason,
+            userPlan
+          );
+
+          const reasonMap: Record<string, string> = {
+            illegal_content: "Illegal Content",
+            excessive_automation: "Excessive Automation",
+            spam: "Spam",
+            malware: "Malware",
+            copyright_violation: "Copyright Violation",
+            other: "Other",
+          };
+
+          const reasonDisplayName = reason ? reasonMap[reason] || reason : null;
+
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `This domain has been blocked by administrators.${
+              reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
+            }`,
+          });
+        }
+      }
+
+      // Step 2: Fetch and parse the feed to validate it
       const { parseFeed } = await import("feedsmith");
 
       let feedUrl = input.url;
@@ -197,7 +248,7 @@ export const subscriptionsRouter = router({
         });
       }
 
-      // Step 2: Extract metadata from feed
+      // Step 3: Extract metadata from feed
       const feedTitle =
         "title" in feedData && feedData.title
           ? feedData.title
@@ -217,7 +268,7 @@ export const subscriptionsRouter = router({
             ? feedData.links[0].href
             : undefined;
 
-      // Step 3: Check if source exists, create if not
+      // Step 4: Check if source exists, create if not
       const existingSources = await ctx.db
         .select()
         .from(schema.sources)

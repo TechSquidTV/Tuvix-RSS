@@ -41,15 +41,20 @@ import { useCurrentUser } from "@/lib/hooks/useAuth";
 import { FeedAvatar } from "@/components/app/feed-avatar";
 import { ChevronRight } from "lucide-react";
 import { useLocation } from "@tanstack/react-router";
+import { authClient } from "@/lib/auth-client";
+
+type User = NonNullable<
+  Awaited<ReturnType<typeof authClient.getSession>>
+>["user"];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: categories } = useCategories();
   const { data: subscriptionsData } = useSubscriptions();
-  const { data: sessionData, isLoading: isUserLoading } = useCurrentUser();
+  const { data: sessionData, isPending: isUserLoading } = useCurrentUser();
   const location = useLocation();
   const { state, setOpen } = useSidebar();
   // Better Auth's useSession() returns {data: {user, session}, ...}
-  const user = sessionData?.user;
+  const user = sessionData?.user as User | undefined;
 
   // State for controlled accordions
   const [accordionValues, setAccordionValues] = React.useState({
@@ -142,7 +147,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuButton asChild>
                   <Link
                     to="/app/articles"
-                    search={{ category_id: undefined }}
+                    search={{
+                      category_id: undefined,
+                      subscription_id: undefined,
+                    }}
                     onClick={ensureSidebarOpen}
                   >
                     <Newspaper />
@@ -194,44 +202,55 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenuSubItem>
 
                         {/* Top 10 Subscriptions */}
-                        {topSubscriptions.map((sub) => {
-                          const subscriptionTitle =
-                            sub.customTitle || sub.source?.title || "Untitled";
-                          const isActive = currentSubscriptionId === sub.id;
+                        {topSubscriptions.map(
+                          (
+                            sub: NonNullable<
+                              typeof subscriptionsData
+                            >["items"][number],
+                          ) => {
+                            const subscriptionTitle =
+                              sub.customTitle ||
+                              sub.source?.title ||
+                              "Untitled";
+                            const isActive = currentSubscriptionId === sub.id;
 
-                          return (
-                            <SidebarMenuSubItem key={sub.id}>
-                              <SidebarMenuSubButton asChild isActive={isActive}>
-                                <Link
-                                  to="/app/articles"
-                                  search={
-                                    isActive
-                                      ? {
-                                          category_id: currentCategoryId,
-                                          subscription_id: undefined,
-                                        }
-                                      : {
-                                          category_id: currentCategoryId,
-                                          subscription_id: sub.id,
-                                        }
-                                  }
-                                  onClick={ensureSidebarOpen}
+                            return (
+                              <SidebarMenuSubItem key={sub.id}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={isActive}
                                 >
-                                  <FeedAvatar
-                                    feedName={subscriptionTitle}
-                                    iconUrl={sub.source?.iconUrl}
-                                    feedUrl={sub.source?.url}
-                                    size="xs"
-                                    className="rounded-md"
-                                  />
-                                  <span className="truncate">
-                                    {subscriptionTitle}
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          );
-                        })}
+                                  <Link
+                                    to="/app/articles"
+                                    search={
+                                      isActive
+                                        ? {
+                                            category_id: currentCategoryId,
+                                            subscription_id: undefined,
+                                          }
+                                        : {
+                                            category_id: currentCategoryId,
+                                            subscription_id: sub.id,
+                                          }
+                                    }
+                                    onClick={ensureSidebarOpen}
+                                  >
+                                    <FeedAvatar
+                                      feedName={subscriptionTitle}
+                                      iconUrl={sub.source?.iconUrl}
+                                      feedUrl={sub.source?.url}
+                                      size="xs"
+                                      className="rounded-md"
+                                    />
+                                    <span className="truncate">
+                                      {subscriptionTitle}
+                                    </span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          },
+                        )}
 
                         {/* View More */}
                         {subscriptions.length > 10 && (
@@ -288,7 +307,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuSubButton asChild>
                           <Link
                             to="/app/articles"
-                            search={{ category_id: category.id }}
+                            search={{
+                              category_id: category.id,
+                              subscription_id: undefined,
+                            }}
                             onClick={ensureSidebarOpen}
                           >
                             <CategoryBadge
@@ -350,6 +372,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <Link to="/app/admin" onClick={ensureSidebarOpen}>
                       <Shield />
                       <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link
+                      to="/app/admin/blocked-domains"
+                      onClick={ensureSidebarOpen}
+                    >
+                      <Shield />
+                      <span>Moderation</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

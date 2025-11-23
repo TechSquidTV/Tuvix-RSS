@@ -619,3 +619,41 @@ export const apiUsageLog = sqliteTable(
     index("idx_api_usage_log_endpoint").on(table.endpoint),
   ]
 );
+
+// ============================================================================
+// BLOCKED DOMAINS
+// ============================================================================
+
+export const blockedDomains = sqliteTable(
+  "blocked_domains",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    domain: text("domain").notNull().unique(),
+    reason: text("reason", {
+      enum: [
+        "illegal_content",
+        "excessive_automation",
+        "spam",
+        "malware",
+        "copyright_violation",
+        "other",
+      ],
+    }),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date())
+      .$onUpdate(() => new Date()),
+    createdBy: integer("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => [
+    index("idx_blocked_domains_domain").on(table.domain),
+    index("idx_blocked_domains_reason").on(table.reason),
+    index("idx_blocked_domains_created_at").on(table.createdAt),
+  ]
+);

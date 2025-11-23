@@ -1,6 +1,11 @@
 import eslintPluginDrizzle from 'eslint-plugin-drizzle';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default [
   {
@@ -9,6 +14,7 @@ export default [
       parser: tsParser,
       parserOptions: {
         project: './tsconfig.json',
+        tsconfigRootDir: __dirname,
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
