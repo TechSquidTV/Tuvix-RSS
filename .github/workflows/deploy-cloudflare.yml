@@ -188,6 +188,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
           directory: packages/app/dist
+          production: true
 
       - name: Output App deployment URL
         if: success()
