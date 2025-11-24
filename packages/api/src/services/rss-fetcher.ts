@@ -588,6 +588,17 @@ async function extractArticleData(
     }
   }
 
+  // Audio URL from enclosures (for podcasts)
+  let audioUrl: string | undefined = undefined;
+  if ("enclosures" in item && Array.isArray(item.enclosures)) {
+    const audioEnclosure = item.enclosures.find((enc) =>
+      enc.type?.startsWith("audio/")
+    );
+    if (audioEnclosure?.url) {
+      audioUrl = audioEnclosure.url;
+    }
+  }
+
   // Published date
   const publishedAt = extractPublishedDate(item);
 
@@ -600,6 +611,7 @@ async function extractArticleData(
     description,
     author,
     imageUrl,
+    audioUrl,
     publishedAt,
   };
 }
