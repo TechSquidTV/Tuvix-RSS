@@ -35,16 +35,36 @@ export async function discoverFavicon(
     const domain = parsedUrl.hostname;
     const rootUrl = `${parsedUrl.protocol}//${domain}`;
 
-    // Build candidate list
-    const candidates = [
-      `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-      feedIconUrl,
-      `${rootUrl}/favicon.ico`,
-    ].filter((url): url is string => Boolean(url));
+    console.log("[discoverFavicon] Feed URL:", feedUrl);
+    console.log("[discoverFavicon] Feed icon URL (provided):", feedIconUrl);
+    console.log("[discoverFavicon] Domain:", domain);
+
+    // Build candidate list - prioritize feedIconUrl when provided
+    const candidates = feedIconUrl
+      ? [
+          feedIconUrl, // Prioritize feed-provided icon (e.g., iTunes image)
+          `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+          `${rootUrl}/favicon.ico`,
+        ]
+      : [
+          `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+          `${rootUrl}/favicon.ico`,
+        ];
+
+    console.log("[discoverFavicon] Candidates:", candidates);
 
     // Try each candidate
     for (const url of candidates) {
-      if (await isValidIcon(url)) {
+      console.log("[discoverFavicon] Checking candidate:", url);
+      const isValid = await isValidIcon(url);
+      console.log(
+        "[discoverFavicon] Candidate valid:",
+        isValid,
+        "for URL:",
+        url
+      );
+      if (isValid) {
+        console.log("[discoverFavicon] Selected icon URL:", url);
         return {
           iconUrl: url,
           iconData: null, // Don't download until needed
@@ -52,12 +72,13 @@ export async function discoverFavicon(
       }
     }
 
+    console.log("[discoverFavicon] No valid icon found");
     return {
       iconUrl: null,
       iconData: null,
     };
   } catch (error) {
-    console.error("Failed to discover favicon:", error);
+    console.error("[discoverFavicon] Failed to discover favicon:", error);
     return {
       iconUrl: null,
       iconData: null,
