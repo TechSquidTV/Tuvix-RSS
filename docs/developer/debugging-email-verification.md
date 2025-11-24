@@ -2,23 +2,24 @@
 
 This guide helps debug email verification failures when they're not appearing in Sentry or logs.
 
-## Sentry Configuration Updates
+## Sentry Configuration
 
-We've updated the Sentry configuration to enable better debugging:
+Sentry is configured with the following features:
 
 1. **Enabled Sentry Logs**: `enableLogs: true` in Sentry config
-2. **Console Logging Integration**: Captures `console.error` and `console.warn` calls
+2. **Runtime-Agnostic Wrapper**: Sentry is automatically enabled in Cloudflare Workers, disabled in Node.js/Express
 3. **Structured Logging**: Using `Sentry.logger` for better context
 
 ## Debugging Steps
 
 ### 1. Check Sentry Configuration
 
-Verify that Sentry is properly initialized:
+Verify that Sentry is properly configured:
 
 ```bash
-# Check Cloudflare Workers logs for Sentry initialization
-# Should see: "✅ Sentry initialized for Cloudflare Workers"
+# Check Cloudflare Workers logs for Sentry activity
+# Sentry runs silently in the background in Cloudflare Workers
+# Check the Sentry dashboard for captured events
 ```
 
 ### 2. Check Environment Variables
@@ -177,14 +178,14 @@ Check Workers metrics in Cloudflare Dashboard for:
 ### Issue: No errors in Sentry or logs
 
 **Possible causes:**
-1. Sentry not initialized (check for initialization log)
-2. Errors happening before Sentry is ready
+1. Sentry DSN not configured (check `SENTRY_DSN` environment variable)
+2. Errors happening outside of Sentry's scope
 3. Email service returning success in dev mode without sending
 4. Errors being caught and swallowed
 
 **Solution:**
 - Check Cloudflare Workers logs (not just Sentry)
-- Verify `SENTRY_DSN` is set
+- Verify `SENTRY_DSN` is set in Cloudflare Workers secrets
 - Check if `RESEND_API_KEY` and `EMAIL_FROM` are configured
 - Add explicit console.log statements before try-catch blocks
 

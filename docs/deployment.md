@@ -1504,12 +1504,12 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 4. **Verify Setup:**
    ```bash
-   # Test backend Sentry
-   curl https://api.tuvix.app/debug-sentry
-   # Should return error response and create Sentry event
-   
+   # Test backend Sentry by triggering an error
    # Check Sentry dashboard for events
    # https://techsquidtv.sentry.io/issues/
+   
+   # Monitor backend logs
+   npx wrangler tail
    ```
 
 **Distributed Tracing:**
