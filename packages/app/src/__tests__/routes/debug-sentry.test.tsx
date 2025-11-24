@@ -64,10 +64,16 @@ describe("DebugSentryPage", () => {
     const { Route } = await import("../../routes/debug-sentry");
     DebugSentryPage = Route.options.component;
 
-    // Mock fetch
+    // Mock fetch - return JSON response matching the component's expectations
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      text: vi.fn().mockResolvedValue("Backend test completed"),
+      status: 200,
+      headers: {
+        get: vi.fn().mockReturnValue("application/json"),
+      },
+      json: vi.fn().mockResolvedValue({
+        message: "Backend test completed",
+      }),
     } as any);
   });
 
@@ -277,10 +283,16 @@ describe("DebugSentryPage - Error Messages", () => {
     const { Route } = await import("../../routes/debug-sentry");
     DebugSentryPage = Route.options.component;
 
-    // Mock fetch
+    // Mock fetch - return JSON response matching the component's expectations
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      text: vi.fn().mockResolvedValue("Backend test completed"),
+      status: 200,
+      headers: {
+        get: vi.fn().mockReturnValue("application/json"),
+      },
+      json: vi.fn().mockResolvedValue({
+        message: "Backend test completed",
+      }),
     } as any);
   });
 
