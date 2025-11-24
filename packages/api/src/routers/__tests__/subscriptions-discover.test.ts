@@ -787,4 +787,165 @@ describe("Feed Discovery - Deduplication", () => {
       expect(result[0].type).toBe("atom");
     });
   });
+
+  describe("Apple Podcast Discovery", () => {
+    it("should discover RSS feed from Apple Podcasts URL using iTunes API", async () => {
+      const caller = createCaller();
+
+      const applePodcastUrl =
+        "https://podcasts.apple.com/us/podcast/test-podcast/id1234567890";
+      const rssFeedUrl = "https://rss.art19.com/test-podcast";
+
+      // Mock iTunes API response
+      const iTunesApiResponse = {
+        resultCount: 1,
+        results: [
+          {
+            wrapperType: "track",
+            kind: "podcast",
+            collectionId: 1234567890,
+            trackId: 1234567890,
+            artistName: "Test Author",
+            collectionName: "Test Podcast",
+            trackName: "Test Podcast",
+            collectionCensoredName: "Test Podcast",
+            trackCensoredName: "Test Podcast",
+            collectionViewUrl: applePodcastUrl,
+            feedUrl: rssFeedUrl,
+            trackViewUrl: applePodcastUrl,
+            artworkUrl30: "https://example.com/artwork30.jpg",
+            artworkUrl60: "https://example.com/artwork60.jpg",
+            artworkUrl100: "https://example.com/artwork100.jpg",
+            artworkUrl600: "https://example.com/artwork600.jpg",
+            collectionPrice: 0,
+            trackPrice: 0,
+            collectionHdPrice: 0,
+            releaseDate: "2024-01-01T00:00:00Z",
+            collectionExplicitness: "notExplicit",
+            trackExplicitness: "notExplicit",
+            trackCount: 10,
+            country: "US",
+            currency: "USD",
+            primaryGenreName: "Podcasts",
+            genreIds: ["1301"],
+            genres: ["Podcasts"],
+          },
+        ],
+      };
+
+      // Mock iTunes API call
+      (global.fetch as any).mockImplementation((url: string) => {
+        if (url.includes("itunes.apple.com/lookup")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => iTunesApiResponse,
+          } as Response);
+        }
+        // Mock RSS feed response
+        if (url === rssFeedUrl) {
+          return Promise.resolve(
+            createMockRssResponse(rssFeedUrl, "Test Podcast")
+          );
+        }
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({ url: applePodcastUrl });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].url).toBe(rssFeedUrl);
+      expect(result[0].title).toBe("Test Podcast");
+      expect(result[0].type).toBe("rss");
+    });
+
+    it("should fall back to standard discovery if Apple Podcast URL has no ID", async () => {
+      const caller = createCaller();
+
+      const appleUrl = "https://podcasts.apple.com/us/podcast/test-podcast";
+
+      // Mock standard discovery paths
+      (global.fetch as any).mockImplementation((url: string) => {
+        if (url === "https://podcasts.apple.com/feed") {
+          return Promise.resolve(
+            createMockRssResponse("https://podcasts.apple.com/feed", "Feed")
+          );
+        }
+        if (url === appleUrl) {
+          return Promise.resolve(createMockHtmlResponse([]));
+        }
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({ url: appleUrl });
+
+      // Should find feed via standard discovery
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("should fall back to standard discovery if iTunes API fails", async () => {
+      const caller = createCaller();
+
+      const applePodcastUrl =
+        "https://podcasts.apple.com/us/podcast/test-podcast/id1234567890";
+
+      // Mock iTunes API to fail
+      (global.fetch as any).mockImplementation((url: string) => {
+        if (url.includes("itunes.apple.com/lookup")) {
+          return Promise.resolve({ ok: false, status: 500 });
+        }
+        // Mock standard discovery fallback
+        if (url === "https://podcasts.apple.com/feed") {
+          return Promise.resolve(
+            createMockRssResponse("https://podcasts.apple.com/feed", "Feed")
+          );
+        }
+        if (url === applePodcastUrl) {
+          return Promise.resolve(createMockHtmlResponse([]));
+        }
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({ url: applePodcastUrl });
+
+      // Should find feed via standard discovery fallback
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("should fall back to standard discovery if iTunes API returns no results", async () => {
+      const caller = createCaller();
+
+      const applePodcastUrl =
+        "https://podcasts.apple.com/us/podcast/test-podcast/id1234567890";
+
+      // Mock iTunes API to return empty results
+      const emptyApiResponse = {
+        resultCount: 0,
+        results: [],
+      };
+
+      (global.fetch as any).mockImplementation((url: string) => {
+        if (url.includes("itunes.apple.com/lookup")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => emptyApiResponse,
+          } as Response);
+        }
+        // Mock standard discovery fallback
+        if (url === "https://podcasts.apple.com/feed") {
+          return Promise.resolve(
+            createMockRssResponse("https://podcasts.apple.com/feed", "Feed")
+          );
+        }
+        if (url === applePodcastUrl) {
+          return Promise.resolve(createMockHtmlResponse([]));
+        }
+        return Promise.resolve({ ok: false });
+      });
+
+      const result = await caller.discover({ url: applePodcastUrl });
+
+      // Should find feed via standard discovery fallback
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
 });
