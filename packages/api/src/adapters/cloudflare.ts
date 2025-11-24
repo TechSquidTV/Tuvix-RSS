@@ -489,32 +489,16 @@ const workerHandler = {
 // This initializes Sentry and wraps the fetch handler automatically
 export default Sentry.withSentry((env: Env) => {
   const config = getSentryConfig(env);
+
+  // If no DSN provided, Sentry will be disabled
   if (!config) {
-    // Return minimal config if DSN not provided (Sentry will be disabled)
     return { dsn: undefined };
   }
 
   // Add version metadata if available
-  const versionId = env.CF_VERSION_METADATA?.id;
-  if (versionId) {
+  const versionId = env?.CF_VERSION_METADATA?.id;
+  if (versionId && typeof versionId === "string") {
     config.release = versionId;
-  }
-
-  // Enable Sentry logs and console logging integration for better debugging
-  // This captures console.error, console.warn, etc. and sends them to Sentry
-  if (Sentry.consoleLoggingIntegration) {
-    // Type assertion needed because config type doesn't include integrations
-    // The withSentry config type is limited, but Sentry accepts integrations at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const configWithIntegrations = config as any;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    configWithIntegrations.integrations = [
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      ...(configWithIntegrations.integrations || []),
-      Sentry.consoleLoggingIntegration({
-        levels: ["error", "warn"], // Only capture errors and warnings
-      }),
-    ];
   }
 
   // Note: D1 instrumentation is done per-request in the fetch handler

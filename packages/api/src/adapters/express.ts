@@ -4,6 +4,9 @@
  * This adapter runs on Node.js for Docker deployments.
  */
 
+// Set runtime identifier for Sentry wrapper (must be before any Sentry imports)
+process.env.RUNTIME = "nodejs";
+
 import express from "express";
 import cors from "cors";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -24,8 +27,8 @@ import { checkPublicFeedRateLimit } from "@/services/rate-limiter";
 import { initializeAdmin } from "@/services/admin-init";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
-import { initSentryNode } from "@/config/sentry";
 import { runMigrationsIfNeeded } from "@/db/migrate-local";
+import * as Sentry from "@/utils/sentry";
 
 const app = express();
 
@@ -83,14 +86,6 @@ if (env.NODE_ENV === "production" && allowedOrigins.length === 0) {
       "   Set CORS_ORIGIN environment variable to your frontend URL(s)."
   );
 }
-
-// Initialize Sentry early (before routes)
-// Note: Due to ESM and dynamic imports, Sentry initializes after Express is imported.
-// This causes a warning about Express not being instrumented, but it's informational only.
-// Error tracking via the error handler (below) will still work correctly.
-// For full automatic instrumentation, Sentry would need to be initialized in a separate
-// file using Node's --import flag, but that's not necessary for error tracking.
-initSentryNode(env);
 
 // Run migrations automatically on startup (Node.js only)
 // This ensures the database schema is up to date before the server starts
@@ -168,11 +163,23 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", runtime: "nodejs" });
 });
 
-// Sentry test endpoint
+// Sentry test endpoint (for debugging)
+// Note: In Node.js, Sentry is disabled (no-op), so this endpoint will return
+// a message indicating Sentry is not available in this runtime
 app.get("/debug-sentry", async (_req, res) => {
   if (env.SENTRY_DSN) {
     try {
-      const Sentry = await import("@sentry/node");
+      const testError = new Error("Test Sentry error!");
+      // Capture exception (will be no-op in Node.js)
+      const eventId = await Sentry.captureException(testError, {
+        tags: { test: "debug-sentry", runtime: "nodejs" },
+        extra: {
+          endpoint: "/debug-sentry",
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      // Create a span (will be no-op in Node.js)
       await Sentry.startSpan(
         {
           op: "test",
@@ -180,20 +187,31 @@ app.get("/debug-sentry", async (_req, res) => {
         },
         async () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
-          throw new Error("Test Sentry error!");
         }
       );
-      // This should never be reached since the span throws an error
-      res.status(500).json({ error: "Unexpected: error was not thrown" });
-    } catch (error) {
-      // Error was thrown and captured by Sentry
+
+      // In Node.js, Sentry is disabled, so eventId will be undefined
       res.status(500).json({
-        error: "Test error thrown and captured by Sentry",
+        error: "Test error (Sentry disabled in Node.js)",
+        message: testError.message,
+        eventId: eventId || "not-captured",
+        note: "Sentry is disabled in Node.js/Express runtime. This endpoint exists for API consistency.",
+      });
+    } catch (error) {
+      // Fallback: capture any unexpected errors
+      const eventId = await Sentry.captureException(error);
+      res.status(500).json({
+        error: "Unexpected error occurred",
         message: error instanceof Error ? error.message : String(error),
+        eventId: eventId || "not-captured",
+        note: "Sentry is disabled in Node.js/Express runtime.",
       });
     }
   } else {
-    res.json({ message: "Sentry not configured" });
+    res.json({
+      message: "Sentry not configured",
+      note: "SENTRY_DSN environment variable is not set.",
+    });
   }
 });
 
@@ -411,13 +429,6 @@ if (migrationsPromise) {
     .catch((error) => {
       console.error("❌ Failed to initialize admin:", error);
     });
-}
-
-// Sentry error handler (must be after all routes, before other error handlers)
-if (env.SENTRY_DSN) {
-  import("@sentry/node").then((Sentry) => {
-    Sentry.setupExpressErrorHandler(app);
-  });
 }
 
 // Global error handler (must be last)
