@@ -30,6 +30,7 @@ import type { RouterOutputs } from "@/lib/api/trpc";
 import { SwipeableItem } from "@/components/ui/swipeable-item";
 import { FeedAvatar } from "@/components/app/feed-avatar";
 import { ShareDropdown } from "@/components/app/share-dropdown";
+import { ArticleItemAudio } from "@/components/app/article-item-audio";
 
 // Get the actual article type from tRPC router output
 type Article = RouterOutputs["articles"]["list"]["items"][number];
@@ -40,6 +41,7 @@ interface ArticleItemProps {
 }
 
 export function ArticleItem({ article, className }: ArticleItemProps) {
+  // Call all hooks before any conditional returns (React rules)
   const isMobile = useIsMobile();
   const markRead = useMarkArticleRead();
   const markUnread = useMarkArticleUnread();
@@ -51,6 +53,12 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
   const [isRead, setIsRead] = useState(article.read || false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Check if this is an audio article (after all hooks)
+  if (article.audioUrl) {
+    return <ArticleItemAudio article={article} className={className} />;
+  }
+
+  // Standard article layout
   const handleRead = (e: MouseEvent) => {
     e.stopPropagation();
     if (article.id) {
@@ -171,7 +179,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
             <div className="flex items-center gap-1.5">
               <FeedAvatar
                 feedName={article.source?.title || "Unknown Source"}
-                iconUrl={article.source?.icon_url}
+                iconUrl={article.source?.iconUrl}
                 feedUrl={article.source?.url}
                 size="xs"
               />
