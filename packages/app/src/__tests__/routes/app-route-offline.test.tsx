@@ -65,22 +65,14 @@ global.fetch = vi.fn().mockImplementation((url: string | URL | Request) => {
       : url instanceof URL
         ? url.toString()
         : url.url;
-  if (urlString.startsWith("/")) {
-    return Promise.resolve({
-      ok: true,
-      json: vi.fn().mockResolvedValue({
-        result: {
-          data: {
-            requiresVerification: false,
-            emailVerified: true,
-          },
-        },
-      }),
-    } as any);
-  }
-  // For absolute URLs, use original fetch or return mock
-  return Promise.resolve({
+  
+  // Create mock response with proper Content-Type header
+  const mockResponse = {
     ok: true,
+    status: 200,
+    headers: {
+      get: vi.fn().mockReturnValue("application/json"),
+    },
     json: vi.fn().mockResolvedValue({
       result: {
         data: {
@@ -89,7 +81,13 @@ global.fetch = vi.fn().mockImplementation((url: string | URL | Request) => {
         },
       },
     }),
-  } as any);
+  } as any;
+  
+  if (urlString.startsWith("/")) {
+    return Promise.resolve(mockResponse);
+  }
+  // For absolute URLs, use original fetch or return mock
+  return Promise.resolve(mockResponse);
 });
 
 // Mock import.meta.env to provide absolute URL
