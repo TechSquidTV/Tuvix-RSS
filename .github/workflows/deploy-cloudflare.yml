@@ -174,6 +174,18 @@ jobs:
           echo "version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $RELEASE_VERSION"
 
+      - name: Verify Sentry Configuration
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: |
+          if [ -z "$VITE_SENTRY_DSN" ]; then
+            echo "⚠️  WARNING: VITE_SENTRY_DSN secret is not set in GitHub Secrets"
+            echo "   Frontend Sentry will not be initialized."
+            echo "   Set it in: Settings → Secrets and variables → Actions → VITE_SENTRY_DSN"
+          else
+            echo "✅ VITE_SENTRY_DSN is configured (length: ${#VITE_SENTRY_DSN} chars)"
+          fi
+
       - name: Build App
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}

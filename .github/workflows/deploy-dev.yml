@@ -172,6 +172,18 @@ jobs:
           echo "API_URL=$API_URL" >> $GITHUB_ENV
           echo "Using API URL: $API_URL"
 
+      - name: Verify Sentry Configuration
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: |
+          if [ -z "$VITE_SENTRY_DSN" ]; then
+            echo "⚠️  WARNING: VITE_SENTRY_DSN secret is not set in GitHub Secrets"
+            echo "   Frontend Sentry will not be initialized."
+            echo "   Set it in: Settings → Secrets and variables → Actions → VITE_SENTRY_DSN"
+          else
+            echo "✅ VITE_SENTRY_DSN is configured (length: ${#VITE_SENTRY_DSN} chars)"
+          fi
+
       - name: Build App
         env:
           VITE_API_URL: ${{ env.API_URL }}

@@ -31,8 +31,11 @@ declare module "@tanstack/react-router" {
 }
 
 // Initialize Sentry AFTER router is created (so we can include router integration)
+// Vite replaces import.meta.env.VITE_* variables at BUILD TIME
+// If VITE_SENTRY_DSN is not set during build, it will be undefined in the bundle
 const dsn = import.meta.env.VITE_SENTRY_DSN;
-if (dsn) {
+// Check for both undefined and empty string (defensive check)
+if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
   const environment =
     import.meta.env.VITE_SENTRY_ENVIRONMENT ||
     import.meta.env.MODE ||
@@ -169,8 +172,17 @@ if (dsn) {
     );
   }
 } else {
+  // Log more details in production to help debug
+  const dsnValue = import.meta.env.VITE_SENTRY_DSN;
   console.warn(
     "⚠️ Sentry DSN not configured. Set VITE_SENTRY_DSN to enable error tracking.",
+    {
+      dsnType: typeof dsnValue,
+      dsnValue: dsnValue ? `${dsnValue.substring(0, 20)}...` : dsnValue,
+      isUndefined: dsnValue === undefined,
+      isEmpty: dsnValue === "",
+      buildTime: "VITE_* env vars must be set during build (CI/CD)",
+    },
   );
 }
 
