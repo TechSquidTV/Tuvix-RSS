@@ -4,6 +4,7 @@
  * Handles RSS feed subscriptions, OPML import/export, filters, and discovery.
  */
 
+import * as Sentry from "@sentry/node";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
@@ -244,8 +245,23 @@ export const subscriptionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
 
-      // Step 1: Check if domain is blocked (before fetching feed)
+      // Set user context for Sentry
+      Sentry.setUser({ id: userId.toString() });
+
       const domain = extractDomain(input.url);
+
+      Sentry.addBreadcrumb({
+        category: "subscription",
+        message: `Creating subscription for ${input.url}`,
+        level: "info",
+        data: {
+          url: input.url,
+          domain: domain || "unknown",
+          user_id: userId,
+        },
+      });
+
+      // Step 1: Check if domain is blocked (before fetching feed)
       if (domain) {
         // Get user's plan for enterprise bypass
         const users = await ctx.db
@@ -280,6 +296,23 @@ export const subscriptionsRouter = router({
 
           const reasonDisplayName = reason ? reasonMap[reason] || reason : null;
 
+          Sentry.captureException(
+            new Error("Subscription blocked - domain blocked"),
+            {
+              level: "info",
+              tags: {
+                operation: "subscription_create",
+                domain: domain,
+                user_plan: userPlan,
+                block_reason: reason || "unknown",
+              },
+              extra: {
+                url: input.url,
+                user_id: userId,
+              },
+            }
+          );
+
           throw new TRPCError({
             code: "FORBIDDEN",
             message: `This domain has been blocked by administrators.${
@@ -297,6 +330,12 @@ export const subscriptionsRouter = router({
       let feedContent: string | undefined;
 
       try {
+        Sentry.addBreadcrumb({
+          category: "subscription",
+          message: `Fetching feed from ${feedUrl}`,
+          level: "info",
+        });
+
         const response = await fetch(feedUrl, {
           headers: {
             "User-Agent": "TuvixRSS/1.0",
@@ -307,13 +346,47 @@ export const subscriptionsRouter = router({
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          Sentry.captureException(new Error(errorMessage), {
+            level: "error",
+            tags: {
+              operation: "subscription_feed_fetch",
+              domain: domain || "unknown",
+              http_status: response.status.toString(),
+            },
+            extra: {
+              url: input.url,
+              user_id: userId,
+              status_text: response.statusText,
+            },
+          });
+          throw new Error(errorMessage);
         }
 
         feedContent = await response.text();
         const result = parseFeed(feedContent);
         feedData = result.feed;
+
+        Sentry.addBreadcrumb({
+          category: "subscription",
+          message: `Successfully parsed feed as ${result.format}`,
+          level: "info",
+          data: { feed_format: result.format },
+        });
       } catch (error) {
+        Sentry.captureException(error, {
+          level: "error",
+          tags: {
+            operation: "subscription_feed_parse",
+            domain: domain || "unknown",
+          },
+          extra: {
+            url: input.url,
+            user_id: userId,
+            error_message: error instanceof Error ? error.message : "Unknown",
+          },
+        });
+
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Failed to fetch or parse feed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -740,6 +813,18 @@ export const subscriptionsRouter = router({
     .query(async ({ ctx: _ctx, input }) => {
       const { parseFeed } = await import("feedsmith");
 
+      const domain = extractDomain(input.url);
+
+      Sentry.addBreadcrumb({
+        category: "subscription",
+        message: `Previewing feed ${input.url}`,
+        level: "info",
+        data: {
+          url: input.url,
+          domain: domain || "unknown",
+        },
+      });
+
       // Step 1: Fetch and parse the feed
       let feedData;
       let feedUrl = input.url;
@@ -756,13 +841,45 @@ export const subscriptionsRouter = router({
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          Sentry.captureException(new Error(errorMessage), {
+            level: "error",
+            tags: {
+              operation: "subscription_preview",
+              domain: domain || "unknown",
+              http_status: response.status.toString(),
+            },
+            extra: {
+              url: input.url,
+              status_text: response.statusText,
+            },
+          });
+          throw new Error(errorMessage);
         }
 
         feedContent = await response.text();
         const result = parseFeed(feedContent);
         feedData = result.feed;
+
+        Sentry.addBreadcrumb({
+          category: "subscription",
+          message: `Preview parsed feed as ${result.format}`,
+          level: "info",
+          data: { feed_format: result.format },
+        });
       } catch (error) {
+        Sentry.captureException(error, {
+          level: "error",
+          tags: {
+            operation: "subscription_preview_parse",
+            domain: domain || "unknown",
+          },
+          extra: {
+            url: input.url,
+            error_message: error instanceof Error ? error.message : "Unknown",
+          },
+        });
+
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Failed to fetch or parse feed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -810,8 +927,29 @@ export const subscriptionsRouter = router({
 
         const faviconResult = await discoverFavicon(input.url, feedIconUrl);
         iconUrl = faviconResult.iconUrl || undefined;
+
+        Sentry.addBreadcrumb({
+          category: "subscription",
+          message: `Icon discovery ${iconUrl ? "succeeded" : "failed"}`,
+          level: iconUrl ? "info" : "warning",
+          data: {
+            itunes_image: !!itunesImage,
+            feed_icon_url: !!feedIconUrl,
+            final_icon_url: !!iconUrl,
+          },
+        });
       } catch (error) {
         console.error("[preview] Failed to discover favicon:", error);
+        Sentry.captureException(error, {
+          level: "warning",
+          tags: {
+            operation: "favicon_discovery",
+            domain: domain || "unknown",
+          },
+          extra: {
+            url: input.url,
+          },
+        });
         // Failed to discover favicon, continue without it
       }
 

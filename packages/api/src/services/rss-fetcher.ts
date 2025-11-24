@@ -5,6 +5,7 @@
  * Supports automatic format detection and handles multiple feed formats.
  */
 
+import * as Sentry from "@sentry/node";
 import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
 import type { Database } from "../db/client";
@@ -104,124 +105,207 @@ export async function fetchSingleFeed(
   feedUrl: string,
   db: Database
 ): Promise<FetchSingleResult> {
-  // 0. Check if domain is blocked (before fetching)
-  const domain = extractDomain(feedUrl);
-  if (domain) {
-    try {
-      // Get all users subscribed to this source
-      const subscriptions = await db
-        .select()
-        .from(schema.subscriptions)
-        .where(eq(schema.subscriptions.sourceId, sourceId));
+  return await Sentry.startSpan(
+    {
+      op: "feed.fetch",
+      name: "Fetch RSS Feed",
+      attributes: {
+        feed_url: feedUrl,
+        source_id: sourceId,
+        feed_domain: extractDomain(feedUrl) || "unknown",
+      },
+    },
+    async (span) => {
+      try {
+        // 0. Check if domain is blocked (before fetching)
+        const domain = extractDomain(feedUrl);
+        if (domain) {
+          try {
+            // Get all users subscribed to this source
+            const subscriptions = await db
+              .select()
+              .from(schema.subscriptions)
+              .where(eq(schema.subscriptions.sourceId, sourceId));
 
-      if (subscriptions.length > 0) {
-        // Get their plans (check if any are enterprise)
-        const userIds = subscriptions.map((s) => s.userId);
-        // Chunk userIds for Cloudflare D1 parameter limit
-        const chunks = chunkArray(userIds, D1_MAX_PARAMETERS - 1);
+            if (subscriptions.length > 0) {
+              // Get their plans (check if any are enterprise)
+              const userIds = subscriptions.map((s) => s.userId);
+              // Chunk userIds for Cloudflare D1 parameter limit
+              const chunks = chunkArray(userIds, D1_MAX_PARAMETERS - 1);
 
-        let hasEnterpriseUser = false;
-        for (const chunk of chunks) {
-          const users = await db
-            .select()
-            .from(schema.user)
-            .where(inArray(schema.user.id, chunk));
+              let hasEnterpriseUser = false;
+              for (const chunk of chunks) {
+                const users = await db
+                  .select()
+                  .from(schema.user)
+                  .where(inArray(schema.user.id, chunk));
 
-          if (users.some((u) => u.plan === "enterprise")) {
-            hasEnterpriseUser = true;
-            break;
+                if (users.some((u) => u.plan === "enterprise")) {
+                  hasEnterpriseUser = true;
+                  break;
+                }
+              }
+
+              // If no enterprise users, check if domain is blocked
+              if (!hasEnterpriseUser) {
+                const blockedDomainsList = await getBlockedDomains(db);
+                const blockedDomains = blockedDomainsList.map((b) => b.domain);
+
+                if (isDomainBlocked(domain, blockedDomains)) {
+                  console.log(`Skipping blocked domain: ${domain}`);
+                  span.setAttribute("domain_blocked", true);
+                  span.setStatus({ code: 1, message: "Domain blocked" });
+                  return {
+                    articlesAdded: 0,
+                    articlesSkipped: 0,
+                    sourceUpdated: false,
+                  };
+                }
+              }
+            }
+          } catch (error) {
+            // Safe migration: If table doesn't exist yet, continue with fetch
+            // This allows code to deploy before migrations without errors
+            if (
+              error instanceof Error &&
+              (error.message.includes("no such table") ||
+                error.message.includes("does not exist"))
+            ) {
+              console.warn(
+                "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
+              );
+            } else {
+              // Log other errors but continue (fail open for safety)
+              console.error("Error checking blocked domains:", error);
+            }
           }
         }
 
-        // If no enterprise users, check if domain is blocked
-        if (!hasEnterpriseUser) {
-          const blockedDomainsList = await getBlockedDomains(db);
-          const blockedDomains = blockedDomainsList.map((b) => b.domain);
+        Sentry.addBreadcrumb({
+          category: "feed.fetch",
+          message: `Fetching feed from ${feedUrl}`,
+          level: "info",
+          data: { feed_url: feedUrl, source_id: sourceId },
+        });
 
-          if (isDomainBlocked(domain, blockedDomains)) {
-            console.log(`Skipping blocked domain: ${domain}`);
-            return {
-              articlesAdded: 0,
-              articlesSkipped: 0,
-              sourceUpdated: false,
-            };
-          }
-        }
-      }
-    } catch (error) {
-      // Safe migration: If table doesn't exist yet, continue with fetch
-      // This allows code to deploy before migrations without errors
-      if (
-        error instanceof Error &&
-        (error.message.includes("no such table") ||
-          error.message.includes("does not exist"))
-      ) {
-        console.warn(
-          "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
+        // 1. Fetch feed with timeout
+        const response = await fetch(feedUrl, {
+          headers: {
+            "User-Agent":
+              "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+            Accept:
+              "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+          },
+          signal: AbortSignal.timeout(30000), // 30s timeout
+        });
+
+        span.setAttribute("http_status", response.status);
+        span.setAttribute(
+          "content_type",
+          response.headers.get("content-type") || "unknown"
         );
-      } else {
-        // Log other errors but continue (fail open for safety)
-        console.error("Error checking blocked domains:", error);
+
+        if (!response.ok) {
+          span.setStatus({ code: 2, message: `HTTP ${response.status}` });
+          const error = new Error(
+            `HTTP ${response.status}: ${response.statusText}`
+          );
+          Sentry.captureException(error, {
+            level: "error",
+            tags: {
+              feed_domain: domain || "unknown",
+              operation: "feed_fetch",
+              http_status: response.status.toString(),
+            },
+            extra: {
+              feed_url: feedUrl,
+              source_id: sourceId,
+              status_text: response.statusText,
+            },
+          });
+          throw error;
+        }
+
+        const contentType = response.headers.get("content-type") || "";
+        if (
+          !contentType.includes("xml") &&
+          !contentType.includes("rss") &&
+          !contentType.includes("atom") &&
+          !contentType.includes("json")
+        ) {
+          console.warn(
+            `Unexpected content-type: ${contentType} for ${feedUrl}`
+          );
+          span.setAttribute("unexpected_content_type", true);
+        }
+
+        const feedContent = await response.text();
+        span.setAttribute("feed_content_size", feedContent.length);
+
+        // 2. Parse feed using feedsmith (auto-detects format)
+        let feed: AnyFeed;
+        let feedFormat: string;
+        try {
+          const result = parseFeed(feedContent);
+          feed = result.feed as AnyFeed;
+          feedFormat = result.format;
+          span.setAttribute("feed_format", feedFormat);
+          console.log(`Parsed ${feedUrl} as ${feedFormat}`);
+
+          Sentry.addBreadcrumb({
+            category: "feed.fetch",
+            message: `Parsed feed as ${feedFormat}`,
+            level: "info",
+            data: { feed_format: feedFormat, source_id: sourceId },
+          });
+        } catch (error) {
+          span.setStatus({ code: 2, message: "Parse failed" });
+          const parseError = new Error(
+            `Failed to parse feed: ${error instanceof Error ? error.message : "Unknown"}`
+          );
+          Sentry.captureException(parseError, {
+            level: "error",
+            tags: {
+              feed_domain: domain || "unknown",
+              operation: "feed_parse",
+            },
+            extra: {
+              feed_url: feedUrl,
+              source_id: sourceId,
+              content_type: contentType,
+              content_sample: feedContent.substring(0, 500),
+            },
+          });
+          throw parseError;
+        }
+
+        // 3. Update source metadata
+        const sourceUpdated = await updateSourceMetadata(sourceId, feed, db);
+        span.setAttribute("source_updated", sourceUpdated);
+
+        // 4. Extract and store articles
+        const { articlesAdded, articlesSkipped } = await storeArticles(
+          sourceId,
+          feed,
+          db
+        );
+
+        span.setAttribute("articles_added", articlesAdded);
+        span.setAttribute("articles_skipped", articlesSkipped);
+        span.setStatus({ code: 1, message: "ok" });
+
+        return {
+          articlesAdded,
+          articlesSkipped,
+          sourceUpdated,
+        };
+      } catch (error) {
+        span.setStatus({ code: 2, message: "Fetch failed" });
+        // Error already captured in specific places, re-throw
+        throw error;
       }
     }
-  }
-
-  // 1. Fetch feed with timeout
-  const response = await fetch(feedUrl, {
-    headers: {
-      "User-Agent":
-        "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-      Accept:
-        "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-    },
-    signal: AbortSignal.timeout(30000), // 30s timeout
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const contentType = response.headers.get("content-type") || "";
-  if (
-    !contentType.includes("xml") &&
-    !contentType.includes("rss") &&
-    !contentType.includes("atom") &&
-    !contentType.includes("json")
-  ) {
-    console.warn(`Unexpected content-type: ${contentType} for ${feedUrl}`);
-  }
-
-  const feedContent = await response.text();
-
-  // 2. Parse feed using feedsmith (auto-detects format)
-  let feed: AnyFeed;
-  let feedFormat: string;
-  try {
-    const result = parseFeed(feedContent);
-    feed = result.feed as AnyFeed;
-    feedFormat = result.format;
-    console.log(`Parsed ${feedUrl} as ${feedFormat}`);
-  } catch (error) {
-    throw new Error(
-      `Failed to parse feed: ${error instanceof Error ? error.message : "Unknown"}`
-    );
-  }
-
-  // 3. Update source metadata
-  const sourceUpdated = await updateSourceMetadata(sourceId, feed, db);
-
-  // 4. Extract and store articles
-  const { articlesAdded, articlesSkipped } = await storeArticles(
-    sourceId,
-    feed,
-    db
   );
-
-  return {
-    articlesAdded,
-    articlesSkipped,
-    sourceUpdated,
-  };
 }
 
 // =============================================================================
@@ -288,54 +372,106 @@ async function storeArticles(
   feed: AnyFeed,
   db: Database
 ): Promise<{ articlesAdded: number; articlesSkipped: number }> {
-  // Extract items/entries from feed
-  const items = extractFeedItems(feed);
+  return await Sentry.startSpan(
+    {
+      op: "feed.store_articles",
+      name: "Store Articles",
+      attributes: {
+        source_id: sourceId,
+      },
+    },
+    async (span) => {
+      // Extract items/entries from feed
+      const items = extractFeedItems(feed);
 
-  if (!items || items.length === 0) {
-    console.warn(`No items found in feed for source ${sourceId}`);
-    return { articlesAdded: 0, articlesSkipped: 0 };
-  }
-
-  let articlesAdded = 0;
-  let articlesSkipped = 0;
-
-  for (const item of items) {
-    try {
-      // Generate GUID (required for deduplication)
-      const guid = extractGuid(item, sourceId);
-
-      if (!guid) {
-        console.warn("Skipping item without guid:", item.title || "Untitled");
-        articlesSkipped++;
-        continue;
+      if (!items || items.length === 0) {
+        console.warn(`No items found in feed for source ${sourceId}`);
+        span.setAttribute("items_found", 0);
+        span.setStatus({ code: 1, message: "No items" });
+        return { articlesAdded: 0, articlesSkipped: 0 };
       }
 
-      // Check if article already exists
-      const existing = await db
-        .select()
-        .from(schema.articles)
-        .where(eq(schema.articles.guid, guid))
-        .limit(1)
-        .then((rows) => rows[0]);
+      span.setAttribute("items_found", items.length);
 
-      if (existing) {
-        articlesSkipped++;
-        continue;
+      let articlesAdded = 0;
+      let articlesSkipped = 0;
+      const sampleGuids: string[] = [];
+
+      for (const item of items) {
+        try {
+          // Generate GUID (required for deduplication)
+          const guid = extractGuid(item, sourceId);
+
+          if (!guid) {
+            console.warn(
+              "Skipping item without guid:",
+              item.title || "Untitled"
+            );
+            articlesSkipped++;
+            continue;
+          }
+
+          // Log first 5 GUIDs as breadcrumbs
+          if (sampleGuids.length < 5) {
+            sampleGuids.push(guid);
+          }
+
+          // Check if article already exists
+          const existing = await db
+            .select()
+            .from(schema.articles)
+            .where(eq(schema.articles.guid, guid))
+            .limit(1)
+            .then((rows) => rows[0]);
+
+          if (existing) {
+            articlesSkipped++;
+            continue;
+          }
+
+          // Extract article data
+          const articleData = await extractArticleData(item, sourceId, guid);
+
+          // Insert article
+          await db.insert(schema.articles).values(articleData);
+          articlesAdded++;
+        } catch (error) {
+          console.error("Failed to store article:", error);
+          Sentry.captureException(error, {
+            level: "warning",
+            tags: {
+              operation: "store_article",
+              source_id: sourceId.toString(),
+            },
+            extra: {
+              item_title: "title" in item ? item.title : "Unknown",
+            },
+          });
+          // Continue with next article
+        }
       }
 
-      // Extract article data
-      const articleData = await extractArticleData(item, sourceId, guid);
+      if (sampleGuids.length > 0) {
+        Sentry.addBreadcrumb({
+          category: "feed.store",
+          message: `Processed ${items.length} items from feed`,
+          level: "info",
+          data: {
+            source_id: sourceId,
+            articles_added: articlesAdded,
+            articles_skipped: articlesSkipped,
+            sample_guids: sampleGuids,
+          },
+        });
+      }
 
-      // Insert article
-      await db.insert(schema.articles).values(articleData);
-      articlesAdded++;
-    } catch (error) {
-      console.error("Failed to store article:", error);
-      // Continue with next article
+      span.setAttribute("articles_added", articlesAdded);
+      span.setAttribute("articles_skipped", articlesSkipped);
+      span.setStatus({ code: 1, message: "ok" });
+
+      return { articlesAdded, articlesSkipped };
     }
-  }
-
-  return { articlesAdded, articlesSkipped };
+  );
 }
 
 /**
