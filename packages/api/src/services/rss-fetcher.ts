@@ -246,10 +246,10 @@ async function updateSourceMetadata(
   }
 
   if ("description" in feed && feed.description) {
-    updates.description = feed.description;
+    updates.description = stripHtml(feed.description);
   } else if ("subtitle" in feed && feed.subtitle) {
     // Atom uses subtitle instead of description
-    updates.description = feed.subtitle;
+    updates.description = stripHtml(feed.subtitle);
   }
 
   if ("link" in feed && feed.link) {
