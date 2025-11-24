@@ -102,41 +102,87 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     return { success: true }; // Return success in dev mode
   }
 
-  try {
-    // Initialize Resend client
-    const resend = new Resend(env.RESEND_API_KEY);
+  // Wrap email sending in Sentry span for observability
+  const sendEmailWithSentry = async (): Promise<SendEmailResult> => {
+    try {
+      // Initialize Resend client
+      const resend = new Resend(env.RESEND_API_KEY);
 
-    // Send email via Resend (using React Email component directly)
-    const { data, error } = await resend.emails.send({
-      from: env.EMAIL_FROM!,
-      to,
-      subject,
-      react: template,
-    });
+      // Send email via Resend (using React Email component directly)
+      const { data, error } = await resend.emails.send({
+        from: env.EMAIL_FROM!,
+        to,
+        subject,
+        react: template,
+      });
 
-    if (error) {
-      console.error(`Failed to send ${type} email:`, error);
+      if (error) {
+        console.error(`Failed to send ${type} email:`, error);
+        return {
+          success: false,
+          error: error.message || "Failed to send email",
+        };
+      }
+
+      // Log success (in development)
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`✅ ${type} email sent to ${to} (ID: ${data?.id})`);
+      }
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error(`Error sending ${type} email:`, errorMessage);
       return {
         success: false,
-        error: error.message || "Failed to send email",
+        error: errorMessage,
       };
     }
+  };
 
-    // Log success (in development)
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`✅ ${type} email sent to ${to} (ID: ${data?.id})`);
+  // Use Sentry span if available
+  if (env.SENTRY_DSN) {
+    try {
+      // Try Cloudflare Sentry first (for Workers)
+      const Sentry = await import("@sentry/cloudflare");
+      return await Sentry.startSpan(
+        {
+          op: "email.send",
+          name: `Send ${type} Email`,
+          attributes: {
+            "email.type": type,
+            "email.to": to,
+            "email.subject": subject,
+          },
+        },
+        sendEmailWithSentry
+      );
+    } catch {
+      // Fallback to Node.js Sentry or no Sentry
+      try {
+        const Sentry = await import("@sentry/node");
+        return await Sentry.startSpan(
+          {
+            op: "email.send",
+            name: `Send ${type} Email`,
+            attributes: {
+              "email.type": type,
+              "email.to": to,
+              "email.subject": subject,
+            },
+          },
+          sendEmailWithSentry
+        );
+      } catch {
+        // Sentry not available, send email without span
+        return await sendEmailWithSentry();
+      }
     }
-
-    return { success: true };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error(`Error sending ${type} email:`, errorMessage);
-    return {
-      success: false,
-      error: errorMessage,
-    };
   }
+
+  // No Sentry configured, send email without span
+  return await sendEmailWithSentry();
 }
 
 // ============================================================================

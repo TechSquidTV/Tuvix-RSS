@@ -20,15 +20,48 @@ export const useCurrentUser = () => {
   return authClient.useSession();
 };
 
+// Simple email detection - checks if input contains @ symbol
+// Better Auth username validation only allows alphanumeric + dots/underscores
+// So if input contains @, it's definitely an email, not a username
+const isEmail = (input: string): boolean => {
+  return input.includes("@");
+};
+
 // Hook for username or email-based login
-// Tries username first, falls back to email if username fails
+// Detects if input is email and uses appropriate endpoint
+// Tries username first for non-email inputs, falls back to email if username fails
 export const useLogin = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const signIn = useMutation({
     mutationFn: async (input: { username: string; password: string }) => {
-      // Try username login first (username plugin adds this method at runtime)
+      // If input looks like an email, skip username attempt and use email endpoint directly
+      // This prevents 422 validation errors when users enter their email address
+      if (isEmail(input.username)) {
+        try {
+          const emailResult = await authClient.signIn.email({
+            email: input.username,
+            password: input.password,
+          });
+          if (!emailResult || (emailResult as { error?: unknown }).error) {
+            throw new Error(
+              (emailResult as { error?: { message?: string } })?.error
+                ?.message || "Invalid email or password",
+            );
+          }
+          return emailResult;
+        } catch (error) {
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : "Invalid email or password",
+          );
+        }
+      }
+
+      // For non-email inputs, try username login first
+      // Username plugin adds this method at runtime
       // TypeScript doesn't know about username method, but it exists at runtime
       try {
         const signInWithUsername = (
@@ -50,7 +83,8 @@ export const useLogin = () => {
         // Username login failed or method doesn't exist, continue to email fallback
       }
 
-      // Fallback to email login (input might be an email)
+      // Fallback to email login (input might be an email that doesn't contain @)
+      // This handles edge cases where email format might be unusual
       try {
         const emailResult = await authClient.signIn.email({
           email: input.username, // Treat username field as email
@@ -100,7 +134,7 @@ export const useLogin = () => {
       try {
         const result = await router.navigate({
           to: "/app/articles",
-          search: { category_id: undefined },
+          search: { category_id: undefined, subscription_id: undefined },
         });
         console.log("Navigation result:", result);
       } catch (error) {
@@ -156,7 +190,7 @@ export const useRegister = () => {
       try {
         const result = await router.navigate({
           to: "/app/articles",
-          search: { category_id: undefined },
+          search: { category_id: undefined, subscription_id: undefined },
         });
         console.log("Navigation result:", result);
       } catch (error) {

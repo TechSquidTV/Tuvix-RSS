@@ -200,7 +200,7 @@ describe("useAuth", () => {
       expect(result.current.isPending).toBe(false);
     });
 
-    it("should handle successful login", async () => {
+    it("should handle successful login with username", async () => {
       mockSignInUsername.mockResolvedValue({ data: { user: { id: "1" } } });
       mockGetSession.mockResolvedValue({
         data: { user: { id: "1", email: "test@example.com" } },
@@ -216,6 +216,40 @@ describe("useAuth", () => {
       });
 
       await waitFor(() => {
+        expect(mockSignInUsername).toHaveBeenCalledWith({
+          username: "testuser",
+          password: "password",
+        });
+        expect(toast.success).toHaveBeenCalledWith("Welcome back!");
+        expect(mockRouter.navigate).toHaveBeenCalledWith({
+          to: "/app/articles",
+          search: { category_id: undefined },
+        });
+      });
+    });
+
+    it("should use email endpoint directly when input contains @", async () => {
+      mockSignInEmail.mockResolvedValue({ data: { user: { id: "1" } } });
+      mockGetSession.mockResolvedValue({
+        data: { user: { id: "1", email: "test@example.com" } },
+      });
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      result.current.mutate({
+        username: "test@example.com",
+        password: "password",
+      });
+
+      await waitFor(() => {
+        // Should skip username endpoint and use email directly
+        expect(mockSignInUsername).not.toHaveBeenCalled();
+        expect(mockSignInEmail).toHaveBeenCalledWith({
+          email: "test@example.com",
+          password: "password",
+        });
         expect(toast.success).toHaveBeenCalledWith("Welcome back!");
         expect(mockRouter.navigate).toHaveBeenCalledWith({
           to: "/app/articles",

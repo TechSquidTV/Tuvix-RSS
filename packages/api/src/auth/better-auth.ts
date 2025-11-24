@@ -176,36 +176,104 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     // Email verification configuration
     emailVerification: {
       sendVerificationEmail: async ({ user, url, token }) => {
-        // Check if email verification is required
+        // Wrap entire callback in try-catch to prevent any errors from breaking registration
         try {
-          const settings = await getGlobalSettings(database);
-          if (!settings.requireEmailVerification) {
-            // Skip sending if not required
+          // Check if email verification is required
+          try {
+            const settings = await getGlobalSettings(database);
+            if (!settings.requireEmailVerification) {
+              // Skip sending if not required
+              return;
+            }
+          } catch (error) {
+            // If settings don't exist, skip verification
+            console.error("Failed to get global settings:", error);
             return;
           }
+
+          // Send verification email (Sentry spans are handled in the email service)
+          const userWithPlugins = user as BetterAuthUser;
+          const emailResult = await sendVerificationEmail(env, {
+            to: user.email,
+            username:
+              (userWithPlugins.username as string | undefined) ||
+              user.name ||
+              "User",
+            verificationToken: token,
+            verificationUrl: url,
+          });
+
+          if (!emailResult.success) {
+            console.error(
+              "Failed to send verification email:",
+              emailResult.error
+            );
+            // Capture error in Sentry if available
+            if (env.SENTRY_DSN) {
+              try {
+                const Sentry = await import("@sentry/cloudflare").catch(
+                  () => import("@sentry/node")
+                );
+                await Sentry.captureException(
+                  new Error(
+                    `Failed to send verification email: ${emailResult.error}`
+                  ),
+                  {
+                    tags: {
+                      "email.type": "verification",
+                      "email.status": "failed",
+                    },
+                    extra: {
+                      userEmail: user.email,
+                      userId: user.id,
+                      error: emailResult.error,
+                    },
+                  }
+                );
+              } catch {
+                // Sentry not available, ignore
+              }
+            }
+          }
         } catch (error) {
-          // If settings don't exist, skip verification
-          console.error("Failed to get global settings:", error);
-          return;
-        }
+          // Catch any unexpected errors to prevent breaking the sign-up process
+          // Email sending failures should not prevent user registration
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
 
-        // Send verification email using dedicated verification email template
-        const userWithPlugins = user as BetterAuthUser;
-        const emailResult = await sendVerificationEmail(env, {
-          to: user.email,
-          username:
-            (userWithPlugins.username as string | undefined) ||
-            user.name ||
-            "User",
-          verificationToken: token,
-          verificationUrl: url,
-        });
-
-        if (!emailResult.success) {
           console.error(
-            "Failed to send verification email:",
-            emailResult.error
+            "Unexpected error in sendVerificationEmail callback:",
+            errorMessage,
+            errorStack
           );
+
+          // Capture error in Sentry if available
+          if (env.SENTRY_DSN) {
+            try {
+              const Sentry = await import("@sentry/cloudflare").catch(
+                () => import("@sentry/node")
+              );
+              await Sentry.captureException(
+                error instanceof Error ? error : new Error(errorMessage),
+                {
+                  tags: {
+                    "email.type": "verification",
+                    "email.status": "error",
+                  },
+                  extra: {
+                    userEmail: user.email,
+                    userId: user.id,
+                    errorMessage,
+                    errorStack,
+                  },
+                }
+              );
+            } catch {
+              // Sentry not available, ignore
+            }
+          }
+          // Don't throw - allow registration to proceed even if email fails
         }
       },
       sendOnSignUp: false, // Will be checked dynamically in hooks
