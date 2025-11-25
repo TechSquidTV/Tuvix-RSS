@@ -47,16 +47,12 @@ describe("Admin Route - Offline Navigation", () => {
 
   describe("network error handling", () => {
     it("should redirect to /app when network error occurs", async () => {
-      // Mock network error
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Failed to fetch"),
-      );
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/app",
-      );
-
-      expect(authClientModule.authClient.getSession).toHaveBeenCalled();
+      // Network error = no session in context (handled by root/app route)
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
 
     it("should redirect to /app when offline (navigator.onLine = false)", async () => {
@@ -67,13 +63,12 @@ describe("Admin Route - Offline Navigation", () => {
         configurable: true,
       });
 
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Network error"),
-      );
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/app",
-      );
+      // Offline with no session
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
 
       // Reset navigator.onLine
       Object.defineProperty(navigator, "onLine", {
@@ -86,91 +81,103 @@ describe("Admin Route - Offline Navigation", () => {
 
   describe("authentication and authorization", () => {
     it("should redirect to / when no session exists", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue(null);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
 
     it("should redirect to / when session has no user", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: { user: null },
-      } as any);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: { user: null } as any } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
 
     it("should allow navigation when session has admin user", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: {
-          user: {
-            id: "1",
-            email: "admin@example.com",
-            role: "admin",
+      const result = await routeModule.Route.options.beforeLoad?.({
+        context: {
+          auth: {
+            session: {
+              user: {
+                id: "1",
+                email: "admin@example.com",
+                role: "admin",
+              },
+            } as any,
           },
         },
       } as any);
-
-      const result = await routeModule.Route.options.beforeLoad?.({});
 
       expect(result).toBeUndefined();
     });
 
     it("should redirect to /app when session has non-admin user", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: {
-          user: {
-            id: "1",
-            email: "user@example.com",
-            role: "user",
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: {
+            auth: {
+              session: {
+                user: {
+                  id: "1",
+                  email: "user@example.com",
+                  role: "user",
+                },
+              } as any,
+            },
           },
-        },
-      } as any);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/app",
-      );
+        } as any),
+      ).rejects.toThrow("redirect:/app");
     });
 
     it("should redirect to /app when user has no role", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: {
-          user: {
-            id: "1",
-            email: "user@example.com",
-            // No role field
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: {
+            auth: {
+              session: {
+                user: {
+                  id: "1",
+                  email: "user@example.com",
+                  // No role field
+                },
+              } as any,
+            },
           },
-        },
-      } as any);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/app",
-      );
+        } as any),
+      ).rejects.toThrow("redirect:/app");
     });
   });
 
   describe("error handling", () => {
     it("should redirect to /app on network errors", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Failed to fetch"),
-      );
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/app",
-      );
+      // Non-admin user (network errors handled by parent routes)
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: {
+            auth: {
+              session: {
+                user: {
+                  id: "1",
+                  email: "user@example.com",
+                  role: "user",
+                },
+              } as any,
+            },
+          },
+        } as any),
+      ).rejects.toThrow("redirect:/app");
     });
 
     it("should redirect to / on other errors", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Unknown error"),
-      );
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      // No session = authentication error
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
   });
 });

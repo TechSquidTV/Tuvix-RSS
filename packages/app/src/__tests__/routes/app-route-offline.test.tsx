@@ -118,39 +118,39 @@ describe("App Route - Offline Navigation", () => {
 
   describe("session validation", () => {
     it("should redirect when no session exists", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue(null);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
-
-      expect(authClientModule.authClient.getSession).toHaveBeenCalled();
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
 
     it("should redirect when session has no user", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: { user: null },
-      } as any);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: { user: null } as any } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
   });
 
   describe("offline navigation (navigator.onLine = false)", () => {
     it("should allow navigation with valid session when offline", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: { user: { id: "1", email: "test@example.com" } },
-      } as any);
-
       // Mock navigator.onLine
       Object.defineProperty(navigator, "onLine", {
         writable: true,
         value: false,
       });
 
-      const result = await routeModule.Route.options.beforeLoad?.({});
+      const result = await routeModule.Route.options.beforeLoad?.({
+        context: {
+          auth: {
+            session: {
+              user: { id: "1", email: "test@example.com" },
+            } as any,
+          },
+        },
+      } as any);
 
       expect(result).toBeUndefined();
     });
@@ -165,13 +165,21 @@ describe("App Route - Offline Navigation", () => {
     });
 
     it("should allow navigation when network error occurs", async () => {
-      // Mock network error
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
+      // Mock verification check failure
+      mockCheckVerificationStatus.mockRejectedValue(
         new Error("Failed to fetch"),
       );
 
       // Network errors should allow navigation (session is cached)
-      const result = await routeModule.Route.options.beforeLoad?.({});
+      const result = await routeModule.Route.options.beforeLoad?.({
+        context: {
+          auth: {
+            session: {
+              user: { id: "1", email: "test@example.com" },
+            } as any,
+          },
+        },
+      } as any);
 
       expect(result).toBeUndefined();
     });
@@ -186,25 +194,30 @@ describe("App Route - Offline Navigation", () => {
     });
 
     it("should allow navigation on network errors", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Network error"),
-      );
+      // Mock verification check failure
+      mockCheckVerificationStatus.mockRejectedValue(new Error("Network error"));
 
       // Network errors should allow navigation (session is cached)
-      const result = await routeModule.Route.options.beforeLoad?.({});
+      const result = await routeModule.Route.options.beforeLoad?.({
+        context: {
+          auth: {
+            session: {
+              user: { id: "1", email: "test@example.com" },
+            } as any,
+          },
+        },
+      } as any);
 
       expect(result).toBeUndefined();
     });
 
     it("should redirect on authentication errors", async () => {
-      vi.mocked(authClientModule.authClient.getSession).mockRejectedValue(
-        new Error("Unauthorized"),
-      );
-
-      // Auth errors should redirect to login
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      // No session = authentication error
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
   });
 
@@ -215,11 +228,15 @@ describe("App Route - Offline Navigation", () => {
         value: true,
       });
 
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue({
-        data: { user: { id: "1", email: "test@example.com" } },
+      const result = await routeModule.Route.options.beforeLoad?.({
+        context: {
+          auth: {
+            session: {
+              user: { id: "1", email: "test@example.com" },
+            } as any,
+          },
+        },
       } as any);
-
-      const result = await routeModule.Route.options.beforeLoad?.({});
 
       expect(result).toBeUndefined();
     });
@@ -230,11 +247,11 @@ describe("App Route - Offline Navigation", () => {
         value: true,
       });
 
-      vi.mocked(authClientModule.authClient.getSession).mockResolvedValue(null);
-
-      await expect(routeModule.Route.options.beforeLoad?.({})).rejects.toThrow(
-        "redirect:/",
-      );
+      await expect(
+        routeModule.Route.options.beforeLoad?.({
+          context: { auth: { session: null } },
+        } as any),
+      ).rejects.toThrow("redirect:/");
     });
   });
 });
