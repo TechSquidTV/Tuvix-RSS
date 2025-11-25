@@ -74,7 +74,7 @@ export const Route = createFileRoute("/app")({
         // Check if user is admin (admins bypass verification)
         const userRole = (session.user as { role?: string }).role;
         if (userRole !== "admin") {
-          throw redirect({ to: "/verify-email" });
+          throw redirect({ to: "/verify-email", search: { token: undefined } });
         }
       }
     } catch (error) {
@@ -83,21 +83,49 @@ export const Route = createFileRoute("/app")({
         throw error;
       }
 
-      // Log verification check failures to Sentry
-      Sentry.captureException(error, {
-        tags: {
-          component: "app-route",
-          operation: "email-verification-check",
-        },
-        extra: {
-          userId: session.user?.id,
-          userEmail: session.user?.email,
-          online: navigator.onLine,
-        },
-        level: "warning",
-      });
+      // Handle Response objects specially - extract useful info
+      if (error instanceof Response) {
+        const responseError = new Error(
+          `HTTP ${error.status} ${error.statusText}`,
+        );
+        Sentry.captureException(responseError, {
+          tags: {
+            component: "app-route",
+            operation: "email-verification-check",
+          },
+          extra: {
+            userId: session.user?.id,
+            userEmail: session.user?.email,
+            online: navigator.onLine,
+            httpStatus: error.status,
+            httpStatusText: error.statusText,
+            url: error.url,
+            responseType: error.type,
+          },
+          level: "warning",
+        });
 
-      console.warn("Failed to check email verification status:", error);
+        console.warn(
+          `Failed to check email verification status: HTTP ${error.status} ${error.statusText}`,
+          error,
+        );
+      } else {
+        // Log other verification check failures to Sentry
+        Sentry.captureException(error, {
+          tags: {
+            component: "app-route",
+            operation: "email-verification-check",
+          },
+          extra: {
+            userId: session.user?.id,
+            userEmail: session.user?.email,
+            online: navigator.onLine,
+          },
+          level: "warning",
+        });
+
+        console.warn("Failed to check email verification status:", error);
+      }
     }
   },
   component: AppLayout,
