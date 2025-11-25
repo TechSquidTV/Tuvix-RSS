@@ -19,6 +19,7 @@ import {
   getBlockedDomains,
 } from "@/utils/domain-checker";
 import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
+import { emitCounter, emitGauge, withTiming } from "@/utils/metrics";
 
 // =============================================================================
 // Types
@@ -57,44 +58,60 @@ type AnyItem =
  * Fetch all feeds from the database and update articles
  */
 export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
-  const sources = await db.select().from(schema.sources);
+  return await withTiming(
+    "rss.fetch_all_duration",
+    async () => {
+      const sources = await db.select().from(schema.sources);
 
-  let successCount = 0;
-  let errorCount = 0;
-  const errors: Array<{ sourceId: number; url: string; error: string }> = [];
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: Array<{ sourceId: number; url: string; error: string }> =
+        [];
 
-  console.log(`Starting fetch for ${sources.length} sources`);
+      console.log(`Starting fetch for ${sources.length} sources`);
 
-  for (const source of sources) {
-    try {
-      const result = await fetchSingleFeed(source.id, source.url, db);
+      // Emit gauge for total sources
+      emitGauge("rss.sources_total", sources.length);
+
+      for (const source of sources) {
+        try {
+          const result = await fetchSingleFeed(source.id, source.url, db);
+          console.log(
+            `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
+          );
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          errors.push({
+            sourceId: source.id,
+            url: source.url,
+            error: errorMessage,
+          });
+          console.error(`✗ Failed to fetch ${source.url}:`, errorMessage);
+        }
+      }
+
       console.log(
-        `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
+        `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length}`
       );
-      successCount++;
-    } catch (error) {
-      errorCount++;
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      errors.push({
-        sourceId: source.id,
-        url: source.url,
-        error: errorMessage,
+
+      // Emit aggregate metrics
+      emitCounter("rss.batch_completed", 1, {
+        success_count: successCount.toString(),
+        error_count: errorCount.toString(),
       });
-      console.error(`✗ Failed to fetch ${source.url}:`, errorMessage);
-    }
-  }
 
-  console.log(
-    `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length}`
+      return {
+        successCount,
+        errorCount,
+        total: sources.length,
+        errors,
+      };
+    },
+    { operation: "fetch_all_feeds" }
   );
-
-  return {
-    successCount,
-    errorCount,
-    total: sources.length,
-    errors,
-  };
 }
 
 /**
@@ -116,7 +133,6 @@ export async function fetchSingleFeed(
       },
     },
     async (span) => {
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
       try {
         // 0. Check if domain is blocked (before fetching)
         const domain = extractDomain(feedUrl);
@@ -295,6 +311,22 @@ export async function fetchSingleFeed(
         span.setAttribute("articles_skipped", articlesSkipped);
         span.setStatus({ code: 1, message: "ok" });
 
+        // Emit Sentry Metrics for aggregation
+        emitCounter("rss.feed_fetched", 1, {
+          status: "success",
+          domain: extractDomain(feedUrl) || "unknown",
+        });
+
+        emitCounter("rss.articles_discovered", articlesAdded, {
+          source_id: sourceId.toString(),
+        });
+
+        if (articlesSkipped > 0) {
+          emitCounter("rss.articles_skipped", articlesSkipped, {
+            source_id: sourceId.toString(),
+          });
+        }
+
         return {
           articlesAdded,
           articlesSkipped,
@@ -302,10 +334,16 @@ export async function fetchSingleFeed(
         };
       } catch (error) {
         span.setStatus({ code: 2, message: "Fetch failed" });
+
+        // Emit error metric
+        emitCounter("rss.feed_fetched", 1, {
+          status: "error",
+          domain: extractDomain(feedUrl) || "unknown",
+        });
+
         // Error already captured in specific places, re-throw
         throw error;
       }
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     }
   );
 }
@@ -383,7 +421,6 @@ async function storeArticles(
       },
     },
     async (span) => {
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
       // Extract items/entries from feed
       const items = extractFeedItems(feed);
 
@@ -473,7 +510,6 @@ async function storeArticles(
       span.setStatus({ code: 1, message: "ok" });
 
       return { articlesAdded, articlesSkipped };
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     }
   );
 }
