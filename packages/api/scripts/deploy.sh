@@ -22,7 +22,7 @@ get_database_id_from_local() {
 if [ -n "$D1_DATABASE_ID" ]; then
   DB_ID="$D1_DATABASE_ID"
   echo "Using D1_DATABASE_ID from environment variable"
-elif DB_ID=$(get_database_id_from_local); then
+elif DB_ID=$(get_database_id_from_local) && [ -n "$DB_ID" ]; then
   echo "Using database_id from wrangler.toml.local"
 else
   echo "❌ Error: D1_DATABASE_ID not found"

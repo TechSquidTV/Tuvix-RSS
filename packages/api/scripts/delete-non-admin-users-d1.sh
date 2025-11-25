@@ -12,56 +12,63 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WRANGLER_TOML="$API_DIR/wrangler.toml"
 WRANGLER_TOML_LOCAL="$API_DIR/wrangler.toml.local"
+WRANGLER_TOML_BACKUP="$API_DIR/wrangler.toml.backup"
 
-# Check if wrangler.toml.local exists
-if [ ! -f "$WRANGLER_TOML_LOCAL" ]; then
-  echo "❌ Error: wrangler.toml.local not found"
-  echo "   Please create it from wrangler.toml.local.example"
+# Function to extract database_id from wrangler.toml.local
+get_database_id_from_local() {
+  if [ -f "$WRANGLER_TOML_LOCAL" ]; then
+    grep -A 3 "\[\[d1_databases\]\]" "$WRANGLER_TOML_LOCAL" | grep "database_id" | sed 's/.*database_id = "\(.*\)".*/\1/' | head -1
+  fi
+}
+
+# Get database ID from environment variable or local config
+if [ -n "$D1_DATABASE_ID" ]; then
+  DB_ID="$D1_DATABASE_ID"
+  echo "Using D1_DATABASE_ID from environment variable"
+elif DB_ID=$(get_database_id_from_local) && [ -n "$DB_ID" ]; then
+  echo "Using database_id from wrangler.toml.local"
+else
+  echo "❌ Error: D1_DATABASE_ID not found"
+  echo "   Set D1_DATABASE_ID environment variable or create wrangler.toml.local"
+  echo "   See wrangler.toml.local.example for reference"
   exit 1
 fi
 
-# Extract database_id from wrangler.toml.local (just the UUID value)
-DATABASE_ID=$(grep -E '^\s*database_id\s*=' "$WRANGLER_TOML_LOCAL" | sed -E 's/.*database_id\s*=\s*"([^"]+)".*/\1/' | head -1)
-
-if [ -z "$DATABASE_ID" ]; then
-  echo "❌ Error: Could not extract database_id from wrangler.toml.local"
+if [ -z "$DB_ID" ]; then
+  echo "❌ Error: database_id is empty"
   exit 1
 fi
 
-# Create backup of wrangler.toml
-BACKUP_FILE="${WRANGLER_TOML}.bak.$$"
-cp "$WRANGLER_TOML" "$BACKUP_FILE"
+echo "📦 Database ID: $DB_ID"
+
+# Backup original wrangler.toml
+cp "$WRANGLER_TOML" "$WRANGLER_TOML_BACKUP"
+
+# Substitute database_id in wrangler.toml
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS
+  sed -i '' "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
+else
+  # Linux
+  sed -i "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
+fi
 
 # Function to restore wrangler.toml
 restore_wrangler_toml() {
-  if [ -f "$BACKUP_FILE" ]; then
-    mv "$BACKUP_FILE" "$WRANGLER_TOML"
+  if [ -f "$WRANGLER_TOML_BACKUP" ]; then
+    mv "$WRANGLER_TOML_BACKUP" "$WRANGLER_TOML"
   fi
 }
 
 # Trap to ensure cleanup on exit
 trap restore_wrangler_toml EXIT
 
-# Temporarily update wrangler.toml with actual database ID using Python
-# Use a temp Python script to avoid heredoc variable expansion issues
-TEMP_PY=$(mktemp)
-cat > "$TEMP_PY" <<PYSCRIPT
-import re
-import sys
-database_id = sys.argv[1]
-with open("$WRANGLER_TOML", "r") as f:
-    content = f.read()
-content = re.sub(r'\$\{D1_DATABASE_ID\}', database_id, content)
-with open("$WRANGLER_TOML", "w") as f:
-    f.write(content)
-PYSCRIPT
-python3 "$TEMP_PY" "$DATABASE_ID"
-rm -f "$TEMP_PY"
-
 # First, show which users will be deleted
-echo "⚠️  WARNING: This will delete all non-admin users!"
 echo ""
-echo "Fetching current users..."
+echo "⚠️  WARNING: This will permanently delete all non-admin users!"
+echo "   This action cannot be undone!"
+echo ""
+echo "📋 Fetching current users..."
 cd "$API_DIR"
 USERS_JSON=$(wrangler d1 execute tuvix --remote --command "SELECT id, name, email, role FROM user ORDER BY id;" --json --yes 2>&1 | grep -v "WARNING\|ratelimits\|Processing wrangler.toml" || true)
 
@@ -74,23 +81,26 @@ try:
     if data and len(data) > 0 and 'results' in data[0]:
         users = data[0]['results']
         non_admin = [u for u in users if u.get('role') != 'admin']
+        admin_count = len([u for u in users if u.get('role') == 'admin'])
         if non_admin:
             print('Non-admin users to be deleted:')
             for u in non_admin:
                 print(f\"  - ID {u['id']}: {u['name']} ({u['email']})\")
-            print(f\"\\nTotal: {len(non_admin)} user(s)\")
+            print(f\"\\nTotal: {len(non_admin)} non-admin user(s) will be deleted\")
+            print(f\"Admin users ({admin_count}) will be preserved\")
         else:
-            print('No non-admin users found.')
+            print('✅ No non-admin users found. Nothing to delete.')
             sys.exit(0)
     else:
-        print('Could not parse user data.')
+        print('❌ Could not parse user data.')
         sys.exit(1)
 except Exception as e:
-    print(f'Error parsing JSON: {e}')
+    print(f'❌ Error parsing JSON: {e}')
     sys.exit(1)
 " 2>&1)
 
-if [ $? -ne 0 ] || [ -z "$NON_ADMIN_USERS" ]; then
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
   echo "❌ Error: Could not fetch users or parse response"
   echo "$USERS_JSON"
   exit 1
@@ -98,6 +108,11 @@ fi
 
 echo "$NON_ADMIN_USERS"
 echo ""
+
+# If no non-admin users found, exit early
+if echo "$NON_ADMIN_USERS" | grep -q "No non-admin users found"; then
+  exit 0
+fi
 
 # Check for --yes flag to skip confirmation (check all arguments)
 SKIP_CONFIRM=false
@@ -110,13 +125,20 @@ done
 
 # Confirm deletion (unless --yes flag is provided)
 if [ "$SKIP_CONFIRM" = false ]; then
-  read -p "Are you sure you want to delete these users? (type 'yes' to confirm): " CONFIRM
-  if [ "$CONFIRM" != "yes" ]; then
-    echo "❌ Deletion cancelled."
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "⚠️  DESTRUCTIVE ACTION CONFIRMATION REQUIRED"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  read -p "Type 'DELETE' (all caps) to confirm deletion: " CONFIRM
+  if [ "$CONFIRM" != "DELETE" ]; then
+    echo ""
+    echo "❌ Deletion cancelled. No users were deleted."
     exit 0
   fi
+  echo ""
 else
   echo "⚠️  --yes flag provided, skipping confirmation..."
+  echo ""
 fi
 
 # Delete non-admin users
