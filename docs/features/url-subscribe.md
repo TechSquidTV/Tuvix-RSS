@@ -1,8 +1,8 @@
-# URL-Based Subscription Feature
+# URL-Based Subscription & PWA Integration
 
 ## Overview
 
-Tuvix now supports quick subscription via URL parameters, allowing users to subscribe to RSS feeds with a single click from anywhere.
+Tuvix supports multiple ways to subscribe to RSS feeds and import OPML files, including URL parameters, native device sharing, protocol handlers, and file associations.
 
 ## Usage
 
@@ -91,10 +91,104 @@ Use the URL format in browser extensions to detect feeds on pages and provide qu
 </a>
 ```
 
+## PWA Integration Features
+
+### Native Device Sharing (Share Target API)
+
+Users can share URLs directly to TuvixRSS from other apps on mobile devices.
+
+**Configuration**: `packages/app/public/manifest.webmanifest`
+
+```json
+"share_target": {
+  "action": "/app/subscriptions",
+  "method": "GET",
+  "encType": "application/x-www-form-urlencoded",
+  "params": {
+    "url": "subscribe"
+  }
+}
+```
+
+**Usage Examples**:
+- iOS: Long-press a link in Safari → Share → Select "TuvixRSS"
+- Android: Share from Chrome → Select "TuvixRSS"
+- From any app: Share menu → Select "TuvixRSS"
+
+### Protocol Handlers
+
+TuvixRSS registers custom protocol handlers for RSS and feed URLs.
+
+**Supported Protocols**:
+- `web+rss://` - Opens RSS feed URLs
+- `web+feed://` - Opens feed URLs
+
+**Configuration**: `packages/app/public/manifest.webmanifest`
+
+```json
+"protocol_handlers": [
+  {
+    "protocol": "web+rss",
+    "url": "/app/subscriptions?subscribe=%s"
+  },
+  {
+    "protocol": "web+feed",
+    "url": "/app/subscriptions?subscribe=%s"
+  }
+]
+```
+
+**Usage Example**:
+```html
+<a href="web+rss://feeds.example.com/rss.xml">Subscribe with TuvixRSS</a>
+```
+
+### File Handling (OPML Import)
+
+Double-click OPML files to open them directly in TuvixRSS (requires PWA installation).
+
+**Configuration**: `packages/app/public/manifest.webmanifest`
+
+```json
+"file_handlers": [
+  {
+    "action": "/app/subscriptions",
+    "accept": {
+      "application/xml": [".opml"],
+      "text/xml": [".opml"],
+      "application/x-opml": [".opml"]
+    }
+  }
+]
+```
+
+**Implementation**: `packages/app/src/routes/app/subscriptions.tsx:213-259`
+
+The File Handling API handler:
+1. Detects when OPML files are opened via file association
+2. Reads and parses the file content
+3. Opens the import preview dialog
+4. Allows user to review and confirm import
+
+**User Experience**:
+- Double-click an OPML file → Opens in TuvixRSS
+- Drag OPML file onto TuvixRSS icon → Opens in app
+- Right-click OPML → "Open with TuvixRSS"
+
+### Browser Support
+
+| Feature | Chrome/Edge | Safari | Firefox |
+|---------|-------------|--------|---------|
+| URL Subscribe | ✅ | ✅ | ✅ |
+| Share Target | ✅ | ✅ (iOS 15.4+) | ❌ |
+| Protocol Handlers | ✅ | ✅ | ✅ |
+| File Handlers | ✅ (93+) | ❌ | ❌ |
+
 ## Future Enhancements
 
-- Support for feed:// and rss:// URL schemes
+- ✅ ~~Support for feed:// and rss:// URL schemes~~ (Implemented via protocol handlers)
 - "Subscribe" overlay button when viewing public feeds
 - Share functionality to generate subscription links
-- Deep linking support for mobile PWA
+- ✅ ~~Deep linking support for mobile PWA~~ (Implemented via share target)
 - Multiple feed subscription (comma-separated URLs)
+- Desktop drag-and-drop for OPML files
