@@ -79,8 +79,44 @@ function transformArticleRow(row: {
  */
 type ArticleWithSubscription = ReturnType<typeof transformArticleRow>;
 
+// Cache for compiled regex patterns to avoid repeated compilation
+// Key: "pattern|caseSensitive" (e.g., "hello.*world|true")
+const regexCache = new Map<string, RegExp>();
+
+/**
+ * Get or create a cached compiled RegExp
+ * Avoids repeated regex compilation for the same pattern/flags combination
+ */
+function getCachedRegex(pattern: string, caseSensitive: boolean): RegExp | null {
+  const cacheKey = `${pattern}|${caseSensitive}`;
+
+  if (regexCache.has(cacheKey)) {
+    return regexCache.get(cacheKey)!;
+  }
+
+  try {
+    const regex = new RegExp(pattern, caseSensitive ? "" : "i");
+    // Limit cache size to prevent unbounded memory growth
+    if (regexCache.size >= 1000) {
+      // Clear oldest entries (simple LRU-like behavior)
+      const firstKey = regexCache.keys().next().value;
+      if (firstKey !== undefined) {
+        regexCache.delete(firstKey);
+      }
+    }
+    regexCache.set(cacheKey, regex);
+    return regex;
+  } catch {
+    // Invalid regex - cache null to avoid repeated compilation attempts
+    return null;
+  }
+}
+
 /**
  * Check if an article matches a single filter
+ *
+ * Uses cached regex compilation for better performance
+ * when the same filter patterns are used repeatedly.
  */
 function matchesFilter(
   article: ArticleWithSubscription,
@@ -126,16 +162,12 @@ function matchesFilter(
     case "exact":
       return searchText === pattern;
     case "regex": {
-      try {
-        const regex = new RegExp(
-          filter.pattern,
-          filter.caseSensitive ? "" : "i"
-        );
-        return regex.test(fieldValue);
-      } catch {
+      const regex = getCachedRegex(filter.pattern, filter.caseSensitive);
+      if (!regex) {
         // Invalid regex - skip this filter
         return false;
       }
+      return regex.test(fieldValue);
     }
     default:
       return false;

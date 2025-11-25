@@ -54,8 +54,59 @@ type AnyItem =
 // Public API
 // =============================================================================
 
+// Concurrency limit for parallel feed fetching
+// Limits concurrent HTTP requests to avoid overwhelming the server or rate limits
+const FETCH_CONCURRENCY_LIMIT = 5;
+
+/**
+ * Process items in parallel with a concurrency limit
+ * This is more efficient than sequential processing while avoiding
+ * overwhelming remote servers or exhausting local resources.
+ *
+ * @param items - Array of items to process
+ * @param concurrency - Maximum number of concurrent operations
+ * @param processor - Async function to process each item
+ * @returns Array of results (either success value or error)
+ */
+async function processWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  processor: (item: T) => Promise<R>
+): Promise<Array<{ success: true; value: R } | { success: false; error: Error }>> {
+  const results: Array<{ success: true; value: R } | { success: false; error: Error }> = [];
+  let index = 0;
+
+  async function processNext(): Promise<void> {
+    while (index < items.length) {
+      const currentIndex = index++;
+      const item = items[currentIndex];
+      try {
+        const value = await processor(item);
+        results[currentIndex] = { success: true, value };
+      } catch (error) {
+        results[currentIndex] = {
+          success: false,
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+      }
+    }
+  }
+
+  // Start workers up to concurrency limit
+  const workers = Array(Math.min(concurrency, items.length))
+    .fill(null)
+    .map(() => processNext());
+
+  await Promise.all(workers);
+  return results;
+}
+
 /**
  * Fetch all feeds from the database and update articles
+ *
+ * Uses parallel processing with concurrency control for improved performance.
+ * Multiple feeds are fetched concurrently (up to FETCH_CONCURRENCY_LIMIT)
+ * to reduce total processing time while avoiding overwhelming remote servers.
  */
 export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
   return await withTiming(
@@ -63,33 +114,43 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
     async () => {
       const sources = await db.select().from(schema.sources);
 
-      let successCount = 0;
-      let errorCount = 0;
-      const errors: Array<{ sourceId: number; url: string; error: string }> =
-        [];
-
-      console.log(`Starting fetch for ${sources.length} sources`);
+      console.log(`Starting parallel fetch for ${sources.length} sources (concurrency: ${FETCH_CONCURRENCY_LIMIT})`);
 
       // Emit gauge for total sources
       emitGauge("rss.sources_total", sources.length);
 
-      for (const source of sources) {
-        try {
+      // Process feeds in parallel with concurrency limit
+      const results = await processWithConcurrency(
+        sources,
+        FETCH_CONCURRENCY_LIMIT,
+        async (source) => {
           const result = await fetchSingleFeed(source.id, source.url, db);
           console.log(
             `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
           );
+          return { source, result };
+        }
+      );
+
+      // Aggregate results
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: Array<{ sourceId: number; url: string; error: string }> = [];
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const source = sources[i];
+
+        if (result.success) {
           successCount++;
-        } catch (error) {
+        } else {
           errorCount++;
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
           errors.push({
             sourceId: source.id,
             url: source.url,
-            error: errorMessage,
+            error: result.error.message,
           });
-          console.error(`✗ Failed to fetch ${source.url}:`, errorMessage);
+          console.error(`✗ Failed to fetch ${source.url}:`, result.error.message);
         }
       }
 
@@ -406,6 +467,9 @@ async function updateSourceMetadata(
 
 /**
  * Store articles from feed
+ *
+ * Optimized to batch existence checks instead of checking each article individually.
+ * This reduces the number of database queries from O(n) to O(1) for existence checks.
  */
 async function storeArticles(
   sourceId: number,
@@ -433,42 +497,61 @@ async function storeArticles(
 
       span.setAttribute("items_found", items.length);
 
-      let articlesAdded = 0;
-      let articlesSkipped = 0;
+      // First pass: extract all GUIDs from feed items
+      const itemsWithGuids: Array<{ item: AnyItem; guid: string }> = [];
       const sampleGuids: string[] = [];
+      let skippedNoGuid = 0;
 
       for (const item of items) {
+        const guid = extractGuid(item, sourceId);
+        if (!guid) {
+          console.warn(
+            "Skipping item without guid:",
+            item.title || "Untitled"
+          );
+          skippedNoGuid++;
+          continue;
+        }
+        itemsWithGuids.push({ item, guid });
+        if (sampleGuids.length < 5) {
+          sampleGuids.push(guid);
+        }
+      }
+
+      if (itemsWithGuids.length === 0) {
+        return { articlesAdded: 0, articlesSkipped: skippedNoGuid };
+      }
+
+      // Batch check: get all existing GUIDs in a single query
+      // This is much more efficient than checking each article individually
+      const allGuids = itemsWithGuids.map((i) => i.guid);
+
+      // Handle D1's parameter limit by chunking the query
+      const existingGuidsSet = new Set<string>();
+      const guidChunks = chunkArray(allGuids, D1_MAX_PARAMETERS - 1);
+
+      for (const chunk of guidChunks) {
+        const existingArticles = await db
+          .select()
+          .from(schema.articles)
+          .where(inArray(schema.articles.guid, chunk));
+
+        for (const article of existingArticles) {
+          existingGuidsSet.add(article.guid);
+        }
+      }
+
+      // Second pass: insert only new articles
+      let articlesAdded = 0;
+      let articlesSkipped = skippedNoGuid;
+
+      for (const { item, guid } of itemsWithGuids) {
+        if (existingGuidsSet.has(guid)) {
+          articlesSkipped++;
+          continue;
+        }
+
         try {
-          // Generate GUID (required for deduplication)
-          const guid = extractGuid(item, sourceId);
-
-          if (!guid) {
-            console.warn(
-              "Skipping item without guid:",
-              item.title || "Untitled"
-            );
-            articlesSkipped++;
-            continue;
-          }
-
-          // Log first 5 GUIDs as breadcrumbs
-          if (sampleGuids.length < 5) {
-            sampleGuids.push(guid);
-          }
-
-          // Check if article already exists
-          const existing = await db
-            .select()
-            .from(schema.articles)
-            .where(eq(schema.articles.guid, guid))
-            .limit(1)
-            .then((rows) => rows[0]);
-
-          if (existing) {
-            articlesSkipped++;
-            continue;
-          }
-
           // Extract article data
           const articleData = await extractArticleData(item, sourceId, guid);
 

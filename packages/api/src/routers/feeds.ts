@@ -138,6 +138,9 @@ export const feedsRouter = router({
   /**
    * Get feed for a specific category (single-category feeds)
    * Returns the feed if it exists and has exactly this one category
+   *
+   * This query first filters by category, reducing the number of feeds to check,
+   * then verifies each candidate has exactly one category.
    */
   getByCategoryId: rateLimitedProcedure
     .input(z.object({ categoryId: z.number() }))

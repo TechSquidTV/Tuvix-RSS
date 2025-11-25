@@ -5,9 +5,34 @@
  * and ensure consistent text-only content storage.
  */
 
+// HTML entity lookup map for single-pass decoding (performance optimization)
+const HTML_ENTITY_MAP: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  "#39": "'",
+  apos: "'",
+  cent: "¢",
+  pound: "£",
+  yen: "¥",
+  euro: "€",
+  copy: "©",
+  reg: "®",
+};
+
+// Pre-compiled regex patterns (avoids repeated regex compilation)
+const HTML_TAG_REGEX = /<[^>]*>/g;
+const HTML_ENTITY_REGEX = /&([a-zA-Z]+|#\d+|#x[0-9A-Fa-f]+);/g;
+const WHITESPACE_REGEX = /\s+/g;
+
 /**
  * Strip all HTML tags from a string
  * Converts HTML entities to their text equivalents
+ *
+ * Uses single-pass entity decoding with a lookup map for better performance
+ * when processing large amounts of HTML content (e.g., RSS feed articles).
  *
  * @param html - String potentially containing HTML
  * @returns Plain text with all HTML removed
@@ -16,34 +41,34 @@ export function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
 
   // Remove HTML tags
-  let text = html.replace(/<[^>]*>/g, "");
+  let text = html.replace(HTML_TAG_REGEX, "");
 
-  // Decode common HTML entities
-  text = text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&cent;/g, "¢")
-    .replace(/&pound;/g, "£")
-    .replace(/&yen;/g, "¥")
-    .replace(/&euro;/g, "€")
-    .replace(/&copy;/g, "©")
-    .replace(/&reg;/g, "®");
+  // Decode HTML entities in a single pass using lookup map
+  text = text.replace(HTML_ENTITY_REGEX, (match, entity: string) => {
+    // Check named entity in lookup map
+    if (HTML_ENTITY_MAP[entity]) {
+      return HTML_ENTITY_MAP[entity];
+    }
 
-  // Decode numeric HTML entities
-  text = text.replace(/&#(\d+);/g, (_, dec: string) =>
-    String.fromCharCode(parseInt(dec, 10))
-  );
-  text = text.replace(/&#x([0-9A-Fa-f]+);/g, (_, hex: string) =>
-    String.fromCharCode(parseInt(hex, 16))
-  );
+    // Handle numeric entities (decimal: &#123; or hex: &#x7B;)
+    if (entity.startsWith("#x") || entity.startsWith("#X")) {
+      const codePoint = parseInt(entity.slice(2), 16);
+      if (!isNaN(codePoint)) {
+        return String.fromCharCode(codePoint);
+      }
+    } else if (entity.startsWith("#")) {
+      const codePoint = parseInt(entity.slice(1), 10);
+      if (!isNaN(codePoint)) {
+        return String.fromCharCode(codePoint);
+      }
+    }
+
+    // Return original match if entity not recognized
+    return match;
+  });
 
   // Remove excessive whitespace
-  text = text.replace(/\s+/g, " ").trim();
+  text = text.replace(WHITESPACE_REGEX, " ").trim();
 
   return text;
 }
