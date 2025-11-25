@@ -11,7 +11,7 @@
 # Worker name - Wrangler uses this to identify which worker to deploy/secrets to manage
 # When running wrangler commands, they target the worker named "tuvix-api"
 name = "tuvix-api"
-main = "src/adapters/cloudflare.ts"
+main = "src/entries/cloudflare.ts"
 compatibility_date = "2024-11-10"
 
 # Sentry requires AsyncLocalStorage for trace context
