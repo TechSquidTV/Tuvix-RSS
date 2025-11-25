@@ -34,6 +34,28 @@ import type { BetterAuthUser } from "@/types/better-auth";
 export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
   const database = db || createDatabase(env);
 
+  // TODO: Replace per-request caching with Cloudflare KV for better performance
+  // KV provides 1-2ms reads globally with built-in TTL expiration
+  // Current approach: Cache settings per-request to avoid multiple DB calls
+  // Future approach: Use KV namespace with 60s TTL, fallback to DB if KV unavailable
+  // Per-request cache to avoid multiple getGlobalSettings calls
+  // This cache is scoped to a single request and resets on each new request
+  // Reduces DB queries from 3+ to 1 per signup request
+  const requestCache: {
+    settings?: Awaited<ReturnType<typeof getGlobalSettings>>;
+  } = {};
+
+  /**
+   * Get global settings with per-request caching
+   * Prevents multiple database calls within the same request
+   */
+  const getCachedSettings = async () => {
+    if (!requestCache.settings) {
+      requestCache.settings = await getGlobalSettings(database);
+    }
+    return requestCache.settings;
+  };
+
   // Get base URL for email links
   const baseUrl =
     env.BASE_URL || env.BETTER_AUTH_URL || "http://localhost:5173";
@@ -176,74 +198,89 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     // Email verification configuration
     emailVerification: {
       sendVerificationEmail: async ({ user, url, token }) => {
-        // Wrap entire callback in try-catch to prevent any errors from breaking registration
-        try {
-          // Check if email verification is required
+        // Make this completely non-blocking to avoid CPU timeout
+        // Better Auth will wait for this callback, so we need to return immediately
+        // and do all work asynchronously
+
+        // Fire and forget - don't block the request
+        void (async () => {
           try {
-            const settings = await getGlobalSettings(database);
-            if (!settings.requireEmailVerification) {
+            // Check if email verification is required (non-blocking)
+            let requireVerification = false;
+            try {
+              const settings = await getCachedSettings();
+              requireVerification = settings.requireEmailVerification;
+            } catch (error) {
+              // If settings don't exist, skip verification
+              console.error("Failed to get global settings:", error);
+              return;
+            }
+
+            if (!requireVerification) {
               // Skip sending if not required
               return;
             }
-          } catch (error) {
-            // If settings don't exist, skip verification
-            console.error("Failed to get global settings:", error);
-            return;
-          }
 
-          // Send verification email (Sentry spans are handled in the email service)
-          // Make this non-blocking to avoid CPU timeout - don't await
-          const userWithPlugins = user as BetterAuthUser;
+            // Send verification email (Sentry spans are handled in the email service)
+            const userWithPlugins = user as BetterAuthUser;
 
-          // Fire and forget - don't block the request
-          // Check result.success since email functions always resolve (never reject)
-          sendVerificationEmail(env, {
-            to: user.email,
-            username:
-              (userWithPlugins.username as string | undefined) ||
-              user.name ||
-              "User",
-            verificationToken: token,
-            verificationUrl: url,
-          })
-            .then((result) => {
-              // Email functions always resolve, so check success flag
-              if (!result.success) {
+            // Fire and forget - don't block the request
+            // Check result.success since email functions always resolve (never reject)
+            sendVerificationEmail(env, {
+              to: user.email,
+              username:
+                (userWithPlugins.username as string | undefined) ||
+                user.name ||
+                "User",
+              verificationToken: token,
+              verificationUrl: url,
+            })
+              .then((result) => {
+                // Email functions always resolve, so check success flag
+                if (!result.success) {
+                  console.error(
+                    "Failed to send verification email (non-blocking):",
+                    {
+                      userEmail: user.email,
+                      userId: user.id,
+                      error: result.error || "Unknown error",
+                    }
+                  );
+                }
+              })
+              .catch((error) => {
+                // Only catches unexpected promise rejections (shouldn't happen)
                 console.error(
-                  "Failed to send verification email (non-blocking):",
+                  "Unexpected error in verification email promise:",
                   {
                     userEmail: user.email,
                     userId: user.id,
-                    error: result.error || "Unknown error",
+                    error:
+                      error instanceof Error ? error.message : String(error),
                   }
                 );
-              }
-            })
-            .catch((error) => {
-              // Only catches unexpected promise rejections (shouldn't happen)
-              console.error("Unexpected error in verification email promise:", {
+              });
+          } catch (error) {
+            // Catch any unexpected errors to prevent breaking the sign-up process
+            // Email sending failures should not prevent user registration
+            // Keep error handling minimal to avoid CPU timeout
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            console.error(
+              "Unexpected error in sendVerificationEmail callback:",
+              errorMessage,
+              {
                 userEmail: user.email,
                 userId: user.id,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
-        } catch (error) {
-          // Catch any unexpected errors to prevent breaking the sign-up process
-          // Email sending failures should not prevent user registration
-          // Keep error handling minimal to avoid CPU timeout
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          console.error(
-            "Unexpected error in sendVerificationEmail callback:",
-            errorMessage,
-            {
-              userEmail: user.email,
-              userId: user.id,
-            }
-          );
-          // Don't throw - allow registration to proceed even if email fails
-          // Sentry will capture console.error via consoleLoggingIntegration
-        }
+              }
+            );
+            // Don't throw - allow registration to proceed even if email fails
+            // Sentry will capture console.error via consoleLoggingIntegration
+          }
+        })();
+
+        // Return immediately to avoid blocking Better Auth
+        return;
       },
       sendOnSignUp: false, // Will be checked dynamically in hooks
       autoSignInAfterVerification: true,
@@ -255,7 +292,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
         // Check if registration is disabled before processing sign-up
         if (ctx.path.startsWith("/sign-up")) {
           try {
-            const settings = await getGlobalSettings(database);
+            const settings = await getCachedSettings();
             if (!settings.allowRegistration) {
               // Return error response to prevent registration
               return {
@@ -364,7 +401,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             // Note: Verification emails are handled by Better Auth's sendVerificationEmail callback
             // Make email sending non-blocking to avoid CPU timeout
             try {
-              const settings = await getGlobalSettings(database);
+              const settings = await getCachedSettings();
               if (!settings.requireEmailVerification || user.emailVerified) {
                 const appUrl = baseUrl;
                 const userWithPlugins = user as BetterAuthUser;
