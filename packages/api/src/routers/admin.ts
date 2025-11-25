@@ -7,7 +7,17 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, sql, desc, and, gte, or, inArray, like } from "drizzle-orm";
+import {
+  eq,
+  sql,
+  desc,
+  and,
+  gte,
+  or,
+  inArray,
+  like,
+  type SQL,
+} from "drizzle-orm";
 import { router, adminProcedure } from "@/trpc/init";
 import * as schema from "@/db/schema";
 import {
@@ -28,6 +38,7 @@ import {
 } from "@/types/validators";
 import { normalizeDomain } from "@/utils/domain-checker";
 import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
+import { withQueryMetrics } from "@/utils/db-metrics";
 
 // User with usage info for admin views
 const AdminUserSchema = z.object({
@@ -82,7 +93,7 @@ export const adminRouter = router({
     .output(createPaginatedSchema(AdminUserSchema))
     .query(async ({ ctx, input }) => {
       // Build WHERE conditions
-      const conditions = [];
+      const conditions: SQL[] = [];
       if (input.role !== undefined) {
         conditions.push(eq(schema.user.role, input.role));
       }
@@ -99,13 +110,25 @@ export const adminRouter = router({
       }
 
       // Get users (fetch one extra for pagination)
-      const users = await ctx.db
-        .select()
-        .from(schema.user)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(schema.user.createdAt))
-        .limit(input.limit + 1)
-        .offset(input.offset);
+      const users = await withQueryMetrics(
+        "admin.listUsers",
+        async () =>
+          ctx.db
+            .select()
+            .from(schema.user)
+            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .orderBy(desc(schema.user.createdAt))
+            .limit(input.limit + 1)
+            .offset(input.offset),
+        {
+          "db.table": "user",
+          "db.operation": "select",
+          "db.has_role_filter": input.role !== undefined,
+          "db.has_plan_filter": input.plan !== undefined,
+          "db.has_banned_filter": input.banned !== undefined,
+          "db.has_search": !!input.search,
+        }
+      );
 
       // Bulk fetch usage stats and custom limits for all users
       const userIds = users.slice(0, input.limit).map((u) => u.id);
@@ -198,11 +221,20 @@ export const adminRouter = router({
     .output(AdminUserSchema)
     .query(async ({ ctx, input }) => {
       // Get target user
-      const [user] = await ctx.db
-        .select()
-        .from(schema.user)
-        .where(eq(schema.user.id, input.userId))
-        .limit(1);
+      const [user] = await withQueryMetrics(
+        "admin.getUser",
+        async () =>
+          ctx.db
+            .select()
+            .from(schema.user)
+            .where(eq(schema.user.id, input.userId))
+            .limit(1),
+        {
+          "db.table": "user",
+          "db.operation": "select",
+          "db.user_id": input.userId,
+        }
+      );
 
       if (!user) {
         throw new TRPCError({
@@ -285,24 +317,43 @@ export const adminRouter = router({
       }
 
       // Update Better Auth user table
-      await ctx.db
-        .update(schema.user)
-        .set({
-          banned: input.banned,
-          updatedAt: new Date(),
-          banReason: input.reason || null,
-        })
-        .where(eq(schema.user.id, input.userId));
+      await withQueryMetrics(
+        "admin.banUser.update",
+        async () =>
+          ctx.db
+            .update(schema.user)
+            .set({
+              banned: input.banned,
+              updatedAt: new Date(),
+              banReason: input.reason || null,
+            })
+            .where(eq(schema.user.id, input.userId)),
+        {
+          "db.table": "user",
+          "db.operation": "update",
+          "db.user_id": input.userId,
+          "db.banned": input.banned,
+        }
+      );
 
       // Log the action
-      await ctx.db.insert(schema.securityAuditLog).values({
-        userId: input.userId,
-        action: input.banned ? "account_locked" : "account_unlocked",
-        metadata: input.reason
-          ? JSON.stringify({ reason: input.reason })
-          : null,
-        success: true,
-      });
+      await withQueryMetrics(
+        "admin.banUser.auditLog",
+        async () =>
+          ctx.db.insert(schema.securityAuditLog).values({
+            userId: input.userId,
+            action: input.banned ? "account_locked" : "account_unlocked",
+            metadata: input.reason
+              ? JSON.stringify({ reason: input.reason })
+              : null,
+            success: true,
+          }),
+        {
+          "db.table": "securityAuditLog",
+          "db.operation": "insert",
+          "db.action": input.banned ? "account_locked" : "account_unlocked",
+        }
+      );
 
       return { success: true };
     }),
@@ -329,13 +380,23 @@ export const adminRouter = router({
       }
 
       // Update user's plan in Better Auth user table
-      await ctx.db
-        .update(schema.user)
-        .set({
-          plan: input.plan,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.user.id, input.userId));
+      await withQueryMetrics(
+        "admin.changePlan",
+        async () =>
+          ctx.db
+            .update(schema.user)
+            .set({
+              plan: input.plan,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.user.id, input.userId)),
+        {
+          "db.table": "user",
+          "db.operation": "update",
+          "db.user_id": input.userId,
+          "db.new_plan": input.plan,
+        }
+      );
 
       return { success: true };
     }),
@@ -467,18 +528,36 @@ export const adminRouter = router({
       }
 
       // Delete user from Better Auth user table (cascade will delete all related data)
-      await ctx.db.delete(schema.user).where(eq(schema.user.id, input.userId));
+      await withQueryMetrics(
+        "admin.deleteUser.delete",
+        async () =>
+          ctx.db.delete(schema.user).where(eq(schema.user.id, input.userId)),
+        {
+          "db.table": "user",
+          "db.operation": "delete",
+          "db.user_id": input.userId,
+        }
+      );
 
       // Log the deletion
-      await ctx.db.insert(schema.securityAuditLog).values({
-        action: "account_locked", // Using account_locked as closest action
-        metadata: JSON.stringify({
-          deletedUserId: input.userId,
-          deletedUsername: user.username,
-          deletedBy: ctx.user.username,
-        }),
-        success: true,
-      });
+      await withQueryMetrics(
+        "admin.deleteUser.auditLog",
+        async () =>
+          ctx.db.insert(schema.securityAuditLog).values({
+            action: "account_locked", // Using account_locked as closest action
+            metadata: JSON.stringify({
+              deletedUserId: input.userId,
+              deletedUsername: user.username,
+              deletedBy: ctx.user.username,
+            }),
+            success: true,
+          }),
+        {
+          "db.table": "securityAuditLog",
+          "db.operation": "insert",
+          "db.action": "account_deleted",
+        }
+      );
 
       return { success: true };
     }),
@@ -861,7 +940,14 @@ export const adminRouter = router({
     )
     .query(async ({ ctx }) => {
       // Get all users
-      const allUsers = await ctx.db.select().from(schema.user);
+      const allUsers = await withQueryMetrics(
+        "admin.getStats.allUsers",
+        async () => ctx.db.select().from(schema.user),
+        {
+          "db.table": "user",
+          "db.operation": "select",
+        }
+      );
 
       // Count various user categories
       const totalUsers = allUsers.length;
@@ -890,7 +976,14 @@ export const adminRouter = router({
       }
 
       // Get total usage stats
-      const allUsageStats = await ctx.db.select().from(schema.usageStats);
+      const allUsageStats = await withQueryMetrics(
+        "admin.getStats.usageStats",
+        async () => ctx.db.select().from(schema.usageStats),
+        {
+          "db.table": "usageStats",
+          "db.operation": "select",
+        }
+      );
 
       const totalSources = allUsageStats.reduce(
         (sum, stat) => sum + stat.sourceCount,
@@ -902,11 +995,25 @@ export const adminRouter = router({
       );
 
       // Count categories directly from categories table (more accurate)
-      const categories = await ctx.db.select().from(schema.categories);
+      const categories = await withQueryMetrics(
+        "admin.getStats.categories",
+        async () => ctx.db.select().from(schema.categories),
+        {
+          "db.table": "categories",
+          "db.operation": "select",
+        }
+      );
       const totalCategories = categories.length;
 
       // Count articles directly from articles table (more accurate)
-      const articles = await ctx.db.select().from(schema.articles);
+      const articles = await withQueryMetrics(
+        "admin.getStats.articles",
+        async () => ctx.db.select().from(schema.articles),
+        {
+          "db.table": "articles",
+          "db.operation": "select",
+        }
+      );
       const totalArticles = articles.length;
 
       return {
@@ -983,7 +1090,7 @@ export const adminRouter = router({
     )
     .query(async ({ ctx, input }) => {
       // Build WHERE conditions
-      const conditions = [];
+      const conditions: SQL[] = [];
       if (input.feedId) {
         conditions.push(eq(schema.publicFeedAccessLog.feedId, input.feedId));
       }
@@ -1601,7 +1708,7 @@ export const adminRouter = router({
       )
     )
     .query(async ({ ctx, input }) => {
-      const conditions = [];
+      const conditions: SQL[] = [];
 
       if (input.search) {
         conditions.push(
@@ -1613,13 +1720,23 @@ export const adminRouter = router({
         conditions.push(eq(schema.blockedDomains.reason, input.reason));
       }
 
-      const blocked = await ctx.db
-        .select()
-        .from(schema.blockedDomains)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(schema.blockedDomains.createdAt))
-        .limit(input.limit + 1)
-        .offset(input.offset);
+      const blocked = await withQueryMetrics(
+        "admin.listBlockedDomains",
+        async () =>
+          ctx.db
+            .select()
+            .from(schema.blockedDomains)
+            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .orderBy(desc(schema.blockedDomains.createdAt))
+            .limit(input.limit + 1)
+            .offset(input.offset),
+        {
+          "db.table": "blockedDomains",
+          "db.operation": "select",
+          "db.has_search": !!input.search,
+          "db.has_reason_filter": input.reason !== undefined,
+        }
+      );
 
       return createPaginatedResponse(blocked, input.limit, input.offset);
     }),
