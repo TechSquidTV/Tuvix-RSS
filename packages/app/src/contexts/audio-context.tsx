@@ -127,6 +127,7 @@ function AudioContextProvider({ children }: { children: React.ReactNode }) {
   return <AudioProvider value={value}>{children}</AudioProvider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { AudioContextProvider, useAudio };
 
 export type { AudioContextValue };
