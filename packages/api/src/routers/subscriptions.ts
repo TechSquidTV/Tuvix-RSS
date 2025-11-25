@@ -9,6 +9,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
 import { router, rateLimitedProcedure } from "@/trpc/init";
+import { withQueryMetrics } from "@/utils/db-metrics";
 import type { Opml } from "@/types/feed";
 import {
   urlValidator,
@@ -134,16 +135,26 @@ export const subscriptionsRouter = router({
       const { userId } = ctx.user;
 
       // Get all subscriptions with sources (fetch one extra for pagination)
-      const subscriptionsWithSources = await ctx.db
-        .select()
-        .from(schema.subscriptions)
-        .innerJoin(
-          schema.sources,
-          eq(schema.subscriptions.sourceId, schema.sources.id)
-        )
-        .where(eq(schema.subscriptions.userId, userId))
-        .limit(input.limit + 1)
-        .offset(input.offset);
+      const subscriptionsWithSources = await withQueryMetrics(
+        "subscriptions.list",
+        async () =>
+          ctx.db
+            .select()
+            .from(schema.subscriptions)
+            .innerJoin(
+              schema.sources,
+              eq(schema.subscriptions.sourceId, schema.sources.id)
+            )
+            .where(eq(schema.subscriptions.userId, userId))
+            .limit(input.limit + 1)
+            .offset(input.offset),
+        {
+          "db.table": "subscriptions",
+          "db.operation": "select",
+          "db.user_id": userId,
+          "db.limit": input.limit,
+        }
+      );
 
       // Bulk fetch categories and filters (prevents N+1 query)
       // Only fetch for the subscriptions we'll return (not the extra one)

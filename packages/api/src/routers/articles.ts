@@ -16,6 +16,7 @@ import {
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
 import * as schema from "@/db/schema";
 import { executeBatch } from "@/db/utils";
+import { withQueryMetrics } from "@/utils/db-metrics";
 
 /**
  * Helper function to transform database row to article output
@@ -256,10 +257,23 @@ export const articlesRouter = router({
       // Fetch results (fetch more than needed to account for filtering)
       // We'll fetch 2x the limit to ensure we have enough after filtering
       const fetchLimit = input.limit * 2 + 1;
-      const results = await queryBuilder
-        .orderBy(desc(schema.articles.publishedAt))
-        .limit(fetchLimit)
-        .offset(input.offset);
+      const results = await withQueryMetrics(
+        "articles.list",
+        async () =>
+          queryBuilder
+            .orderBy(desc(schema.articles.publishedAt))
+            .limit(fetchLimit)
+            .offset(input.offset),
+        {
+          "db.table": "articles",
+          "db.operation": "select",
+          "db.user_id": userId,
+          "db.has_category_filter": !!input.categoryId,
+          "db.has_subscription_filter": !!input.subscriptionId,
+          "db.has_read_filter": input.read !== undefined,
+          "db.has_saved_filter": input.saved !== undefined,
+        }
+      );
 
       // Transform results
       const transformedResults = results.map(transformArticleRow);
@@ -280,15 +294,24 @@ export const articlesRouter = router({
 
       if (subscriptionIdsWithFilters.size > 0) {
         const subscriptionIdsArray = Array.from(subscriptionIdsWithFilters);
-        const filters = await ctx.db
-          .select()
-          .from(schema.subscriptionFilters)
-          .where(
-            inArray(
-              schema.subscriptionFilters.subscriptionId,
-              subscriptionIdsArray
-            )
-          );
+        const filters = await withQueryMetrics(
+          "articles.list.loadFilters",
+          async () =>
+            ctx.db
+              .select()
+              .from(schema.subscriptionFilters)
+              .where(
+                inArray(
+                  schema.subscriptionFilters.subscriptionId,
+                  subscriptionIdsArray
+                )
+              ),
+          {
+            "db.table": "subscription_filters",
+            "db.operation": "select",
+            "db.subscription_count": subscriptionIdsArray.length,
+          }
+        );
 
         // Group filters by subscription ID
         filters.forEach((filter) => {
@@ -388,36 +411,55 @@ export const articlesRouter = router({
       const { userId } = ctx.user;
 
       // Get existing state to preserve 'saved' flag
-      const existing = await ctx.db
-        .select()
-        .from(schema.userArticleStates)
-        .where(
-          and(
-            eq(schema.userArticleStates.userId, userId),
-            eq(schema.userArticleStates.articleId, input.id)
-          )
-        )
-        .limit(1);
+      const existing = await withQueryMetrics(
+        "articles.markRead.getState",
+        async () =>
+          ctx.db
+            .select()
+            .from(schema.userArticleStates)
+            .where(
+              and(
+                eq(schema.userArticleStates.userId, userId),
+                eq(schema.userArticleStates.articleId, input.id)
+              )
+            )
+            .limit(1),
+        {
+          "db.table": "user_article_states",
+          "db.operation": "select",
+          "db.user_id": userId,
+        }
+      );
 
       // Upsert: insert or update user_article_states
-      await ctx.db
-        .insert(schema.userArticleStates)
-        .values({
-          userId,
-          articleId: input.id,
-          read: true,
-          saved: existing[0]?.saved ?? false,
-        })
-        .onConflictDoUpdate({
-          target: [
-            schema.userArticleStates.userId,
-            schema.userArticleStates.articleId,
-          ],
-          set: {
-            read: true,
-            updatedAt: new Date(),
-          },
-        });
+      await withQueryMetrics(
+        "articles.markRead.upsert",
+        async () =>
+          ctx.db
+            .insert(schema.userArticleStates)
+            .values({
+              userId,
+              articleId: input.id,
+              read: true,
+              saved: existing[0]?.saved ?? false,
+            })
+            .onConflictDoUpdate({
+              target: [
+                schema.userArticleStates.userId,
+                schema.userArticleStates.articleId,
+              ],
+              set: {
+                read: true,
+                updatedAt: new Date(),
+              },
+            }),
+        {
+          "db.table": "user_article_states",
+          "db.operation": "upsert",
+          "db.user_id": userId,
+          "db.had_existing_state": existing.length > 0,
+        }
+      );
 
       return { success: true };
     }),
