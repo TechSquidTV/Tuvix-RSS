@@ -8,6 +8,7 @@ import { runMigrationsIfNeeded } from "../db/migrate-local";
 import { initCronJobs } from "../cron/scheduler";
 import { initializeAdmin } from "../services/admin-init";
 import { createDatabase } from "../db/client";
+import { getSentryConfig } from "../config/sentry";
 import type { Env } from "../types";
 
 // Load environment
@@ -45,17 +46,17 @@ if (env.NODE_ENV === "production" && env.BETTER_AUTH_SECRET.length < 32) {
 
 // Initialize Sentry (optional)
 if (env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: env.SENTRY_DSN,
-    environment: env.SENTRY_ENVIRONMENT || "development",
-    release: env.SENTRY_RELEASE,
-    tracesSampleRate: 0.1,
-    integrations: [
-      Sentry.httpIntegration(),
-      Sentry.nativeNodeFetchIntegration(),
-    ],
-  });
-  console.log("✅ Sentry initialized");
+  const sentryConfig = getSentryConfig(env);
+  if (sentryConfig) {
+    Sentry.init({
+      ...sentryConfig,
+      integrations: [
+        Sentry.httpIntegration(),
+        Sentry.nativeNodeFetchIntegration(),
+      ],
+    });
+    console.log("✅ Sentry initialized (with metrics enabled)");
+  }
 }
 
 // Main initialization

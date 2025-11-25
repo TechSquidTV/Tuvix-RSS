@@ -8,6 +8,7 @@ import * as Sentry from "@sentry/cloudflare";
 import { createHonoApp } from "../hono/app";
 import { getSentryConfig } from "../config/sentry";
 import type { Env } from "../types";
+import { emitCounter } from "../utils/metrics";
 
 // Create the Hono app with Cloudflare-specific Sentry
 const createWorkerHandler = (env: Env) => {
@@ -51,7 +52,18 @@ const workerHandler = {
       const { eq } = await import("drizzle-orm");
       const schema = await import("../db/schema");
 
-      const db = createDatabase(env);
+      // Ensure D1 is instrumented before creating database
+      let workerEnv: Env = { ...env, RUNTIME: "cloudflare" };
+      if (env.DB && env.SENTRY_DSN) {
+        try {
+          const instrumentedD1 = Sentry.instrumentD1WithSentry(env.DB);
+          workerEnv = { ...workerEnv, DB: instrumentedD1 };
+        } catch {
+          // Sentry instrumentation failed, continue with regular D1
+        }
+      }
+
+      const db = createDatabase(workerEnv);
       const now = new Date();
 
       // Get global settings
@@ -65,7 +77,8 @@ const workerHandler = {
 
       if (shouldFetch) {
         console.log("🔄 Executing RSS fetch...");
-        await handleRSSFetch(env);
+        emitCounter("cron.rss_fetch_triggered", 1, { status: "executed" });
+        await handleRSSFetch(workerEnv);
 
         // Update lastRssFetchAt
         await db
@@ -81,6 +94,7 @@ const workerHandler = {
         console.log(
           `⏭️ Skipping RSS fetch (last fetch was ${minutesSinceLastFetch} minutes ago, interval: ${settings.fetchIntervalMinutes} minutes)`
         );
+        emitCounter("cron.rss_fetch_triggered", 1, { status: "skipped" });
       }
 
       // Check if prune should run (daily)
@@ -90,7 +104,8 @@ const workerHandler = {
 
       if (shouldPrune) {
         console.log("🗑️ Executing article prune...");
-        const result = await handleArticlePrune(env);
+        emitCounter("cron.prune_triggered", 1, { status: "executed" });
+        const result = await handleArticlePrune(workerEnv);
 
         // Update lastPruneAt
         await db
@@ -108,11 +123,23 @@ const workerHandler = {
         console.log(
           `⏭️ Skipping prune (last prune was ${hoursSinceLastPrune} hours ago)`
         );
+        emitCounter("cron.prune_triggered", 1, { status: "skipped" });
       }
 
       console.log("✅ Cron job completed successfully");
+
+      // Flush Sentry metrics before Workers execution ends
+      if (env.SENTRY_DSN) {
+        await Sentry.flush(2000); // 2 second timeout
+      }
     } catch (error) {
       console.error("❌ Cron job failed:", error);
+
+      // Flush metrics even on error
+      if (env.SENTRY_DSN) {
+        await Sentry.flush(2000);
+      }
+
       throw error;
     }
   },

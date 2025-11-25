@@ -12,6 +12,7 @@ import { inArray, lt, or, isNull, and } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
+import { emitCounter, withTiming } from "@/utils/metrics";
 
 /**
  * Fetch all RSS feeds
@@ -53,64 +54,86 @@ async function _handleArticlePrune(env: Env): Promise<{
 }> {
   console.log("🗑️ Starting article prune...");
 
-  const db = createDatabase(env);
+  return await withTiming(
+    "cron.article_prune_duration",
+    async () => {
+      const db = createDatabase(env);
 
-  try {
-    // Get global settings
-    const settings = await getGlobalSettings(db);
+      try {
+        // Get global settings
+        const settings = await getGlobalSettings(db);
 
-    // Calculate cutoff date (convert to timestamp for SQLite)
-    const cutoffDate = new Date(
-      Date.now() - settings.pruneDays * 24 * 60 * 60 * 1000
-    );
-    const cutoffTimestamp = cutoffDate.getTime();
+        // Calculate cutoff date (convert to timestamp for SQLite)
+        const cutoffDate = new Date(
+          Date.now() - settings.pruneDays * 24 * 60 * 60 * 1000
+        );
+        const cutoffTimestamp = cutoffDate.getTime();
 
-    // Find articles to delete (use publishedAt or createdAt if publishedAt is null)
-    const cutoffDateForComparison = new Date(cutoffTimestamp);
-    // Use SQL COALESCE but ensure proper comparison by using sql template for the comparison value too
-    const articlesToDelete = await db
-      .select()
-      .from(schema.articles)
-      .where(
-        or(
-          // Articles with publishedAt that are older than cutoff
-          lt(schema.articles.publishedAt, cutoffDateForComparison),
-          // Articles without publishedAt but with createdAt older than cutoff
-          and(
-            isNull(schema.articles.publishedAt),
-            lt(schema.articles.createdAt, cutoffDateForComparison)
-          )!
-        )!
-      );
+        // Find articles to delete (use publishedAt or createdAt if publishedAt is null)
+        const cutoffDateForComparison = new Date(cutoffTimestamp);
+        // Use SQL COALESCE but ensure proper comparison by using sql template for the comparison value too
+        const articlesToDelete = await db
+          .select()
+          .from(schema.articles)
+          .where(
+            or(
+              // Articles with publishedAt that are older than cutoff
+              lt(schema.articles.publishedAt, cutoffDateForComparison),
+              // Articles without publishedAt but with createdAt older than cutoff
+              and(
+                isNull(schema.articles.publishedAt),
+                lt(schema.articles.createdAt, cutoffDateForComparison)
+              )!
+            )!
+          );
 
-    const articleIds = articlesToDelete.map((a) => a.id);
+        const articleIds = articlesToDelete.map((a) => a.id);
 
-    if (articleIds.length === 0) {
-      console.log("✅ No articles to prune");
-      return { deletedCount: 0 };
-    }
+        if (articleIds.length === 0) {
+          console.log("✅ No articles to prune");
+          emitCounter("cron.articles_pruned", 0);
+          return { deletedCount: 0 };
+        }
 
-    // Delete articles in batches (cascade will auto-delete user_article_states)
-    // Cloudflare D1 has a limit of 100 parameters per query, so batch in chunks
-    const batches = chunkArray(articleIds, D1_MAX_PARAMETERS);
-    let deletedCount = 0;
+        // Delete articles in batches (cascade will auto-delete user_article_states)
+        // Cloudflare D1 has a limit of 100 parameters per query, so batch in chunks
+        const batches = chunkArray(articleIds, D1_MAX_PARAMETERS);
+        let deletedCount = 0;
 
-    for (const batch of batches) {
-      await db
-        .delete(schema.articles)
-        .where(inArray(schema.articles.id, batch));
-      deletedCount += batch.length;
-    }
+        for (const batch of batches) {
+          await db
+            .delete(schema.articles)
+            .where(inArray(schema.articles.id, batch));
+          deletedCount += batch.length;
+        }
 
-    console.log(
-      `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days`
-    );
+        console.log(
+          `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days`
+        );
 
-    return { deletedCount };
-  } catch (error) {
-    console.error("❌ Article prune failed:", error);
-    throw error;
-  }
+        // Emit metrics
+        emitCounter("cron.articles_pruned", deletedCount, {
+          prune_days: settings.pruneDays.toString(),
+        });
+
+        emitCounter("cron.prune_completed", 1, {
+          status: "success",
+        });
+
+        return { deletedCount };
+      } catch (error) {
+        console.error("❌ Article prune failed:", error);
+
+        // Emit error metric
+        emitCounter("cron.prune_completed", 1, {
+          status: "error",
+        });
+
+        throw error;
+      }
+    },
+    { operation: "article_prune" }
+  );
 }
 
 // Export wrapped versions with Sentry monitoring (Cloudflare only)
