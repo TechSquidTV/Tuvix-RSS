@@ -8,6 +8,29 @@
  * This prevents runtime errors from importing Cloudflare-specific SDK in Node.js.
  */
 
+// Import only the types that exist in @sentry/cloudflare
+import type { Breadcrumb, Span, User } from "@sentry/cloudflare";
+
+// Define types that don't exist in the SDK but match the API
+interface SentryStartSpanOptions {
+  name: string;
+  op?: string;
+  attributes?: Record<string, string | number | boolean>;
+}
+
+interface SentryCaptureContext {
+  tags?: Record<string, string>;
+  contexts?: Record<string, Record<string, unknown>>;
+  user?: User;
+  level?: "fatal" | "error" | "warning" | "log" | "info" | "debug";
+  extra?: Record<string, unknown>;
+}
+
+interface SentryMetricOptions {
+  attributes?: Record<string, string | number | boolean>;
+  unit?: "millisecond" | "second" | "byte" | "percent";
+}
+
 // Detect runtime using environment variable
 // In Node.js, process.env.RUNTIME will be "nodejs"
 // In Cloudflare Workers, it will be "cloudflare" or undefined
@@ -65,7 +88,7 @@ export const Sentry = {
    * In real SDK: Synchronous
    * In wrapper: Async (to await dynamic import), but no-op returns immediately
    */
-  setUser: async (user: { id: string } | null): Promise<void> => {
+  setUser: async (user: User | null): Promise<void> => {
     if (!isCloudflare) return Promise.resolve(); // Immediate return for no-op
     const s = await loadSentry();
     s?.setUser(user);
@@ -76,11 +99,10 @@ export const Sentry = {
    * In real SDK: Synchronous
    * In wrapper: Async (to await dynamic import), but no-op returns immediately
    */
-  addBreadcrumb: async (breadcrumb: unknown): Promise<void> => {
+  addBreadcrumb: async (breadcrumb: Breadcrumb): Promise<void> => {
     if (!isCloudflare) return Promise.resolve(); // Immediate return for no-op
     const s = await loadSentry();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    s?.addBreadcrumb(breadcrumb as any);
+    s?.addBreadcrumb(breadcrumb);
   },
 
   /**
@@ -90,32 +112,33 @@ export const Sentry = {
    */
   captureException: async (
     error: Error | unknown,
-    context?: unknown
+    context?: SentryCaptureContext
   ): Promise<string | undefined> => {
     if (!isCloudflare) return Promise.resolve(undefined); // Immediate return for no-op
     const s = await loadSentry();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    return s?.captureException(error, context as any);
+    return s?.captureException(error, context);
   },
 
   /**
    * Start a performance span for tracing
    * In real SDK: Async
    * In wrapper: Async, no-op executes callback immediately
+   *
+   * Note: We always provide a span (no-op in Node.js), so callback receives non-undefined span
    */
   startSpan: async <T>(
-    options: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback: (span: any) => T | Promise<T>
+    options: SentryStartSpanOptions,
+    callback: (span: Span) => T | Promise<T>
   ): Promise<T> => {
-    // No-op span for Node.js
+    // No-op span for Node.js - minimal implementation with chainable methods
     const noopSpan = {
-      setAttribute: () => {},
-      setStatus: () => {},
-    };
+      setAttribute: () => noopSpan,
+      setStatus: () => noopSpan,
+      setAttributes: () => noopSpan,
+    } as unknown as Span;
 
     if (!isCloudflare) {
-      // Execute callback immediately (synchronous no-op)
+      // Execute callback immediately with no-op span
       return Promise.resolve(callback(noopSpan));
     }
 
@@ -124,10 +147,78 @@ export const Sentry = {
       return Promise.resolve(callback(noopSpan));
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    return s.startSpan(options as any, callback);
+    // Cast to match Sentry's signature (options and callback with optional span)
+    return s.startSpan(
+      options as Parameters<typeof s.startSpan>[0],
+      callback as (span: Span | undefined) => T | Promise<T>
+    );
+  },
+
+  /**
+   * Flush Sentry events (wait for them to be sent)
+   * In real SDK: Async (returns Promise<boolean>)
+   * In wrapper: Async, no-op returns true immediately
+   */
+  flush: async (timeout?: number): Promise<boolean> => {
+    if (!isCloudflare) return Promise.resolve(true);
+    const s = await loadSentry();
+    return s?.flush(timeout) ?? Promise.resolve(true);
+  },
+
+  /**
+   * Sentry Metrics API (counters, gauges, distributions)
+   */
+  metrics: {
+    /**
+     * Increment a counter metric
+     */
+    count: (
+      name: string,
+      value: number,
+      options?: SentryMetricOptions
+    ): void => {
+      if (!isCloudflare) return; // No-op for Node.js
+      if (_sentry?.metrics) {
+        _sentry.metrics.count(name, value, options);
+      }
+    },
+
+    /**
+     * Set a gauge metric
+     */
+    gauge: (
+      name: string,
+      value: number,
+      options?: SentryMetricOptions
+    ): void => {
+      if (!isCloudflare) return; // No-op for Node.js
+      if (_sentry?.metrics) {
+        _sentry.metrics.gauge(name, value, options);
+      }
+    },
+
+    /**
+     * Record a distribution metric
+     */
+    distribution: (
+      name: string,
+      value: number,
+      options?: SentryMetricOptions
+    ): void => {
+      if (!isCloudflare) return; // No-op for Node.js
+      if (_sentry?.metrics) {
+        _sentry.metrics.distribution(name, value, options);
+      }
+    },
   },
 };
 
 // Re-export for named imports
-export const { setUser, addBreadcrumb, captureException, startSpan } = Sentry;
+export const {
+  setUser,
+  addBreadcrumb,
+  captureException,
+  startSpan,
+  flush,
+  metrics,
+} = Sentry;
