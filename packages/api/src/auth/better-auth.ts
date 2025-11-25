@@ -322,7 +322,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
         // Return immediately to avoid blocking Better Auth
         return;
       },
-      sendOnSignUp: false, // Will be checked dynamically in hooks
+      sendOnSignUp: true, // Callback checks requireEmailVerification setting dynamically
       autoSignInAfterVerification: true,
       expiresIn: 3600, // 1 hour
     },
