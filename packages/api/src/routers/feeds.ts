@@ -24,6 +24,8 @@ import * as schema from "@/db/schema";
 import { requireOwnership, slugExists, updateManyToMany } from "@/db/helpers";
 import { fetchFeedCategories } from "@/db/transformers";
 import { generateRSS } from "@/services/xml-generator";
+import { emitCounter, withTiming } from "@/utils/metrics";
+import { withQueryMetrics } from "@/utils/db-metrics";
 
 // Feed list response schema (includes extra fields not in database)
 const feedListItemSchema = z.object({
@@ -428,162 +430,274 @@ export const feedsRouter = router({
     )
     .output(z.string()) // RSS 2.0 XML
     .query(async ({ ctx, input }) => {
-      // Step 1: Find user by username
-      const users = await ctx.db
-        .select()
-        .from(schema.user)
-        .where(
-          sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${input.username}`
-        )
-        .limit(1);
-
-      if (!users.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
-      }
-
-      const user = users[0];
-
-      // Step 2: Find feed by user ID and slug
-      const feeds = await ctx.db
-        .select()
-        .from(schema.feeds)
-        .where(
-          and(
-            eq(schema.feeds.userId, user.id),
-            eq(schema.feeds.slug, input.slug)
-          )
-        )
-        .limit(1);
-
-      if (!feeds.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Feed not found",
-        });
-      }
-
-      const feed = feeds[0];
-
-      // Step 3: Verify feed is public
-      if (!feed.public) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Feed not found",
-        });
-      }
-
-      // Step 4: Get category IDs for this feed
-      const categoryLinks = await ctx.db
-        .select()
-        .from(schema.feedCategories)
-        .where(eq(schema.feedCategories.feedId, feed.id));
-
-      const categoryIds = categoryLinks.map((link) => link.categoryId);
-
-      // Step 5: Get articles from these categories
-      let articles: Array<{
-        title: string;
-        link: string | null;
-        description: string | null;
-        author: string | null;
-        publishedAt: Date | null;
-        guid: string;
-      }> = [];
-
-      if (categoryIds.length > 0) {
-        // Get subscription IDs that match these categories
-        const subscriptionLinks = await ctx.db
-          .select()
-          .from(schema.subscriptionCategories)
-          .where(
-            inArray(schema.subscriptionCategories.categoryId, categoryIds)
+      return await withTiming(
+        "public_feed.generation_duration",
+        async () => {
+          // Step 1: Find user by username
+          const users = await withQueryMetrics(
+            "public_feed.getUser",
+            async () =>
+              ctx.db
+                .select()
+                .from(schema.user)
+                .where(
+                  sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${input.username}`
+                )
+                .limit(1),
+            {
+              "db.table": "user",
+              "db.operation": "select",
+              "db.username": input.username,
+            }
           );
 
-        const subscriptionIds = subscriptionLinks.map(
-          (link) => link.subscriptionId
-        );
+          if (!users.length) {
+            emitCounter("public_feed.generated", 1, {
+              status: "user_not_found",
+              username: input.username,
+            });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "User not found",
+            });
+          }
 
-        if (subscriptionIds.length > 0) {
-          // Get subscriptions for this user
-          const subscriptions = await ctx.db
-            .select()
-            .from(schema.subscriptions)
-            .where(
-              and(
-                eq(schema.subscriptions.userId, user.id),
-                inArray(schema.subscriptions.id, subscriptionIds)
-              )
+          const user = users[0];
+
+          // Step 2: Find feed by user ID and slug
+          const feeds = await withQueryMetrics(
+            "public_feed.getFeed",
+            async () =>
+              ctx.db
+                .select()
+                .from(schema.feeds)
+                .where(
+                  and(
+                    eq(schema.feeds.userId, user.id),
+                    eq(schema.feeds.slug, input.slug)
+                  )
+                )
+                .limit(1),
+            {
+              "db.table": "feeds",
+              "db.operation": "select",
+              "db.user_id": user.id,
+              "db.slug": input.slug,
+            }
+          );
+
+          if (!feeds.length) {
+            emitCounter("public_feed.generated", 1, {
+              status: "feed_not_found",
+              username: input.username,
+              slug: input.slug,
+            });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Feed not found",
+            });
+          }
+
+          const feed = feeds[0];
+
+          // Step 3: Verify feed is public
+          if (!feed.public) {
+            emitCounter("public_feed.generated", 1, {
+              status: "feed_private",
+              username: input.username,
+              slug: input.slug,
+            });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Feed not found",
+            });
+          }
+
+          // Step 4: Get category IDs for this feed
+          const categoryLinks = await withQueryMetrics(
+            "public_feed.getCategories",
+            async () =>
+              ctx.db
+                .select()
+                .from(schema.feedCategories)
+                .where(eq(schema.feedCategories.feedId, feed.id)),
+            {
+              "db.table": "feedCategories",
+              "db.operation": "select",
+              "db.feed_id": feed.id,
+            }
+          );
+
+          const categoryIds = categoryLinks.map((link) => link.categoryId);
+
+          // Step 5: Get articles from these categories
+          let articles: Array<{
+            title: string;
+            link: string | null;
+            description: string | null;
+            author: string | null;
+            publishedAt: Date | null;
+            guid: string;
+          }> = [];
+
+          if (categoryIds.length > 0) {
+            // Get subscription IDs that match these categories
+            const subscriptionLinks = await withQueryMetrics(
+              "public_feed.getSubscriptionLinks",
+              async () =>
+                ctx.db
+                  .select()
+                  .from(schema.subscriptionCategories)
+                  .where(
+                    inArray(
+                      schema.subscriptionCategories.categoryId,
+                      categoryIds
+                    )
+                  ),
+              {
+                "db.table": "subscriptionCategories",
+                "db.operation": "select",
+                "db.category_count": categoryIds.length,
+              }
             );
 
-          const sourceIds = subscriptions.map((sub) => sub.sourceId);
+            const subscriptionIds = subscriptionLinks.map(
+              (link) => link.subscriptionId
+            );
 
-          if (sourceIds.length > 0) {
-            // Get articles from these sources
-            const articlesResult = await ctx.db
-              .select()
-              .from(schema.articles)
-              .where(inArray(schema.articles.sourceId, sourceIds))
-              .orderBy(desc(schema.articles.publishedAt))
-              .limit(50);
+            if (subscriptionIds.length > 0) {
+              // Get subscriptions for this user
+              const subscriptions = await withQueryMetrics(
+                "public_feed.getSubscriptions",
+                async () =>
+                  ctx.db
+                    .select()
+                    .from(schema.subscriptions)
+                    .where(
+                      and(
+                        eq(schema.subscriptions.userId, user.id),
+                        inArray(schema.subscriptions.id, subscriptionIds)
+                      )
+                    ),
+                {
+                  "db.table": "subscriptions",
+                  "db.operation": "select",
+                  "db.user_id": user.id,
+                  "db.subscription_count": subscriptionIds.length,
+                }
+              );
 
-            articles = articlesResult.map((article) => ({
+              const sourceIds = subscriptions.map((sub) => sub.sourceId);
+
+              if (sourceIds.length > 0) {
+                // Get articles from these sources
+                const articlesResult = await withQueryMetrics(
+                  "public_feed.getArticles",
+                  async () =>
+                    ctx.db
+                      .select()
+                      .from(schema.articles)
+                      .where(inArray(schema.articles.sourceId, sourceIds))
+                      .orderBy(desc(schema.articles.publishedAt))
+                      .limit(50),
+                  {
+                    "db.table": "articles",
+                    "db.operation": "select",
+                    "db.source_count": sourceIds.length,
+                    "db.has_category_filter": true,
+                  }
+                );
+
+                articles = articlesResult.map((article) => ({
+                  title: article.title,
+                  link: article.link,
+                  description: article.description,
+                  author: article.author,
+                  publishedAt: article.publishedAt,
+                  guid: article.guid,
+                }));
+              }
+            }
+          } else {
+            // No category filter - get all articles from user's subscriptions
+            const subscriptions = await withQueryMetrics(
+              "public_feed.getSubscriptions",
+              async () =>
+                ctx.db
+                  .select()
+                  .from(schema.subscriptions)
+                  .where(eq(schema.subscriptions.userId, user.id)),
+              {
+                "db.table": "subscriptions",
+                "db.operation": "select",
+                "db.user_id": user.id,
+              }
+            );
+
+            const sourceIds = subscriptions.map((sub) => sub.sourceId);
+
+            if (sourceIds.length > 0) {
+              const articlesResult = await withQueryMetrics(
+                "public_feed.getArticles",
+                async () =>
+                  ctx.db
+                    .select()
+                    .from(schema.articles)
+                    .where(inArray(schema.articles.sourceId, sourceIds))
+                    .orderBy(desc(schema.articles.publishedAt))
+                    .limit(50),
+                {
+                  "db.table": "articles",
+                  "db.operation": "select",
+                  "db.source_count": sourceIds.length,
+                  "db.has_category_filter": false,
+                }
+              );
+
+              articles = articlesResult.map((article) => ({
+                title: article.title,
+                link: article.link,
+                description: article.description,
+                author: article.author,
+                publishedAt: article.publishedAt,
+                guid: article.guid,
+              }));
+            }
+          }
+
+          // Step 6: Generate RSS 2.0 XML
+          const feedUrl = `${ctx.env.BASE_URL || "http://localhost:3000"}/public/${input.username}/${input.slug}`;
+
+          const xml = generateRSS({
+            title: feed.title,
+            link: feedUrl,
+            description: feed.description || feed.title,
+            items: articles.map((article) => ({
               title: article.title,
-              link: article.link,
+              link: article.link || feedUrl,
               description: article.description,
               author: article.author,
-              publishedAt: article.publishedAt,
+              pubDate: article.publishedAt,
               guid: article.guid,
-            }));
-          }
+            })),
+          });
+
+          // Emit success metric
+          emitCounter("public_feed.generated", 1, {
+            status: "success",
+            username: input.username,
+            slug: input.slug,
+            article_count: articles.length.toString(),
+            category_count: categoryIds.length.toString(),
+          });
+
+          return xml;
+        },
+        {
+          operation: "public_feed_generation",
+          username: input.username,
+          slug: input.slug,
         }
-      } else {
-        // No category filter - get all articles from user's subscriptions
-        const subscriptions = await ctx.db
-          .select()
-          .from(schema.subscriptions)
-          .where(eq(schema.subscriptions.userId, user.id));
-
-        const sourceIds = subscriptions.map((sub) => sub.sourceId);
-
-        if (sourceIds.length > 0) {
-          const articlesResult = await ctx.db
-            .select()
-            .from(schema.articles)
-            .where(inArray(schema.articles.sourceId, sourceIds))
-            .orderBy(desc(schema.articles.publishedAt))
-            .limit(50);
-
-          articles = articlesResult.map((article) => ({
-            title: article.title,
-            link: article.link,
-            description: article.description,
-            author: article.author,
-            publishedAt: article.publishedAt,
-            guid: article.guid,
-          }));
-        }
-      }
-
-      // Step 6: Generate RSS 2.0 XML
-      const feedUrl = `${ctx.env.BASE_URL || "http://localhost:3000"}/public/${input.username}/${input.slug}`;
-
-      const xml = generateRSS({
-        title: feed.title,
-        link: feedUrl,
-        description: feed.description || feed.title,
-        items: articles.map((article) => ({
-          title: article.title,
-          link: article.link || feedUrl,
-          description: article.description,
-          author: article.author,
-          pubDate: article.publishedAt,
-          guid: article.guid,
-        })),
-      });
-
-      return xml;
+      );
     }),
 });
