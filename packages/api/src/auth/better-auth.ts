@@ -96,6 +96,19 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     telemetry: {
       enabled: false,
     },
+    session: {
+      // Cookie cache reduces DB queries by storing session data in a signed cookie
+      // This replaces the React Query 15-minute staleTime optimization on the client
+      cookieCache: {
+        enabled: true,
+        maxAge: 15 * 60, // 15 minutes cache duration (in seconds)
+        strategy: "compact", // Most efficient: base64url + HMAC-SHA256
+      },
+      // Session expires after 7 days (Better Auth default)
+      expiresIn: 60 * 60 * 24 * 7, // 7 days
+      // Update session expiration every 24 hours when used
+      updateAge: 60 * 60 * 24, // 1 day
+    },
     advanced: {
       // Use integer IDs to match existing schema
       database: {
