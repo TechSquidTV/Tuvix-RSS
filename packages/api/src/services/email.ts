@@ -127,23 +127,22 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
           errorStatus: (error as { status?: number })?.status,
         });
 
-        // Log to Sentry if available
+        // Log to Sentry if available (using runtime-agnostic wrapper)
         if (env.SENTRY_DSN) {
-          try {
-            const Sentry = await import("@sentry/cloudflare").catch(
-              () => import("@sentry/node")
-            );
-            if (Sentry.logger) {
-              Sentry.logger.error(errorMessage, {
-                emailType: type,
+          await Sentry.captureException(
+            new Error(errorMessage),
+            {
+              tags: {
+                "email.type": type,
+                "email.status": "error",
+              },
+              extra: {
                 recipient: to,
                 errorCode: (error as { code?: string })?.code,
                 errorStatus: (error as { status?: number })?.status,
-              });
+              },
             }
-          } catch {
-            // Sentry not available, ignore
-          }
+          );
         }
 
         return {
@@ -171,40 +170,22 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
         error,
       });
 
-      // Log to Sentry if available
+      // Log to Sentry if available (using runtime-agnostic wrapper)
       if (env.SENTRY_DSN) {
-        try {
-          const Sentry = await import("@sentry/cloudflare").catch(
-            () => import("@sentry/node")
-          );
-          if (Sentry.logger) {
-            Sentry.logger.error(
-              `Error sending ${type} email: ${errorMessage}`,
-              {
-                emailType: type,
-                recipient: to,
-                errorStack,
-              }
-            );
+        await Sentry.captureException(
+          error instanceof Error ? error : new Error(errorMessage),
+          {
+            tags: {
+              "email.type": type,
+              "email.status": "exception",
+            },
+            extra: {
+              recipient: to,
+              errorMessage,
+              errorStack,
+            },
           }
-          // Also capture as exception (using wrapper)
-          await Sentry.captureException(
-            error instanceof Error ? error : new Error(errorMessage),
-            {
-              tags: {
-                "email.type": type,
-                "email.status": "exception",
-              },
-              extra: {
-                recipient: to,
-                errorMessage,
-                errorStack,
-              },
-            }
-          );
-        } catch {
-          // Sentry not available, ignore
-        }
+        );
       }
 
       return {
