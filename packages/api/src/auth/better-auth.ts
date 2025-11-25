@@ -24,6 +24,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import type { BetterAuthUser } from "@/types/better-auth";
+import * as Sentry from "@sentry/node";
 
 /**
  * Create Better Auth instance
@@ -166,20 +167,46 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       // Custom session plugin - includes banned status in session
       customSession(async ({ user, session }) => {
         // Fetch banned status from database
-        const result = await database
-          .select()
-          .from(schema.user)
-          .where(eq(schema.user.id, Number(user.id)))
-          .limit(1);
-        const dbUser = result[0];
+        // Note: This queries on every session check, but sessions are cached client-side
+        try {
+          const result = await database
+            .select()
+            .from(schema.user)
+            .where(eq(schema.user.id, Number(user.id)))
+            .limit(1);
 
-        return {
-          user: {
-            ...user,
-            banned: dbUser?.banned ?? false,
-          },
-          session,
-        };
+          const banned = result[0]?.banned ?? false;
+
+          return {
+            user: {
+              ...user,
+              banned,
+            },
+            session,
+          };
+        } catch (error) {
+          // Log error to Sentry but don't block session creation
+          Sentry.captureException(error, {
+            tags: {
+              component: "better-auth",
+              operation: "custom-session",
+            },
+            extra: {
+              userId: user.id,
+              userEmail: user.email,
+            },
+          });
+
+          // Fail open - return session without banned status
+          console.error("Failed to fetch user banned status:", error);
+          return {
+            user: {
+              ...user,
+              banned: false,
+            },
+            session,
+          };
+        }
       }),
     ],
     // Additional fields for custom user data
