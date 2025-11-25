@@ -17,7 +17,20 @@ import { trpc } from "@/lib/api/trpc";
 // Hook to get current user session
 // Better Auth session includes all necessary user data via customSession plugin
 export const useCurrentUser = () => {
-  return authClient.useSession();
+  return authClient.useSession({
+    // Increase stale time from default 5min to 15min
+    // Sessions rarely change, so longer cache is safe
+    staleTime: 15 * 60 * 1000, // 15 minutes
+
+    // Keep in cache for 30 minutes even if unused
+    gcTime: 30 * 60 * 1000,
+
+    // Don't refetch on component mount (already fetched in root)
+    refetchOnMount: false,
+
+    // Keep showing last session while refetching
+    placeholderData: (prev) => prev,
+  });
 };
 
 // Simple email detection - checks if input contains @ symbol
