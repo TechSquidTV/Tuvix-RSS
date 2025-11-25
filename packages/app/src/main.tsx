@@ -12,10 +12,12 @@ import "./index.css";
 import { routeTree } from "./routeTree.gen";
 
 import { registerPWA } from "./pwa-register";
+import type { RouterContext } from "./lib/types/router-context";
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
+  context: undefined! as RouterContext,
   defaultPreload: "intent",
   defaultStaleTime: 5000,
   scrollRestoration: true,

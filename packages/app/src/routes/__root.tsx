@@ -1,4 +1,8 @@
-import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +18,9 @@ import { AlertCircle, RefreshCw, Home } from "lucide-react";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { authClient } from "@/lib/auth-client";
+import type { RouterContext } from "@/lib/types/router-context";
+import * as Sentry from "@sentry/react";
 
 const RootLayout = () => {
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -89,7 +96,37 @@ function RootErrorComponent({ error }: { error: Error }) {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
+  beforeLoad: async () => {
+    // Fetch session once at root level
+    try {
+      const sessionResult = await authClient.getSession();
+
+      return {
+        auth: {
+          session: sessionResult?.data || null,
+        },
+      };
+    } catch (error) {
+      // Log session fetch errors to Sentry
+      Sentry.captureException(error, {
+        tags: {
+          component: "root-route",
+          operation: "session-fetch",
+        },
+        level: "warning",
+      });
+
+      // Fail open - allow navigation without session
+      // The individual route guards will handle redirects
+      console.warn("Failed to fetch session at root level:", error);
+      return {
+        auth: {
+          session: null,
+        },
+      };
+    }
+  },
   component: RootLayout,
   errorComponent: RootErrorComponent,
 });

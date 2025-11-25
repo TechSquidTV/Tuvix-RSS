@@ -20,98 +20,84 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/animate-ui/components/radix/sidebar";
-import { authClient } from "@/lib/auth-client";
 import type { AppRouter } from "@tuvix/api";
+import * as Sentry from "@sentry/react";
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async () => {
-    // Check Better Auth session
+  beforeLoad: async ({ context }) => {
+    // Get session from router context (already fetched in root)
+    const session = context.auth.session;
+    console.debug("App route beforeLoad - session from context:", session);
+
+    // Redirect if no session
+    if (!session?.user) {
+      console.debug("No user in session, redirecting to /");
+      throw redirect({ to: "/" });
+    }
+    console.debug("Session check passed, allowing navigation");
+
+    // Skip API validation if offline - session is cached
+    if (!navigator.onLine) {
+      return;
+    }
+
+    // Check email verification status when online
     try {
-      const session = await authClient.getSession();
-      console.debug("App route beforeLoad - session:", session);
-      // Better Auth's getSession() returns {data: {user, session}, error: null}
-      if (!session?.data?.user) {
-        console.debug("No user in session, redirecting to /");
-        throw redirect({ to: "/" });
-      }
-      console.debug("Session check passed, allowing navigation");
+      // Create a tRPC caller for server-side check
+      // Note: In beforeLoad, we need to use the tRPC client directly
+      const { createTRPCClient, httpBatchLink } = await import("@trpc/client");
+      const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
 
-      // Skip API validation if offline - session is cached
-      if (!navigator.onLine) {
-        return;
-      }
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: apiUrl,
+            // Include cookies for authentication
+            fetch: (url, options) => {
+              return fetch(url, {
+                ...options,
+                credentials: "include",
+              });
+            },
+          }),
+        ],
+      });
 
-      // Check email verification status when online
-      try {
-        // Create a tRPC caller for server-side check
-        // Note: In beforeLoad, we need to use the tRPC client directly
-        const { createTRPCClient, httpBatchLink } = await import(
-          "@trpc/client"
-        );
-        const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
+      const verificationStatus =
+        await client.auth.checkVerificationStatus.query();
 
-        const client = createTRPCClient<AppRouter>({
-          links: [
-            httpBatchLink({
-              url: apiUrl,
-              // Include cookies for authentication
-              fetch: (url, options) => {
-                return fetch(url, {
-                  ...options,
-                  credentials: "include",
-                });
-              },
-            }),
-          ],
-        });
-
-        const verificationStatus =
-          await client.auth.checkVerificationStatus.query();
-
-        // If verification is required but email is not verified, redirect to verification page
-        if (
-          verificationStatus.requiresVerification &&
-          !verificationStatus.emailVerified
-        ) {
-          // Check if user is admin (admins bypass verification)
-          const userRole = (session.data.user as { role?: string }).role;
-          if (userRole !== "admin") {
-            throw redirect({ to: "/verify-email" });
-          }
+      // If verification is required but email is not verified, redirect to verification page
+      if (
+        verificationStatus.requiresVerification &&
+        !verificationStatus.emailVerified
+      ) {
+        // Check if user is admin (admins bypass verification)
+        const userRole = (session.user as { role?: string }).role;
+        if (userRole !== "admin") {
+          throw redirect({ to: "/verify-email" });
         }
-      } catch (error) {
-        // If it's a redirect error, re-throw it
-        if (error && typeof error === "object" && "isRedirect" in error) {
-          throw error;
-        }
-        // For other errors (network, etc.), allow access (fail open for availability)
-        // The middleware will catch unverified users on API calls
-        console.warn("Failed to check email verification status:", error);
       }
-
-      // Verify session is still valid by calling the API when online
-      // Better Auth handles session validation automatically via cookies
-      // We just need to check if we have a valid session
-    } catch (error: unknown) {
-      // Re-throw redirect errors (from our own code above)
+    } catch (error) {
+      // Re-throw redirects, allow access on other errors
       if (error && typeof error === "object" && "isRedirect" in error) {
         throw error;
       }
 
-      // Allow navigation on network errors (offline or fetch failures)
-      // Better Auth session is cached, so network errors shouldn't prevent access
-      if (
-        !navigator.onLine ||
-        (error instanceof Error &&
-          (error.message.toLowerCase().includes("failed to fetch") ||
-            error.message.toLowerCase().includes("networkerror") ||
-            error.message.toLowerCase().includes("network")))
-      ) {
-        return;
-      }
+      // Log verification check failures to Sentry
+      Sentry.captureException(error, {
+        tags: {
+          component: "app-route",
+          operation: "email-verification-check",
+        },
+        extra: {
+          userId: session.user?.id,
+          userEmail: session.user?.email,
+          online: navigator.onLine,
+        },
+        level: "warning",
+      });
 
-      // For other errors (like auth errors), redirect to login
-      throw redirect({ to: "/" });
+      console.warn("Failed to check email verification status:", error);
     }
   },
   component: AppLayout,

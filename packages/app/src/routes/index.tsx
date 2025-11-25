@@ -1,39 +1,18 @@
-import {
-  createFileRoute,
-  redirect,
-  useNavigate,
-  isRedirect,
-} from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { TuvixLogo } from "@/components/app/tuvix-logo";
 import { LoginForm } from "@/components/app/login-form";
 import { useCurrentUser } from "@/lib/hooks/useAuth";
-import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
-  beforeLoad: async () => {
-    // Check for valid session cookie before rendering login page
-    // This allows cross-subdomain cookie detection (when COOKIE_DOMAIN is set)
-    try {
-      const session = await authClient.getSession();
-      // Better Auth's getSession() returns {data: {user, session}, error: null}
-      if (session?.data?.user) {
-        // User has a valid session cookie, redirect to app
-        throw redirect({
-          to: "/app/articles",
-          search: { category_id: undefined, subscription_id: undefined },
-        });
-      }
-      // No valid session, allow login page to render
-    } catch (error: unknown) {
-      // Re-throw redirect errors (from our own code above)
-      // Use TanStack Router's isRedirect() function to properly identify redirect errors
-      if (isRedirect(error)) {
-        throw error;
-      }
-      // For network errors or other issues, allow login page to render
-      // The useEffect fallback will handle redirect if session becomes available
+  beforeLoad: async ({ context }) => {
+    // Check if user is already logged in via context
+    if (context.auth.session?.user) {
+      throw redirect({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
     }
   },
   component: LoginPage,
