@@ -65,7 +65,9 @@ describe("Cron Scheduler", () => {
   describe("initCronJobs", () => {
     beforeEach(async () => {
       // Delete migration-seeded row first (migration creates id=1)
-      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+      await db
+        .delete(schema.globalSettings)
+        .where(eq(schema.globalSettings.id, 1));
 
       // Seed global settings
       await db.insert(schema.globalSettings).values({
@@ -293,7 +295,9 @@ describe("Cron Scheduler", () => {
   describe("minutesToCronExpression (private function)", () => {
     beforeEach(async () => {
       // Delete migration-seeded row first (migration creates id=1)
-      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+      await db
+        .delete(schema.globalSettings)
+        .where(eq(schema.globalSettings.id, 1));
 
       // Seed global settings for these tests
       await db.insert(schema.globalSettings).values({
