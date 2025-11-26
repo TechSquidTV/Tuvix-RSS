@@ -221,38 +221,62 @@ export const authRouter = router({
                 op: "db.transaction",
               },
               async (span) => {
-                // Create default user settings
-                const [existingSettings] = await ctx.db
-                  .select()
-                  .from(schema.userSettings)
-                  .where(eq(schema.userSettings.userId, userId!))
-                  .limit(1);
+                try {
+                  // Create default user settings
+                  const [existingSettings] = await ctx.db
+                    .select()
+                    .from(schema.userSettings)
+                    .where(eq(schema.userSettings.userId, userId!))
+                    .limit(1);
 
-                if (!existingSettings) {
-                  await ctx.db.insert(schema.userSettings).values({
-                    userId: userId!,
+                  if (!existingSettings) {
+                    await ctx.db.insert(schema.userSettings).values({
+                      userId: userId!,
+                    });
+                  }
+
+                  // Initialize usage stats
+                  const [existingStats] = await ctx.db
+                    .select()
+                    .from(schema.usageStats)
+                    .where(eq(schema.usageStats.userId, userId!))
+                    .limit(1);
+
+                  if (!existingStats) {
+                    await ctx.db.insert(schema.usageStats).values({
+                      userId: userId!,
+                      sourceCount: 0,
+                      publicFeedCount: 0,
+                      categoryCount: 0,
+                      articleCount: 0,
+                      lastUpdated: new Date(),
+                    });
+                  }
+
+                  span?.setAttribute("auth.user_data_initialized", true);
+                } catch (error) {
+                  // Capture error with full context for debugging
+                  span?.setAttribute("auth.user_data_error", true);
+                  await Sentry.captureException(error, {
+                    tags: {
+                      flow: "signup",
+                      step: "init_user_data",
+                    },
+                    contexts: {
+                      user: {
+                        userId: userId!,
+                        email: input.email,
+                      },
+                    },
+                  });
+
+                  // Re-throw as TRPCError so the signup fails clearly
+                  throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to initialize user data. Please try again.",
+                    cause: error,
                   });
                 }
-
-                // Initialize usage stats
-                const [existingStats] = await ctx.db
-                  .select()
-                  .from(schema.usageStats)
-                  .where(eq(schema.usageStats.userId, userId!))
-                  .limit(1);
-
-                if (!existingStats) {
-                  await ctx.db.insert(schema.usageStats).values({
-                    userId: userId!,
-                    sourceCount: 0,
-                    publicFeedCount: 0,
-                    categoryCount: 0,
-                    articleCount: 0,
-                    lastUpdated: new Date(),
-                  });
-                }
-
-                span?.setAttribute("auth.user_data_initialized", true);
               }
             );
 
