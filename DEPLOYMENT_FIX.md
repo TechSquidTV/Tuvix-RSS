@@ -9,17 +9,20 @@
 ## Changes Made
 
 ### 1. Enabled Better Auth Email Verification Endpoint
+
 - **File**: `packages/api/src/auth/better-auth.ts:131`
 - Changed `requireEmailVerification: false` to `true`
 - This enables the `/api/auth/verify-email` endpoint
 
 ### 2. Fixed Redirect URLs
+
 - **File**: `packages/api/src/auth/better-auth.ts:60-68`
 - Split URL configuration into two variables:
   - `apiUrl` (BETTER_AUTH_URL): Where Better Auth API is hosted
   - `frontendUrl` (BASE_URL): Where users are redirected after verification
 
 ### 3. Reduced Sentry Noise
+
 - **File**: `packages/api/src/trpc/init.ts:28-33`
 - Filter out expected "Email verification required" FORBIDDEN errors
 - **File**: `packages/app/src/routes/app/route.tsx:87-90`
@@ -75,11 +78,11 @@ npx wrangler deploy
 
 ## Environment Variables Summary
 
-| Variable | Development | Production | Purpose |
-|----------|------------|------------|---------|
-| `BASE_URL` | `http://localhost:5173` | `https://feed.tuvix.app` | Frontend URL for redirects after verification |
-| `BETTER_AUTH_URL` | `http://localhost:5173` | `https://api.tuvix.app` | API URL where Better Auth endpoints are hosted |
-| `COOKIE_DOMAIN` | Not set | `tuvix.app` | Root domain for cross-subdomain cookies |
+| Variable          | Development             | Production               | Purpose                                        |
+| ----------------- | ----------------------- | ------------------------ | ---------------------------------------------- |
+| `BASE_URL`        | `http://localhost:5173` | `https://feed.tuvix.app` | Frontend URL for redirects after verification  |
+| `BETTER_AUTH_URL` | `http://localhost:5173` | `https://api.tuvix.app`  | API URL where Better Auth endpoints are hosted |
+| `COOKIE_DOMAIN`   | Not set                 | `tuvix.app`              | Root domain for cross-subdomain cookies        |
 
 ## What Was Broken Before
 

@@ -122,8 +122,8 @@ describe("Cron Scheduler", () => {
     it("should schedule both cron jobs", async () => {
       await initCronJobs(env);
 
-      // Should be called twice: once for RSS fetch, once for prune
-      expect(mockCronSchedule).toHaveBeenCalledTimes(2);
+      // Should be called 3 times: RSS fetch, article prune, token cleanup
+      expect(mockCronSchedule).toHaveBeenCalledTimes(3);
     });
 
     it("should use fetchIntervalMinutes from global settings", async () => {

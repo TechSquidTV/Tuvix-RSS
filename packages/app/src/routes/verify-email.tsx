@@ -46,7 +46,7 @@ function VerifyEmailPage() {
     {
       enabled: isAdmin, // Only fetch if user is admin
       retry: false,
-    }
+    },
   );
 
   // Determine if admin bypass is allowed
