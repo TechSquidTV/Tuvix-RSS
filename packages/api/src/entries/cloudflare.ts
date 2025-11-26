@@ -177,6 +177,9 @@ export default Sentry.withSentry((env: Env) => {
 
   // If no DSN provided, Sentry will be disabled
   if (!config) {
+    console.warn(
+      "⚠️ Sentry not initialized: SENTRY_DSN not configured. Set SENTRY_DSN in wrangler.toml or Cloudflare secrets."
+    );
     return { dsn: undefined };
   }
 
@@ -184,6 +187,18 @@ export default Sentry.withSentry((env: Env) => {
   const versionId = env?.CF_VERSION_METADATA?.id;
   if (versionId && typeof versionId === "string") {
     config.release = versionId;
+  }
+
+  // Log Sentry initialization in development
+  const environment = (env.SENTRY_ENVIRONMENT ||
+    env.NODE_ENV ||
+    "development") as string;
+  if (environment === "development") {
+    console.log("✅ Sentry initialized for backend:", {
+      environment,
+      release: config.release,
+      hasDsn: !!config.dsn,
+    });
   }
 
   return config;

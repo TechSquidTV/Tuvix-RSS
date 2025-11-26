@@ -56,6 +56,9 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
     environment,
     release,
     enableLogs: true, // Enable Sentry logs for better debugging
+    
+    // Debug mode (verbose console logging - useful for development)
+    debug: environment === "development" || import.meta.env.DEV,
 
     // Performance monitoring
     integrations: [
@@ -136,12 +139,26 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
 
     // Filter out noise
     beforeSend(event) {
+      // Log in development to debug event sending
+      if (environment === "development" || import.meta.env.DEV) {
+        console.log("📤 Sentry event being sent:", {
+          type: event.type,
+          level: event.level,
+          message: event.message,
+          exception: event.exception?.values?.[0]?.value,
+          url: event.request?.url,
+        });
+      }
+
       // Only filter out actual API requests to health/debug endpoints, not page URLs
       // Check if this is an API request (not a page navigation)
       const requestUrl = event.request?.url;
       if (requestUrl) {
         // Filter out API health check requests
         if (requestUrl.includes("/health")) {
+          if (environment === "development" || import.meta.env.DEV) {
+            console.log("🚫 Filtered out health check event");
+          }
           return null;
         }
         // Only filter /debug-sentry if it's an API request (contains /api/ or /trpc/)
@@ -150,6 +167,9 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
           requestUrl.includes("/debug-sentry") &&
           (requestUrl.includes("/api/") || requestUrl.includes("/trpc/"))
         ) {
+          if (environment === "development" || import.meta.env.DEV) {
+            console.log("🚫 Filtered out debug-sentry API event");
+          }
           return null;
         }
       }
