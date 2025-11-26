@@ -25,6 +25,7 @@ export interface GlobalSettings {
   lockoutDurationMinutes: number;
   allowRegistration: boolean;
   requireEmailVerification: boolean;
+  adminBypassEmailVerification: boolean;
   passwordResetTokenExpiryHours: number;
   fetchIntervalMinutes: number;
   pruneDays: number;
@@ -58,6 +59,7 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings> {
       lockoutDurationMinutes: 30,
       allowRegistration: true,
       requireEmailVerification: false,
+      adminBypassEmailVerification: true,
       passwordResetTokenExpiryHours: 1,
       fetchIntervalMinutes: 60,
       pruneDays: 30,
@@ -99,6 +101,7 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings> {
     lockoutDurationMinutes: settings.lockoutDurationMinutes,
     allowRegistration: settings.allowRegistration,
     requireEmailVerification: settings.requireEmailVerification,
+    adminBypassEmailVerification: settings.adminBypassEmailVerification ?? true,
     passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
     fetchIntervalMinutes: settings.fetchIntervalMinutes,
     pruneDays: settings.pruneDays,

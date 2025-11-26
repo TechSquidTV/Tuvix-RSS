@@ -8,7 +8,7 @@
 import { createDatabase } from "@/db/client";
 import { fetchAllFeeds } from "@/services/rss-fetcher";
 import { getGlobalSettings } from "@/services/global-settings";
-import { inArray, lt, or, isNull, and } from "drizzle-orm";
+import { inArray, lt, or, isNull, and, sql } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
@@ -38,6 +38,66 @@ async function _handleRSSFetch(env: Env): Promise<void> {
     console.error("❌ RSS fetch failed:", error);
     throw error;
   }
+}
+
+/**
+ * Clean up expired verification tokens
+ *
+ * Called by:
+ * - Node.js: node-cron scheduler (scheduler.ts) - hourly
+ * - Workers: scheduled event (cloudflare.ts) - checked on each cron trigger
+ *
+ * Deletes verification tokens that expired more than 24 hours ago.
+ * Keeps recently expired tokens for debugging purposes.
+ *
+ * @returns Number of tokens deleted
+ */
+async function _handleTokenCleanup(env: Env): Promise<{
+  deletedCount: number;
+}> {
+  console.log("🧹 Starting token cleanup...");
+
+  return await withTiming(
+    "cron.token_cleanup_duration",
+    async () => {
+      const db = createDatabase(env);
+
+      try {
+        // Delete tokens expired more than 24 hours ago
+        // Keep recently expired tokens for debugging
+        const cutoffTimestamp = Date.now() - 24 * 60 * 60 * 1000;
+
+        const deletedTokens = await db
+          .delete(schema.verification)
+          .where(lt(schema.verification.expiresAt, new Date(cutoffTimestamp)))
+          .returning();
+
+        const deletedCount = deletedTokens.length;
+
+        console.log(
+          `🧹 Cleaned up ${deletedCount} expired verification tokens`
+        );
+
+        // Emit metrics
+        emitCounter("cron.tokens_cleaned", deletedCount);
+        emitCounter("cron.token_cleanup_completed", 1, {
+          status: "success",
+        });
+
+        return { deletedCount };
+      } catch (error) {
+        console.error("❌ Token cleanup failed:", error);
+
+        // Emit error metric
+        emitCounter("cron.token_cleanup_completed", 1, {
+          status: "error",
+        });
+
+        throw error;
+      }
+    },
+    { operation: "token_cleanup" }
+  );
 }
 
 /**
@@ -185,4 +245,31 @@ export async function handleArticlePrune(env: Env): Promise<{
     }
   }
   return _handleArticlePrune(env);
+}
+
+export async function handleTokenCleanup(env: Env): Promise<{
+  deletedCount: number;
+}> {
+  if (env.RUNTIME === "cloudflare" && env.SENTRY_DSN) {
+    try {
+      // Dynamic import for Cloudflare-only Sentry module
+      const Sentry = (await import("@sentry/cloudflare")) as {
+        withMonitor: <T>(
+          name: string,
+          handler: () => Promise<T>,
+          options: { schedule: { type: string; value: string } }
+        ) => Promise<T>;
+      };
+      return await Sentry.withMonitor(
+        "token-cleanup",
+        () => _handleTokenCleanup(env),
+        {
+          schedule: { type: "crontab", value: "0 * * * *" }, // Every hour
+        }
+      );
+    } catch {
+      // Sentry not available, use regular handler
+    }
+  }
+  return _handleTokenCleanup(env);
 }

@@ -188,6 +188,19 @@ function AdminSettings() {
               setFormData({ ...formData, requireEmailVerification: checked })
             }
           />
+
+          <SettingsToggle
+            id="adminBypassEmailVerification"
+            label="Admin Bypass Email Verification"
+            description="Allow admin users to access the app without verifying their email address"
+            checked={formData.adminBypassEmailVerification}
+            onCheckedChange={(checked) =>
+              setFormData({
+                ...formData,
+                adminBypassEmailVerification: checked,
+              })
+            }
+          />
         </CardContent>
       </Card>
 

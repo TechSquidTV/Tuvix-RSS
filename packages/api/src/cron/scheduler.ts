@@ -6,7 +6,11 @@
  */
 
 import cron from "node-cron";
-import { handleRSSFetch, handleArticlePrune } from "./handlers";
+import {
+  handleRSSFetch,
+  handleArticlePrune,
+  handleTokenCleanup,
+} from "./handlers";
 import { getGlobalSettings } from "@/services/global-settings";
 import { createDatabase } from "@/db/client";
 import type { Env } from "@/types";
@@ -73,11 +77,22 @@ export async function initCronJobs(env: Env): Promise<void> {
       }
     });
 
+    // Schedule token cleanup hourly
+    cron.schedule("0 * * * *", async () => {
+      try {
+        await handleTokenCleanup(env);
+      } catch (error) {
+        console.error("❌ Token cleanup cron job error:", error);
+        throw error;
+      }
+    });
+
     console.log("✅ Cron jobs initialized");
     console.log(
       `   - RSS fetch: every ${settings.fetchIntervalMinutes} minutes`
     );
     console.log("   - Article prune: daily at 2 AM");
+    console.log("   - Token cleanup: hourly");
   } catch (error) {
     console.error("❌ Failed to initialize cron jobs:", error);
     throw error;

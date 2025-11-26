@@ -493,6 +493,11 @@ export const globalSettings = sqliteTable("global_settings", {
   })
     .notNull()
     .default(false),
+  adminBypassEmailVerification: integer("admin_bypass_email_verification", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
 
   // Password reset
   passwordResetTokenExpiryHours: integer("password_reset_token_expiry_hours")

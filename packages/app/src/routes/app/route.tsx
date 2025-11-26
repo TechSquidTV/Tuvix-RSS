@@ -66,15 +66,38 @@ export const Route = createFileRoute("/app")({
       const verificationStatus =
         await client.auth.checkVerificationStatus.query();
 
-      // If verification is required but email is not verified, redirect to verification page
+      const userRole = (session.user as { role?: string }).role;
+      const isAdmin = userRole === "admin";
+
+      // Fetch global settings to check admin bypass configuration
+      // Only admins can fetch settings, non-admins will get null
+      let adminBypass = true; // Default to allowing admin bypass
+      if (isAdmin) {
+        try {
+          const globalSettings = await client.admin.getGlobalSettings.query();
+          adminBypass = globalSettings.adminBypassEmailVerification;
+        } catch (error) {
+          // If settings fetch fails, default to allowing bypass
+          console.warn("Failed to fetch admin bypass setting, defaulting to true");
+        }
+      }
+
+      // If verification is required but email is not verified
       if (
         verificationStatus.requiresVerification &&
         !verificationStatus.emailVerified
       ) {
-        // Check if user is admin (admins bypass verification)
-        const userRole = (session.user as { role?: string }).role;
-        if (userRole !== "admin") {
+        // Allow admin bypass only if enabled in settings
+        if (!isAdmin || !adminBypass) {
           throw redirect({ to: "/verify-email", search: { token: undefined } });
+        }
+
+        // Log admin bypass for audit trail
+        if (isAdmin && adminBypass) {
+          console.info("Admin bypassing email verification:", {
+            userId: session.user?.id,
+            email: session.user?.email,
+          });
         }
       }
     } catch (error) {
