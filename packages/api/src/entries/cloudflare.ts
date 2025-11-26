@@ -35,6 +35,32 @@ const createWorkerHandler = (env: Env) => {
 // Worker handler with fetch and scheduled methods
 const workerHandler = {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Validate required environment variables
+    // In Cloudflare Workers, we can't exit() so we log errors and return error responses
+    if (!env.BETTER_AUTH_SECRET) {
+      console.error(
+        "❌ FATAL: BETTER_AUTH_SECRET environment variable is required.\n" +
+          "   Set it in wrangler.toml or via Cloudflare dashboard"
+      );
+      return new Response(
+        JSON.stringify({
+          error: "Server misconfiguration: BETTER_AUTH_SECRET not set",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Warn about weak secrets in production
+    if (
+      env.SENTRY_ENVIRONMENT === "production" &&
+      env.BETTER_AUTH_SECRET.length < 32
+    ) {
+      console.warn("⚠️  WARNING: BETTER_AUTH_SECRET should be >=32 characters");
+    }
+
     const app = createWorkerHandler(env);
     return app.fetch(request, env);
   },
