@@ -76,9 +76,11 @@ export const Route = createFileRoute("/app")({
         try {
           const globalSettings = await client.admin.getGlobalSettings.query();
           adminBypass = globalSettings.adminBypassEmailVerification;
-        } catch (error) {
+        } catch {
           // If settings fetch fails, default to allowing bypass
-          console.warn("Failed to fetch admin bypass setting, defaulting to true");
+          console.warn(
+            "Failed to fetch admin bypass setting, defaulting to true",
+          );
         }
       }
 
