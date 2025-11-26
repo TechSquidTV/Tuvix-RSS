@@ -52,35 +52,7 @@ database_id = "${D1_DATABASE_ID}"
 # namespace_id: A positive integer you define, unique to your Cloudflare account
 # You choose these IDs yourself - they don't need to be created elsewhere
 
-# Plan-specific API rate limit bindings
-[[ratelimits]]
-name = "FREE_API_RATE_LIMIT"
-# User-defined identifier - choose any unique positive integer
-namespace_id = "1003"
-# Free plan: 60 requests per minute
-simple = { limit = 60, period = 60 }
 
-[[ratelimits]]
-name = "PRO_API_RATE_LIMIT"
-# User-defined identifier - choose any unique positive integer
-namespace_id = "1004"
-# Pro plan: 180 requests per minute
-simple = { limit = 180, period = 60 }
-
-[[ratelimits]]
-name = "ENTERPRISE_API_RATE_LIMIT"
-# User-defined identifier - choose any unique positive integer
-namespace_id = "1005"
-# Enterprise/admin plan: 600 requests per minute
-simple = { limit = 600, period = 60 }
-
-# Public Feed rate limiting (unchanged - still uses single binding)
-[[ratelimits]]
-name = "FEED_RATE_LIMIT"
-# User-defined identifier - choose any unique positive integer
-namespace_id = "1002"
-# High limit - actual limits enforced per user via getUserLimits()
-simple = { limit = 10000, period = 60 }
 
 # Environment variables
 [vars]
