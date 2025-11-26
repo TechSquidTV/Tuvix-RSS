@@ -104,9 +104,6 @@ CREATE TABLE `global_settings` (
 	FOREIGN KEY (`updated_by`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `global_settings` (`id`, `max_login_attempts`, `login_attempt_window_minutes`, `lockout_duration_minutes`, `allow_registration`, `require_email_verification`, `password_reset_token_expiry_hours`, `fetch_interval_minutes`, `prune_days`, `updated_at`) VALUES
-(1, 5, 15, 30, 1, 0, 24, 15, 30, cast(unixepoch('subsecond') * 1000 as integer));
---> statement-breakpoint
 CREATE TABLE `password_reset_tokens` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` integer NOT NULL,
@@ -316,3 +313,7 @@ CREATE TABLE `verification` (
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
+--> statement-breakpoint
+-- Seed default global settings (after all tables are created)
+INSERT INTO `global_settings` (`id`, `max_login_attempts`, `login_attempt_window_minutes`, `lockout_duration_minutes`, `allow_registration`, `require_email_verification`, `password_reset_token_expiry_hours`, `fetch_interval_minutes`, `prune_days`, `updated_at`) VALUES
+(1, 5, 15, 30, 1, 0, 1, 60, 30, cast(unixepoch('subsecond') * 1000 as integer));
