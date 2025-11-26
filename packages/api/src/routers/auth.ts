@@ -20,6 +20,7 @@ import { createAuth } from "@/auth/better-auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { hasAdminUser } from "@/services/admin-init";
 import { getGlobalSettings } from "@/services/global-settings";
+import { initializeNewUser } from "@/services/user-init";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { DEFAULT_USER_PLAN, ADMIN_PLAN } from "@/config/plans";
@@ -168,10 +169,10 @@ export const authRouter = router({
               });
             }
 
-            // STEP 2: Role Assignment
+            // STEP 2: Determine Role and Plan
             const roleData = await Sentry.startSpan(
               {
-                name: "auth.signup.assign_role",
+                name: "auth.signup.determine_role",
                 op: "db.query",
               },
               async (span) => {
@@ -187,20 +188,6 @@ export const authRouter = router({
                     role = "admin";
                     plan = ADMIN_PLAN;
                     isFirstUser = true;
-                    // Note: First user admin promotion is logged in security audit log
-
-                    await ctx.db
-                      .update(schema.user)
-                      .set({ role, plan })
-                      .where(eq(schema.user.id, userId!));
-                  }
-                } else {
-                  if (!dbUser.plan) {
-                    await ctx.db
-                      .update(schema.user)
-                      .set({ plan: DEFAULT_USER_PLAN })
-                      .where(eq(schema.user.id, userId!));
-                    plan = DEFAULT_USER_PLAN;
                   }
                 }
 
@@ -214,67 +201,60 @@ export const authRouter = router({
               }
             );
 
-            // STEP 3: Initialize User Data
+            // STEP 3: Atomic User Initialization (role + settings + usage stats)
+            // Uses D1 batch for atomic operations - all succeed or all fail
             await Sentry.startSpan(
               {
-                name: "auth.signup.init_user_data",
-                op: "db.transaction",
+                name: "auth.signup.init_user",
+                op: "db.batch",
               },
               async (span) => {
                 try {
-                  // Create default user settings
-                  const [existingSettings] = await ctx.db
-                    .select()
-                    .from(schema.userSettings)
-                    .where(eq(schema.userSettings.userId, userId!))
-                    .limit(1);
+                  await initializeNewUser(ctx.db, userId!, {
+                    role: roleData.role,
+                    plan: roleData.plan,
+                  });
 
-                  if (!existingSettings) {
-                    await ctx.db.insert(schema.userSettings).values({
-                      userId: userId!,
-                    });
-                  }
-
-                  // Initialize usage stats
-                  const [existingStats] = await ctx.db
-                    .select()
-                    .from(schema.usageStats)
-                    .where(eq(schema.usageStats.userId, userId!))
-                    .limit(1);
-
-                  if (!existingStats) {
-                    await ctx.db.insert(schema.usageStats).values({
-                      userId: userId!,
-                      sourceCount: 0,
-                      publicFeedCount: 0,
-                      categoryCount: 0,
-                      articleCount: 0,
-                      lastUpdated: new Date(),
-                    });
-                  }
-
-                  span?.setAttribute("auth.user_data_initialized", true);
-                } catch (error) {
+                  span?.setAttributes({
+                    "auth.user_initialized": true,
+                    "auth.role": roleData.role,
+                    "auth.plan": roleData.plan,
+                  });
+                } catch (initError) {
                   // Capture error with full context for debugging
-                  span?.setAttribute("auth.user_data_error", true);
-                  await Sentry.captureException(error, {
+                  span?.setAttributes({
+                    "auth.init_error": true,
+                    "auth.error_message": (initError as Error).message,
+                  });
+
+                  console.error(
+                    "User initialization failed, rolling back user creation:",
+                    initError
+                  );
+
+                  await Sentry.captureException(initError, {
                     tags: {
                       flow: "signup",
-                      step: "init_user_data",
+                      step: "init_rollback",
                     },
-                    contexts: {
-                      user: {
-                        userId: userId!,
-                        email: input.email,
-                      },
+                    extra: {
+                      userId: userId!,
+                      email: input.email,
+                      role: roleData.role,
+                      plan: roleData.plan,
                     },
                   });
 
-                  // Re-throw as TRPCError so the signup fails clearly
+                  // Rollback: Delete the incomplete user
+                  await ctx.db
+                    .delete(schema.user)
+                    .where(eq(schema.user.id, userId!));
+
                   throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
-                    message: "Failed to initialize user data. Please try again.",
-                    cause: error,
+                    message:
+                      "Failed to complete registration. Please try again.",
+                    cause: initError,
                   });
                 }
               }

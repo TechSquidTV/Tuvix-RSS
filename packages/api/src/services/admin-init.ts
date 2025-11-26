@@ -7,18 +7,13 @@
  * - Promote users to admin
  */
 
-import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
+import type { Database } from "@/db/client";
 import type { Env } from "@/types";
 import { ADMIN_PLAN } from "@/config/plans";
 import { createAuth } from "@/auth/better-auth";
-
-// Generic database type that works with both D1 and better-sqlite3
-type Database =
-  | DrizzleD1Database<typeof schema>
-  | BetterSQLite3Database<typeof schema>;
+import { initializeNewUser } from "@/services/user-init";
 
 /**
  * Initialize admin user from environment variables
@@ -102,47 +97,42 @@ export async function initializeAdmin(
     }
 
     const newAdmin = signUpResult.user;
+    const adminUserId = Number(newAdmin.id);
 
-    // Update user to admin role and set plan
-    // Username is already set from signUpEmail with proper normalization
-    // Don't update username here as it bypasses Better Auth's normalization
-    await db
-      .update(schema.user)
-      .set({
+    // Atomic initialization: role + settings + usage stats
+    // Uses D1 batch for atomic operations - all succeed or all fail
+    try {
+      await initializeNewUser(db, adminUserId, {
         role: "admin",
         plan: ADMIN_PLAN,
-        // Username is already set correctly by Better Auth's signUpEmail
-        // Updating it here would bypass normalization
-      })
-      .where(eq(schema.user.id, Number(newAdmin.id)));
+      });
 
-    // Create default settings
-    await db.insert(schema.userSettings).values({
-      userId: Number(newAdmin.id),
-    });
+      // Log the creation (separate - not part of atomic init)
+      await db.insert(schema.securityAuditLog).values({
+        userId: adminUserId,
+        action: "admin_created",
+        metadata: JSON.stringify({
+          method: "env_init",
+          username: adminUsername,
+        }),
+        success: true,
+      });
 
-    // Initialize usage stats
-    await db.insert(schema.usageStats).values({
-      userId: Number(newAdmin.id),
-      sourceCount: 0,
-      publicFeedCount: 0,
-      categoryCount: 0,
-      articleCount: 0,
-      lastUpdated: new Date(),
-    });
+      return {
+        created: true,
+        message: `Admin user '${adminUsername}' created successfully. CHANGE PASSWORD IMMEDIATELY!`,
+      };
+    } catch (initError) {
+      // Rollback: Delete the incomplete user
+      console.error(
+        "Admin initialization failed, rolling back user creation:",
+        initError
+      );
 
-    // Log the creation
-    await db.insert(schema.securityAuditLog).values({
-      userId: Number(newAdmin.id),
-      action: "admin_created",
-      metadata: JSON.stringify({ method: "env_init", username: adminUsername }),
-      success: true,
-    });
+      await db.delete(schema.user).where(eq(schema.user.id, adminUserId));
 
-    return {
-      created: true,
-      message: `Admin user '${adminUsername}' created successfully. CHANGE PASSWORD IMMEDIATELY!`,
-    };
+      throw initError;
+    }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
