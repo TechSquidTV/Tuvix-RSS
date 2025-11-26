@@ -1,5 +1,4 @@
-import { useCreateSubscription } from "@/lib/hooks/useData";
-import { useRefreshFeeds } from "@/lib/hooks/useArticles";
+import { useCreateSubscriptionWithRefetch } from "@/lib/hooks/useData";
 import { FeedAvatar } from "@/components/app/feed-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,9 +8,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Plus, Loader2 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface FeedSuggestion {
   url: string;
@@ -52,20 +49,8 @@ interface FeedSuggestionsProps {
 }
 
 export function FeedSuggestions({ className }: FeedSuggestionsProps) {
-  const createSubscription = useCreateSubscription();
-  const refreshFeeds = useRefreshFeeds();
-  const queryClient = useQueryClient();
+  const createSubscription = useCreateSubscriptionWithRefetch();
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
-  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const handleAddFeed = async (feed: FeedSuggestion) => {
     if (addingIds.has(feed.url)) return;
@@ -77,29 +62,13 @@ export function FeedSuggestions({ className }: FeedSuggestionsProps) {
         url: feed.url,
         customTitle: feed.title,
         iconUrl: feed.iconUrl,
-        iconType: feed.iconUrl ? "auto" : "none",
+        // Use "custom" when iconUrl is provided, "none" otherwise
+        iconType: feed.iconUrl ? "custom" : "none",
       });
-
-      refreshFeeds.mutate();
-
-      // Clear any existing timeout
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
-      }
-
-      // Delayed refetch of articles to show new articles smoothly
-      refetchTimeoutRef.current = setTimeout(() => {
-        queryClient.refetchQueries({
-          queryKey: [["trpc"], ["articles", "list"]],
-        });
-        toast.info("Checking for new articles...");
-        refetchTimeoutRef.current = null;
-      }, 5000); // 5 second delay
-
-      toast.success(`Added ${feed.title}`);
+      // Success toast is handled by useCreateSubscription hook
     } catch (error) {
+      // Error toast is handled by useCreateSubscription hook
       console.error("Failed to add feed:", error);
-      toast.error(`Failed to add ${feed.title}`);
     } finally {
       setAddingIds((prev) => {
         const next = new Set(prev);

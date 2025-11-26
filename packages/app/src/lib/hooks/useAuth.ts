@@ -70,8 +70,10 @@ const checkVerificationAndNavigate = async (
     console.warn("Defaulting to verification page due to status check failure");
   }
 
-  // Invalidate router to force beforeLoad to re-run with fresh session
-  // Await with { sync: true } to ensure invalidation completes before navigation
+  // Invalidate router to force root beforeLoad to re-run with fresh session cookie
+  // This is necessary because the root route's context was set before login
+  // The { sync: true } ensures invalidation completes before navigation
+  // Note: This triggers one getSession() call in root beforeLoad - this is intentional
   await router.invalidate({ sync: true });
 
   // Navigate based on verification status
@@ -191,39 +193,14 @@ export const useLogin = () => {
     },
     onSuccess: async () => {
       // Better Auth automatically updates session via HTTP-only cookies
+      // and nanostore is updated automatically - no need to manually verify
       toast.success("Welcome back!");
 
-      // Invalidate all queries to ensure fresh data (including session query)
+      // Invalidate all queries to ensure fresh data
       await queryClient.invalidateQueries();
 
-      // Better Auth sets session cookie synchronously, no polling needed
-      const session = await authClient.getSession();
-      console.log("Session after login:", session);
-
-      if (!session?.data?.user) {
-        console.error("Session not available after login", session);
-
-        // Clear any stale cookies
-        try {
-          await authClient.signOut();
-        } catch (error) {
-          // Ignore signout errors - session is already broken
-          console.warn("Failed to sign out broken session:", error);
-        }
-
-        // Show helpful error message with recovery instructions
-        toast.error("Session error. Please try logging in again.", {
-          description:
-            "If this persists, clear your browser cookies and try again.",
-          duration: 5000,
-        });
-
-        // Redirect to login page for clean retry
-        await router.navigate({ to: "/" });
-        return;
-      }
-
       // Check verification status and navigate accordingly
+      // Session cookie is already set by Better Auth
       await checkVerificationAndNavigate(router);
     },
     onError: (error: Error) => {
@@ -243,62 +220,16 @@ export const useRegister = () => {
   const signUp = useMutation({
     mutationFn: (input: { email: string; password: string; name: string }) =>
       authClient.signUp.email(input),
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Better Auth automatically updates session via HTTP-only cookies
+      // and nanostore is updated automatically - no need to manually verify
       toast.success("Account created!");
 
-      // Log signup response for debugging
-      console.log("Sign-up response:", data);
-
-      // Invalidate all queries to ensure fresh data (including session query)
+      // Invalidate all queries to ensure fresh data
       await queryClient.invalidateQueries();
 
-      // Better Auth sets session cookie synchronously, no polling needed
-      const session = await authClient.getSession();
-      console.log("Session after registration:", session);
-
-      if (!session?.data?.user) {
-        console.error("Session not available after registration", session);
-
-        // Capture to Sentry - this is a critical error
-        Sentry.captureException(
-          new Error("Session not available after registration"),
-          {
-            tags: {
-              component: "register-hook",
-              operation: "post_signup_session_check",
-              flow: "registration",
-            },
-            extra: {
-              sessionData: session,
-              signupResponse: data,
-              cookies: document.cookie,
-            },
-            level: "error",
-          },
-        );
-
-        // Clear any stale cookies
-        try {
-          await authClient.signOut();
-        } catch (error) {
-          // Ignore signout errors - session is already broken
-          console.warn("Failed to sign out broken session:", error);
-        }
-
-        // Show helpful error message with recovery instructions
-        toast.error("Session error. Please try registering again.", {
-          description:
-            "If this persists, clear your browser cookies and try again.",
-          duration: 5000,
-        });
-
-        // Redirect to register page for clean retry
-        await router.navigate({ to: "/register" });
-        return;
-      }
-
       // Check verification status and navigate accordingly
+      // Session cookie is already set by Better Auth
       await checkVerificationAndNavigate(router);
     },
     onError: (error: Error) => {

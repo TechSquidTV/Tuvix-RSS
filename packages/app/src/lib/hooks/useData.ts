@@ -1,6 +1,8 @@
 // tRPC Hooks for Categories, Subscriptions, Feeds
 import { toast } from "sonner";
 import { trpc } from "../api/trpc";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 // Categories
 export const useCategories = () => {
@@ -71,10 +73,76 @@ export const useCreateSubscription = () => {
       utils.categories.list.invalidate();
       toast.success("Subscription added");
     },
-    onError: () => {
-      toast.error("Failed to add subscription");
+    onError: (error) => {
+      // Handle duplicate subscription error specifically
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("Already subscribed") ||
+        errorMessage.includes("CONFLICT")
+      ) {
+        toast.error("Already subscribed to this feed");
+      } else {
+        toast.error("Failed to add subscription");
+      }
     },
   });
+};
+
+/**
+ * Hook for creating subscriptions with delayed article refetch.
+ * Reuses the standard subscription creation logic and adds a delayed refetch
+ * of articles after 5 seconds to allow server-side feed processing.
+ */
+export const useCreateSubscriptionWithRefetch = () => {
+  const createSubscription = useCreateSubscription();
+  const queryClient = useQueryClient();
+  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const createWithRefetch = async (input: {
+    url: string;
+    customTitle?: string;
+    iconUrl?: string;
+    iconType?: "auto" | "custom" | "none";
+    categoryIds?: number[];
+    newCategoryNames?: string[];
+  }) => {
+    // Clear any existing timeout
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+
+    try {
+      await createSubscription.mutateAsync(input);
+
+      // Delayed refetch of articles to show new articles smoothly
+      // Feed processing happens server-side and can take a few seconds
+      refetchTimeoutRef.current = setTimeout(() => {
+        queryClient.refetchQueries({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
+        toast.info("Checking for new articles...");
+        refetchTimeoutRef.current = null;
+      }, 5000); // 5 second delay
+    } catch (error) {
+      // Error already handled by useCreateSubscription hook
+      throw error;
+    }
+  };
+
+  return {
+    ...createSubscription,
+    mutateAsync: createWithRefetch,
+  };
 };
 
 export const useUpdateSubscription = () => {

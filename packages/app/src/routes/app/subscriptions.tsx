@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   useSubscriptions,
-  useCreateSubscription,
+  useCreateSubscriptionWithRefetch,
   useUpdateSubscription,
   useDeleteSubscription,
   useCategories,
@@ -44,7 +44,6 @@ import {
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,15 +67,12 @@ function SubscriptionsPage() {
   const navigate = Route.useNavigate();
   const { data: subscriptionsData, isLoading, isError } = useSubscriptions();
   const subscriptions = subscriptionsData?.items || [];
-  const createSubscription = useCreateSubscription();
+  const createSubscription = useCreateSubscriptionWithRefetch();
   const updateSubscription = useUpdateSubscription();
   const deleteSubscription = useDeleteSubscription();
   const feedDiscovery = useFeedDiscovery();
-  const refreshFeeds = useRefreshFeeds();
   const { data: existingCategories = [] } = useCategories();
-  const queryClient = useQueryClient();
   const utils = trpc.useUtils();
-  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -163,15 +159,6 @@ function SubscriptionsPage() {
     // Only depend on the actual values that should trigger discovery, not the mutation objects
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedUrl, looksLikeFeedUrl]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Handle subscribe URL parameter
   useEffect(() => {
@@ -300,24 +287,7 @@ function SubscriptionsPage() {
       setInitialFilters([]);
       feedDiscovery.reset();
 
-      // Trigger immediate feed refresh for new subscription
-      refreshFeeds.mutate();
-
-      // Clear any existing timeout
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
-      }
-
-      // Delayed refetch of articles to show new articles smoothly
-      // Feed processing happens server-side and can take a few seconds
-      refetchTimeoutRef.current = setTimeout(() => {
-        // Refetch articles query to get new articles from the subscription
-        queryClient.refetchQueries({
-          queryKey: [["trpc"], ["articles", "list"]],
-        });
-        toast.info("Checking for new articles...");
-        refetchTimeoutRef.current = null;
-      }, 5000); // 5 second delay
+      // Delayed refetch of articles is handled by useCreateSubscriptionWithRefetch hook
     } catch (error) {
       // Error already handled by mutation hooks
       console.error("Failed to create subscription:", error);
@@ -334,8 +304,6 @@ function SubscriptionsPage() {
     updateSubscription,
     feedPreview,
     feedDiscovery,
-    queryClient,
-    refreshFeeds,
   ]);
 
   const handleToggleCategory = useCallback((categoryId: number) => {
