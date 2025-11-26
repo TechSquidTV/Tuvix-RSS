@@ -58,14 +58,15 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
   };
 
   // Get base URL for Better Auth API endpoints
-  // In production: This should be the API URL (e.g., https://api.tuvix.app)
-  // In development: This can be the frontend URL since both run on localhost
-  const apiUrl = env.BETTER_AUTH_URL || "http://localhost:5173";
+  // Priority: BETTER_AUTH_URL > API_URL > localhost:3001
+  // In production: Set BETTER_AUTH_URL=https://api.tuvix.app
+  // In development: Defaults to localhost:3001 (API server)
+  const apiUrl = env.BETTER_AUTH_URL || env.API_URL || "http://localhost:3001";
 
   // Get frontend URL for redirects after email verification
-  // In production: This should be the frontend URL (e.g., https://feed.tuvix.app)
-  // In development: Same as API URL
-  const frontendUrl = env.BASE_URL || apiUrl;
+  // In production: Set BASE_URL=https://feed.tuvix.app
+  // In development: Defaults to localhost:5173 (frontend dev server)
+  const frontendUrl = env.BASE_URL || "http://localhost:5173";
 
   // Configure trusted origins from CORS_ORIGIN (comma-separated)
   const trustedOrigins = env.CORS_ORIGIN

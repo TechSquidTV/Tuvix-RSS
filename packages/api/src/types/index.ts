@@ -89,6 +89,7 @@ export interface Env {
   // Authentication
   BETTER_AUTH_SECRET?: string; // Better Auth secret
   BETTER_AUTH_URL?: string; // API URL where Better Auth is hosted (e.g., https://api.tuvix.app)
+  API_URL?: string; // API server URL (e.g., http://localhost:3001 or https://api.tuvix.app)
 
   // Admin Bootstrap
   ADMIN_USERNAME?: string;
