@@ -109,6 +109,7 @@ export async function getUserLimits(
 
 /**
  * Get current usage stats for a user
+ * Auto-creates missing usage stats if they don't exist (defensive programming)
  *
  * @param db Database connection
  * @param userId User ID
@@ -118,14 +119,40 @@ export async function getUserUsage(
   db: Database,
   userId: number
 ): Promise<UserUsage> {
-  const [usage] = await db
+  let [usage] = await db
     .select()
     .from(schema.usageStats)
     .where(eq(schema.usageStats.userId, userId))
     .limit(1);
 
+  // Auto-create missing usage stats (fixes users who signed up with incomplete initialization)
   if (!usage) {
-    throw new Error("Usage stats not found for user");
+    console.warn(
+      `[getUserUsage] Auto-creating missing usage stats for user ${userId}`
+    );
+
+    await db.insert(schema.usageStats).values({
+      userId,
+      sourceCount: 0,
+      publicFeedCount: 0,
+      categoryCount: 0,
+      articleCount: 0,
+      lastUpdated: new Date(),
+    });
+
+    // Fetch the newly created record
+    [usage] = await db
+      .select()
+      .from(schema.usageStats)
+      .where(eq(schema.usageStats.userId, userId))
+      .limit(1);
+
+    // If still no record, something is seriously wrong
+    if (!usage) {
+      throw new Error(
+        `Failed to create usage stats for user ${userId} - database insert failed`
+      );
+    }
   }
 
   return {

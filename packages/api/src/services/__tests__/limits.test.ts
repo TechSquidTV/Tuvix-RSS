@@ -119,9 +119,11 @@ describe("User Limits Service", () => {
       expect(usage.articleCount).toBe(0);
     });
 
-    it("should throw error for non-existent user", async () => {
+    it("should throw error for non-existent user (FK constraint)", async () => {
+      // getUserUsage tries to auto-create missing stats, but fails due to FK constraint
+      // because the user doesn't exist
       await expect(getUserUsage(db, 9999)).rejects.toThrow(
-        "Usage stats not found"
+        "FOREIGN KEY constraint failed"
       );
     });
   });
