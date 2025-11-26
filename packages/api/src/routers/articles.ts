@@ -115,6 +115,7 @@ function getCachedRegex(pattern: string, caseSensitive: boolean): RegExp | null 
     return regex;
   } catch {
     // Invalid regex - cache null to avoid repeated compilation attempts
+    regexCache.set(cacheKey, null as any);
     return null;
   }
 }
