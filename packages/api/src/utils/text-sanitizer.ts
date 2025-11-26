@@ -27,6 +27,9 @@ const HTML_TAG_REGEX = /<[^>]*>/g;
 const HTML_ENTITY_REGEX = /&([a-zA-Z]+|#\d+|#x[0-9A-Fa-f]+);/g;
 const WHITESPACE_REGEX = /\s+/g;
 
+// Maximum iterations for HTML tag removal to prevent infinite loops
+const MAX_STRIP_ITERATIONS = 10;
+
 /**
  * Strip all HTML tags from a string
  * Converts HTML entities to their text equivalents
@@ -34,14 +37,26 @@ const WHITESPACE_REGEX = /\s+/g;
  * Uses single-pass entity decoding with a lookup map for better performance
  * when processing large amounts of HTML content (e.g., RSS feed articles).
  *
+ * SECURITY: Repeatedly strips HTML tags to handle nested/malformed tags
+ * like "<scr<script>ipt>" which could bypass single-pass sanitization.
+ *
  * @param html - String potentially containing HTML
  * @returns Plain text with all HTML removed
  */
 export function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
 
-  // Remove HTML tags
-  let text = html.replace(HTML_TAG_REGEX, "");
+  // Remove HTML tags - repeat until no more tags found to handle nested tags
+  // This handles cases like "<scr<script>ipt>" where a single pass would leave "<script>"
+  let text = html;
+  let previousText = "";
+  let iterations = 0;
+
+  while (text !== previousText && iterations < MAX_STRIP_ITERATIONS) {
+    previousText = text;
+    text = text.replace(HTML_TAG_REGEX, "");
+    iterations++;
+  }
 
   // Decode HTML entities in a single pass using lookup map
   text = text.replace(HTML_ENTITY_REGEX, (match, entity: string) => {

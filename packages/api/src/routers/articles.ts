@@ -83,6 +83,13 @@ type ArticleWithSubscription = ReturnType<typeof transformArticleRow>;
 // Key: "pattern|caseSensitive" (e.g., "hello.*world|true")
 const regexCache = new Map<string, RegExp>();
 
+// Maximum number of regex patterns to cache
+// Set to a reasonable limit to prevent unbounded memory growth
+const MAX_REGEX_CACHE_SIZE = 1000;
+
+// Number of entries to evict when cache is full (10% of max size)
+const REGEX_CACHE_EVICTION_COUNT = 100;
+
 /**
  * Get or create a cached compiled RegExp
  * Avoids repeated regex compilation for the same pattern/flags combination
@@ -97,11 +104,11 @@ function getCachedRegex(pattern: string, caseSensitive: boolean): RegExp | null 
   try {
     const regex = new RegExp(pattern, caseSensitive ? "" : "i");
     // Limit cache size to prevent unbounded memory growth
-    if (regexCache.size >= 1000) {
-      // Clear oldest entries (simple LRU-like behavior)
-      const firstKey = regexCache.keys().next().value;
-      if (firstKey !== undefined) {
-        regexCache.delete(firstKey);
+    if (regexCache.size >= MAX_REGEX_CACHE_SIZE) {
+      // Evict multiple entries to avoid repeated eviction overhead
+      const keysToDelete = Array.from(regexCache.keys()).slice(0, REGEX_CACHE_EVICTION_COUNT);
+      for (const key of keysToDelete) {
+        regexCache.delete(key);
       }
     }
     regexCache.set(cacheKey, regex);

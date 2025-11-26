@@ -33,6 +33,15 @@ describe("Text Sanitizer", () => {
       expect(stripHtml("<a href='link'>Click here</a>")).toBe("Click here");
     });
 
+    it("should handle malformed HTML gracefully", () => {
+      // These test cases ensure malformed HTML is handled without errors
+      // Note: The output is plain text and should never be inserted as HTML
+      expect(stripHtml("<script>alert('xss')</script>")).toBe("alert('xss')");
+      expect(stripHtml("<>empty<>")).toBe("empty");
+      // Angle brackets with text between them are treated as tags and removed
+      expect(stripHtml("text < text > text")).toBe("text text");
+    });
+
     it("should decode common HTML entities", () => {
       expect(stripHtml("Hello&nbsp;World")).toBe("Hello World");
       expect(stripHtml("&amp;")).toBe("&");

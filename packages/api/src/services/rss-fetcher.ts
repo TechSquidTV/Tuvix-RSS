@@ -59,6 +59,12 @@ type AnyItem =
 const FETCH_CONCURRENCY_LIMIT = 5;
 
 /**
+ * Result type for concurrent processing operations
+ * Represents either a successful operation with a value, or a failed operation with an error
+ */
+type ProcessResult<R> = { success: true; value: R } | { success: false; error: Error };
+
+/**
  * Process items in parallel with a concurrency limit
  * This is more efficient than sequential processing while avoiding
  * overwhelming remote servers or exhausting local resources.
@@ -72,8 +78,8 @@ async function processWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
   processor: (item: T) => Promise<R>
-): Promise<Array<{ success: true; value: R } | { success: false; error: Error }>> {
-  const results: Array<{ success: true; value: R } | { success: false; error: Error }> = [];
+): Promise<ProcessResult<R>[]> {
+  const results: ProcessResult<R>[] = [];
   let index = 0;
 
   async function processNext(): Promise<void> {
