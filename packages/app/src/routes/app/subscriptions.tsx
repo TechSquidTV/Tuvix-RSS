@@ -112,6 +112,7 @@ function SubscriptionsPage() {
 
   const parseOPML = useParseOPML();
   const importOPML = useImportOPML();
+  const refreshFeeds = useRefreshFeeds();
 
   // Debounce the URL input
   const debouncedUrl = useDebounce(newSubUrl, 500);
