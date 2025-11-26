@@ -23,6 +23,9 @@ describe("Global Settings Service", () => {
 
   describe("getGlobalSettings", () => {
     it("should return global settings when they exist", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
         loginAttemptWindowMinutes: 15,
@@ -51,6 +54,9 @@ describe("Global Settings Service", () => {
 
     it("should return settings with timestamps when set", async () => {
       const now = new Date();
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
         loginAttemptWindowMinutes: 15,
@@ -86,6 +92,9 @@ describe("Global Settings Service", () => {
     });
 
     it("should validate fetchIntervalMinutes range", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       // Test below minimum
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
@@ -125,6 +134,9 @@ describe("Global Settings Service", () => {
     });
 
     it("should validate pruneDays range", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       // Test below minimum
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
@@ -170,6 +182,9 @@ describe("Global Settings Service", () => {
         email: "updater@example.com",
       });
 
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 10,
         loginAttemptWindowMinutes: 20,
@@ -200,6 +215,9 @@ describe("Global Settings Service", () => {
     });
 
     it("should handle edge case values correctly", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 1,
         loginAttemptWindowMinutes: 1,
@@ -218,6 +236,9 @@ describe("Global Settings Service", () => {
     });
 
     it("should handle maximum valid values", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 100,
         loginAttemptWindowMinutes: 1440,

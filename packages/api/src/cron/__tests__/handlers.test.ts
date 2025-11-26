@@ -123,6 +123,9 @@ describe("Cron Handlers", () => {
       // Clear any existing articles
       await db.delete(schema.articles);
 
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       // Seed global settings
       await db.insert(schema.globalSettings).values({
         id: 1,

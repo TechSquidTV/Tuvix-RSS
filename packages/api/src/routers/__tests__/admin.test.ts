@@ -489,6 +489,9 @@ describe("Admin Router", () => {
 
   describe("getGlobalSettings", () => {
     it("should return global settings", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       // Ensure settings exist
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
@@ -525,6 +528,9 @@ describe("Admin Router", () => {
 
   describe("updateGlobalSettings", () => {
     it("should update global settings", async () => {
+      // Delete migration-seeded row first (migration creates id=1)
+      await db.delete(schema.globalSettings).where(eq(schema.globalSettings.id, 1));
+
       await db.insert(schema.globalSettings).values({
         maxLoginAttempts: 5,
         loginAttemptWindowMinutes: 15,
