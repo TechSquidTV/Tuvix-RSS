@@ -81,7 +81,7 @@ type ArticleWithSubscription = ReturnType<typeof transformArticleRow>;
 
 // Cache for compiled regex patterns to avoid repeated compilation
 // Key: "pattern|caseSensitive" (e.g., "hello.*world|true")
-const regexCache = new Map<string, RegExp>();
+const regexCache = new Map<string, RegExp | null>();
 
 // Maximum number of regex patterns to cache
 // Set to a reasonable limit to prevent unbounded memory growth
