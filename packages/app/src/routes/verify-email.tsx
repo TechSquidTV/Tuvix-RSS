@@ -3,7 +3,7 @@ import {
   useNavigate,
   useSearch,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import * as Sentry from "@sentry/react";
 
@@ -20,6 +20,11 @@ import { useCurrentUser } from "@/lib/hooks/useAuth";
 import { trpc } from "@/lib/api/trpc";
 import { authClient } from "@/lib/auth-client";
 
+// Strong typing for Better Auth user object
+type User = NonNullable<
+  Awaited<ReturnType<typeof authClient.getSession>>
+>["user"];
+
 export const Route = createFileRoute("/verify-email")({
   component: VerifyEmailPage,
   validateSearch: (search: Record<string, unknown>) => {
@@ -31,12 +36,16 @@ export const Route = createFileRoute("/verify-email")({
 
 function VerifyEmailPage() {
   const navigate = useNavigate();
-  const { data: user, isPending: userPending } = useCurrentUser();
+  const { data: sessionData, isPending: userPending } = useCurrentUser();
   const search = useSearch({ from: "/verify-email" });
   const { data: verificationStatus, isLoading: statusLoading } =
     trpc.auth.checkVerificationStatus.useQuery(undefined, {
       retry: false,
     });
+  const isMountedRef = useRef(true);
+
+  // Extract user from session data with proper typing
+  const user = sessionData?.user as User | undefined;
 
   // Check if user is admin (admins may bypass verification)
   const isAdmin = user?.role === "admin";
@@ -54,10 +63,23 @@ function VerifyEmailPage() {
   const adminBypass = globalSettings?.adminBypassEmailVerification ?? true;
 
   const resendMutation = trpc.auth.resendVerificationEmail.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       toast.success(data.message || "Verification email sent!");
     },
-    onError: (error) => {
+    onError: (error: { message?: string }) => {
+      // Capture resend failures to Sentry - VITAL for monitoring email delivery issues
+      Sentry.captureException(error, {
+        tags: {
+          component: "verify-email-page",
+          operation: "resend_verification_email",
+          flow: "email_verification",
+        },
+        extra: {
+          userEmail: user?.email,
+          errorMessage: error.message,
+        },
+        level: "warning",
+      });
       toast.error(error.message || "Failed to send verification email");
     },
   });
@@ -77,15 +99,22 @@ function VerifyEmailPage() {
       (!verificationStatus.requiresVerification ||
         verificationStatus.emailVerified)
     ) {
-      navigate({ to: "/app/articles", search: { category_id: undefined } });
+      navigate({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
     }
   }, [statusLoading, verificationStatus, navigate]);
 
   // Handle email verification if token is provided
   useEffect(() => {
-    if (search.token) {
+    // Reset mounted ref when effect runs
+    isMountedRef.current = true;
+
+    const token = search.token;
+    if (token) {
       // Wrap email verification in Sentry span for tracking
-      const verifyEmailTransaction = Sentry.startSpan(
+      Sentry.startSpan(
         {
           op: "auth.verify_email",
           name: "Verify Email with Token",
@@ -96,7 +125,7 @@ function VerifyEmailPage() {
             // The token will be processed by Better Auth's verify-email endpoint
             await authClient.verifyEmail({
               query: {
-                token: search.token,
+                token,
               },
             });
 
@@ -104,18 +133,20 @@ function VerifyEmailPage() {
             span.setAttribute("verification.success", true);
             span.setStatus({ code: 1, message: "ok" });
 
-            toast.success("Email verified successfully!");
-            navigate({
-              to: "/app/articles",
-              search: { category_id: undefined },
-            });
+            // Only update UI if component is still mounted
+            if (isMountedRef.current) {
+              toast.success("Email verified successfully!");
+              navigate({
+                to: "/app/articles",
+                search: { category_id: undefined, subscription_id: undefined },
+              });
+            }
           } catch (error) {
             // Track failure
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
             span.setAttribute("verification.success", false);
-            span.setAttribute(
-              "verification.error",
-              error instanceof Error ? error.message : String(error),
-            );
+            span.setAttribute("verification.error", errorMessage);
             span.setStatus({ code: 2, message: "error" });
 
             // Capture exception to Sentry
@@ -131,24 +162,22 @@ function VerifyEmailPage() {
               level: "error",
             });
 
-            toast.error(
-              error?.message ||
-                "Failed to verify email. The link may have expired.",
-            );
+            // Only update UI if component is still mounted
+            if (isMountedRef.current) {
+              toast.error(
+                errorMessage ||
+                  "Failed to verify email. The link may have expired.",
+              );
+            }
           }
         },
       );
-
-      // Return the span (React doesn't wait for it, but Sentry will track it)
-      return () => {
-        // Cleanup if component unmounts during verification
-        verifyEmailTransaction?.then((result) => {
-          if (result) {
-            // Span completed successfully
-          }
-        });
-      };
     }
+
+    // Cleanup: mark component as unmounted (synchronous)
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [search.token, navigate]);
 
   // Show loading state
@@ -214,7 +243,15 @@ function VerifyEmailPage() {
                 <div className="pt-4 border-t">
                   <Button
                     variant="outline"
-                    onClick={() => navigate({ to: "/app/articles" })}
+                    onClick={() =>
+                      navigate({
+                        to: "/app/articles",
+                        search: {
+                          category_id: undefined,
+                          subscription_id: undefined,
+                        },
+                      })
+                    }
                     className="w-full"
                   >
                     Continue to App
