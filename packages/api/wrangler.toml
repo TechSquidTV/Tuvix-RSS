@@ -18,6 +18,13 @@ compatibility_date = "2024-11-10"
 # nodejs_compat enables Node.js built-in modules (crypto, util, etc.)
 compatibility_flags = ["nodejs_als", "nodejs_compat"]
 
+# CPU time limits (requires Workers Paid plan $5/month)
+# Password hashing (scrypt) requires ~3-4 seconds of CPU time
+# Free tier: 10ms (insufficient for password auth)
+# Paid tier: Up to 30 seconds (30000ms) available
+[limits]
+cpu_ms = 30000
+
 # Version metadata for Sentry release tracking
 [version_metadata]
 binding = "CF_VERSION_METADATA"
