@@ -294,8 +294,11 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
 
         // For Cloudflare Workers: Use waitUntil to ensure email sends without blocking
         // For Node.js: This property won't exist, fire-and-forget is acceptable
-        if (request && typeof (request as any).waitUntil === "function") {
-          (request as any).waitUntil(emailPromise);
+        const requestWithWaitUntil = request as {
+          waitUntil?: (promise: Promise<unknown>) => void;
+        };
+        if (requestWithWaitUntil && requestWithWaitUntil.waitUntil) {
+          requestWithWaitUntil.waitUntil(emailPromise);
         }
 
         // Return immediately to avoid blocking signup
@@ -383,14 +386,21 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                   appUrl,
                 }).catch((error) => {
                   // Log email failures
-                  console.error(`Failed to send welcome email to ${user.email}:`, {
-                    error: error instanceof Error ? error.message : String(error),
-                  });
+                  console.error(
+                    `Failed to send welcome email to ${user.email}:`,
+                    {
+                      error:
+                        error instanceof Error ? error.message : String(error),
+                    }
+                  );
                 });
 
                 // Use waitUntil if available (Cloudflare Workers)
-                if (ctx.headers && typeof (ctx as any).waitUntil === "function") {
-                  (ctx as any).waitUntil(welcomePromise);
+                const ctxWithWaitUntil = ctx as {
+                  waitUntil?: (promise: Promise<unknown>) => void;
+                };
+                if (ctx.headers && ctxWithWaitUntil.waitUntil) {
+                  ctxWithWaitUntil.waitUntil(welcomePromise);
                 }
               }
             } catch (error) {
