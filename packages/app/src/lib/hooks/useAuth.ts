@@ -8,6 +8,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { toast } from "sonner";
+import * as Sentry from "@sentry/react";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/lib/api/trpc";
 import type { AppRouter } from "@tuvix/api";
@@ -280,6 +281,20 @@ export const useRegister = () => {
       await checkVerificationAndNavigate(router);
     },
     onError: (error: Error) => {
+      // Capture registration errors to Sentry
+      Sentry.captureException(error, {
+        tags: {
+          component: "register-hook",
+          operation: "signup",
+          flow: "registration",
+        },
+        extra: {
+          errorMessage: error.message,
+          errorName: error.name,
+        },
+        level: "error",
+      });
+
       // Handle specific error cases
       if (
         error.message.includes("Registration is currently disabled") ||

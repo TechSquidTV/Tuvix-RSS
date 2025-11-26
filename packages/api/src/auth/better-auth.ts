@@ -137,42 +137,87 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       disableSignUp: false, // Checked dynamically in hooks
       requireEmailVerification: true, // Enables the verify-email endpoint
       sendResetPassword: async ({ user, url, token }) => {
-        const userWithPlugins = user as BetterAuthUser;
-        const emailResult = await sendPasswordResetEmail(env, {
-          to: user.email,
-          username:
-            (userWithPlugins.username as string | undefined) ||
-            user.name ||
-            "User",
-          resetToken: token,
-          resetUrl: url,
-        });
+        // Wrap password reset email in Sentry span
+        return await Sentry.startSpan(
+          {
+            op: "email.password_reset",
+            name: "Send Password Reset Email",
+            attributes: {
+              user_id: user.id,
+              user_email: user.email,
+            },
+          },
+          async (span) => {
+            const userWithPlugins = user as BetterAuthUser;
+            const emailResult = await sendPasswordResetEmail(env, {
+              to: user.email,
+              username:
+                (userWithPlugins.username as string | undefined) ||
+                user.name ||
+                "User",
+              resetToken: token,
+              resetUrl: url,
+            });
 
-        // Log email result to security audit log
-        try {
-          // Get IP and user agent from request (if available in context)
-          // Note: Better Auth doesn't pass full request context here
-          await logSecurityEvent(database, {
-            userId: Number(user.id),
-            action: "password_reset_email_sent",
-            ipAddress: undefined, // Not available in this callback
-            userAgent: undefined, // Not available in this callback
-            success: emailResult?.success ?? false,
-            metadata: emailResult?.success
-              ? undefined
-              : { error: emailResult?.error || "Unknown error" },
-          });
-        } catch (error) {
-          // If logging fails, continue silently
-          console.error("Error logging password reset email:", error);
-        }
+            // Track email result
+            span?.setAttribute("email.sent", true);
+            span?.setAttribute("email.success", emailResult?.success ?? false);
+            if (!emailResult.success) {
+              span?.setAttribute(
+                "email.error",
+                emailResult.error || "Unknown error"
+              );
+            }
 
-        if (!emailResult.success) {
-          console.error(
-            "Failed to send password reset email:",
-            emailResult.error
-          );
-        }
+            // Log email result to security audit log
+            try {
+              // Get IP and user agent from request (if available in context)
+              // Note: Better Auth doesn't pass full request context here
+              await logSecurityEvent(database, {
+                userId: Number(user.id),
+                action: "password_reset_email_sent",
+                ipAddress: undefined, // Not available in this callback
+                userAgent: undefined, // Not available in this callback
+                success: emailResult?.success ?? false,
+                metadata: emailResult?.success
+                  ? undefined
+                  : { error: emailResult?.error || "Unknown error" },
+              });
+            } catch (error) {
+              // If logging fails, continue silently
+              console.error("Error logging password reset email:", error);
+              await Sentry.captureException(error, {
+                tags: {
+                  component: "better-auth",
+                  operation: "password-reset-audit-log",
+                },
+                level: "warning",
+              });
+            }
+
+            if (!emailResult.success) {
+              console.error(
+                "Failed to send password reset email:",
+                emailResult.error
+              );
+              await Sentry.captureException(
+                new Error(emailResult.error || "Unknown error"),
+                {
+                  tags: {
+                    component: "better-auth",
+                    operation: "password-reset-email",
+                    email_type: "password_reset",
+                  },
+                  extra: {
+                    userEmail: user.email,
+                    userId: user.id,
+                  },
+                  level: "error",
+                }
+              );
+            }
+          }
+        );
       },
     },
     plugins: [
@@ -246,64 +291,96 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     // Email verification configuration
     emailVerification: {
       sendVerificationEmail: async ({ user, url, token }, request) => {
-        // Check if email verification is required
-        let requireVerification = false;
-        try {
-          const settings = await getCachedSettings();
-          requireVerification = settings.requireEmailVerification;
-        } catch (error) {
-          console.error("Failed to get global settings:", error);
-          return; // Skip if settings unavailable
-        }
-
-        if (!requireVerification) {
-          return; // Skip sending if not required
-        }
-
-        const userWithPlugins = user as BetterAuthUser;
-
-        // Create email sending promise
-        const emailPromise = sendVerificationEmail(env, {
-          to: user.email,
-          username:
-            (userWithPlugins.username as string | undefined) ||
-            user.name ||
-            "User",
-          verificationToken: token,
-          verificationUrl: url,
-        }).catch((error) => {
-          // Log critical email failures to Sentry
-          Sentry.captureException(error, {
-            tags: {
-              component: "better-auth",
-              operation: "email-verification",
-              email_type: "verification",
+        // Wrap entire email verification flow in Sentry span
+        return await Sentry.startSpan(
+          {
+            op: "email.verification",
+            name: "Send Verification Email",
+            attributes: {
+              user_id: user.id,
+              user_email: user.email,
             },
-            extra: {
-              userEmail: user.email,
-              userId: user.id,
-            },
-            level: "error",
-          });
+          },
+          async (span) => {
+            // Check if email verification is required
+            let requireVerification = false;
+            try {
+              const settings = await getCachedSettings();
+              requireVerification = settings.requireEmailVerification;
+            } catch (error) {
+              console.error("Failed to get global settings:", error);
+              span?.setAttribute("verification.skipped", true);
+              span?.setAttribute("skip_reason", "settings_unavailable");
+              return; // Skip if settings unavailable
+            }
 
-          console.error("Failed to send verification email:", {
-            userEmail: user.email,
-            userId: user.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
+            if (!requireVerification) {
+              span?.setAttribute("verification.skipped", true);
+              span?.setAttribute("skip_reason", "not_required");
+              return; // Skip sending if not required
+            }
 
-        // For Cloudflare Workers: Use waitUntil to ensure email sends without blocking
-        // For Node.js: This property won't exist, fire-and-forget is acceptable
-        const requestWithWaitUntil = request as {
-          waitUntil?: (promise: Promise<unknown>) => void;
-        };
-        if (requestWithWaitUntil && requestWithWaitUntil.waitUntil) {
-          requestWithWaitUntil.waitUntil(emailPromise);
-        }
+            const userWithPlugins = user as BetterAuthUser;
 
-        // Return immediately to avoid blocking signup
-        return;
+            // Create email sending promise with Sentry tracking
+            const emailPromise = sendVerificationEmail(env, {
+              to: user.email,
+              username:
+                (userWithPlugins.username as string | undefined) ||
+                user.name ||
+                "User",
+              verificationToken: token,
+              verificationUrl: url,
+            })
+              .then((result) => {
+                // Track success
+                span?.setAttribute("email.sent", true);
+                span?.setAttribute("email.success", result.success);
+                return result;
+              })
+              .catch((error) => {
+                // Track failure
+                span?.setAttribute("email.sent", true);
+                span?.setAttribute("email.success", false);
+                span?.setAttribute(
+                  "email.error",
+                  error instanceof Error ? error.message : String(error)
+                );
+
+                // Log critical email failures to Sentry
+                Sentry.captureException(error, {
+                  tags: {
+                    component: "better-auth",
+                    operation: "email-verification",
+                    email_type: "verification",
+                  },
+                  extra: {
+                    userEmail: user.email,
+                    userId: user.id,
+                  },
+                  level: "error",
+                });
+
+                console.error("Failed to send verification email:", {
+                  userEmail: user.email,
+                  userId: user.id,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              });
+
+            // For Cloudflare Workers: Use waitUntil to ensure email sends without blocking
+            // For Node.js: This property won't exist, fire-and-forget is acceptable
+            const requestWithWaitUntil = request as {
+              waitUntil?: (promise: Promise<unknown>) => void;
+            };
+            if (requestWithWaitUntil && requestWithWaitUntil.waitUntil) {
+              requestWithWaitUntil.waitUntil(emailPromise);
+            }
+
+            // Return immediately to avoid blocking signup
+            return;
+          }
+        );
       },
       sendOnSignUp: true, // Callback checks requireEmailVerification setting dynamically
       autoSignInAfterVerification: true,
@@ -369,43 +446,104 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             // 3. If verification IS required and user is NOT verified: Skip welcome email
             //    (User receives verification email instead; welcome email sent after verification)
             try {
-              const settings = await getCachedSettings();
-              const shouldSendWelcome =
-                !settings.requireEmailVerification || user.emailVerified;
+              // Wrap welcome email flow in Sentry span
+              await Sentry.startSpan(
+                {
+                  op: "email.welcome",
+                  name: "Send Welcome Email",
+                  attributes: {
+                    user_id: user.id,
+                    user_email: user.email,
+                  },
+                },
+                async (span) => {
+                  const settings = await getCachedSettings();
+                  const shouldSendWelcome =
+                    !settings.requireEmailVerification || user.emailVerified;
 
-              if (shouldSendWelcome) {
-                const appUrl = frontendUrl;
-                const userWithPlugins = user as BetterAuthUser;
-
-                // Create welcome email promise
-                const welcomePromise = sendWelcomeEmail(env, {
-                  to: user.email,
-                  username:
-                    (userWithPlugins.username as string | undefined) ||
-                    user.name ||
-                    "User",
-                  appUrl,
-                }).catch((error) => {
-                  // Log email failures
-                  console.error(
-                    `Failed to send welcome email to ${user.email}:`,
-                    {
-                      error:
-                        error instanceof Error ? error.message : String(error),
-                    }
+                  span?.setAttribute("should_send", shouldSendWelcome);
+                  span?.setAttribute(
+                    "verification_required",
+                    settings.requireEmailVerification
                   );
-                });
+                  span?.setAttribute("email_verified", !!user.emailVerified);
 
-                // Use waitUntil if available (Cloudflare Workers)
-                const ctxWithWaitUntil = ctx as {
-                  waitUntil?: (promise: Promise<unknown>) => void;
-                };
-                if (ctx.headers && ctxWithWaitUntil.waitUntil) {
-                  ctxWithWaitUntil.waitUntil(welcomePromise);
+                  if (shouldSendWelcome) {
+                    const appUrl = frontendUrl;
+                    const userWithPlugins = user as BetterAuthUser;
+
+                    // Create welcome email promise with Sentry tracking
+                    const welcomePromise = sendWelcomeEmail(env, {
+                      to: user.email,
+                      username:
+                        (userWithPlugins.username as string | undefined) ||
+                        user.name ||
+                        "User",
+                      appUrl,
+                    })
+                      .then((result) => {
+                        span?.setAttribute("email.sent", true);
+                        span?.setAttribute("email.success", result.success);
+                        return result;
+                      })
+                      .catch((error) => {
+                        span?.setAttribute("email.sent", true);
+                        span?.setAttribute("email.success", false);
+                        span?.setAttribute(
+                          "email.error",
+                          error instanceof Error ? error.message : String(error)
+                        );
+
+                        // Log email failures to Sentry
+                        Sentry.captureException(error, {
+                          tags: {
+                            component: "better-auth",
+                            operation: "welcome-email",
+                            email_type: "welcome",
+                          },
+                          extra: {
+                            userEmail: user.email,
+                            userId: user.id,
+                          },
+                          level: "error",
+                        });
+
+                        console.error(
+                          `Failed to send welcome email to ${user.email}:`,
+                          {
+                            error:
+                              error instanceof Error
+                                ? error.message
+                                : String(error),
+                          }
+                        );
+                      });
+
+                    // Use waitUntil if available (Cloudflare Workers)
+                    const ctxWithWaitUntil = ctx as {
+                      waitUntil?: (promise: Promise<unknown>) => void;
+                    };
+                    if (ctx.headers && ctxWithWaitUntil.waitUntil) {
+                      ctxWithWaitUntil.waitUntil(welcomePromise);
+                    }
+                  } else {
+                    span?.setAttribute("email.skipped", true);
+                    span?.setAttribute(
+                      "skip_reason",
+                      "verification_required_and_not_verified"
+                    );
+                  }
                 }
-              }
+              );
             } catch (error) {
-              console.error(`Error sending welcome email:`, error);
+              console.error(`Error in welcome email flow:`, error);
+              await Sentry.captureException(error, {
+                tags: {
+                  component: "better-auth",
+                  operation: "welcome-email-flow",
+                },
+                level: "error",
+              });
             }
           }
         }

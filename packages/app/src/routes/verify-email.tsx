@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import * as Sentry from "@sentry/react";
 
 import { TuvixLogo } from "@/components/app/tuvix-logo";
 import { Button } from "@/components/ui/button";
@@ -83,24 +84,70 @@ function VerifyEmailPage() {
   // Handle email verification if token is provided
   useEffect(() => {
     if (search.token) {
-      // Better Auth handles verification via the URL
-      // The token will be processed by Better Auth's verify-email endpoint
-      authClient
-        .verifyEmail({
-          query: {
-            token: search.token,
-          },
-        })
-        .then(() => {
-          toast.success("Email verified successfully!");
-          navigate({ to: "/app/articles", search: { category_id: undefined } });
-        })
-        .catch((error) => {
-          toast.error(
-            error?.message ||
-              "Failed to verify email. The link may have expired.",
-          );
+      // Wrap email verification in Sentry span for tracking
+      const verifyEmailTransaction = Sentry.startSpan(
+        {
+          op: "auth.verify_email",
+          name: "Verify Email with Token",
+        },
+        async (span) => {
+          try {
+            // Better Auth handles verification via the URL
+            // The token will be processed by Better Auth's verify-email endpoint
+            await authClient.verifyEmail({
+              query: {
+                token: search.token,
+              },
+            });
+
+            // Track success
+            span.setAttribute("verification.success", true);
+            span.setStatus({ code: 1, message: "ok" });
+
+            toast.success("Email verified successfully!");
+            navigate({
+              to: "/app/articles",
+              search: { category_id: undefined },
+            });
+          } catch (error) {
+            // Track failure
+            span.setAttribute("verification.success", false);
+            span.setAttribute(
+              "verification.error",
+              error instanceof Error ? error.message : String(error),
+            );
+            span.setStatus({ code: 2, message: "error" });
+
+            // Capture exception to Sentry
+            Sentry.captureException(error, {
+              tags: {
+                component: "verify-email-page",
+                operation: "email_verification",
+                flow: "signup",
+              },
+              extra: {
+                hasToken: !!search.token,
+              },
+              level: "error",
+            });
+
+            toast.error(
+              error?.message ||
+                "Failed to verify email. The link may have expired.",
+            );
+          }
+        },
+      );
+
+      // Return the span (React doesn't wait for it, but Sentry will track it)
+      return () => {
+        // Cleanup if component unmounts during verification
+        verifyEmailTransaction?.then((result) => {
+          if (result) {
+            // Span completed successfully
+          }
         });
+      };
     }
   }, [search.token, navigate]);
 

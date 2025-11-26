@@ -63,6 +63,28 @@ export function createHonoApp(config: HonoAppConfig) {
     );
   });
 
+  // Better Auth transaction naming middleware
+  // Sets custom Sentry transaction names for Better Auth endpoints
+  app.use("/api/auth/*", async (c, next) => {
+    const path = c.req.path;
+    const endpoint = path.replace("/api/auth/", "").split("/")[0];
+
+    // Set Sentry transaction name for Better Auth endpoints
+    try {
+      const Sentry = c.get("sentry");
+      // Use getCurrentScope() to set transaction name
+      if (Sentry && typeof Sentry.getCurrentScope === "function") {
+        const scope = Sentry.getCurrentScope();
+        scope.setTransactionName(`auth.${endpoint}`);
+      }
+    } catch (error) {
+      // Ignore errors setting transaction name
+      console.warn("Failed to set Sentry transaction name:", error);
+    }
+
+    await next();
+  });
+
   // BetterAuth session middleware (Node.js only)
   // In Cloudflare Workers, BetterAuth handles sessions directly via auth routes
   if (config.runtime === "nodejs") {
