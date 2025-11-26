@@ -141,15 +141,15 @@ describe("RegisterForm", () => {
 
     await user.type(usernameInput, "testuser");
     await user.type(emailInput, "test@example.com");
-    await user.type(passwordInput, "password123"); // Better Auth only requires 8+ chars
-    await user.type(confirmPasswordInput, "password123");
+    await user.type(passwordInput, "TestP@ssw0rd!"); // Meets all complexity requirements
+    await user.type(confirmPasswordInput, "TestP@ssw0rd!");
     await user.click(submitButton);
 
     await waitFor(() => {
       expect(mockMutate).toHaveBeenCalledWith({
         name: "testuser", // Better Auth uses 'name' field
         email: "test@example.com",
-        password: "password123", // Better Auth only requires 8+ chars
+        password: "TestP@ssw0rd!",
       });
     });
   });
