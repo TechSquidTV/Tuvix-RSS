@@ -51,7 +51,11 @@ export function AudioPlayer({
   useAudioProgressSync(articleId);
 
   // Restore progress on play
-  const { play } = useAudioProgressRestore(articleId, audioUrl, audioProgress ?? null);
+  const { play } = useAudioProgressRestore(
+    articleId,
+    audioUrl,
+    audioProgress ?? null,
+  );
 
   const handlePlayPause = () => {
     if (isCurrentlyPlaying) {
@@ -115,4 +119,3 @@ export function AudioPlayer({
     </div>
   );
 }
-
