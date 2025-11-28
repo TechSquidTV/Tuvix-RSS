@@ -14,6 +14,7 @@ import {
   EyeIcon,
   EyeOffIcon as LucideEyeOffIcon,
   ClockIcon,
+  ImageIcon,
 } from "lucide-react";
 import { EyeOffIcon } from "@/components/ui/eye-off";
 import { BookmarkIcon } from "@/components/ui/bookmark";
@@ -25,12 +26,16 @@ import {
   useSaveArticle,
   useUnsaveArticle,
 } from "@/lib/hooks/useArticles";
-import { useState, type MouseEvent } from "react";
+import { useState, useCallback, type MouseEvent } from "react";
 import type { RouterOutputs } from "@/lib/api/trpc";
 import { SwipeableItem } from "@/components/ui/swipeable-item";
 import { FeedAvatar } from "@/components/app/feed-avatar";
 import { ShareDropdown } from "@/components/app/share-dropdown";
 import { AudioPlayer } from "@/components/app/audio-player";
+import { getRelativeTime } from "@/lib/utils/date";
+
+// Constants
+const SWIPE_RESET_DELAY = 300;
 
 // Get the actual article type from tRPC router output
 type Article = RouterOutputs["articles"]["list"]["items"][number];
@@ -50,99 +55,103 @@ export function ArticleItemAudio({
   const saveArticle = useSaveArticle();
   const unsaveArticle = useUnsaveArticle();
 
-  // Local state for optimistic updates - initialize from article state
-  const [isSaved, setIsSaved] = useState(article.saved || false);
-  const [isRead, setIsRead] = useState(article.read || false);
   const [isDragging, setIsDragging] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
-  const handleRead = (e: MouseEvent) => {
-    e.stopPropagation();
-    if (article.id) {
-      if (isRead) {
-        setIsRead(false);
-        markUnread.mutate({ id: article.id });
-      } else {
-        setIsRead(true);
-        markRead.mutate({ id: article.id });
+  // Use article state directly - mutations handle optimistic updates
+  const isSaved = article.saved || false;
+  const isRead = article.read || false;
+
+  // Format published date for display
+  const publishedAtString =
+    typeof article.publishedAt === "string"
+      ? article.publishedAt
+      : article.publishedAt instanceof Date
+        ? article.publishedAt.toISOString()
+        : undefined;
+  const formattedTime = getRelativeTime(publishedAtString);
+
+  const handleRead = useCallback(
+    (e: MouseEvent) => {
+      e.stopPropagation();
+      if (article.id) {
+        if (isRead) {
+          markUnread.mutate({ id: article.id });
+        } else {
+          markRead.mutate({ id: article.id });
+        }
       }
-    }
-  };
+    },
+    [article.id, isRead, markRead, markUnread],
+  );
 
-  const handleSave = (e: MouseEvent) => {
-    e.stopPropagation();
-    if (article.id) {
-      if (isSaved) {
-        setIsSaved(false);
-        unsaveArticle.mutate({ id: article.id });
-      } else {
-        setIsSaved(true);
-        saveArticle.mutate({ id: article.id });
+  const handleSave = useCallback(
+    (e: MouseEvent) => {
+      e.stopPropagation();
+      if (article.id) {
+        if (isSaved) {
+          unsaveArticle.mutate({ id: article.id });
+        } else {
+          saveArticle.mutate({ id: article.id });
+        }
       }
-    }
-  };
+    },
+    [article.id, isSaved, saveArticle, unsaveArticle],
+  );
 
-  const handleOpenLink = () => {
+  const handleOpenLink = useCallback(() => {
     if (article.link) {
       window.open(article.link, "_blank", "noopener,noreferrer");
     }
-  };
+  }, [article.link]);
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     // Only open link on mobile and if not dragging
     if (isMobile && !isDragging && article.link) {
       window.open(article.link, "_blank", "noopener,noreferrer");
     }
-  };
+  }, [isMobile, isDragging, article.link]);
 
-  // Format relative time
-  const getRelativeTime = (dateString?: string) => {
-    if (!dateString) return "Unknown";
+  const handleSwipe = useCallback(
+    (action: "read" | "save") => {
+      setIsDragging(true);
+      if (!article.id) return;
 
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+      if (action === "read") {
+        if (isRead) {
+          markUnread.mutate({ id: article.id });
+        } else {
+          markRead.mutate({ id: article.id });
+        }
+      } else {
+        if (isSaved) {
+          unsaveArticle.mutate({ id: article.id });
+        } else {
+          saveArticle.mutate({ id: article.id });
+        }
+      }
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60)
-      return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
-    if (diffHours < 24)
-      return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-    return date.toLocaleDateString();
-  };
+      setTimeout(() => setIsDragging(false), SWIPE_RESET_DELAY);
+    },
+    [
+      article.id,
+      isRead,
+      isSaved,
+      markRead,
+      markUnread,
+      saveArticle,
+      unsaveArticle,
+    ],
+  );
+
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+  }, []);
 
   return (
     <SwipeableItem
-      onSwipeRight={() => {
-        setIsDragging(true);
-        if (article.id) {
-          if (isRead) {
-            setIsRead(false);
-            markUnread.mutate({ id: article.id });
-          } else {
-            setIsRead(true);
-            markRead.mutate({ id: article.id });
-          }
-        }
-        // Reset dragging flag after a short delay
-        setTimeout(() => setIsDragging(false), 300);
-      }}
-      onSwipeLeft={() => {
-        setIsDragging(true);
-        if (article.id) {
-          setIsSaved(!isSaved);
-          if (isSaved) {
-            unsaveArticle.mutate({ id: article.id });
-          } else {
-            saveArticle.mutate({ id: article.id });
-          }
-        }
-        // Reset dragging flag after a short delay
-        setTimeout(() => setIsDragging(false), 300);
-      }}
+      onSwipeRight={() => handleSwipe("read")}
+      onSwipeLeft={() => handleSwipe("save")}
       rightIcon={
         isRead ? (
           <LucideEyeOffIcon className="size-6" />
@@ -183,32 +192,22 @@ export function ArticleItemAudio({
               </span>
             </div>
             <span className="hidden sm:inline text-muted-foreground">•</span>
-            <div className="hidden sm:flex items-center gap-1">
-              <ClockIcon className="w-3.5 h-3.5" />
-              <span>
-                {getRelativeTime(
-                  typeof article.publishedAt === "string"
-                    ? article.publishedAt
-                    : article.publishedAt instanceof Date
-                      ? article.publishedAt.toISOString()
-                      : undefined,
-                )}
-              </span>
-            </div>
+            <time
+              className="hidden sm:flex items-center gap-1"
+              dateTime={publishedAtString}
+            >
+              <ClockIcon className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{formattedTime}</span>
+            </time>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex sm:hidden items-center gap-1">
-              <ClockIcon className="w-3.5 h-3.5" />
-              <span>
-                {getRelativeTime(
-                  typeof article.publishedAt === "string"
-                    ? article.publishedAt
-                    : article.publishedAt instanceof Date
-                      ? article.publishedAt.toISOString()
-                      : undefined,
-                )}
-              </span>
-            </div>
+            <time
+              className="flex sm:hidden items-center gap-1"
+              dateTime={publishedAtString}
+            >
+              <ClockIcon className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{formattedTime}</span>
+            </time>
             {article.author && (
               <Badge variant="secondary" className="hidden sm:flex text-xs">
                 {article.author}
@@ -228,12 +227,17 @@ export function ArticleItemAudio({
 
               {/* Audio Player - prominent placement */}
               {article.audioUrl && article.id && (
-                <div className="py-2" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="py-2"
+                  onClick={(e) => e.stopPropagation()}
+                  role="region"
+                  aria-label={`Audio player for ${article.title || "episode"}`}
+                >
                   <AudioPlayer
                     audioUrl={article.audioUrl}
                     articleId={article.id}
                     title={article.title || undefined}
-                    audioProgress={article.audioProgress}
+                    audioProgress={article.audioProgress ?? null}
                   />
                 </div>
               )}
@@ -247,23 +251,30 @@ export function ArticleItemAudio({
             </div>
 
             {/* Podcast artwork - fallback to source icon if no article image */}
-            {(article.imageUrl || article.source?.iconUrl) && (
-              <div className="shrink-0">
+            <div className="shrink-0" aria-label="Podcast artwork">
+              {!imageError && (article.imageUrl || article.source?.iconUrl) ? (
                 <img
                   src={article.imageUrl || article.source?.iconUrl || ""}
-                  alt={article.title || "Podcast artwork"}
+                  alt={`Artwork for ${article.title || "podcast episode"}`}
                   className={cn(
                     "object-cover rounded-lg",
                     isMobile ? "w-full h-48" : "w-32 h-32",
                   )}
-                  onError={(e) => {
-                    // Hide image if it fails to load
-                    e.currentTarget.style.display = "none";
-                  }}
+                  onError={handleImageError}
                   loading="lazy"
                 />
-              </div>
-            )}
+              ) : (
+                <div
+                  className={cn(
+                    "flex items-center justify-center bg-muted rounded-lg",
+                    isMobile ? "w-full h-48" : "w-32 h-32",
+                  )}
+                  aria-hidden="true"
+                >
+                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+            </div>
           </div>
         </ItemContent>
 
