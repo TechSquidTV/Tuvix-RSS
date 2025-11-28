@@ -16,6 +16,10 @@ interface ShareDropdownProps {
   className?: string;
 }
 
+// Check if native share is supported (outside component to avoid re-computation)
+const canUseNativeShare =
+  typeof navigator !== "undefined" && "share" in navigator;
+
 export function ShareDropdown({
   url,
   title,
@@ -30,6 +34,20 @@ export function ShareDropdown({
       await navigator.clipboard.writeText(url);
     } catch (err) {
       console.error("Failed to copy link:", err);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({
+        title,
+        url,
+      });
+    } catch (err) {
+      // User cancelled or share failed
+      if ((err as Error).name !== "AbortError") {
+        console.error("Failed to share:", err);
+      }
     }
   };
 
@@ -133,6 +151,11 @@ export function ShareDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={handleCopyLink}>Copy Link</DropdownMenuItem>
+        {canUseNativeShare && (
+          <DropdownMenuItem onClick={handleNativeShare}>
+            Share...
+          </DropdownMenuItem>
+        )}
         {settings.shareEmail && (
           <DropdownMenuItem onClick={handleEmailShare}>Email</DropdownMenuItem>
         )}
