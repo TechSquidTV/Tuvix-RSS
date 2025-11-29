@@ -55,7 +55,7 @@ describe("Articles Router - Pagination & Count", () => {
       guid: `guid-${Date.now()}-${i}`,
       title: `Article ${i + 1}`,
       link: `https://example.com/article${i}`,
-      publishedAt: new Date(Date.now() - i * 1000), // Stagger by seconds
+      publishedAt: new Date(Date.now() - i * 60000), // Stagger by minutes for robust ordering
       createdAt: new Date(),
     }));
 
