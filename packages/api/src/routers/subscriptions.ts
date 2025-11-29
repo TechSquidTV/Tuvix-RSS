@@ -58,77 +58,7 @@ import {
   parseBoolean,
   type FilterData,
 } from "@/utils/opml-parser";
-
-/**
- * Extract iTunes image URL from feed metadata
- *
- * Tries multiple methods to extract itunes:image href:
- * 1. Check parsed feed object for itunes namespace properties
- * 2. Parse raw XML if available
- *
- * @param feedData - Parsed feed object from feedsmith
- * @param feedContent - Optional raw XML content (for parsing itunes:image if not in parsed object)
- * @returns iTunes image URL or undefined
- */
-function extractItunesImage(
-  feedData: unknown,
-  feedContent?: string
-): string | undefined {
-  const feed = feedData as Record<string, unknown>;
-
-  // Try various ways feedsmith might expose itunes:image
-  // Method 1: Direct namespace access
-  if ("itunes:image" in feed) {
-    const itunesImage = feed["itunes:image"];
-    if (typeof itunesImage === "string") {
-      return itunesImage;
-    }
-    if (
-      itunesImage &&
-      typeof itunesImage === "object" &&
-      "href" in itunesImage &&
-      typeof itunesImage.href === "string"
-    ) {
-      return itunesImage.href;
-    }
-  }
-
-  // Method 2: Nested itunes property
-  if ("itunes" in feed && feed.itunes) {
-    const itunes = feed.itunes as Record<string, unknown>;
-    if ("image" in itunes) {
-      const image = itunes.image;
-      if (typeof image === "string") {
-        return image;
-      }
-      if (
-        image &&
-        typeof image === "object" &&
-        "href" in image &&
-        typeof image.href === "string"
-      ) {
-        return image.href;
-      }
-    }
-  }
-
-  // Method 3: Parse raw XML if available
-  if (feedContent) {
-    try {
-      // Match <itunes:image href="..."/>
-      const itunesImageMatch = feedContent.match(
-        /<itunes:image[^>]*href=["']([^"']+)["'][^>]*>/i
-      );
-      if (itunesImageMatch && itunesImageMatch[1]) {
-        return itunesImageMatch[1];
-      }
-    } catch (error) {
-      console.error("[extractItunesImage] XML parsing failed:", error);
-    }
-  }
-
-  return undefined;
-}
+import { extractItunesImage } from "@/utils/feed-utils";
 
 export const subscriptionsRouter = router({
   /**

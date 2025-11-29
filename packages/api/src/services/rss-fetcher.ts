@@ -25,6 +25,7 @@ import {
 } from "@/utils/domain-checker";
 import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
 import { emitCounter, emitGauge, withTiming } from "@/utils/metrics";
+import { extractItunesImage } from "@/utils/feed-utils";
 
 // =============================================================================
 // Types
@@ -358,51 +359,6 @@ export async function fetchSingleFeed(
 // =============================================================================
 
 /**
- * Extract iTunes image URL from feed metadata
- * Similar to function in subscriptions router, but doesn't parse raw XML
- */
-function extractFeedItunesImage(feedData: AnyFeed): string | undefined {
-  const feed = feedData as Record<string, unknown>;
-
-  // Method 1: Direct namespace access
-  if ("itunes:image" in feed) {
-    const itunesImage = feed["itunes:image"];
-    if (typeof itunesImage === "string") {
-      return itunesImage;
-    }
-    if (
-      itunesImage &&
-      typeof itunesImage === "object" &&
-      "href" in itunesImage &&
-      typeof itunesImage.href === "string"
-    ) {
-      return itunesImage.href;
-    }
-  }
-
-  // Method 2: Nested itunes property
-  if ("itunes" in feed && feed.itunes) {
-    const itunes = feed.itunes as Record<string, unknown>;
-    if ("image" in itunes) {
-      const image = itunes.image;
-      if (typeof image === "string") {
-        return image;
-      }
-      if (
-        image &&
-        typeof image === "object" &&
-        "href" in image &&
-        typeof image.href === "string"
-      ) {
-        return image.href;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-/**
  * Update source metadata from feed
  */
 async function updateSourceMetadata(
@@ -439,7 +395,7 @@ async function updateSourceMetadata(
 
   // Extract icon URL from feed (for podcasts with iTunes image)
   // Priority: itunes:image > image.url > icon
-  const itunesImage = extractFeedItunesImage(feed);
+  const itunesImage = extractItunesImage(feed);
   const feedIconUrl =
     itunesImage ||
     ("image" in feed &&
