@@ -30,7 +30,7 @@ describe("FeedAvatar", () => {
 
   it("should handle invalid feedUrl gracefully", () => {
     // Should not throw error with invalid URL
-    const { container } = render(
+    render(
       <FeedAvatar feedName="Tech" feedUrl="not-a-valid-url" />,
     );
 
