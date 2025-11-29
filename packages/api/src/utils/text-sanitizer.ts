@@ -141,17 +141,20 @@ export function truncateText(
 
 /**
  * Truncate HTML content safely without breaking tag structure
- * First truncates to approximate length, then sanitizes to fix any broken tags
+ * First truncates to approximate length, then optionally sanitizes to fix any broken tags
  *
  * @param html - HTML content to truncate
  * @param maxLength - Maximum length (approximate, final may be shorter due to tag closure)
  * @param suffix - Suffix to add if truncated (default: "...")
+ * @param options - Optional configuration
+ * @param options.alreadySanitized - Set to true if input is already sanitized (avoids double-sanitization)
  * @returns Truncated and sanitized HTML
  */
 export function truncateHtml(
   html: string | null | undefined,
   maxLength: number,
-  suffix: string = "..."
+  suffix: string = "...",
+  options: { alreadySanitized?: boolean } = {}
 ): string {
   if (!html) return "";
 
@@ -178,9 +181,10 @@ export function truncateHtml(
   // Add suffix
   truncated = truncated + suffix;
 
-  // Now sanitize to close any unclosed tags and ensure valid HTML
+  // Sanitize to close any unclosed tags and ensure valid HTML
+  // Skip if input was already sanitized to avoid unnecessary double-sanitization
   // This uses sanitize-html which will auto-close any open tags
-  return sanitizeHtml(truncated);
+  return options.alreadySanitized ? truncated : sanitizeHtml(truncated);
 }
 
 /**

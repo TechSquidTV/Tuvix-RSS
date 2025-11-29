@@ -327,4 +327,42 @@ describe("truncateHtml - Safe HTML Truncation", () => {
       expect(result).toContain("</a>"); // Closed tag
     }
   });
+
+  it("should skip sanitization when alreadySanitized flag is set", () => {
+    // Pre-sanitized HTML with specific attributes
+    const preSanitized =
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">Test</a> Some text that will be truncated...';
+
+    // Without flag: would re-sanitize (but output should be same since already safe)
+    const resultWithSanitization = truncateHtml(preSanitized, 50);
+
+    // With flag: skips sanitization step
+    const resultWithoutSanitization = truncateHtml(preSanitized, 50, "...", {
+      alreadySanitized: true,
+    });
+
+    // Both should produce valid output
+    expect(resultWithSanitization).toBeTruthy();
+    expect(resultWithoutSanitization).toBeTruthy();
+
+    // The alreadySanitized version should preserve the exact truncated structure
+    // without running through sanitize-html again
+    expect(resultWithoutSanitization).toContain("...");
+  });
+
+  it("should still sanitize when alreadySanitized is false or not provided", () => {
+    const unsafeHtml =
+      '<script>alert("xss")</script><p>This is a long paragraph with text that will force truncation to occur so we can test sanitization behavior</p><a href="javascript:alert(1)">Link</a>';
+
+    // Default behavior: sanitizes (needs to be longer than 100 to trigger truncation)
+    const result = truncateHtml(unsafeHtml, 100);
+
+    // Should have removed dangerous content
+    expect(result).not.toContain("<script>");
+    expect(result).not.toContain("javascript:");
+    // Note: May contain "alert" in text, but not in executable context
+
+    // Should preserve safe content
+    expect(result).toContain("<p>");
+  });
 });

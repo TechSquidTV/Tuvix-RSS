@@ -686,8 +686,11 @@ async function extractArticleData(
   }
 
   // Sanitize HTML first (allow safe tags like links), then truncate safely
+  // Pass alreadySanitized flag to avoid double-sanitization
   const sanitizedDescription = sanitizeHtml(rawDescription);
-  const description = truncateHtml(sanitizedDescription, 5000);
+  const description = truncateHtml(sanitizedDescription, 5000, "...", {
+    alreadySanitized: true,
+  });
 
   // Author
   let author: string | undefined = undefined;
