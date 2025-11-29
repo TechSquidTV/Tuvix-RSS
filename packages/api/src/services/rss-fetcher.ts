@@ -25,6 +25,7 @@ import {
 } from "@/utils/domain-checker";
 import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
 import { emitCounter, emitGauge, withTiming } from "@/utils/metrics";
+import { extractItunesImage } from "@/utils/feed-utils";
 
 // =============================================================================
 // Types
@@ -392,6 +393,43 @@ async function updateSourceMetadata(
     updates.siteUrl = feed.links[0].href;
   }
 
+  // Extract icon URL from feed (for podcasts with iTunes image)
+  // Priority: itunes:image > image.url > icon
+  const itunesImage = extractItunesImage(feed);
+  const feedIconUrl =
+    itunesImage ||
+    ("image" in feed &&
+    typeof feed.image === "object" &&
+    feed.image !== null &&
+    "url" in feed.image &&
+    typeof feed.image.url === "string"
+      ? feed.image.url
+      : "icon" in feed && typeof feed.icon === "string"
+        ? feed.icon
+        : undefined);
+
+  // Get current source to check iconType
+  const currentSource = await db
+    .select()
+    .from(schema.sources)
+    .where(eq(schema.sources.id, sourceId))
+    .limit(1)
+    .then((rows) => rows[0]);
+
+  // Only update icon if:
+  // 1. iconType is 'auto' (not custom or none)
+  // 2. We found a new icon URL
+  // 3. Icon is missing OR different from current icon
+  if (
+    currentSource &&
+    (!currentSource.iconType || currentSource.iconType === "auto") &&
+    feedIconUrl &&
+    currentSource.iconUrl !== feedIconUrl
+  ) {
+    updates.iconUrl = feedIconUrl;
+    updates.iconUpdatedAt = new Date();
+  }
+
   // Only update if we have something to update (beyond lastFetched)
   if (Object.keys(updates).length > 1) {
     await db
@@ -727,12 +765,19 @@ async function extractArticleData(
   // Image URL
   let imageUrl: string | undefined = undefined;
 
-  // JSON Feed
-  if ("image" in item && typeof item.image === "string") {
+  // Priority 1: iTunes image (podcasts)
+  const itunesImageUrl = extractItunesImage(item);
+  if (itunesImageUrl) {
+    imageUrl = itunesImageUrl;
+  }
+
+  // Priority 2: JSON Feed image
+  if (!imageUrl && "image" in item && typeof item.image === "string") {
     imageUrl = item.image;
   }
-  // RSS enclosure
-  else if ("enclosures" in item && Array.isArray(item.enclosures)) {
+
+  // Priority 3: RSS image enclosure
+  if (!imageUrl && "enclosures" in item && Array.isArray(item.enclosures)) {
     const imageEnclosure = item.enclosures.find((enc) =>
       enc.type?.startsWith("image/")
     );
@@ -740,8 +785,9 @@ async function extractArticleData(
       imageUrl = imageEnclosure.url;
     }
   }
-  // Media RSS namespace
-  else if ("media" in item) {
+
+  // Priority 4: Media RSS namespace
+  if (!imageUrl && "media" in item) {
     const media = (item as Record<string, unknown>).media as
       | {
           thumbnail?: { url?: string };
