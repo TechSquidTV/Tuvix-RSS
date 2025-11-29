@@ -7,38 +7,120 @@
 
 import sanitizeHtmlLib from "sanitize-html";
 
+// =============================================================================
+// Constants
+// =============================================================================
+
+/**
+ * Map of HTML entity names to their decoded characters
+ * Used for decoding HTML entities in text content
+ */
+const HTML_ENTITIES: Record<string, string> = {
+  "&nbsp;": " ",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&cent;": "¢",
+  "&pound;": "£",
+  "&yen;": "¥",
+  "&euro;": "€",
+  "&copy;": "©",
+  "&reg;": "®",
+};
+
+/**
+ * List of heading tags that should be converted to strong tags
+ * Prevents invalid HTML when rendering inside paragraph elements
+ */
+const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Options for truncateHtml function
+ */
+export interface TruncateHtmlOptions {
+  /**
+   * Set to true if input is already sanitized
+   * Skips sanitization step for performance optimization
+   * @default false
+   */
+  alreadySanitized?: boolean;
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Decode HTML entities in text
+ * Converts named entities (&nbsp;, &lt;, etc.) and numeric entities (&#39;, &#x27;)
+ *
+ * IMPORTANT: Decodes &amp; first to prevent double-decoding issues
+ * Example: "&amp;lt;" should become "&lt;" not "<"
+ *
+ * @param text - Text containing HTML entities
+ * @returns Text with decoded entities
+ */
+function decodeHtmlEntities(text: string): string {
+  // CRITICAL: Decode &amp; FIRST to avoid double-decoding
+  let result = text.replace(/&amp;/g, "&");
+
+  // Decode named entities
+  for (const [entity, char] of Object.entries(HTML_ENTITIES)) {
+    result = result.replace(new RegExp(entity, "g"), char);
+  }
+
+  // Decode numeric HTML entities (decimal)
+  result = result.replace(/&#(\d+);/g, (_, dec: string) =>
+    String.fromCharCode(parseInt(dec, 10))
+  );
+
+  // Decode numeric HTML entities (hexadecimal)
+  result = result.replace(/&#x([0-9A-Fa-f]+);/g, (_, hex: string) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+
+  return result;
+}
+
+// =============================================================================
+// Public API
+// =============================================================================
+
 /**
  * Sanitize HTML to allow safe tags while removing dangerous content
- * Allows links, basic formatting, and safe structural elements
+ * Allows inline formatting suitable for rendering inside paragraph elements
+ *
+ * IMPORTANT: Only inline elements are allowed because descriptions are rendered
+ * inside <p> tags in the frontend (see ItemDescription component). Block-level
+ * elements like headings, paragraphs, lists, etc. would create invalid HTML.
  *
  * @param html - String potentially containing HTML
- * @returns Sanitized HTML with only safe tags and attributes
+ * @returns Sanitized HTML with only safe inline tags and attributes
  */
 export function sanitizeHtml(html: string | null | undefined): string {
   if (!html) return "";
 
   return sanitizeHtmlLib(html, {
     allowedTags: [
+      // Links
       "a",
-      "p",
-      "br",
+      // Inline formatting
       "strong",
       "b",
       "em",
       "i",
       "u",
       "code",
-      "pre",
-      "blockquote",
-      "ul",
-      "ol",
-      "li",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
+      // Line breaks (void element, safe in <p>)
+      "br",
+      // Note: Block-level elements (h1-h6, p, blockquote, ul, ol, li, pre)
+      // are intentionally excluded as they cannot be nested inside <p> tags
     ],
     allowedAttributes: {
       a: ["href", "title", "target", "rel"],
@@ -56,6 +138,8 @@ export function sanitizeHtml(html: string | null | undefined): string {
           },
         };
       },
+      // Convert headings to strong for semantic preservation without invalid HTML
+      ...Object.fromEntries(HEADING_TAGS.map((tag) => [tag, "strong"])),
     },
   });
 }
@@ -71,41 +155,14 @@ export function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
 
   // Use sanitize-html to strip all tags (this preserves entities)
-  let text = sanitizeHtmlLib(html, {
+  const text = sanitizeHtmlLib(html, {
     allowedTags: [],
     allowedAttributes: {},
   });
 
-  // Decode HTML entities (sanitize-html preserves them)
-  // CRITICAL: Decode &amp; FIRST to avoid double-decoding
-  // e.g., "&amp;lt;" should become "&lt;" not "<"
-  text = text.replace(/&amp;/g, "&");
-
-  // Then decode other common named entities
-  text = text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&cent;/g, "¢")
-    .replace(/&pound;/g, "£")
-    .replace(/&yen;/g, "¥")
-    .replace(/&euro;/g, "€")
-    .replace(/&copy;/g, "©")
-    .replace(/&reg;/g, "®");
-
-  // Decode numeric HTML entities
-  text = text.replace(/&#(\d+);/g, (_, dec: string) =>
-    String.fromCharCode(parseInt(dec, 10))
-  );
-  text = text.replace(/&#x([0-9A-Fa-f]+);/g, (_, hex: string) =>
-    String.fromCharCode(parseInt(hex, 16))
-  );
-
-  // Remove excessive whitespace
-  return text.replace(/\s+/g, " ").trim();
+  // Decode HTML entities and remove excessive whitespace
+  const decoded = decodeHtmlEntities(text);
+  return decoded.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -147,14 +204,13 @@ export function truncateText(
  * @param maxLength - Maximum length (approximate, final may be shorter due to tag closure)
  * @param suffix - Suffix to add if truncated (default: "...")
  * @param options - Optional configuration
- * @param options.alreadySanitized - Set to true if input is already sanitized (avoids double-sanitization)
  * @returns Truncated and sanitized HTML
  */
 export function truncateHtml(
   html: string | null | undefined,
   maxLength: number,
   suffix: string = "...",
-  options: { alreadySanitized?: boolean } = {}
+  options: TruncateHtmlOptions = {}
 ): string {
   if (!html) return "";
 
@@ -185,69 +241,4 @@ export function truncateHtml(
   // Skip if input was already sanitized to avoid unnecessary double-sanitization
   // This uses sanitize-html which will auto-close any open tags
   return options.alreadySanitized ? truncated : sanitizeHtml(truncated);
-}
-
-/**
- * Extract plain text excerpt from HTML
- * Combines stripHtml and truncateText
- *
- * @param html - HTML content
- * @param maxLength - Maximum length for excerpt
- * @returns Plain text excerpt
- */
-export function extractTextExcerpt(
-  html: string | null | undefined,
-  maxLength: number = 300
-): string {
-  const plainText = stripHtml(html);
-  return truncateText(plainText, maxLength);
-}
-
-/**
- * Sanitize user input text
- * Removes control characters and normalizes whitespace
- *
- * @param text - User input text
- * @returns Sanitized text
- */
-export function sanitizeUserInput(text: string | null | undefined): string {
-  if (!text) return "";
-
-  // Remove control characters (except newlines and tabs)
-  let sanitized = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-
-  // Normalize whitespace
-  sanitized = sanitized.replace(/\s+/g, " ").trim();
-
-  return sanitized;
-}
-
-/**
- * Validate and sanitize URL
- * Prevents javascript: and data: URLs
- *
- * @param url - URL to validate
- * @returns Sanitized URL or null if invalid
- */
-export function sanitizeUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-
-  const trimmed = url.trim();
-
-  // Block dangerous protocols
-  const dangerousProtocols = ["javascript:", "data:", "vbscript:", "file:"];
-  const lowerUrl = trimmed.toLowerCase();
-
-  for (const protocol of dangerousProtocols) {
-    if (lowerUrl.startsWith(protocol)) {
-      return null;
-    }
-  }
-
-  // Ensure valid HTTP(S) URL for external links
-  if (!trimmed.match(/^https?:\/\//i) && !trimmed.startsWith("/")) {
-    return null;
-  }
-
-  return trimmed;
 }

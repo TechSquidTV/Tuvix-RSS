@@ -98,47 +98,77 @@ describe("sanitizeHtml - Link Preservation", () => {
   });
 });
 
-describe("sanitizeHtml - Formatting Preservation", () => {
-  it("should preserve paragraph tags", () => {
+describe("sanitizeHtml - Inline Formatting Preservation", () => {
+  it("should strip paragraph tags (block-level elements)", () => {
+    // Block elements are removed because descriptions render inside <p> tags
     const input = "<p>First paragraph</p><p>Second paragraph</p>";
     const result = sanitizeHtml(input);
-    expect(result).toContain("<p>First paragraph</p>");
-    expect(result).toContain("<p>Second paragraph</p>");
+    expect(result).not.toContain("<p>");
+    expect(result).toContain("First paragraph");
+    expect(result).toContain("Second paragraph");
   });
 
-  it("should preserve strong/bold tags", () => {
+  it("should preserve strong/bold tags (inline elements)", () => {
     const input = "<strong>Bold</strong> and <b>also bold</b>";
     const result = sanitizeHtml(input);
     expect(result).toContain("<strong>Bold</strong>");
     expect(result).toContain("<b>also bold</b>");
   });
 
-  it("should preserve em/italic tags", () => {
+  it("should preserve em/italic tags (inline elements)", () => {
     const input = "<em>Italic</em> and <i>also italic</i>";
     const result = sanitizeHtml(input);
     expect(result).toContain("<em>Italic</em>");
     expect(result).toContain("<i>also italic</i>");
   });
 
-  it("should preserve code tags", () => {
+  it("should preserve code tags (inline elements)", () => {
     const input = "Use <code>console.log()</code> to debug";
     const result = sanitizeHtml(input);
     expect(result).toContain("<code>console.log()</code>");
   });
 
-  it("should preserve br tags", () => {
+  it("should preserve br tags (void element)", () => {
     const input = "Line one<br>Line two";
     const result = sanitizeHtml(input);
     expect(result).toContain("<br");
   });
 
-  it("should preserve lists", () => {
+  it("should strip lists (block-level elements)", () => {
+    // Lists are removed because they cannot be nested inside <p> tags
     const input = "<ul><li>Item 1</li><li>Item 2</li></ul>";
     const result = sanitizeHtml(input);
-    expect(result).toContain("<ul>");
-    expect(result).toContain("<li>Item 1</li>");
-    expect(result).toContain("<li>Item 2</li>");
-    expect(result).toContain("</ul>");
+    expect(result).not.toContain("<ul>");
+    expect(result).not.toContain("<li>");
+    expect(result).toContain("Item 1");
+    expect(result).toContain("Item 2");
+  });
+
+  it("should convert headings to strong tags", () => {
+    // Headings are converted to preserve emphasis without invalid HTML
+    const input =
+      "<h1>Heading 1</h1><h2>Heading 2</h2><h3>Heading 3</h3><h4>Heading 4</h4>";
+    const result = sanitizeHtml(input);
+    // All headings should be converted to strong
+    expect(result).not.toContain("<h1>");
+    expect(result).not.toContain("<h2>");
+    expect(result).not.toContain("<h3>");
+    expect(result).not.toContain("<h4>");
+    // Content should be preserved in strong tags
+    expect(result).toContain("<strong>Heading 1</strong>");
+    expect(result).toContain("<strong>Heading 2</strong>");
+    expect(result).toContain("<strong>Heading 3</strong>");
+    expect(result).toContain("<strong>Heading 4</strong>");
+  });
+
+  it("should strip blockquote and pre tags (block-level elements)", () => {
+    const input =
+      "<blockquote>A quote</blockquote><pre>code block\nline 2</pre>";
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain("<blockquote>");
+    expect(result).not.toContain("<pre>");
+    expect(result).toContain("A quote");
+    expect(result).toContain("code block");
   });
 });
 
@@ -362,7 +392,8 @@ describe("truncateHtml - Safe HTML Truncation", () => {
     expect(result).not.toContain("javascript:");
     // Note: May contain "alert" in text, but not in executable context
 
-    // Should preserve safe content
-    expect(result).toContain("<p>");
+    // Should preserve safe inline content (but strip block-level <p> tags)
+    expect(result).toContain("This is a long paragraph");
+    expect(result).not.toContain("<p>"); // Block elements are stripped
   });
 });

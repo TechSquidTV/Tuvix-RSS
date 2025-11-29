@@ -342,10 +342,13 @@ const description = truncateHtml(sanitizedDescription, 5000);
 ```
 
 **Sanitization is enforced at the single entry point**:
-- Location: `packages/api/src/services/rss-fetcher.ts:689-690`
+- Location: `packages/api/src/services/rss-fetcher.ts:689-693`
 - Library: `sanitize-html` with strict allowlist configuration
-- Allowed tags: `a`, `p`, `br`, `strong`, `b`, `em`, `i`, `u`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1-h6`
+- Allowed tags: Only inline elements (`a`, `strong`, `b`, `em`, `i`, `u`, `code`, `br`)
+- Heading conversion: `h1-h6` tags are automatically converted to `<strong>` to preserve emphasis
+- Blocked tags: Block-level elements (`p`, `blockquote`, `ul`, `ol`, `li`, `pre`, `div`) are stripped
 - Allowed attributes: Only `href`, `title`, `target`, `rel` on links
+- Rationale: Descriptions render inside `<p>` tags in the frontend, so only inline elements are valid HTML
 
 **Frontend rendering**:
 - The frontend uses `dangerouslySetInnerHTML` to render sanitized descriptions in two components:
