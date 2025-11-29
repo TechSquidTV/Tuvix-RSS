@@ -82,7 +82,7 @@ export function parseCategoriesJson(
     if (!Array.isArray(parsed)) return null;
     // Validate that all items are strings
     return parsed.filter(
-      (cat): cat is string => typeof cat === "string" && cat.length > 0
+      (cat): cat is string => typeof cat === "string" && cat.trim().length > 0
     );
   } catch {
     return null;
