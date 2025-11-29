@@ -51,6 +51,9 @@ const checkVerificationAndNavigate = async (
             return fetch(url, {
               ...options,
               credentials: "include",
+              headers: {
+                ...options?.headers, // Preserve Sentry trace headers
+              },
             });
           },
         }),

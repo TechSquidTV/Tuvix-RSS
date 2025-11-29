@@ -72,10 +72,14 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           // Better Auth handles authentication via HTTP-only cookies
           // Include credentials to send cookies with requests
+          // IMPORTANT: Preserve headers from options to maintain Sentry trace propagation
           fetch(url, options) {
             return fetch(url, {
               ...options,
               credentials: "include", // Required for HTTP-only cookies
+              headers: {
+                ...options?.headers, // Preserve Sentry trace headers (sentry-trace, baggage)
+              },
             });
           },
           headers() {
