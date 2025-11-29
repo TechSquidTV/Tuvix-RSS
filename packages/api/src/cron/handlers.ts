@@ -8,7 +8,7 @@
 import { createDatabase } from "@/db/client";
 import { fetchAllFeeds } from "@/services/rss-fetcher";
 import { getGlobalSettings } from "@/services/global-settings";
-import { inArray, lt, or, isNull, and, sql } from "drizzle-orm";
+import { inArray, lt, or, isNull, and, eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
@@ -134,10 +134,17 @@ async function _handleArticlePrune(env: Env): Promise<{
         const cutoffDateForComparison = new Date(cutoffTimestamp);
 
         // Find old articles that are NOT saved by any user
-        // Uses NOT IN subquery to efficiently exclude saved articles in SQL
+        // Uses LEFT JOIN with NULL check for better performance than NOT IN subquery
         const articlesToDelete = await db
           .select()
           .from(schema.articles)
+          .leftJoin(
+            schema.userArticleStates,
+            and(
+              eq(schema.userArticleStates.articleId, schema.articles.id),
+              eq(schema.userArticleStates.saved, true)
+            )
+          )
           .where(
             and(
               // Article is old (either by publishedAt or createdAt)
@@ -148,16 +155,12 @@ async function _handleArticlePrune(env: Env): Promise<{
                   lt(schema.articles.createdAt, cutoffDateForComparison)
                 )!
               )!,
-              // Article is NOT saved by any user (use NOT IN subquery)
-              sql`${schema.articles.id} NOT IN (
-                SELECT ${schema.userArticleStates.articleId}
-                FROM ${schema.userArticleStates}
-                WHERE ${schema.userArticleStates.saved} = 1
-              )`
+              // Article is NOT saved by any user (no matching JOIN row)
+              isNull(schema.userArticleStates.articleId)
             )!
           );
 
-        const articleIds = articlesToDelete.map((a) => a.id);
+        const articleIds = articlesToDelete.map((row) => row.articles.id);
 
         if (articleIds.length === 0) {
           console.log("✅ No articles to prune");

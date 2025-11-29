@@ -347,7 +347,7 @@ describe("Articles Router Helpers", () => {
         })
         .returning();
 
-      const [article2] = await db
+      await db
         .insert(schema.articles)
         .values({
           sourceId: testSource.id,
@@ -491,7 +491,7 @@ describe("Articles Router Helpers", () => {
         })
         .returning();
 
-      const [otherSubscription] = await db
+      await db
         .insert(schema.subscriptions)
         .values({
           userId: testUser.id,
@@ -521,10 +521,6 @@ describe("Articles Router Helpers", () => {
       ]);
 
       // Build query with subscription filter
-      const conditions = buildArticlesWhereConditions({
-        subscriptionId: testSubscription.id,
-      });
-
       const query = buildArticlesBaseQuery(db, testUser.id).where(
         eq(schema.subscriptions.id, testSubscription.id)
       );
