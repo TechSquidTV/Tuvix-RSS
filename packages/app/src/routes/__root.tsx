@@ -102,12 +102,25 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     try {
       const sessionResult = await authClient.getSession();
 
+      // Set Sentry user context for Session Replay identification (non-PII)
+      if (sessionResult?.data?.user?.id) {
+        Sentry.setUser({
+          id: sessionResult.data.user.id.toString(),
+        });
+      } else {
+        // Clear user context when no session
+        Sentry.setUser(null);
+      }
+
       return {
         auth: {
           session: sessionResult?.data || null,
         },
       };
     } catch (error) {
+      // Clear user context on error
+      Sentry.setUser(null);
+
       // Log session fetch errors to Sentry
       Sentry.captureException(error, {
         tags: {
