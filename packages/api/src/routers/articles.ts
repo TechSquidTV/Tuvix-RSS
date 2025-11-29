@@ -308,33 +308,68 @@ export const articlesRouter = router({
       let total: number;
       if (!hasSubscriptionFilters) {
         // No subscription filters = we can get accurate count from database
-        // Build COUNT query using same helpers as main query
-        let countQueryBuilder = buildArticlesBaseQuery(ctx.db, userId);
+        // Build COUNT query with same JOINs and WHERE as main query
+        // Use DISTINCT because JOINs (especially category filter) can create duplicate rows
 
-        // Apply same category filter
+        // Start building count query from scratch (can't reuse buildArticlesBaseQuery
+        // because it already has .select() called)
+        let countQuery = ctx.db
+          .select()
+          .from(schema.articles)
+          .innerJoin(
+            schema.sources,
+            eq(schema.articles.sourceId, schema.sources.id)
+          )
+          .innerJoin(
+            schema.subscriptions,
+            and(
+              eq(schema.articles.sourceId, schema.subscriptions.sourceId),
+              eq(schema.subscriptions.userId, userId)
+            )
+          )
+          .leftJoin(
+            schema.userArticleStates,
+            and(
+              eq(schema.userArticleStates.articleId, schema.articles.id),
+              eq(schema.userArticleStates.userId, userId)
+            )
+          )
+          .$dynamic();
+
+        // Apply category filter if needed
         if (input.categoryId) {
-          countQueryBuilder = applyCategoryFilter(
-            countQueryBuilder,
-            input.categoryId
+          countQuery = countQuery.innerJoin(
+            schema.subscriptionCategories,
+            and(
+              eq(
+                schema.subscriptionCategories.subscriptionId,
+                schema.subscriptions.id
+              ),
+              eq(schema.subscriptionCategories.categoryId, input.categoryId)
+            )
           );
         }
 
         // Apply same WHERE conditions
         if (conditions.length > 0) {
-          countQueryBuilder = countQueryBuilder.where(and(...conditions));
+          countQuery = countQuery.where(and(...conditions));
         }
 
-        const countResult = await withQueryMetrics(
+        // Execute count query and count unique article IDs
+        const countResults = await withQueryMetrics(
           "articles.list.count",
-          async () => await countQueryBuilder,
+          async () => await countQuery,
           {
             "db.table": "articles",
             "db.operation": "count",
           }
         );
 
-        // Just count the rows returned
-        total = countResult.length;
+        // Count unique article IDs (needed because JOINs can create duplicates)
+        const uniqueArticleIds = new Set(
+          countResults.map((r) => r.articles.id)
+        );
+        total = uniqueArticleIds.size;
       } else {
         // Subscription filters active = approximate total
         // Use offset + current results as estimate
