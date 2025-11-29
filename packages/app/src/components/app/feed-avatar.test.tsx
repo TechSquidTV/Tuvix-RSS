@@ -30,9 +30,7 @@ describe("FeedAvatar", () => {
 
   it("should handle invalid feedUrl gracefully", () => {
     // Should not throw error with invalid URL
-    render(
-      <FeedAvatar feedName="Tech" feedUrl="not-a-valid-url" />,
-    );
+    render(<FeedAvatar feedName="Tech" feedUrl="not-a-valid-url" />);
 
     // Should render without error, showing fallback
     const fallback = screen.getByText("T");
