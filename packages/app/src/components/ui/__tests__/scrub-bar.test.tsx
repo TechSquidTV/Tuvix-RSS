@@ -263,7 +263,7 @@ describe("ScrubBar", () => {
       const mockParentHandler = vi.fn();
       const mockOnScrub = vi.fn();
 
-      const { container } = render(
+      render(
         <div onPointerDown={mockParentHandler} data-testid="parent">
           <ScrubBarContainer duration={100} value={50} onScrub={mockOnScrub}>
             <ScrubBarTrack data-testid="track">
