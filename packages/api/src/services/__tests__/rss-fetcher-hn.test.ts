@@ -5,7 +5,7 @@
  * Uses actual HN feed structure to ensure links are preserved correctly
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { parseFeed } from "feedsmith";
 import { sanitizeHtml } from "@/utils/text-sanitizer";
 import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
@@ -15,13 +15,19 @@ import { fetchSingleFeed } from "../rss-fetcher";
 
 describe("RSS Fetcher - Hacker News Integration", () => {
   let db!: ReturnType<typeof createTestDb>;
+  let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     db = createTestDb();
+    // Store original fetch to restore later
+    originalFetch = globalThis.fetch;
   });
 
   afterEach(() => {
     cleanupTestDb(db);
+    // Restore original fetch to prevent test interference
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   it("should parse and sanitize real HN RSS feed item with comment link", () => {
@@ -232,6 +238,7 @@ describe("RSS Fetcher - Hacker News Integration", () => {
 
     expect(result.articlesAdded).toBe(1);
     expect(result.articlesSkipped).toBe(0);
+    expect(result.sourceUpdated).toBe(true);
 
     // Verify article was stored with sanitized description
     const articles = await db
