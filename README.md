@@ -89,4 +89,4 @@ AGPLv3 - see the [LICENSE](./LICENSE) file for details.
 
 ---
 
-Made with ❤️ by the Tuvix community
+Made with ❤️ by the TechSquidTV community
