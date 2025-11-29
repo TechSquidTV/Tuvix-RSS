@@ -101,4 +101,25 @@ describe("useMediaQuery", () => {
     expect(result1.current).toBe(true);
     expect(result2.current).toBe(false);
   });
+
+  it("should sync state when query prop changes", () => {
+    // Start with one query
+    mediaQueryMatches.set("(min-width: 768px)", false);
+    mediaQueryMatches.set("(min-width: 1024px)", true);
+
+    const { result, rerender } = renderHook(
+      ({ query }) => useMediaQuery(query),
+      {
+        initialProps: { query: "(min-width: 768px)" },
+      },
+    );
+
+    expect(result.current).toBe(false);
+
+    // Change the query prop
+    rerender({ query: "(min-width: 1024px)" });
+
+    // Should update to match the new query
+    expect(result.current).toBe(true);
+  });
 });

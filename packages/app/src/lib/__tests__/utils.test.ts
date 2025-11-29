@@ -2,7 +2,7 @@
  * Utils Tests
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { cn, getPublicBaseUrl } from "../utils";
 
 describe("Utils", () => {
@@ -37,10 +37,6 @@ describe("Utils", () => {
   });
 
   describe("getPublicBaseUrl", () => {
-    afterEach(() => {
-      vi.unstubAllEnvs();
-    });
-
     it("should return window.location.origin in browser environment", () => {
       const result = getPublicBaseUrl();
       expect(typeof result).toBe("string");

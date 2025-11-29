@@ -254,4 +254,12 @@ describe("App Route - Offline Navigation", () => {
       ).rejects.toThrow("redirect:/");
     });
   });
+
+  describe("AppLayout component", () => {
+    it("should export the component function", () => {
+      // Verify the route has a component defined
+      expect(routeModule.Route.options.component).toBeDefined();
+      expect(typeof routeModule.Route.options.component).toBe("function");
+    });
+  });
 });

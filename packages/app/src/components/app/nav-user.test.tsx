@@ -162,4 +162,97 @@ describe("NavUser", () => {
     const adminRole = "admin" as const;
     expect(adminRole === "admin").toBe(true);
   });
+
+  it("should render null when user is undefined and not loading", () => {
+    const { container } = render(
+      <NavUser user={undefined} isLoading={false} />,
+      {
+        wrapper: SidebarWrapper,
+      },
+    );
+
+    // The component returns null when there's no user, so there should be minimal content
+    expect(
+      container.querySelector('[data-slot="sidebar-menu"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("should show logout dialog when logout is clicked", async () => {
+    const user = {
+      id: 1,
+      username: "testuser",
+      email: "test@example.com",
+      role: "user" as const,
+      plan: "free",
+      banned: false,
+    };
+
+    const userEventInstance = userEvent.setup();
+    render(<NavUser user={user} isLoading={false} />, {
+      wrapper: SidebarWrapper,
+    });
+
+    // Open dropdown menu first
+    const trigger = screen.getByRole("button", { name: /testuser/i });
+    await userEventInstance.click(trigger);
+
+    // Click logout button
+    await waitFor(() => {
+      expect(screen.getByText("Log out")).toBeInTheDocument();
+    });
+
+    const logoutButton = screen.getByText("Log out");
+    await userEventInstance.click(logoutButton);
+
+    // Logout dialog should appear
+    await waitFor(() => {
+      expect(
+        screen.getByText("Are you sure you want to log out?"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("should use ? for initials when username is undefined", async () => {
+    const userWithoutUsername = {
+      id: 1,
+      username: undefined,
+      email: "test@example.com",
+      role: "user" as const,
+      plan: "free",
+      banned: false,
+    };
+
+    const userEventInstance = userEvent.setup();
+    render(<NavUser user={userWithoutUsername as any} isLoading={false} />, {
+      wrapper: SidebarWrapper,
+    });
+
+    // Should show ? for initials
+    expect(screen.getByText("?")).toBeInTheDocument();
+  });
+
+  it("should display plan in dropdown", async () => {
+    const user = {
+      id: 1,
+      username: "testuser",
+      email: "test@example.com",
+      role: "user" as const,
+      plan: "pro",
+      banned: false,
+    };
+
+    const userEventInstance = userEvent.setup();
+    render(<NavUser user={user} isLoading={false} />, {
+      wrapper: SidebarWrapper,
+    });
+
+    // Open dropdown menu
+    const trigger = screen.getByRole("button", { name: /testuser/i });
+    await userEventInstance.click(trigger);
+
+    // Check that plan is displayed
+    await waitFor(() => {
+      expect(screen.getByText(/pro Plan/i)).toBeInTheDocument();
+    });
+  });
 });

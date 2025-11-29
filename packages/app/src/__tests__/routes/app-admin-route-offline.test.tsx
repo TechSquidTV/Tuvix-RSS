@@ -181,4 +181,11 @@ describe("Admin Route - Offline Navigation", () => {
       ).rejects.toThrow("redirect:/");
     });
   });
+
+  describe("admin component", () => {
+    it("should export a valid component function", () => {
+      expect(routeModule.Route.options.component).toBeDefined();
+      expect(typeof routeModule.Route.options.component).toBe("function");
+    });
+  });
 });
