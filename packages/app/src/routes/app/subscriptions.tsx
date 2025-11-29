@@ -928,219 +928,109 @@ function SubscriptionsPage() {
           {subscriptions.map((sub: (typeof subscriptions)[0]) => (
             <div
               key={sub.id}
-              className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+              className="border rounded-lg p-3 md:p-4 hover:bg-accent/50 transition-colors"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  {/* Feed Avatar */}
-                  <FeedAvatar
-                    feedName={
-                      sub.customTitle || sub.source?.title || "Untitled"
-                    }
-                    iconUrl={sub.source?.iconUrl}
-                    feedUrl={sub.source?.url}
-                    size="lg"
+              {editingId === sub.id ? (
+                <div className="space-y-3">
+                  {/* Title Input */}
+                  <div>
+                    <label className="text-sm font-medium">Title</label>
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="w-full p-2 border rounded-md mt-1"
+                      placeholder={sub.source?.title || "Feed title"}
+                    />
+                  </div>
+
+                  {/* Category Selector */}
+                  <SubscriptionCategorySelector
+                    suggestedCategories={[]}
+                    existingCategories={existingCategories}
+                    selectedCategoryIds={editCategoryIds}
+                    newCategoryNames={editNewCategories}
+                    onToggleCategory={(categoryId: number) => {
+                      setEditCategoryIds((prev) =>
+                        prev.includes(categoryId)
+                          ? prev.filter((id) => id !== categoryId)
+                          : [...prev, categoryId],
+                      );
+                    }}
+                    onAddNewCategory={(categoryName: string) => {
+                      setEditNewCategories((prev) => [...prev, categoryName]);
+                    }}
+                    onRemoveNewCategory={(categoryName: string) => {
+                      setEditNewCategories((prev) =>
+                        prev.filter((n) => n !== categoryName),
+                      );
+                    }}
+                    isLoadingSuggestions={false}
                   />
 
-                  <div className="flex-1 space-y-2">
-                    {editingId === sub.id ? (
-                      <div className="space-y-3">
-                        {/* Title Input */}
-                        <div>
-                          <label className="text-sm font-medium">Title</label>
-                          <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="w-full p-2 border rounded-md mt-1"
-                            placeholder={sub.source?.title || "Feed title"}
-                          />
-                        </div>
+                  {/* Content Filters */}
+                  {sub.id && (
+                    <div>
+                      <SubscriptionFilterManager
+                        subscriptionId={sub.id}
+                        filterEnabled={sub.filterEnabled || false}
+                        filterMode={sub.filterMode || "include"}
+                      />
+                    </div>
+                  )}
 
-                        {/* Category Selector */}
-                        <SubscriptionCategorySelector
-                          suggestedCategories={[]}
-                          existingCategories={existingCategories}
-                          selectedCategoryIds={editCategoryIds}
-                          newCategoryNames={editNewCategories}
-                          onToggleCategory={(categoryId: number) => {
-                            setEditCategoryIds((prev) =>
-                              prev.includes(categoryId)
-                                ? prev.filter((id) => id !== categoryId)
-                                : [...prev, categoryId],
-                            );
-                          }}
-                          onAddNewCategory={(categoryName: string) => {
-                            setEditNewCategories((prev) => [
-                              ...prev,
-                              categoryName,
-                            ]);
-                          }}
-                          onRemoveNewCategory={(categoryName: string) => {
-                            setEditNewCategories((prev) =>
-                              prev.filter((n) => n !== categoryName),
-                            );
-                          }}
-                          isLoadingSuggestions={false}
-                        />
-
-                        {/* Content Filters */}
-                        {sub.id && (
-                          <div>
-                            <SubscriptionFilterManager
-                              subscriptionId={sub.id}
-                              filterEnabled={sub.filterEnabled || false}
-                              filterMode={sub.filterMode || "include"}
-                            />
-                          </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveEdit(sub.id)}
-                            disabled={updateSubscription.isPending}
-                          >
-                            Save Changes
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingId(null);
-                              setEditValue("");
-                              setEditCategoryIds([]);
-                              setEditNewCategories([]);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="font-semibold text-lg">
-                          {sub.customTitle ||
-                            sub.source?.title ||
-                            "Untitled Feed"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {sub.source?.description}
-                        </p>
-                        {/* Categories */}
-                        {sub.categories && sub.categories.length > 0 && (
-                          <CategoryBadgeList
-                            categories={sub.categories
-                              .filter(
-                                (
-                                  c: (typeof sub.categories)[0],
-                                ): c is typeof c & { id: number } =>
-                                  c.id !== undefined,
-                              )
-                              .map(
-                                (
-                                  c: (typeof sub.categories)[0] & {
-                                    id: number;
-                                  },
-                                ) => ({
-                                  id: c.id,
-                                  name: c.name || "",
-                                  color: c.color,
-                                }),
-                              )}
-                            onRemove={(categoryId) => {
-                              // Remove category from subscription
-                              const currentCategoryIds =
-                                sub.categories
-                                  ?.filter(
-                                    (
-                                      c: (typeof sub.categories)[0],
-                                    ): c is typeof c & { id: number } =>
-                                      c.id !== undefined && c.id !== categoryId,
-                                  )
-                                  .map(
-                                    (
-                                      c: (typeof sub.categories)[0] & {
-                                        id: number;
-                                      },
-                                    ) => c.id,
-                                  ) || [];
-                              updateSubscription.mutate({
-                                id: sub.id!,
-                                categoryIds:
-                                  currentCategoryIds.length > 0
-                                    ? currentCategoryIds
-                                    : undefined,
-                              });
-                            }}
-                            className="mt-2"
-                          />
-                        )}
-                        {/* Filters Display */}
-                        {sub.filterEnabled &&
-                          sub.filters &&
-                          sub.filters.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <Badge variant="secondary" className="text-xs">
-                                {sub.filterMode === "exclude"
-                                  ? "Exclude"
-                                  : "Include"}{" "}
-                                Mode
-                              </Badge>
-                              {sub.filters
-                                .slice(0, 3)
-                                .map((filter: (typeof sub.filters)[0]) => (
-                                  <Badge
-                                    key={filter.id}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {filter.field === "any"
-                                      ? "Any"
-                                      : filter.field.charAt(0).toUpperCase() +
-                                        filter.field.slice(1)}{" "}
-                                    {filter.matchType === "contains"
-                                      ? "contains"
-                                      : filter.matchType === "exact"
-                                        ? "is"
-                                        : "matches"}{" "}
-                                    "{filter.pattern}"
-                                  </Badge>
-                                ))}
-                              {sub.filters.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{sub.filters.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        {sub.filterEnabled &&
-                          (!sub.filters || sub.filters.length === 0) && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="secondary" className="text-xs">
-                                Filters enabled (no filters configured)
-                              </Badge>
-                            </div>
-                          )}
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>URL: {sub.source?.url}</span>
-                          <span>•</span>
-                          <span>
-                            Last fetched: {formatDate(sub.source?.lastFetched)}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveEdit(sub.id)}
+                      disabled={updateSubscription.isPending}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditValue("");
+                        setEditCategoryIds([]);
+                        setEditNewCategories([]);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-                {editingId !== sub.id && (
-                  <div className="flex gap-2">
+              ) : (
+                <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2">
+                  {/* Feed Avatar - Left column */}
+                  <div className="row-span-1 flex items-center">
+                    <FeedAvatar
+                      feedName={
+                        sub.customTitle || sub.source?.title || "Untitled"
+                      }
+                      iconUrl={sub.source?.iconUrl}
+                      feedUrl={sub.source?.url}
+                      size="lg"
+                    />
+                  </div>
+
+                  {/* Title - Middle column, first row */}
+                  <div className="min-w-0 flex items-center">
+                    <h3 className="font-semibold text-base md:text-lg leading-tight">
+                      {sub.customTitle || sub.source?.title || "Untitled Feed"}
+                    </h3>
+                  </div>
+
+                  {/* Action Buttons - Right column, spans rows on mobile, single row on desktop */}
+                  <div className="row-span-2 md:row-span-1 flex md:flex-col gap-1 md:gap-2 items-center md:items-start">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="size-8 md:size-9"
                           asChild
                           aria-label={`View articles from ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
                         >
@@ -1164,6 +1054,7 @@ function SubscriptionsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="size-8 md:size-9"
                           onClick={() =>
                             handleEdit(
                               sub.id,
@@ -1185,6 +1076,7 @@ function SubscriptionsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="size-8 md:size-9"
                           onClick={() => handleDelete(sub.id)}
                           disabled={deleteSubscription.isPending}
                           aria-label={`Delete subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
@@ -1200,8 +1092,123 @@ function SubscriptionsPage() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                )}
-              </div>
+
+                  {/* Description - Full width row below avatar and title */}
+                  <div className="col-span-3 md:col-span-2 md:col-start-2 space-y-2">
+                    {sub.source?.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {sub.source?.description}
+                      </p>
+                    )}
+
+                    {/* Categories */}
+                    {sub.categories && sub.categories.length > 0 && (
+                      <CategoryBadgeList
+                        categories={sub.categories
+                          .filter(
+                            (
+                              c: (typeof sub.categories)[0],
+                            ): c is typeof c & { id: number } =>
+                              c.id !== undefined,
+                          )
+                          .map(
+                            (
+                              c: (typeof sub.categories)[0] & {
+                                id: number;
+                              },
+                            ) => ({
+                              id: c.id,
+                              name: c.name || "",
+                              color: c.color,
+                            }),
+                          )}
+                        onRemove={(categoryId) => {
+                          const currentCategoryIds =
+                            sub.categories
+                              ?.filter(
+                                (
+                                  c: (typeof sub.categories)[0],
+                                ): c is typeof c & { id: number } =>
+                                  c.id !== undefined && c.id !== categoryId,
+                              )
+                              .map(
+                                (
+                                  c: (typeof sub.categories)[0] & {
+                                    id: number;
+                                  },
+                                ) => c.id,
+                              ) || [];
+                          updateSubscription.mutate({
+                            id: sub.id!,
+                            categoryIds:
+                              currentCategoryIds.length > 0
+                                ? currentCategoryIds
+                                : undefined,
+                          });
+                        }}
+                      />
+                    )}
+
+                    {/* Filters Display */}
+                    {sub.filterEnabled &&
+                      sub.filters &&
+                      sub.filters.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {sub.filterMode === "exclude"
+                              ? "Exclude"
+                              : "Include"}{" "}
+                            Mode
+                          </Badge>
+                          {sub.filters
+                            .slice(0, 3)
+                            .map((filter: (typeof sub.filters)[0]) => (
+                              <Badge
+                                key={filter.id}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {filter.field === "any"
+                                  ? "Any"
+                                  : filter.field.charAt(0).toUpperCase() +
+                                    filter.field.slice(1)}{" "}
+                                {filter.matchType === "contains"
+                                  ? "contains"
+                                  : filter.matchType === "exact"
+                                    ? "is"
+                                    : "matches"}{" "}
+                                "{filter.pattern}"
+                              </Badge>
+                            ))}
+                          {sub.filters.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{sub.filters.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    {sub.filterEnabled &&
+                      (!sub.filters || sub.filters.length === 0) && (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
+                            Filters enabled (no filters configured)
+                          </Badge>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Metadata row - Spans full width at bottom */}
+                  <div className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
+                    <span className="truncate max-w-full md:max-w-md">
+                      {sub.source?.url}
+                    </span>
+                    <span className="hidden md:inline">•</span>
+                    <span className="whitespace-nowrap">
+                      Updated: {formatDate(sub.source?.lastFetched)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
