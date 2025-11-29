@@ -85,9 +85,7 @@ See the [developer documentation](./docs/developer/) for detailed contributor gu
 
 ## 📄 License
 
-MIT - feel free to use Tuvix for personal or commercial projects!
-
-_But_ we would _appreciate_ a link back to [tuvix.app](https://tuvix.app) if you do!
+AGPLv3 - see the [LICENSE](./LICENSE) file for details.
 
 ---
 
