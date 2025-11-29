@@ -68,7 +68,7 @@ describe("useMediaQuery", () => {
   it("should update when media query changes", async () => {
     mediaQueryMatches.set("(min-width: 768px)", false);
 
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useMediaQuery("(min-width: 768px)"),
     );
 
