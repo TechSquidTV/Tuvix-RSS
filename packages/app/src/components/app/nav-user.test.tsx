@@ -222,7 +222,6 @@ describe("NavUser", () => {
       banned: false,
     };
 
-    const userEventInstance = userEvent.setup();
     render(<NavUser user={userWithoutUsername as any} isLoading={false} />, {
       wrapper: SidebarWrapper,
     });
