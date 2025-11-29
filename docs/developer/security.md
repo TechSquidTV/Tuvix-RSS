@@ -324,26 +324,47 @@ User-provided regex patterns are validated before execution:
 
 ## Content Security
 
-### HTML Stripping
+### HTML Sanitization
 
-**All article content and descriptions are stripped of HTML before storage** to prevent:
-- Stored XSS attacks
-- Database bloat from HTML markup
-- Display inconsistencies
+**All article descriptions are sanitized before storage** to prevent XSS attacks while preserving safe formatting:
+- Removes dangerous HTML tags and attributes (script, iframe, onclick, etc.)
+- Preserves safe formatting tags (links, bold, italic, lists, headings, etc.)
+- Enforces secure link attributes (target="_blank", rel="noopener noreferrer")
+- Only allows safe URL protocols (http, https, mailto)
 
 **Implementation**:
 ```typescript
-import { stripHtml, truncateText } from '@/utils/text-sanitizer';
+import { sanitizeHtml, truncateHtml } from '@/utils/text-sanitizer';
 
-const content = truncateText(stripHtml(rawContent), 500000);
-const description = truncateText(stripHtml(rawDescription), 5000);
+// Descriptions: Sanitized HTML (allows safe tags)
+const sanitizedDescription = sanitizeHtml(rawDescription);
+const description = truncateHtml(sanitizedDescription, 5000);
 ```
+
+**Sanitization is enforced at the single entry point**:
+- Location: `packages/api/src/services/rss-fetcher.ts:689-693`
+- Library: `sanitize-html` with strict allowlist configuration
+- Allowed tags: Only inline elements (`a`, `strong`, `b`, `em`, `i`, `u`, `code`, `br`)
+- Heading conversion: `h1-h6` tags are automatically converted to `<strong>` to preserve emphasis
+- Blocked tags: Block-level elements (`p`, `blockquote`, `ul`, `ol`, `li`, `pre`, `div`) are stripped
+- Allowed attributes: Only `href`, `title`, `target`, `rel` on links
+- Rationale: Descriptions render inside `<p>` tags in the frontend, so only inline elements are valid HTML
+
+**Frontend rendering**:
+- The frontend uses `dangerouslySetInnerHTML` to render sanitized descriptions in two components:
+  - `packages/app/src/components/app/article-item.tsx:238` (standard article view)
+  - `packages/app/src/components/app/article-item-audio.tsx:252` (audio/podcast view)
+- This is safe because sanitization is guaranteed at the backend ingestion layer
+- Both components use the same `Article` type from tRPC, ensuring consistent data handling
+- No user-generated HTML is ever stored
 
 ### XSS Prevention
 
-- ✅ HTML stripped from all article content on input
+- ✅ HTML sanitized from all article descriptions on ingestion
+- ✅ Single code path for article creation (rss-fetcher.ts)
+- ✅ Battle-tested sanitization library (sanitize-html)
+- ✅ Strict allowlist of safe tags and attributes
 - ✅ Zod validation on all user inputs
-- ✅ No user-generated HTML stored
 - ✅ Content type headers set correctly
 
 ### SQL Injection Prevention

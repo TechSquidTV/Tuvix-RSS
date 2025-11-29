@@ -58,6 +58,7 @@
     "node-cron": "^4.2.1",
     "react-email": "^5.0.5",
     "resend": "^6.5.2",
+    "sanitize-html": "^2.17.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -68,6 +69,7 @@
     "@types/node": "^24.10.1",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19.2.6",
+    "@types/sanitize-html": "^2.16.0",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.47.0",
     "@vitest/coverage-v8": "^4.0.13",

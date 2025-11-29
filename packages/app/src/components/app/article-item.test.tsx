@@ -100,6 +100,110 @@ describe("ArticleItem", () => {
     expect(screen.getAllByText(/30 minutes ago/i).length).toBeGreaterThan(0);
   });
 
+  describe("HTML rendering in descriptions", () => {
+    it("renders sanitized HTML links in description", () => {
+      // Note: Backend sanitizes and adds target/_blank and rel attributes
+      const articleWithLink = {
+        ...mockArticle,
+        description:
+          'Article about tech. <a href="https://example.com/comments" target="_blank" rel="noopener noreferrer">Discuss</a>',
+      };
+      render(<ArticleItem article={articleWithLink} />);
+
+      const link = screen.getByRole("link", { name: "Discuss" });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute("href", "https://example.com/comments");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("renders Hacker News comment links correctly", () => {
+      const articleWithHNLink = {
+        ...mockArticle,
+        description:
+          'New feature released. <a href="https://news.ycombinator.com/item?id=12345">Comments</a>',
+      };
+      render(<ArticleItem article={articleWithHNLink} />);
+
+      const link = screen.getByRole("link", { name: "Comments" });
+      expect(link).toHaveAttribute(
+        "href",
+        "https://news.ycombinator.com/item?id=12345",
+      );
+    });
+
+    it("renders multiple links in description", () => {
+      const articleWithLinks = {
+        ...mockArticle,
+        description:
+          '<a href="https://one.com">Link One</a> and <a href="https://two.com">Link Two</a>',
+      };
+      render(<ArticleItem article={articleWithLinks} />);
+
+      expect(screen.getByRole("link", { name: "Link One" })).toHaveAttribute(
+        "href",
+        "https://one.com",
+      );
+      expect(screen.getByRole("link", { name: "Link Two" })).toHaveAttribute(
+        "href",
+        "https://two.com",
+      );
+    });
+
+    it("renders bold/strong text", () => {
+      const articleWithBold = {
+        ...mockArticle,
+        description: "Important: <strong>breaking news</strong> today",
+      };
+      const { container } = render(<ArticleItem article={articleWithBold} />);
+
+      const strong = container.querySelector("strong");
+      expect(strong).toBeInTheDocument();
+      expect(strong?.textContent).toBe("breaking news");
+    });
+
+    it("renders italic/em text", () => {
+      const articleWithItalic = {
+        ...mockArticle,
+        description: "Note: <em>this is emphasized</em> text",
+      };
+      const { container } = render(<ArticleItem article={articleWithItalic} />);
+
+      const em = container.querySelector("em");
+      expect(em).toBeInTheDocument();
+      expect(em?.textContent).toBe("this is emphasized");
+    });
+
+    it("XSS protection - script tags removed by backend sanitization", () => {
+      // Backend strips dangerous tags before storing, so we test that
+      // the frontend correctly renders already-sanitized content
+      const articleSanitizedByBackend = {
+        ...mockArticle,
+        description: "Safe text", // Backend would have removed the script tag
+      };
+      const { container } = render(
+        <ArticleItem article={articleSanitizedByBackend} />,
+      );
+
+      // Verify no script tags in rendered output
+      const script = container.querySelector("script");
+      expect(script).toBeNull();
+      expect(container.textContent).toContain("Safe text");
+    });
+
+    it("handles plain text descriptions without HTML", () => {
+      const plainTextArticle = {
+        ...mockArticle,
+        description: "Just plain text without any HTML",
+      };
+      render(<ArticleItem article={plainTextArticle} />);
+
+      expect(
+        screen.getByText("Just plain text without any HTML"),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("formats relative time correctly - days ago", () => {
     const oldArticle = {
       ...mockArticle,

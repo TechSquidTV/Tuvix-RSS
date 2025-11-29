@@ -12,7 +12,12 @@ import type { Database } from "../db/client";
 import * as schema from "../db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
-import { stripHtml, truncateText } from "@/utils/text-sanitizer";
+import {
+  sanitizeHtml,
+  stripHtml,
+  truncateText,
+  truncateHtml,
+} from "@/utils/text-sanitizer";
 import {
   extractDomain,
   isDomainBlocked,
@@ -664,7 +669,7 @@ async function extractArticleData(
   const content = truncateText(stripHtml(rawContent), 500000); // 500KB max
 
   // Description (separate from content)
-  // SECURITY: Strip HTML to prevent XSS
+  // SECURITY: Sanitize HTML to allow safe tags (links, formatting) while preventing XSS
   let rawDescription = "";
   if ("description" in item && typeof item.description === "string") {
     rawDescription = item.description;
@@ -680,8 +685,12 @@ async function extractArticleData(
     rawDescription = rawContent;
   }
 
-  // Strip HTML and truncate description
-  const description = truncateText(stripHtml(rawDescription), 5000);
+  // Sanitize HTML first (allow safe tags like links), then truncate safely
+  // Pass alreadySanitized flag to avoid double-sanitization
+  const sanitizedDescription = sanitizeHtml(rawDescription);
+  const description = truncateHtml(sanitizedDescription, 5000, "...", {
+    alreadySanitized: true,
+  });
 
   // Author
   let author: string | undefined = undefined;
