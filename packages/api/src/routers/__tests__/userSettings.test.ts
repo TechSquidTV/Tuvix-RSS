@@ -516,18 +516,18 @@ describe("User Settings Router", () => {
       // Custom limits should override plan limits
       expect(result.limits.maxSources).toBe(2000);
       expect(result.limits.maxPublicFeeds).toBe(100);
-      // null in custom limits means "use plan default", so we get the plan's 10
-      expect(result.limits.maxCategories).toBe(10);
+      // null in custom limits means "use plan default", so we get the plan's 50
+      expect(result.limits.maxCategories).toBe(50);
     });
 
     it("should use plan limits when no custom limits are set", async () => {
       const caller = createCaller(testUser.id);
       const result = await caller.getUsage();
 
-      // Should use free plan limits (from migration: 25, 2, 10)
-      expect(result.limits.maxSources).toBe(25);
+      // Should use free plan limits (from migration: 100, 2, 50)
+      expect(result.limits.maxSources).toBe(100);
       expect(result.limits.maxPublicFeeds).toBe(2);
-      expect(result.limits.maxCategories).toBe(10);
+      expect(result.limits.maxCategories).toBe(50);
     });
   });
 });

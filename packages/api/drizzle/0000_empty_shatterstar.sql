@@ -134,7 +134,7 @@ CREATE TABLE `plans` (
 -- Seed default plans
 -- Rate limits match plan-specific bindings: free=60, pro=180, enterprise=600
 INSERT INTO `plans` (`id`, `name`, `max_sources`, `max_public_feeds`, `max_categories`, `api_rate_limit_per_minute`, `public_feed_rate_limit_per_minute`, `price_cents`, `features`, `created_at`, `updated_at`) VALUES
-('free', 'Free', 25, 2, 10, 60, 2, 0, '{"description": "Perfect for personal use"}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('free', 'Free', 100, 2, 50, 60, 2, 0, '{"description": "Perfect for personal use"}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
 ('pro', 'Pro', 500, 25, 100, 180, 17, 1000, '{"description": "For power users and professionals"}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
 ('enterprise', 'Enterprise', 10000, 200, NULL, 600, 167, 0, '{"description": "Unlimited for teams and organizations"}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
 --> statement-breakpoint
