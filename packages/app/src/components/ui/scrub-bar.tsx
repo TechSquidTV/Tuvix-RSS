@@ -88,6 +88,10 @@ export function ScrubBarTrack({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!trackRef.current) return;
+
+    // Prevent swipe gestures from interfering with scrubbing
+    e.stopPropagation();
+
     setIsDragging(true);
     onScrubStart?.();
 

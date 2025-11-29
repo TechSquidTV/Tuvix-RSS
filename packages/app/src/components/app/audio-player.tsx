@@ -73,8 +73,12 @@ export function AudioPlayer({
   };
 
   // Display time for this audio player
-  const displayTime = isCurrentAudio ? currentTime : 0;
-  const displayDuration = isCurrentAudio && duration > 0 ? duration : 0;
+  // Show saved progress if not currently playing, otherwise show live currentTime
+  const displayTime = isCurrentAudio
+    ? currentTime
+    : (audioProgress?.position ?? 0);
+  const displayDuration =
+    isCurrentAudio && duration > 0 ? duration : (audioProgress?.duration ?? 0);
 
   return (
     <div

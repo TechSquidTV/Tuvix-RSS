@@ -74,9 +74,9 @@ describe("AudioPlayer with Progress", () => {
       />,
     );
 
-    // Should still show 0:00 since it's not the current audio
-    const timeLabels = screen.getAllByText("0:00");
-    expect(timeLabels).toHaveLength(2);
+    // Should show saved progress even when not currently playing
+    expect(screen.getByText("20:00")).toBeInTheDocument(); // 1200 seconds = 20 minutes
+    expect(screen.getByText("60:00")).toBeInTheDocument(); // 3600 seconds = 60 minutes
   });
 
   it("should call useAudioProgressSync with article ID", () => {
@@ -339,5 +339,81 @@ describe("AudioPlayer with Progress", () => {
     );
 
     expect(mockUseAudioProgressSync).toHaveBeenCalledWith(2);
+  });
+
+  it("should show saved progress when audio is not currently playing", () => {
+    // Audio context shows different audio is playing
+    vi.mocked(audioContext.useAudio).mockReturnValue({
+      currentAudioId: 2,
+      isPlaying: true,
+      currentTime: 500,
+      duration: 1800,
+      pauseAudio: mockPauseAudio,
+      seekTo: mockSeekTo,
+    } as any);
+
+    render(
+      <AudioPlayer
+        audioUrl="https://example.com/audio.mp3"
+        articleId={1}
+        title="Test Episode"
+        audioProgress={{
+          position: 900,
+          duration: 1800,
+          completedAt: null,
+        }}
+      />,
+    );
+
+    // Should show saved progress, not current audio progress
+    expect(screen.getByText("15:00")).toBeInTheDocument(); // 900 seconds = 15 minutes
+    expect(screen.getByText("30:00")).toBeInTheDocument(); // 1800 seconds = 30 minutes
+  });
+
+  it("should prioritize live progress over saved progress when audio is playing", () => {
+    vi.mocked(audioContext.useAudio).mockReturnValue({
+      currentAudioId: 1,
+      isPlaying: true,
+      currentTime: 600,
+      duration: 1800,
+      pauseAudio: mockPauseAudio,
+      seekTo: mockSeekTo,
+    } as any);
+
+    render(
+      <AudioPlayer
+        audioUrl="https://example.com/audio.mp3"
+        articleId={1}
+        title="Test Episode"
+        audioProgress={{
+          position: 900,
+          duration: 1800,
+          completedAt: null,
+        }}
+      />,
+    );
+
+    // Should show live progress (600s), not saved progress (900s)
+    expect(screen.getByText("10:00")).toBeInTheDocument(); // 600 seconds = 10 minutes
+    expect(screen.getByText("30:00")).toBeInTheDocument(); // 1800 seconds = 30 minutes
+  });
+
+  it("should handle partial progress with no saved duration", () => {
+    render(
+      <AudioPlayer
+        audioUrl="https://example.com/audio.mp3"
+        articleId={1}
+        title="Test Episode"
+        audioProgress={{
+          position: 300,
+          duration: null,
+          completedAt: null,
+        }}
+      />,
+    );
+
+    // Should show saved position but duration shows 0:00
+    expect(screen.getByText("5:00")).toBeInTheDocument(); // 300 seconds = 5 minutes
+    expect(screen.getByText("0:00")).toBeInTheDocument(); // null duration defaults to 0
   });
 });
