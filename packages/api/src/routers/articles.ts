@@ -6,13 +6,18 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, or, isNull, desc, inArray, lt, type SQL } from "drizzle-orm";
+import { eq, and, desc, inArray, lt } from "drizzle-orm";
 import { router, rateLimitedProcedure } from "@/trpc/init";
 import { articleWithSourceSchema } from "@/db/schemas.zod";
 import {
   createPaginatedSchema,
   paginationInputSchema,
 } from "@/types/pagination";
+import {
+  buildArticlesBaseQuery,
+  applyCategoryFilter,
+  buildArticlesWhereConditions,
+} from "./articles-helpers";
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
 import * as schema from "@/db/schema";
 import { executeBatch } from "@/db/utils";
@@ -185,79 +190,16 @@ export const articlesRouter = router({
     .query(async ({ ctx, input }) => {
       const { userId } = ctx.user;
 
-      // Build base query - select all fields from all tables
-      let queryBuilder = ctx.db
-        .select()
-        .from(schema.articles)
-        .innerJoin(
-          schema.sources,
-          eq(schema.articles.sourceId, schema.sources.id)
-        )
-        .innerJoin(
-          schema.subscriptions,
-          and(
-            eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-            eq(schema.subscriptions.userId, userId)
-          )
-        )
-        .leftJoin(
-          schema.userArticleStates,
-          and(
-            eq(schema.userArticleStates.articleId, schema.articles.id),
-            eq(schema.userArticleStates.userId, userId)
-          )
-        )
-        .$dynamic();
+      // Build base query using helper
+      let queryBuilder = buildArticlesBaseQuery(ctx.db, userId);
 
-      // Build WHERE conditions
-      const conditions: SQL[] = [];
-
-      // Category filter - optimized with JOIN instead of subquery
+      // Apply category filter if provided
       if (input.categoryId) {
-        queryBuilder = queryBuilder.innerJoin(
-          schema.subscriptionCategories,
-          and(
-            eq(
-              schema.subscriptionCategories.subscriptionId,
-              schema.subscriptions.id
-            ),
-            eq(schema.subscriptionCategories.categoryId, input.categoryId)
-          )
-        );
+        queryBuilder = applyCategoryFilter(queryBuilder, input.categoryId);
       }
 
-      // Subscription filter
-      if (input.subscriptionId) {
-        conditions.push(eq(schema.subscriptions.id, input.subscriptionId));
-      }
-
-      // Read filter
-      if (input.read !== undefined) {
-        if (input.read) {
-          conditions.push(eq(schema.userArticleStates.read, true));
-        } else {
-          conditions.push(
-            or(
-              isNull(schema.userArticleStates.read),
-              eq(schema.userArticleStates.read, false)
-            )!
-          );
-        }
-      }
-
-      // Saved filter
-      if (input.saved !== undefined) {
-        if (input.saved) {
-          conditions.push(eq(schema.userArticleStates.saved, true));
-        } else {
-          conditions.push(
-            or(
-              isNull(schema.userArticleStates.saved),
-              eq(schema.userArticleStates.saved, false)
-            )!
-          );
-        }
-      }
+      // Build WHERE conditions using helper
+      const conditions = buildArticlesWhereConditions(input);
 
       // Apply WHERE conditions
       if (conditions.length > 0) {
@@ -332,6 +274,9 @@ export const articlesRouter = router({
         });
       }
 
+      // Check if any subscriptions have filtering enabled
+      const hasSubscriptionFilters = subscriptionIdsWithFilters.size > 0;
+
       // Apply subscription filters
       const filteredResults = transformedResults.filter((article) => {
         if (!article._subscription.filterEnabled) {
@@ -355,11 +300,50 @@ export const articlesRouter = router({
 
       // Apply pagination to filtered results
       const paginatedResults = cleanedResults.slice(0, input.limit);
+
+      // Calculate hasMore: check if we have more items after filtering than requested
       const hasMore = cleanedResults.length > input.limit;
+
+      // Calculate total count
+      let total: number;
+      if (!hasSubscriptionFilters) {
+        // No subscription filters = we can get accurate count from database
+        // Build COUNT query using same helpers as main query
+        let countQueryBuilder = buildArticlesBaseQuery(ctx.db, userId);
+
+        // Apply same category filter
+        if (input.categoryId) {
+          countQueryBuilder = applyCategoryFilter(
+            countQueryBuilder,
+            input.categoryId
+          );
+        }
+
+        // Apply same WHERE conditions
+        if (conditions.length > 0) {
+          countQueryBuilder = countQueryBuilder.where(and(...conditions));
+        }
+
+        const countResult = await withQueryMetrics(
+          "articles.list.count",
+          async () => countQueryBuilder,
+          {
+            "db.table": "articles",
+            "db.operation": "count",
+          }
+        );
+
+        // Just count the rows returned
+        total = countResult.length;
+      } else {
+        // Subscription filters active = approximate total
+        // Use offset + current results as estimate
+        total = cleanedResults.length + input.offset;
+      }
 
       return {
         items: paginatedResults,
-        total: cleanedResults.length + input.offset, // Approximate total
+        total,
         hasMore,
       };
     }),
