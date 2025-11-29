@@ -65,10 +65,5 @@ export function calculateStartDate(days: number): Date {
       "calculateStartDate: 'days' must be a positive number (>= 1)"
     );
   }
-  if (typeof days !== "number" || !Number.isFinite(days) || days < 1) {
-    throw new Error(
-      "calculateStartDate: 'days' must be a positive number (>= 1)"
-    );
-  }
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
