@@ -12,12 +12,18 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Info, Check, Rocket } from "lucide-react";
 import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
+import { trpc } from "@/lib/api/trpc";
 
 export const Route = createFileRoute("/app/plans")({
   component: PlansPage,
 });
 
 function PlansPage() {
+  // Fetch plans dynamically from API
+  const { data: plans, isLoading } = trpc.plans.list.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+
   // Track that a user accessed the plans/upgrade page
   useEffect(() => {
     Sentry.captureMessage("User accessed upgrade plans page", {
@@ -35,10 +41,16 @@ function PlansPage() {
     });
   }, []);
 
+  // Find specific plans
+  const freePlan = plans?.find((p) => p.id === "free");
+  const proPlan = plans?.find((p) => p.id === "pro");
+  const enterprisePlan = plans?.find((p) => p.id === "enterprise");
+
   return (
     <SettingsPageLayout
       title="Plans &amp; Pricing"
       description="Learn about TuvixRSS plans"
+      isLoading={isLoading}
     >
       {/* Info Alert */}
       <Alert>
@@ -51,126 +63,161 @@ function PlansPage() {
       </Alert>
 
       {/* Current Free Plan */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                Free Plan
-                <Badge variant="secondary">Current</Badge>
-              </CardTitle>
-              <CardDescription>Perfect for personal use</CardDescription>
+      {freePlan && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {freePlan.name}
+                  <Badge variant="secondary">Current</Badge>
+                </CardTitle>
+                <CardDescription>Perfect for personal use</CardDescription>
+              </div>
+              <div className="text-3xl font-bold">
+                ${(freePlan.priceCents / 100).toFixed(2)}
+              </div>
             </div>
-            <div className="text-3xl font-bold">$0</div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>100 RSS feed sources</span>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {freePlan.maxSources.toLocaleString()} RSS feed sources
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>{freePlan.maxPublicFeeds} public feeds</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {freePlan.maxCategories === null
+                    ? "Unlimited"
+                    : freePlan.maxCategories}{" "}
+                  categories
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {freePlan.apiRateLimitPerMinute} API requests per minute
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>2 public feeds</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>50 categories</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>60 API requests per minute</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Future Pro Plan */}
-      <Card className="opacity-60">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                Pro Plan
-                <Badge variant="outline">Coming Soon</Badge>
-              </CardTitle>
-              <CardDescription>
-                For power users and professionals
-              </CardDescription>
+      {proPlan && (
+        <Card className="opacity-60">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {proPlan.name}
+                  <Badge variant="outline">Coming Soon</Badge>
+                </CardTitle>
+                <CardDescription>
+                  For power users and professionals
+                </CardDescription>
+              </div>
+              <div className="text-3xl font-bold">TBD</div>
             </div>
-            <div className="text-3xl font-bold">TBD</div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>500 RSS feed sources</span>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {proPlan.maxSources.toLocaleString()} RSS feed sources
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>{proPlan.maxPublicFeeds} public feeds</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {proPlan.maxCategories === null
+                    ? "Unlimited"
+                    : proPlan.maxCategories}{" "}
+                  categories
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {proPlan.apiRateLimitPerMinute} API requests per minute
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Priority support</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>25 public feeds</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>100 categories</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>180 API requests per minute</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>Priority support</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Future Enterprise Plan */}
-      <Card className="opacity-60">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                Enterprise Plan
-                <Badge variant="outline">Coming Soon</Badge>
-              </CardTitle>
-              <CardDescription>For teams and organizations</CardDescription>
+      {enterprisePlan && (
+        <Card className="opacity-60">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {enterprisePlan.name}
+                  <Badge variant="outline">Coming Soon</Badge>
+                </CardTitle>
+                <CardDescription>For teams and organizations</CardDescription>
+              </div>
+              <div className="text-3xl font-bold">TBD</div>
             </div>
-            <div className="text-3xl font-bold">TBD</div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>10,000 RSS feed sources</span>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {enterprisePlan.maxSources.toLocaleString()} RSS feed sources
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>{enterprisePlan.maxPublicFeeds} public feeds</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {enterprisePlan.maxCategories === null
+                    ? "Unlimited"
+                    : enterprisePlan.maxCategories}{" "}
+                  categories
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>
+                  {enterprisePlan.apiRateLimitPerMinute} API requests per minute
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Dedicated support</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>SLA guarantee</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>200 public feeds</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>Unlimited categories</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>600 API requests per minute</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>Dedicated support</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>SLA guarantee</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Need More? Card */}
       <Card className="border-primary/50">
