@@ -31,7 +31,7 @@ function AdminSettings() {
       toast.success("Settings saved");
       refetch();
     },
-    onError: (error) => {
+    onError: (error: { message?: string }) => {
       toast.error(error.message || "Failed to save settings");
     },
   });
@@ -89,11 +89,11 @@ function AdminSettings() {
           <SettingsField
             id="pruneDays"
             label="Prune Articles After (days)"
-            description="Automatically delete articles older than this many days (0-365)"
+            description="Automatically delete articles older than this many days. Saved articles are never deleted. (0-365, 0 = never delete)"
             type="number"
             value={formData.pruneDays}
             onChange={(value) =>
-              setFormData({ ...formData, pruneDays: parseInt(value) || 30 })
+              setFormData({ ...formData, pruneDays: parseInt(value) || 90 })
             }
             min="0"
             max="365"
