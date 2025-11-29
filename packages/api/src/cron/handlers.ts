@@ -8,7 +8,7 @@
 import { createDatabase } from "@/db/client";
 import { fetchAllFeeds } from "@/services/rss-fetcher";
 import { getGlobalSettings } from "@/services/global-settings";
-import { inArray, lt, or, isNull, and } from "drizzle-orm";
+import { inArray, lt, or, isNull, and, sql } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
@@ -130,20 +130,30 @@ async function _handleArticlePrune(env: Env): Promise<{
         const cutoffTimestamp = cutoffDate.getTime();
 
         // Find articles to delete (use publishedAt or createdAt if publishedAt is null)
+        // Exclude articles that are saved by any user
         const cutoffDateForComparison = new Date(cutoffTimestamp);
-        // Use SQL COALESCE but ensure proper comparison by using sql template for the comparison value too
+
+        // Find old articles that are NOT saved by any user
+        // Uses NOT IN subquery to efficiently exclude saved articles in SQL
         const articlesToDelete = await db
           .select()
           .from(schema.articles)
           .where(
-            or(
-              // Articles with publishedAt that are older than cutoff
-              lt(schema.articles.publishedAt, cutoffDateForComparison),
-              // Articles without publishedAt but with createdAt older than cutoff
-              and(
-                isNull(schema.articles.publishedAt),
-                lt(schema.articles.createdAt, cutoffDateForComparison)
-              )!
+            and(
+              // Article is old (either by publishedAt or createdAt)
+              or(
+                lt(schema.articles.publishedAt, cutoffDateForComparison),
+                and(
+                  isNull(schema.articles.publishedAt),
+                  lt(schema.articles.createdAt, cutoffDateForComparison)
+                )!
+              )!,
+              // Article is NOT saved by any user (use NOT IN subquery)
+              sql`${schema.articles.id} NOT IN (
+                SELECT ${schema.userArticleStates.articleId}
+                FROM ${schema.userArticleStates}
+                WHERE ${schema.userArticleStates.saved} = 1
+              )`
             )!
           );
 
@@ -168,7 +178,7 @@ async function _handleArticlePrune(env: Env): Promise<{
         }
 
         console.log(
-          `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days`
+          `🗑️ Pruned ${deletedCount} articles older than ${settings.pruneDays} days (saved articles excluded)`
         );
 
         // Emit metrics
