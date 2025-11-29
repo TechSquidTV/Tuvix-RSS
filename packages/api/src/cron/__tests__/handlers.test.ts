@@ -289,6 +289,170 @@ describe("Cron Handlers", () => {
       expect(result.deletedCount).toBe(1);
     });
 
+    it("should NOT delete saved articles regardless of age", async () => {
+      // Create a test user to save articles
+      const [user] = await db
+        .insert(schema.user)
+        .values({
+          name: "Test User",
+          email: "test@example.com",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Create very old articles (older than 30 days)
+      const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000);
+      const [oldArticle1] = await db
+        .insert(schema.articles)
+        .values({
+          sourceId: testSource.id,
+          guid: "guid-old-saved",
+          title: "Old Saved Article",
+          link: "https://example.com/saved",
+          publishedAt: oldDate,
+          createdAt: oldDate,
+        })
+        .returning();
+
+      await db
+        .insert(schema.articles)
+        .values({
+          sourceId: testSource.id,
+          guid: "guid-old-not-saved",
+          title: "Old Not Saved Article",
+          link: "https://example.com/not-saved",
+          publishedAt: oldDate,
+          createdAt: oldDate,
+        })
+        .returning();
+
+      // Mark first article as saved by user
+      await db.insert(schema.userArticleStates).values({
+        userId: user.id,
+        articleId: oldArticle1.id,
+        read: false,
+        saved: true, // This article is saved!
+        updatedAt: new Date(),
+      });
+
+      // Verify we have 2 articles before pruning
+      const beforePrune = await db.select().from(schema.articles);
+      expect(beforePrune).toHaveLength(2);
+
+      const result = await handleArticlePrune(env);
+
+      // Should only delete 1 article (the non-saved one)
+      expect(result.deletedCount).toBe(1);
+
+      // Verify saved article still exists
+      const remainingArticles = await db.select().from(schema.articles);
+      expect(remainingArticles).toHaveLength(1);
+      expect(remainingArticles[0].title).toBe("Old Saved Article");
+      expect(remainingArticles[0].id).toBe(oldArticle1.id);
+    });
+
+    it("should preserve articles saved by ANY user", async () => {
+      // Create two test users
+      await db
+        .insert(schema.user)
+        .values({
+          name: "User 1",
+          email: "user1@example.com",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const [user2] = await db
+        .insert(schema.user)
+        .values({
+          name: "User 2",
+          email: "user2@example.com",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Create old article
+      const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000);
+      const [article] = await db
+        .insert(schema.articles)
+        .values({
+          sourceId: testSource.id,
+          guid: "guid-saved-by-user2",
+          title: "Article Saved By User 2",
+          link: "https://example.com/article",
+          publishedAt: oldDate,
+          createdAt: oldDate,
+        })
+        .returning();
+
+      // User 2 saves it (not user 1)
+      await db.insert(schema.userArticleStates).values({
+        userId: user2.id,
+        articleId: article.id,
+        read: false,
+        saved: true,
+        updatedAt: new Date(),
+      });
+
+      const result = await handleArticlePrune(env);
+
+      // Should not delete because user2 saved it
+      expect(result.deletedCount).toBe(0);
+
+      const remainingArticles = await db.select().from(schema.articles);
+      expect(remainingArticles).toHaveLength(1);
+      expect(remainingArticles[0].id).toBe(article.id);
+    });
+
+    it("should delete old articles that were saved but then unsaved", async () => {
+      const [user] = await db
+        .insert(schema.user)
+        .values({
+          name: "Test User",
+          email: "test@example.com",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000);
+      const [article] = await db
+        .insert(schema.articles)
+        .values({
+          sourceId: testSource.id,
+          guid: "guid-unsaved",
+          title: "Previously Saved Article",
+          link: "https://example.com/article",
+          publishedAt: oldDate,
+          createdAt: oldDate,
+        })
+        .returning();
+
+      // Article was saved but then unsaved (saved = false)
+      await db.insert(schema.userArticleStates).values({
+        userId: user.id,
+        articleId: article.id,
+        read: true,
+        saved: false, // Not currently saved
+        updatedAt: new Date(),
+      });
+
+      const result = await handleArticlePrune(env);
+
+      // Should delete because it's not currently saved
+      expect(result.deletedCount).toBe(1);
+
+      const remainingArticles = await db.select().from(schema.articles);
+      expect(remainingArticles).toHaveLength(0);
+    });
+
     it("should log prune results", async () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const oldDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
@@ -306,7 +470,9 @@ describe("Cron Handlers", () => {
 
       expect(consoleSpy).toHaveBeenCalledWith("🗑️ Starting article prune...");
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Pruned 1 articles older than 30 days")
+        expect.stringContaining(
+          "Pruned 1 articles older than 30 days (saved articles excluded)"
+        )
       );
 
       consoleSpy.mockRestore();
