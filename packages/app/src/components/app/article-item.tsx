@@ -236,6 +236,13 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                   // sanitized at ingestion via sanitize-html library (packages/api/src/services/rss-fetcher.ts:689)
                   // Only safe HTML tags are allowed (links, formatting), dangerous content is stripped
                   dangerouslySetInnerHTML={{ __html: article.description }}
+                  onClick={(e) => {
+                    // Prevent click event from bubbling up to the card's onClick handler
+                    // when clicking links inside the description (e.g., HN comments links)
+                    if ((e.target as HTMLElement).tagName === "A") {
+                      e.stopPropagation();
+                    }
+                  }}
                 />
               )}
             </div>
