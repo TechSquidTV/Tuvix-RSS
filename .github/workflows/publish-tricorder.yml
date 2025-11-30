@@ -108,6 +108,15 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/tricorder-v}
+
+          # Validate semantic version format (major.minor.patch with optional pre-release)
+          if ! echo "$TAG_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "❌ Invalid tag version format: $TAG_VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-prerelease"
+            echo "Examples: 1.0.0, 1.2.3, 2.0.0-beta.1"
+            exit 1
+          fi
+
           PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
 
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
