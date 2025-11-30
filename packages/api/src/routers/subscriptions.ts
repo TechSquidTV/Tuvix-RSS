@@ -753,10 +753,29 @@ export const subscriptionsRouter = router({
       )
     )
     .mutation(async ({ ctx: _ctx, input }) => {
-      const { discoverFeeds } = await import("@/services/feed-discovery");
+      const { discoverFeeds, NoFeedsFoundError } = await import(
+        "@tuvixrss/tricorder"
+      );
+      const { sentryTelemetryAdapter } = await import(
+        "@/adapters/sentry-telemetry"
+      );
 
-      // Use the extensible discovery system
-      const discoveredFeeds = await discoverFeeds(input.url);
+      // Use the extensible discovery system with Sentry telemetry
+      let discoveredFeeds;
+      try {
+        discoveredFeeds = await discoverFeeds(input.url, {
+          telemetry: sentryTelemetryAdapter,
+        });
+      } catch (error) {
+        // Convert tricorder errors to TRPC errors
+        if (error instanceof NoFeedsFoundError) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
 
       // Filter to only rss/atom types to match output schema (maintain backward compatibility)
       // rdf and json feeds are converted to rss for compatibility
