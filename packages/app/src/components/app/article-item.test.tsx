@@ -156,6 +156,31 @@ describe("ArticleItem", () => {
       );
     });
 
+    it("clicking links with nested elements does not trigger card click", async () => {
+      vi.mocked(useMobileHook.useIsMobile).mockReturnValue(true);
+      const user = userEvent.setup();
+
+      const articleWithNestedLink = {
+        ...mockArticle,
+        link: "https://example.com/article",
+        description:
+          'Article text. <a href="https://news.ycombinator.com/item?id=12345" target="_blank" rel="noopener noreferrer"><strong>Bold Comments</strong></a>',
+      };
+      render(<ArticleItem article={articleWithNestedLink} />);
+
+      // Click the nested <strong> element inside the link
+      const commentsLink = screen.getByRole("link", { name: "Bold Comments" });
+      await user.click(commentsLink);
+
+      // Verify that window.open was NOT called with the article link
+      // This tests that closest('a') properly handles nested elements
+      expect(window.open).not.toHaveBeenCalledWith(
+        "https://example.com/article",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+
     it("renders multiple links in description", () => {
       const articleWithLinks = {
         ...mockArticle,

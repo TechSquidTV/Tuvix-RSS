@@ -239,7 +239,9 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                   onClick={(e) => {
                     // Prevent click event from bubbling up to the card's onClick handler
                     // when clicking links inside the description (e.g., HN comments links)
-                    if ((e.target as HTMLElement).tagName === "A") {
+                    // Use closest() to handle links with nested elements (e.g., <a><strong>text</strong></a>)
+                    const anchor = (e.target as HTMLElement).closest("a");
+                    if (anchor) {
                       e.stopPropagation();
                     }
                   }}
