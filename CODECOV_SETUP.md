@@ -54,6 +54,7 @@ The setup handles both packages in your monorepo:
 ### Coverage Workflow
 
 1. **Test Execution**
+
    ```bash
    # API tests
    pnpm run test:coverage:api
@@ -75,21 +76,26 @@ The setup handles both packages in your monorepo:
 ### Configuration Files
 
 #### `codecov.yml`
+
 Main Codecov configuration:
+
 - Sets coverage precision and range
 - Configures project and patch status checks
 - Defines flags for API and App
 - Excludes test files and generated code
 
 #### Vitest Configs
+
 Both packages have coverage configured:
 
 **API** (`packages/api/vitest.config.ts`):
+
 - Provider: `v8`
 - Reporters: `text`, `json`, `html`, `lcov`
 - Excludes: tests, migrations, CLI, adapters
 
 **App** (`packages/app/vite.config.ts`):
+
 - Provider: `v8`
 - Reporters: `text`, `json`, `html`, `lcov`
 - Excludes: shadcn/ui components, generated files, tests
@@ -139,6 +145,7 @@ Once set up, you'll have access to:
 ### Coverage not uploading
 
 Check that:
+
 - `CODECOV_TOKEN` is set in GitHub secrets
 - Tests are generating `lcov.info` files
 - CI workflow has the `secrets: inherit` parameter
@@ -165,6 +172,7 @@ Check that:
 ## Coverage Goals
 
 Current thresholds:
+
 - **API**: 0% (aspirational thresholds in config)
 - **App**: 60% (enforced in vitest config)
 

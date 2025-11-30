@@ -5,11 +5,14 @@ import { render } from "@/test/test-utils";
 import { ArticleItem } from "./article-item";
 import * as useArticlesModule from "@/lib/hooks/useArticles";
 import * as useMobileHook from "@/hooks/use-mobile";
-import type { ModelsArticle } from "@/lib/api/generated/types.gen";
+import type { RouterOutputs } from "@/lib/api/trpc";
 
 // Mock the hooks
 vi.mock("@/lib/hooks/useArticles");
 vi.mock("@/hooks/use-mobile");
+
+// Get the actual article type from tRPC router output (matches component's type)
+type Article = RouterOutputs["articles"]["list"]["items"][number];
 
 describe("ArticleItem", () => {
   const mockMarkRead = vi.fn();
@@ -17,21 +20,34 @@ describe("ArticleItem", () => {
   const mockSaveArticle = vi.fn();
   const mockUnsaveArticle = vi.fn();
 
-  const mockArticle: ModelsArticle = {
+  const mockArticle: Article = {
     id: 1,
+    sourceId: 1,
+    guid: "test-guid",
     title: "Test Article Title",
     description: "This is a test article description",
     link: "https://example.com/article",
+    content: null,
     publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    createdAt: new Date().toISOString(),
     author: "Test Author",
     read: false,
     saved: false,
     imageUrl: "https://example.com/image.jpg",
+    audioUrl: null,
+    audioProgress: null,
     source: {
       id: 1,
-      title: "Test Source",
       url: "https://example.com",
+      title: "Test Source",
+      description: null,
+      siteUrl: null,
       iconUrl: "https://example.com/icon.png",
+      iconType: "auto",
+      iconUpdatedAt: null,
+      lastFetched: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
   };
 
@@ -129,6 +145,56 @@ describe("ArticleItem", () => {
       expect(link).toHaveAttribute(
         "href",
         "https://news.ycombinator.com/item?id=12345",
+      );
+    });
+
+    it("clicking links in description does not trigger card click on mobile", async () => {
+      vi.mocked(useMobileHook.useIsMobile).mockReturnValue(true);
+      const user = userEvent.setup();
+
+      const articleWithHNLink = {
+        ...mockArticle,
+        link: "https://example.com/article",
+        description:
+          'Article text. <a href="https://news.ycombinator.com/item?id=12345" target="_blank" rel="noopener noreferrer">Comments</a>',
+      };
+      render(<ArticleItem article={articleWithHNLink} />);
+
+      // Click the Comments link inside the description
+      const commentsLink = screen.getByRole("link", { name: "Comments" });
+      await user.click(commentsLink);
+
+      // Verify that window.open was NOT called with the article link
+      // The link's default behavior should handle navigation to the comments URL
+      expect(window.open).not.toHaveBeenCalledWith(
+        "https://example.com/article",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    });
+
+    it("clicking links with nested elements does not trigger card click", async () => {
+      vi.mocked(useMobileHook.useIsMobile).mockReturnValue(true);
+      const user = userEvent.setup();
+
+      const articleWithNestedLink = {
+        ...mockArticle,
+        link: "https://example.com/article",
+        description:
+          'Article text. <a href="https://news.ycombinator.com/item?id=12345" target="_blank" rel="noopener noreferrer"><strong>Bold Comments</strong></a>',
+      };
+      render(<ArticleItem article={articleWithNestedLink} />);
+
+      // Click the nested <strong> element inside the link
+      const commentsLink = screen.getByRole("link", { name: "Bold Comments" });
+      await user.click(commentsLink);
+
+      // Verify that window.open was NOT called with the article link
+      // This tests that closest('a') properly handles nested elements
+      expect(window.open).not.toHaveBeenCalledWith(
+        "https://example.com/article",
+        "_blank",
+        "noopener,noreferrer",
       );
     });
 
@@ -305,13 +371,13 @@ describe("ArticleItem", () => {
   });
 
   it("renders fallback text for missing data", () => {
-    const incompleteArticle: ModelsArticle = {
+    const incompleteArticle = {
       id: 1,
       title: undefined,
       description: undefined,
       publishedAt: undefined,
       source: undefined,
-    };
+    } as any;
 
     render(<ArticleItem article={incompleteArticle} />);
 

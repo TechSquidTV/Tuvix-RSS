@@ -31,7 +31,8 @@ describe("RSS Fetcher - Hacker News Integration", () => {
   });
 
   it("should parse and sanitize real HN RSS feed item with comment link", () => {
-    // Real HN RSS feed structure (anonymized)
+    // Real HN RSS feed structure (anonymized, based on https://news.ycombinator.com/rss)
+    // Example: Show HN: Proof of aliens
     const hnRssFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -39,11 +40,11 @@ describe("RSS Fetcher - Hacker News Integration", () => {
     <link>https://news.example.com/</link>
     <description>Links for the intellectually curious, ranked by readers.</description>
     <item>
-      <title>Revolutionary New Technology Announced</title>
-      <link>https://example.com/article/12345</link>
-      <pubDate>Sat, 29 Nov 2025 03:26:01 +0000</pubDate>
-      <comments>https://news.example.com/item?id=46084956</comments>
-      <description><![CDATA[<a href="https://news.example.com/item?id=46084956">Comments</a>]]></description>
+      <title>Show HN: Proof of aliens</title>
+      <link>https://github.com/example/alien-proof-pdf</link>
+      <pubDate>Sat, 29 Nov 2025 20:44:24 +0000</pubDate>
+      <comments>https://news.example.com/item?id=555555555555</comments>
+      <description><![CDATA[<a href="https://news.example.com/item?id=555555555555">Comments</a>]]></description>
     </item>
   </channel>
 </rss>`;
@@ -63,10 +64,10 @@ describe("RSS Fetcher - Hacker News Integration", () => {
 
     // Verify item fields
     if ("title" in item) {
-      expect(item.title).toBe("Revolutionary New Technology Announced");
+      expect(item.title).toBe("Show HN: Proof of aliens");
     }
     if ("link" in item) {
-      expect(item.link).toBe("https://example.com/article/12345");
+      expect(item.link).toBe("https://github.com/example/alien-proof-pdf");
     }
     if ("description" in item) {
       const rawDescription = item.description as string;
@@ -78,7 +79,7 @@ describe("RSS Fetcher - Hacker News Integration", () => {
 
       // Verify sanitization preserves the link
       expect(sanitized).toContain(
-        '<a href="https://news.example.com/item?id=46084956"'
+        '<a href="https://news.example.com/item?id=555555555555"'
       );
       expect(sanitized).toContain("Comments");
 
@@ -212,17 +213,17 @@ describe("RSS Fetcher - Hacker News Integration", () => {
       })
       .returning();
 
-    // Mock fetch to return HN RSS feed
+    // Mock fetch to return HN RSS feed with real structure
     const hnFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
     <title>Hacker News</title>
     <item>
-      <title>Revolutionary AI Breakthrough</title>
-      <link>https://example.com/ai-breakthrough</link>
-      <pubDate>Sat, 29 Nov 2025 03:26:01 +0000</pubDate>
-      <comments>https://news.example.com/item?id=46084956</comments>
-      <description><![CDATA[<a href="https://news.example.com/item?id=46084956">Comments</a>]]></description>
+      <title>Show HN: Proof of aliens</title>
+      <link>https://github.com/example/alien-proof-pdf</link>
+      <pubDate>Sat, 29 Nov 2025 20:44:24 +0000</pubDate>
+      <comments>https://news.example.com/item?id=555555555555</comments>
+      <description><![CDATA[<a href="https://news.example.com/item?id=555555555555">Comments</a>]]></description>
     </item>
   </channel>
 </rss>`;
@@ -249,13 +250,13 @@ describe("RSS Fetcher - Hacker News Integration", () => {
     expect(articles).toHaveLength(1);
 
     const article = articles[0];
-    expect(article.title).toBe("Revolutionary AI Breakthrough");
-    expect(article.link).toBe("https://example.com/ai-breakthrough");
+    expect(article.title).toBe("Show HN: Proof of aliens");
+    expect(article.link).toBe("https://github.com/example/alien-proof-pdf");
 
     // CRITICAL: Description should have sanitized HTML with comment link
     expect(article.description).toBeDefined();
     expect(article.description).toContain(
-      'href="https://news.example.com/item?id=46084956"'
+      'href="https://news.example.com/item?id=555555555555"'
     );
     expect(article.description).toContain('target="_blank"');
     expect(article.description).toContain('rel="noopener noreferrer"');
