@@ -15,6 +15,27 @@ import type { TelemetryAdapter } from "@tuvixrss/tricorder";
  * - Breadcrumbs for debugging
  * - Exception capture with context
  */
+/**
+ * Filter attributes to only include primitive types supported by Sentry
+ */
+function filterAttributes(
+  attributes?: Record<string, unknown>
+): Record<string, string | number | boolean> {
+  if (!attributes) return {};
+
+  const filtered: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(attributes)) {
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
+
 export const sentryTelemetryAdapter: TelemetryAdapter = {
   startSpan: <T>(
     options: {
@@ -28,40 +49,48 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
       {
         op: options.op,
         name: options.name,
-        attributes: (options.attributes || {}) as Record<
-          string,
-          string | number | boolean
-        >,
+        attributes: filterAttributes(options.attributes),
       },
       callback
     );
   },
 
-  addBreadcrumb: (breadcrumb: {
+  addBreadcrumb: async (breadcrumb: {
     message: string;
     level?: "debug" | "info" | "warning" | "error";
     category?: string;
     data?: unknown;
-  }): void => {
-    Sentry.addBreadcrumb({
+  }): Promise<void> => {
+    // Filter breadcrumb data to only include primitive types
+    let filteredData: Record<string, string | number | boolean> | undefined =
+      undefined;
+    if (
+      breadcrumb.data &&
+      typeof breadcrumb.data === "object" &&
+      !Array.isArray(breadcrumb.data)
+    ) {
+      filteredData = filterAttributes(
+        breadcrumb.data as Record<string, unknown>
+      );
+    }
+
+    await Sentry.addBreadcrumb({
       category: breadcrumb.category || "feed.discovery",
       message: breadcrumb.message,
       level: breadcrumb.level || "info",
-      data: breadcrumb.data as
-        | Record<string, string | number | boolean>
-        | undefined,
+      data: filteredData,
     });
   },
 
-  captureException: (
+  captureException: async (
     error: Error,
     context?: {
       level?: "debug" | "info" | "warning" | "error";
       tags?: Record<string, string>;
       extra?: Record<string, unknown>;
     }
-  ): void => {
-    Sentry.captureException(error, {
+  ): Promise<string | undefined> => {
+    return await Sentry.captureException(error, {
       level: context?.level || "error",
       tags: context?.tags,
       extra: context?.extra,

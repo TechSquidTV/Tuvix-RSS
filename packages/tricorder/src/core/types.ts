@@ -104,13 +104,14 @@ export interface TelemetryAdapter {
     category?: string;
     /** Additional data */
     data?: unknown;
-  }): void;
+  }): void | Promise<void>;
 
   /**
    * Capture an exception
    *
    * @param error - Error to capture
    * @param context - Additional context
+   * @returns Optional event ID from the telemetry system
    */
   captureException?(
     error: Error,
@@ -122,5 +123,5 @@ export interface TelemetryAdapter {
       /** Additional data */
       extra?: Record<string, unknown>;
     }
-  ): void;
+  ): void | Promise<string | undefined>;
 }
