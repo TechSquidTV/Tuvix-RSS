@@ -1,0 +1,58 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Tuvix
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      description: Which part of Tuvix would this feature affect?
+      options:
+        - App (Frontend)
+        - API (Backend)
+        - Both
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Is your feature request related to a problem? What are you trying to accomplish?
+      placeholder: I'm frustrated when... / I want to be able to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or enhancement you'd like to see
+      placeholder: I would like...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context, mockups, or examples about the feature request
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to contribute?
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I'd be willing to contribute this feature
+          required: false
