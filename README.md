@@ -3,7 +3,7 @@
 **Take back your feed.**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-
+[![codecov](https://codecov.io/gh/TechSquidTV/Tuvix-RSS/branch/main/graph/badge.svg)](https://codecov.io/gh/TechSquidTV/Tuvix-RSS)
 
 Tuvix is a modern RSS aggregator that helps you follow all your favorite blogs, podcasts, and news sources in one place. It's not a social network, it's not an algorithmic feed, it's just old-fashioned RSS.
 
