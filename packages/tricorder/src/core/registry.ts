@@ -270,20 +270,12 @@ export class DiscoveryRegistry {
       }
     }
 
-    // No services found feeds
-    this.telemetry?.captureException?.(
-      new Error("No RSS or Atom feeds found on this website"),
-      {
-        level: "info",
-        tags: {
-          operation: "feed_discovery",
-        },
-        extra: {
-          url,
-          services_tried: this.services.map((s) => s.constructor.name),
-        },
-      }
-    );
+    // No services found feeds - this is an expected case, not an error
+    this.breadcrumb("No feeds found after trying all services", {
+      url,
+      services_tried: this.services.map((s) => s.constructor.name),
+      service_count: this.services.length,
+    });
 
     throw new NoFeedsFoundError();
   }
