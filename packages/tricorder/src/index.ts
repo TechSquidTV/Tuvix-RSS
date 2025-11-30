@@ -64,7 +64,7 @@ export { stripHtml } from "./utils/text-sanitizer";
  * @example
  * **API server (with Sentry)**
  * ```typescript
- * import { createDefaultRegistry } from '@tuvix/tricorder';
+ * import { createDefaultRegistry } from '@tuvixrss/tricorder';
  * import { sentryAdapter } from './sentry-adapter';
  *
  * const registry = createDefaultRegistry({ telemetry: sentryAdapter });
