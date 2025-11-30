@@ -167,6 +167,19 @@ export class AppleDiscoveryService implements DiscoveryService {
 
       const podcast = data.results[0];
 
+      // Validate that this is actually a podcast (not music, app, etc.)
+      if (podcast.wrapperType !== "track" || podcast.kind !== "podcast") {
+        context.telemetry?.addBreadcrumb?.({
+          message: `iTunes result is not a podcast (${podcast.wrapperType}/${podcast.kind})`,
+          data: {
+            podcast_id: podcastId,
+            wrapper_type: podcast.wrapperType,
+            kind: podcast.kind,
+          },
+        });
+        return [];
+      }
+
       // Check if feedUrl exists
       if (!podcast.feedUrl) {
         context.telemetry?.captureException?.(
