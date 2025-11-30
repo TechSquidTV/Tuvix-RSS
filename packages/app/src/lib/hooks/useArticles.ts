@@ -262,16 +262,11 @@ export const useMarkAllRead = () => {
 };
 
 export const useRefreshFeeds = () => {
-  const queryClient = useQueryClient();
-
   return trpc.articles.refresh.useMutation({
     onSuccess: () => {
-      // Trigger refetch instead of invalidate to allow smart merging
-      // Use queryClient.refetchQueries for infinite queries
-      queryClient.refetchQueries({
-        queryKey: [["trpc"], ["articles", "list"]],
-      });
-      toast.success("Feeds refreshed");
+      // Don't refetch immediately - the background fetch takes time
+      // Let the caller handle refetch timing (e.g., useCreateSubscriptionWithRefetch)
+      toast.success("Feed refresh started");
     },
     onError: () => {
       toast.error("Failed to refresh feeds");
