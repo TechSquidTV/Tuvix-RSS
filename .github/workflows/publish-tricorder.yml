@@ -1,0 +1,193 @@
+name: Publish Tricorder Package
+
+on:
+  # Trigger on version tags for tricorder
+  push:
+    tags:
+      - 'tricorder-v*.*.*'
+
+  # Manual trigger with version input
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (test without publishing)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PNPM_VERSION: 10.19.0
+  NODE_VERSION: '20'
+
+jobs:
+  # Verify tricorder package independently
+  verify:
+    name: Verify Tricorder Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint tricorder
+        run: pnpm --filter @tuvixrss/tricorder lint
+
+      - name: Format check tricorder
+        run: pnpm --filter @tuvixrss/tricorder format:check
+
+      - name: Type check tricorder
+        run: pnpm --filter @tuvixrss/tricorder type-check
+
+      - name: Test tricorder
+        run: pnpm --filter @tuvixrss/tricorder test
+
+      - name: Build tricorder
+        run: pnpm --filter @tuvixrss/tricorder build
+
+      - name: Verify package contents
+        run: |
+          cd packages/tricorder
+          npm pack --dry-run
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tricorder-dist
+          path: packages/tricorder/dist
+          retention-days: 7
+
+  # Publish to NPM
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ !inputs.dry_run }}
+    environment:
+      name: npm-registry
+      url: https://www.npmjs.com/package/@tuvixrss/tricorder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js with NPM registry
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build tricorder
+        run: pnpm --filter @tuvixrss/tricorder build
+
+      - name: Verify version matches tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/tricorder-v}
+          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
+
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "Git tag version: $TAG_VERSION"
+            echo "package.json version: $PACKAGE_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Version matches: $TAG_VERSION"
+
+      - name: Check if version already published
+        id: check_version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
+
+          if npm view @tuvixrss/tricorder@$PACKAGE_VERSION version 2>/dev/null; then
+            echo "⚠️  Version $PACKAGE_VERSION is already published to NPM"
+            echo "already_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Version $PACKAGE_VERSION is not published yet"
+            echo "already_published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to NPM
+        if: steps.check_version.outputs.already_published == 'false'
+        run: |
+          cd packages/tricorder
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publish (already published)
+        if: steps.check_version.outputs.already_published == 'true'
+        run: |
+          echo "⏭️  Skipping publish - version already exists on NPM"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') && steps.check_version.outputs.already_published == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const version = context.ref.replace('refs/tags/tricorder-v', '');
+            const changelog = fs.readFileSync('packages/tricorder/CHANGELOG.md', 'utf8');
+
+            // Check if release already exists
+            let releaseExists = false;
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: context.ref.replace('refs/tags/', '')
+              });
+              releaseExists = true;
+              console.log('✅ Release already exists - skipping creation');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            if (!releaseExists) {
+              // Extract the changelog section for this version
+              const versionSection = changelog.match(new RegExp(`## \\[${version}\\][\\s\\S]*?(?=## \\[|$)`, 'm'));
+              const releaseNotes = versionSection ? versionSection[0] : `Release version ${version}`;
+
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: context.ref.replace('refs/tags/', ''),
+                name: `@tuvixrss/tricorder v${version}`,
+                body: `# Tricorder ${version}\n\n${releaseNotes}\n\n## NPM\nhttps://www.npmjs.com/package/@tuvixrss/tricorder/v/${version}`,
+                draft: false,
+                prerelease: version.includes('-')
+              });
+              console.log('✅ GitHub release created');
+            }
+
+      - name: Output published version
+        if: steps.check_version.outputs.already_published == 'false'
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
+          echo "📦 Successfully published @tuvixrss/tricorder@$PACKAGE_VERSION"
+          echo "🔗 https://www.npmjs.com/package/@tuvixrss/tricorder/v/$PACKAGE_VERSION"

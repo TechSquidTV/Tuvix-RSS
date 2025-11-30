@@ -35,7 +35,45 @@ feature branch → development branch → main branch
 
 **Purpose:** Comprehensive validation before merging to main, including test coverage tracking.
 
-#### 3. Deploy to Cloudflare Workers (`deploy-cloudflare.yml`)
+#### 3. CI - Tricorder Package (`ci-tricorder.yml`)
+**Triggers:**
+- Pull requests affecting `packages/tricorder/**`
+- Pushes to `main` or `development` affecting tricorder
+- Manual workflow dispatch
+
+**Jobs:**
+- Lint Tricorder
+- Format Check Tricorder
+- Type Check Tricorder
+- Test Tricorder (with coverage upload)
+- Build Tricorder
+
+**Purpose:** Independent CI for the tricorder package. Only runs when tricorder-related files change to optimize CI performance.
+
+**Path Filtering:** This workflow uses GitHub's `paths` filter to only run when:
+- Files in `packages/tricorder/` are modified
+- The workflow file itself is modified
+- Shared actions are modified
+
+#### 4. Publish Tricorder Package (`publish-tricorder.yml`)
+**Triggers:**
+- Tags matching `tricorder-v*.*.*` (e.g., `tricorder-v1.0.1`)
+- Manual workflow dispatch with version input
+
+**Jobs:**
+1. **Verify**: Lint, format, type-check, test, and build tricorder
+2. **Publish**: Publish to NPM registry and create GitHub release
+
+**Purpose:** Automated publishing of @tuvixrss/tricorder package to NPM.
+
+**Safety Features:**
+- Version validation (tag must match package.json)
+- Duplicate check (won't republish existing versions)
+- Dry-run mode for testing
+- Package contents verification
+- Automatic GitHub release creation with changelog
+
+#### 5. Deploy to Cloudflare Workers (`deploy-cloudflare.yml`)
 **Triggers:**
 - Published releases
 - Manual workflow dispatch
@@ -51,6 +89,23 @@ feature branch → development branch → main branch
 ## Required Secrets
 
 Configure these secrets in your GitHub repository settings:
+
+### NPM Secrets
+
+- `NPM_TOKEN` - NPM authentication token for publishing packages
+
+**How to Get NPM Token:**
+1. Log in to npmjs.com
+2. Click your profile → "Access Tokens"
+3. Click "Generate New Token" → Choose "Automation" type
+4. Copy the token
+5. Add to GitHub: Settings → Secrets and variables → Actions → New repository secret
+6. Name: `NPM_TOKEN`, Value: (paste token)
+
+**NPM Scope Setup:**
+- If using `@tuvixrss/tricorder`: Create organization at https://www.npmjs.com/org/create
+- If using `@techsquidtv/tricorder`: No setup needed (uses your username automatically)
+- Ensure your token has publish permissions for the scope
 
 ### Cloudflare Secrets
 - `CLOUDFLARE_API_TOKEN` - Cloudflare API token with Workers and Pages permissions
@@ -101,7 +156,61 @@ Configure these secrets in your GitHub repository settings:
 3. CI runs automatically with coverage tracking
 4. Once merged, code is on `main` and ready for release
 
-### Deployment Workflow
+### Tricorder Publishing Workflow
+
+The tricorder package is published independently from the main TuvixRSS application.
+
+#### Method 1: Automatic (via Git Tag) - Recommended
+1. Update `packages/tricorder/CHANGELOG.md` with changes
+2. Bump version in `packages/tricorder/package.json`:
+   ```bash
+   cd packages/tricorder
+   npm version patch  # or minor/major
+   ```
+3. Commit changes:
+   ```bash
+   git add .
+   git commit -m "chore(tricorder): release v1.0.1"
+   ```
+4. Create and push tag:
+   ```bash
+   git tag tricorder-v1.0.1
+   git push origin main --tags
+   ```
+5. Workflow automatically runs and publishes to NPM
+
+#### Method 2: Manual Workflow Dispatch
+1. Go to Actions → Publish Tricorder Package
+2. Click "Run workflow"
+3. Enter version (e.g., `1.0.1`)
+4. Optionally enable "Dry run" to test without publishing
+5. Click "Run workflow"
+
+#### Pre-Publish Checklist
+- [ ] CHANGELOG.md updated with changes
+- [ ] Version bumped in package.json
+- [ ] All tests passing locally (`pnpm --filter @tuvixrss/tricorder test`)
+- [ ] Build successful (`pnpm --filter @tuvixrss/tricorder build`)
+- [ ] NPM_TOKEN secret configured in GitHub
+- [ ] NPM scope ownership confirmed (@tuvix or @techsquidtv)
+
+#### Post-Publish Steps
+1. GitHub release is automatically created with changelog
+2. Verify package on NPM: https://www.npmjs.com/package/@tuvixrss/tricorder
+3. Update API package if needed to use new version
+4. Update browser extension to use new version
+
+#### Versioning Strategy
+- **Patch (1.0.x)**: Bug fixes, no breaking changes
+- **Minor (1.x.0)**: New features, backward compatible
+- **Major (x.0.0)**: Breaking API changes
+
+**Examples:**
+- Fixed error handling bug → `1.0.1`
+- Added YouTube discovery service → `1.1.0`
+- Changed telemetry interface → `2.0.0`
+
+### Deployment Workflow (API & App)
 
 #### Automatic (on Release)
 1. Create a new release in GitHub (tagged version, e.g., `v1.0.0`)

@@ -1,0 +1,211 @@
+name: CI - Tricorder Package
+
+on:
+  pull_request:
+    paths:
+      # Only run when tricorder package files change
+      - 'packages/tricorder/**'
+      # Also run if workflow itself changes
+      - '.github/workflows/ci-tricorder.yml'
+      # Run if shared actions change
+      - '.github/actions/**'
+
+  push:
+    branches:
+      - main
+      - development
+    paths:
+      # Only run when tricorder package files change
+      - 'packages/tricorder/**'
+      # Also run if workflow itself changes
+      - '.github/workflows/ci-tricorder.yml'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  PNPM_VERSION: 10.19.0
+  NODE_VERSION: '20'
+
+# Cancel in-progress runs when a new run is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint Tricorder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter @tuvixrss/tricorder lint
+
+  format:
+    name: Format Check Tricorder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format Check
+        run: pnpm --filter @tuvixrss/tricorder format:check
+
+  type-check:
+    name: Type Check Tricorder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type Check
+        run: pnpm --filter @tuvixrss/tricorder type-check
+
+  test:
+    name: Test Tricorder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: pnpm --filter @tuvixrss/tricorder test:coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: tricorder-coverage
+          path: packages/tricorder/coverage
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/tricorder/coverage/lcov.info
+          flags: tricorder
+          name: tricorder-coverage
+          fail_ci_if_error: false
+
+  build:
+    name: Build Tricorder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @tuvixrss/tricorder build
+
+      - name: Verify package contents
+        run: |
+          cd packages/tricorder
+          echo "📦 Package contents preview:"
+          npm pack --dry-run
+          echo ""
+          echo "✅ Package is ready for publishing"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tricorder-dist
+          path: packages/tricorder/dist
+          retention-days: 7
+
+  # Summary job that all required checks depend on
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, format, type-check, test, build]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.lint.result }}" == "success" && \
+                "${{ needs.format.result }}" == "success" && \
+                "${{ needs.type-check.result }}" == "success" && \
+                "${{ needs.test.result }}" == "success" && \
+                "${{ needs.build.result }}" == "success" ]]; then
+            echo "✅ All CI checks passed!"
+            exit 0
+          else
+            echo "❌ Some CI checks failed"
+            echo "Lint: ${{ needs.lint.result }}"
+            echo "Format: ${{ needs.format.result }}"
+            echo "Type Check: ${{ needs.type-check.result }}"
+            echo "Test: ${{ needs.test.result }}"
+            echo "Build: ${{ needs.build.result }}"
+            exit 1
+          fi
