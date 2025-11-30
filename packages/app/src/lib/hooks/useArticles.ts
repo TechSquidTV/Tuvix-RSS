@@ -28,7 +28,8 @@ export const useInfiniteArticles = (filters?: {
   saved?: boolean;
 }) => {
   return trpc.articles.list.useInfiniteQuery(
-    { ...filters, limit: 20, offset: 0 },
+    // Use function form to receive pageParam (offset) for each page fetch
+    (pageParam) => ({ ...filters, limit: 20, offset: pageParam }),
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
