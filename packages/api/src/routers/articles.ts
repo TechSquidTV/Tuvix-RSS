@@ -862,7 +862,10 @@ export const articlesRouter = router({
       try {
         Sentry = await import("@/utils/sentry");
       } catch (error) {
-        console.warn("Sentry unavailable, continuing without monitoring:", error);
+        console.warn(
+          "Sentry unavailable, continuing without monitoring:",
+          error
+        );
       }
 
       // Trigger fetch in background (don't await)
