@@ -48,6 +48,8 @@ export type PaginatedResponse<T> = {
 export const paginationInputSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
+  // Cursor-based pagination: cumulative count of items fetched (used as offset for infinite scroll)
+  cursor: z.number().int().optional(),
 });
 
 /**

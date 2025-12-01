@@ -59,7 +59,29 @@ function ArticlesPage() {
   const refreshFeeds = useRefreshFeeds();
   const markAllRead = useMarkAllRead();
   const { data: userSettings } = useUserSettings();
-  const { ref, inView } = useInView();
+
+  // Create separate refs for each tab to avoid conflicts with tab visibility
+  const { ref: refAll, inView: inViewAll } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+    triggerOnce: false,
+  });
+  const { ref: refUnread, inView: inViewUnread } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+    triggerOnce: false,
+  });
+  const { ref: refRead, inView: inViewRead } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+    triggerOnce: false,
+  });
+  const { ref: refSaved, inView: inViewSaved } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+    triggerOnce: false,
+  });
+
   const [showFirstTimeTooltip, setShowFirstTimeTooltip] = useState(() => {
     if (typeof window === "undefined") return false;
     const hasSeenTooltip = localStorage.getItem("hasSeenArticleTooltip");
@@ -68,6 +90,18 @@ function ArticlesPage() {
   const [activeFilter, setActiveFilter] = useState(() => {
     return userSettings?.defaultFilter || "all";
   });
+
+  // Determine which tab's inView to use based on active filter
+  const inView =
+    activeFilter === "all"
+      ? inViewAll
+      : activeFilter === "unread"
+        ? inViewUnread
+        : activeFilter === "read"
+          ? inViewRead
+          : activeFilter === "saved"
+            ? inViewSaved
+            : false;
   const [markAllDialogOpen, setMarkAllDialogOpen] = useState(false);
   const [markOldDialogOpen, setMarkOldDialogOpen] = useState(false);
 
@@ -76,32 +110,39 @@ function ArticlesPage() {
   const [newArticleIds, setNewArticleIds] = useState<Set<number>>(new Set());
 
   // Build filters from search params AND active tab filter
-  const filters: {
-    categoryId?: number;
-    subscriptionId?: number;
-    read?: boolean;
-    saved?: boolean;
-  } = {};
+  // CRITICAL: Memoize filters object to maintain stable reference
+  // React Query uses object identity in query keys, so we need to ensure
+  // the filters object only changes when actual filter values change
+  const filters = React.useMemo(() => {
+    const result: {
+      categoryId?: number;
+      subscriptionId?: number;
+      read?: boolean;
+      saved?: boolean;
+    } = {};
 
-  if (search.category_id) filters.categoryId = search.category_id;
-  if (search.subscription_id) filters.subscriptionId = search.subscription_id;
+    if (search.category_id) result.categoryId = search.category_id;
+    if (search.subscription_id) result.subscriptionId = search.subscription_id;
 
-  // Apply active filter from tab
-  switch (activeFilter) {
-    case "unread":
-      filters.read = false;
-      break;
-    case "read":
-      filters.read = true;
-      break;
-    case "saved":
-      filters.saved = true;
-      break;
-    case "all":
-    default:
-      // No additional filter for "all"
-      break;
-  }
+    // Apply active filter from tab
+    switch (activeFilter) {
+      case "unread":
+        result.read = false;
+        break;
+      case "read":
+        result.read = true;
+        break;
+      case "saved":
+        result.saved = true;
+        break;
+      case "all":
+      default:
+        // No additional filter for "all"
+        break;
+    }
+
+    return result;
+  }, [activeFilter, search.category_id, search.subscription_id]);
 
   // Fetch articles with filters applied server-side
   const {
@@ -121,12 +162,19 @@ function ArticlesPage() {
   }, [showFirstTimeTooltip]);
 
   // Update filter when userSettings changes after initial mount
+  // BUT only if the user hasn't manually changed the filter
   const prevDefaultFilterRef = useRef(userSettings?.defaultFilter);
+  // NOTE: This ref persists across remounts within the same session
+  // This is intentional - once a user manually selects a filter, we respect that choice
+  // even if they navigate away and come back, until the page is refreshed
+  const hasUserChangedFilterRef = useRef(false);
+
   useEffect(() => {
+    // Only auto-update if user settings change AND user hasn't manually selected a filter
     if (
       userSettings?.defaultFilter &&
       userSettings.defaultFilter !== prevDefaultFilterRef.current &&
-      userSettings.defaultFilter !== activeFilter
+      !hasUserChangedFilterRef.current
     ) {
       prevDefaultFilterRef.current = userSettings.defaultFilter;
       // Use startTransition to avoid blocking render
@@ -134,7 +182,7 @@ function ArticlesPage() {
         setActiveFilter(userSettings.defaultFilter);
       });
     }
-  }, [userSettings?.defaultFilter, activeFilter]);
+  }, [userSettings?.defaultFilter]);
 
   // Get all articles from the current filter
   // Backend returns paginated response: {items: Article[], total: number, hasMore: boolean}
@@ -219,9 +267,27 @@ function ArticlesPage() {
   }, [data, articles]);
 
   // Load more when scrolling to bottom (all tabs now support pagination)
+  // Use ref to track if we're already fetching to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+
+  // Reset fetch state when user switches tabs to prevent race conditions
+  // Without this, a fetch completing from the previous tab could leave isFetchingRef
+  // in an inconsistent state for the new tab
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    isFetchingRef.current = false;
+  }, [activeFilter]);
+
+  useEffect(() => {
+    if (
+      inView &&
+      hasNextPage &&
+      !isFetchingNextPage &&
+      !isFetchingRef.current
+    ) {
+      isFetchingRef.current = true;
+      fetchNextPage().finally(() => {
+        isFetchingRef.current = false;
+      });
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -230,7 +296,9 @@ function ArticlesPage() {
   };
 
   const handleFilterChange = (value: string) => {
-    // Just update local state, no navigation
+    // Mark that user manually changed the filter
+    hasUserChangedFilterRef.current = true;
+    // Update local state, no navigation
     setActiveFilter(value);
   };
 
@@ -324,7 +392,8 @@ function ArticlesPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && articles.length === 0 && (
+      {/* Only show "add subscriptions" empty state if there are NO articles across ALL filters */}
+      {!isLoading && !isError && allCount === 0 && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -336,14 +405,15 @@ function ArticlesPage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Link to="/app/subscriptions">
+            <Link to="/app/subscriptions" search={{ subscribe: undefined }}>
               <Button>Add Subscriptions</Button>
             </Link>
           </EmptyContent>
         </Empty>
       )}
 
-      {!isLoading && !isError && articles.length > 0 && (
+      {/* Show tabs if there are ANY articles (even if current filter is empty) */}
+      {!isLoading && !isError && allCount > 0 && (
         <Tabs value={activeFilter} onValueChange={handleFilterChange}>
           {/* Filter Tabs */}
           <div className="w-full flex flex-col sm:flex-row items-center sm:justify-between gap-4">
@@ -430,7 +500,7 @@ function ArticlesPage() {
                   newArticleIds={newArticleIds}
                 >
                   {/* Infinite scroll trigger */}
-                  <div ref={ref} className="flex justify-center py-4">
+                  <div ref={refAll} className="flex justify-center py-4">
                     {isFetchingNextPage && (
                       <div className="flex items-center gap-2">
                         <RefreshCw className="animate-spin size-4" />
@@ -466,7 +536,7 @@ function ArticlesPage() {
                   newArticleIds={newArticleIds}
                 >
                   {/* Infinite scroll trigger */}
-                  <div ref={ref} className="flex justify-center py-4">
+                  <div ref={refUnread} className="flex justify-center py-4">
                     {isFetchingNextPage && (
                       <div className="flex items-center gap-2">
                         <RefreshCw className="animate-spin size-4" />
@@ -504,7 +574,7 @@ function ArticlesPage() {
                   newArticleIds={newArticleIds}
                 >
                   {/* Infinite scroll trigger */}
-                  <div ref={ref} className="flex justify-center py-4">
+                  <div ref={refRead} className="flex justify-center py-4">
                     {isFetchingNextPage && (
                       <div className="flex items-center gap-2">
                         <RefreshCw className="animate-spin size-4" />
@@ -542,7 +612,7 @@ function ArticlesPage() {
                   newArticleIds={newArticleIds}
                 >
                   {/* Infinite scroll trigger */}
-                  <div ref={ref} className="flex justify-center py-4">
+                  <div ref={refSaved} className="flex justify-center py-4">
                     {isFetchingNextPage && (
                       <div className="flex items-center gap-2">
                         <RefreshCw className="animate-spin size-4" />

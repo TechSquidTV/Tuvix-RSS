@@ -237,13 +237,22 @@ export const articlesRouter = router({
 
       if (!hasSubscriptionFilters) {
         // EFFICIENT PATH: No subscription filters, use direct database pagination
+        // Always order by publishedAt for chronological feed
+        let paginationQuery = queryBuilder.orderBy(
+          desc(schema.articles.publishedAt)
+        );
+
+        // Use cursor OR offset (cursor takes precedence for infinite scroll)
+        // Frontend sends cursor as cumulative item count (50, 100, 150...)
+        const effectiveOffset = input.cursor ?? input.offset ?? 0;
+
+        if (effectiveOffset > 0) {
+          paginationQuery = paginationQuery.offset(effectiveOffset);
+        }
+
         const results = await withQueryMetrics(
           "articles.list",
-          async () =>
-            queryBuilder
-              .orderBy(desc(schema.articles.publishedAt))
-              .limit(input.limit + 1) // Fetch one extra to check hasMore
-              .offset(input.offset),
+          async () => paginationQuery.limit(input.limit + 1), // Fetch one extra to check hasMore
           {
             "db.table": "articles",
             "db.operation": "select",
@@ -252,6 +261,7 @@ export const articlesRouter = router({
             "db.has_subscription_filter": !!input.subscriptionId,
             "db.has_read_filter": input.read !== undefined,
             "db.has_saved_filter": input.saved !== undefined,
+            "db.use_cursor": !!input.cursor,
           }
         );
 
@@ -331,17 +341,26 @@ export const articlesRouter = router({
         total = uniqueArticleIds.size;
       } else {
         // FILTERED PATH: Has subscription filters, must fetch more and filter
-        // Fetch more results to account for filtering (3x should be sufficient)
-        // We need to keep fetching until we have enough results or run out
+        // NOTE: Cursor-based pagination is incompatible with post-query filtering
+        // because the cursor represents items seen by frontend (after filtering),
+        // but the backend offset operates on items before filtering.
+        // We ONLY use offset-based pagination here to avoid skipping articles.
         const fetchLimit = Math.max(input.limit * 3, 100);
+
+        // Always order by publishedAt for chronological feed
+        let paginationQuery = queryBuilder.orderBy(
+          desc(schema.articles.publishedAt)
+        );
+
+        // IMPORTANT: Only use explicit offset parameter, ignore cursor
+        // When subscription filters are active, cursor values don't align with database offsets
+        if (input.offset > 0) {
+          paginationQuery = paginationQuery.offset(input.offset);
+        }
 
         const results = await withQueryMetrics(
           "articles.list",
-          async () =>
-            queryBuilder
-              .orderBy(desc(schema.articles.publishedAt))
-              .limit(fetchLimit)
-              .offset(input.offset),
+          async () => paginationQuery.limit(fetchLimit),
           {
             "db.table": "articles",
             "db.operation": "select",
@@ -351,6 +370,7 @@ export const articlesRouter = router({
             "db.has_read_filter": input.read !== undefined,
             "db.has_saved_filter": input.saved !== undefined,
             "db.has_subscription_filters": true,
+            "db.use_cursor": !!input.cursor,
           }
         );
 

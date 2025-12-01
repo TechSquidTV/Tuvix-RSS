@@ -59,7 +59,7 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
     enableLogs: true, // Enable Sentry logs for better debugging
 
     // Debug mode (verbose console logging - useful for development)
-    debug: environment === "development" || import.meta.env.DEV,
+    debug: false, // Disabled - too verbose
 
     // Performance monitoring
     integrations: [

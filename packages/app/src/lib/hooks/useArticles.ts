@@ -42,21 +42,51 @@ export const useInfiniteArticles = (filters?: {
   read?: boolean;
   saved?: boolean;
 }) => {
+  // Simple input - tRPC will automatically add 'cursor' parameter from getNextPageParam
   return trpc.articles.list.useInfiniteQuery(
-    // Use function form to receive pageParam (offset) for each page fetch
-    (pageParam) => ({ ...filters, limit: 50, offset: pageParam }),
+    {
+      limit: 50,
+      ...(filters || {}),
+    },
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
-        if (!lastPage?.hasMore) return undefined;
-        // Calculate next offset based on all pages loaded so far
-        const totalLoaded = allPages.reduce(
-          (sum, page) => sum + page.items.length,
-          0,
-        );
-        return totalLoaded;
+        if (!lastPage?.hasMore || lastPage.items.length === 0) {
+          return undefined;
+        }
+
+        // Calculate offset based on UNIQUE article IDs to avoid skipping articles
+        // This is critical because deduplication in select() removes duplicates,
+        // but pagination offset must be based on unique items actually rendered
+        const uniqueIds = new Set<number>();
+        allPages.forEach((page) => {
+          page.items.forEach((article) => uniqueIds.add(article.id));
+        });
+
+        // tRPC automatically sends this as 'cursor' parameter
+        return uniqueIds.size;
       },
       initialPageParam: 0,
+      staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for this long
+      // Deduplicate articles by ID to prevent duplicate keys in render
+      select: (data: InfiniteArticlesData) => {
+        const seenIds = new Set<number>();
+        const deduplicatedPages = data.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((article) => {
+            if (seenIds.has(article.id)) {
+              return false;
+            }
+            seenIds.add(article.id);
+            return true;
+          }),
+        }));
+
+        return {
+          ...data,
+          pages: deduplicatedPages,
+        };
+      },
     },
   );
 };

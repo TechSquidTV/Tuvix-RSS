@@ -48,11 +48,7 @@ export function ErrorBoundaryFallback({
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <Button
-              onClick={resetError}
-              className="w-full"
-              size="lg"
-            >
+            <Button onClick={resetError} className="w-full" size="lg">
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
