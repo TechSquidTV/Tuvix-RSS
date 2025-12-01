@@ -44,7 +44,7 @@ export const useInfiniteArticles = (filters?: {
 }) => {
   return trpc.articles.list.useInfiniteQuery(
     // Use function form to receive pageParam (offset) for each page fetch
-    (pageParam) => ({ ...filters, limit: 20, offset: pageParam }),
+    (pageParam) => ({ ...filters, limit: 50, offset: pageParam }),
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
@@ -59,6 +59,18 @@ export const useInfiniteArticles = (filters?: {
       initialPageParam: 0,
     },
   );
+};
+
+/**
+ * Optimized hook to fetch article counts for all filter tabs
+ * Returns ONLY counts without fetching any article data
+ * Replaces 4 separate useInfiniteArticles calls (200 articles) with 1 lightweight query
+ */
+export const useArticleCounts = (filters?: {
+  categoryId?: number;
+  subscriptionId?: number;
+}) => {
+  return trpc.articles.getCounts.useQuery(filters || {});
 };
 
 export const useArticle = (id: number) => {
