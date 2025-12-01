@@ -445,7 +445,7 @@ function SettingsPage() {
                   Learn how we handle your data
                 </p>
               </div>
-              <Link to="/privacy" target="_blank">
+              <Link to="/privacy" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   View Policy
                 </Button>
@@ -459,7 +459,7 @@ function SettingsPage() {
                   Read our terms and conditions
                 </p>
               </div>
-              <Link to="/terms" target="_blank">
+              <Link to="/terms" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   View Terms
                 </Button>
