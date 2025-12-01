@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCurrentUser, useLogout } from "@/lib/hooks/useAuth";
 import {
   useUserSettings,
@@ -445,11 +445,11 @@ function SettingsPage() {
                   Learn how we handle your data
                 </p>
               </div>
-              <Link to="/privacy" target="_blank" rel="noopener noreferrer">
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   View Policy
                 </Button>
-              </Link>
+              </a>
             </div>
             <Separator />
             <div className="flex items-center justify-between py-2">
@@ -459,11 +459,11 @@ function SettingsPage() {
                   Read our terms and conditions
                 </p>
               </div>
-              <Link to="/terms" target="_blank" rel="noopener noreferrer">
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   View Terms
                 </Button>
-              </Link>
+              </a>
             </div>
           </CardContent>
         </Card>
