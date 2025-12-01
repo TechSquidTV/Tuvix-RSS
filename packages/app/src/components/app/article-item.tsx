@@ -94,10 +94,13 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
   const handleCardClick = (e: MouseEvent) => {
     // Check if the click was on a link inside the description (e.g., HN comments)
     // Use closest() to handle clicks on link children (e.g., <a><strong>text</strong></a>)
-    const clickedLink = (e.target as HTMLElement).closest("a");
-    if (clickedLink) {
-      // Let the browser handle the link navigation naturally
-      return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest) {
+      const clickedLink = target.closest("a");
+      if (clickedLink) {
+        // Let the browser handle the link navigation naturally
+        return;
+      }
     }
 
     // Only open link on mobile and if not dragging
