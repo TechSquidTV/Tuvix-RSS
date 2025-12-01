@@ -268,7 +268,7 @@ export const useBulkMarkRead = () => {
   return trpc.articles.bulkMarkRead.useMutation({
     onSuccess: (data) => {
       utils.articles.list.invalidate();
-      toast.success(`${data.count} articles updated`);
+      toast.success(`${data.updated} articles updated`);
     },
     onError: () => {
       toast.error("Failed to mark articles");
@@ -283,7 +283,7 @@ export const useMarkAllRead = () => {
     onSuccess: (data) => {
       utils.articles.list.invalidate();
       toast.success(
-        `${data.count} article${data.count === 1 ? "" : "s"} marked as read`,
+        `${data.updated} article${data.updated === 1 ? "" : "s"} marked as read`,
       );
     },
     onError: () => {
