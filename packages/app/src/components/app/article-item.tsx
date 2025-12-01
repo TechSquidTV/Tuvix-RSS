@@ -242,10 +242,10 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                   className={cn(
                     "text-muted-foreground line-clamp-3 leading-relaxed",
                     // Mobile: Make links easier to tap with larger hit area (44px minimum touch target)
-                    // Use padding to increase tap area without affecting layout
-                    "[&_a]:inline-block [&_a]:py-2 [&_a]:my-1",
+                    // Use only vertical padding to increase tap area without causing text overlap
+                    "[&_a]:inline-block [&_a]:py-1.5",
                     // Desktop: Normal inline links
-                    "sm:[&_a]:inline sm:[&_a]:py-0 sm:[&_a]:my-0"
+                    "sm:[&_a]:inline sm:[&_a]:py-0",
                   )}
                   // SECURITY: Safe to use dangerouslySetInnerHTML here because descriptions are
                   // sanitized at ingestion via sanitize-html library (packages/api/src/services/rss-fetcher.ts:689)
