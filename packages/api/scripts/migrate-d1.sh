@@ -1,65 +1,20 @@
 #!/bin/bash
 
 # D1 Migration Script with wrangler.example.toml Pattern
-# Creates wrangler.toml from example and substitutes database_id from wrangler.toml.local or D1_DATABASE_ID env var
+# Creates wrangler.toml from example and substitutes database_id using Python validation
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$(dirname "$SCRIPT_DIR")"
-WRANGLER_TOML="$API_DIR/wrangler.toml"
-WRANGLER_EXAMPLE="$API_DIR/wrangler.example.toml"
-WRANGLER_TOML_LOCAL="$API_DIR/wrangler.toml.local"
 
-# Function to extract database_id from wrangler.toml.local
-get_database_id_from_local() {
-  if [ -f "$WRANGLER_TOML_LOCAL" ]; then
-    grep -A 3 "\[\[d1_databases\]\]" "$WRANGLER_TOML_LOCAL" | grep "database_id" | sed 's/.*database_id = "\(.*\)".*/\1/' | head -1
-  fi
-}
-
-# Get database ID from environment variable or local config
-if [ -n "$D1_DATABASE_ID" ]; then
-  DB_ID="$D1_DATABASE_ID"
-  echo "Using D1_DATABASE_ID from environment variable"
-elif DB_ID=$(get_database_id_from_local) && [ -n "$DB_ID" ]; then
-  echo "Using database_id from wrangler.toml.local"
-else
-  echo "❌ Error: D1_DATABASE_ID not found"
-  echo "   Set D1_DATABASE_ID environment variable or create wrangler.toml.local"
-  echo "   See wrangler.toml.local.example for reference"
-  exit 1
-fi
-
-if [ -z "$DB_ID" ]; then
-  echo "❌ Error: database_id is empty"
-  exit 1
-fi
-
-echo "📦 Database ID: $DB_ID"
-
-# Check if wrangler.example.toml exists
-if [ ! -f "$WRANGLER_EXAMPLE" ]; then
-  echo "❌ Error: wrangler.example.toml not found at $WRANGLER_EXAMPLE"
-  exit 1
-fi
-
-# Create wrangler.toml from example
+# Use Python script for robust config creation with validation
+# Note: set -e will automatically exit if this fails
 echo "📋 Creating wrangler.toml from wrangler.example.toml..."
-cp "$WRANGLER_EXAMPLE" "$WRANGLER_TOML"
-
-# Substitute database_id in wrangler.toml
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  # macOS
-  sed -i '' "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
-else
-  # Linux
-  sed -i "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
-fi
-
-echo "✅ Created wrangler.toml with substituted database_id"
+python3 "$SCRIPT_DIR/create-wrangler-config.py"
 
 # Run migrations
+echo ""
 echo "🔄 Running D1 migrations..."
 cd "$API_DIR"
 mkdir -p migrations
@@ -67,6 +22,7 @@ cp drizzle/*.sql migrations/ 2>/dev/null || true
 wrangler d1 migrations apply tuvix --remote
 rm -rf migrations
 
+echo ""
 echo "✅ Migrations complete!"
 echo ""
 echo "Note: wrangler.toml was created for this migration and is gitignored."
