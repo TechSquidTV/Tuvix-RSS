@@ -91,6 +91,11 @@ export const useCreateSubscription = () => {
   });
 };
 
+// Article polling configuration
+const POLL_INTERVAL_MS = 2000; // 2 seconds between polls
+const MAX_POLL_ATTEMPTS = 15; // 30 seconds total (15 × 2s)
+const SLOW_FETCH_THRESHOLD = 5; // Show warning after 5th attempt (10s)
+
 /**
  * Hook for creating subscriptions with smart polling for new articles.
  *
@@ -180,7 +185,6 @@ export const useCreateSubscriptionWithRefetch = () => {
 
       // Start smart polling (state already set above)
       let attempts = 0;
-      const maxAttempts = 15; // 30 seconds (15 polls × 2s)
 
       // Recursive polling function to ensure serial execution
       const poll = async () => {
@@ -222,8 +226,8 @@ export const useCreateSubscriptionWithRefetch = () => {
           return;
         }
 
-        // After 5th poll (10 seconds), capture Sentry warning and update UI
-        if (attempts === 5) {
+        // After threshold, capture Sentry warning and update UI
+        if (attempts === SLOW_FETCH_THRESHOLD) {
           // Capture Sentry warning for slow fetch
           Sentry.captureMessage("RSS fetch taking longer than expected", {
             level: "warning",
@@ -242,7 +246,7 @@ export const useCreateSubscriptionWithRefetch = () => {
         }
 
         // Timeout after max attempts
-        if (attempts >= maxAttempts) {
+        if (attempts >= MAX_POLL_ATTEMPTS) {
           stopPolling();
           toast.info("Articles will appear soon. Try refreshing in a moment.", {
             duration: 5000,
@@ -251,11 +255,17 @@ export const useCreateSubscriptionWithRefetch = () => {
         }
 
         // Schedule next poll only after current poll completes
-        pollIntervalRef.current = setTimeout(poll, 2000) as NodeJS.Timeout;
+        pollIntervalRef.current = setTimeout(
+          poll,
+          POLL_INTERVAL_MS,
+        ) as NodeJS.Timeout;
       };
 
       // Start first poll
-      pollIntervalRef.current = setTimeout(poll, 2000) as NodeJS.Timeout;
+      pollIntervalRef.current = setTimeout(
+        poll,
+        POLL_INTERVAL_MS,
+      ) as NodeJS.Timeout;
     } catch (error) {
       // Reset polling state if subscription creation fails
       stopPolling();
