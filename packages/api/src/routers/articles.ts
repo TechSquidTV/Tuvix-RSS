@@ -237,13 +237,27 @@ export const articlesRouter = router({
 
       if (!hasSubscriptionFilters) {
         // EFFICIENT PATH: No subscription filters, use direct database pagination
+        // Use cursor-based pagination if cursor is provided, otherwise use offset
+        let paginationQuery;
+
+        if (input.cursor) {
+          // Cursor-based: order by ID (what we're filtering on) for consistent pagination
+          paginationQuery = queryBuilder
+            .where(lt(schema.articles.id, input.cursor))
+            .orderBy(desc(schema.articles.id));
+        } else {
+          // Offset-based or first page: order by publishedAt for chronological feed
+          paginationQuery = queryBuilder.orderBy(
+            desc(schema.articles.publishedAt)
+          );
+          if (input.offset > 0) {
+            paginationQuery = paginationQuery.offset(input.offset);
+          }
+        }
+
         const results = await withQueryMetrics(
           "articles.list",
-          async () =>
-            queryBuilder
-              .orderBy(desc(schema.articles.publishedAt))
-              .limit(input.limit + 1) // Fetch one extra to check hasMore
-              .offset(input.offset),
+          async () => paginationQuery.limit(input.limit + 1), // Fetch one extra to check hasMore
           {
             "db.table": "articles",
             "db.operation": "select",
@@ -252,6 +266,7 @@ export const articlesRouter = router({
             "db.has_subscription_filter": !!input.subscriptionId,
             "db.has_read_filter": input.read !== undefined,
             "db.has_saved_filter": input.saved !== undefined,
+            "db.use_cursor": !!input.cursor,
           }
         );
 
@@ -331,17 +346,27 @@ export const articlesRouter = router({
         total = uniqueArticleIds.size;
       } else {
         // FILTERED PATH: Has subscription filters, must fetch more and filter
-        // Fetch more results to account for filtering (3x should be sufficient)
-        // We need to keep fetching until we have enough results or run out
+        // NOTE: Cursor-based pagination is incompatible with post-query filtering
+        // because the cursor (last article ID) may not align with filtered results.
+        // We use offset-based pagination here, fetching extra rows to account for filtering.
         const fetchLimit = Math.max(input.limit * 3, 100);
+
+        // Always order by publishedAt for chronological feed
+        // Use cursor as offset for infinite scroll (tRPC sends pageParam as cursor)
+        let paginationQuery = queryBuilder.orderBy(
+          desc(schema.articles.publishedAt)
+        );
+
+        // Use cursor OR offset (cursor takes precedence for infinite scroll)
+        const effectiveOffset = input.cursor ?? input.offset ?? 0;
+
+        if (effectiveOffset > 0) {
+          paginationQuery = paginationQuery.offset(effectiveOffset);
+        }
 
         const results = await withQueryMetrics(
           "articles.list",
-          async () =>
-            queryBuilder
-              .orderBy(desc(schema.articles.publishedAt))
-              .limit(fetchLimit)
-              .offset(input.offset),
+          async () => paginationQuery.limit(fetchLimit),
           {
             "db.table": "articles",
             "db.operation": "select",
@@ -351,6 +376,7 @@ export const articlesRouter = router({
             "db.has_read_filter": input.read !== undefined,
             "db.has_saved_filter": input.saved !== undefined,
             "db.has_subscription_filters": true,
+            "db.use_cursor": !!input.cursor,
           }
         );
 

@@ -42,21 +42,49 @@ export const useInfiniteArticles = (filters?: {
   read?: boolean;
   saved?: boolean;
 }) => {
+  // Simple input - tRPC will automatically add 'cursor' parameter from getNextPageParam
   return trpc.articles.list.useInfiniteQuery(
-    // Use function form to receive pageParam (offset) for each page fetch
-    (pageParam) => ({ ...filters, limit: 50, offset: pageParam }),
+    {
+      limit: 50,
+      ...(filters || {}),
+    },
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
-        if (!lastPage?.hasMore) return undefined;
-        // Calculate next offset based on all pages loaded so far
-        const totalLoaded = allPages.reduce(
+        if (!lastPage?.hasMore || lastPage.items.length === 0) {
+          return undefined;
+        }
+
+        // Calculate the offset for the next page
+        const totalFetched = allPages.reduce(
           (sum, page) => sum + page.items.length,
           0,
         );
-        return totalLoaded;
+
+        // tRPC automatically sends this as 'cursor' parameter
+        return totalFetched;
       },
       initialPageParam: 0,
+      staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for this long
+      // Deduplicate articles by ID to prevent duplicate keys in render
+      select: (data: InfiniteArticlesData) => {
+        const seenIds = new Set<number>();
+        const deduplicatedPages = data.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((article) => {
+            if (seenIds.has(article.id)) {
+              return false;
+            }
+            seenIds.add(article.id);
+            return true;
+          }),
+        }));
+
+        return {
+          ...data,
+          pages: deduplicatedPages,
+        };
+      },
     },
   );
 };
