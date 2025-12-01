@@ -112,6 +112,13 @@ export const useCreateSubscription = () => {
  * 3. Polls for new articles every 2 seconds
  * 4. Shows progressive feedback based on timing
  * 5. Captures Sentry warning if articles don't appear after 10s
+ *
+ * Exports isPolling and pollAttempts for UI feedback:
+ * - isPolling: boolean - true while actively polling for articles
+ * - pollAttempts: number - current poll attempt count (0-15)
+ *
+ * Consumers can use these to show loading states, progress indicators,
+ * or disable UI elements during the polling process.
  */
 export const useCreateSubscriptionWithRefetch = () => {
   const createSubscription = useCreateSubscription();
