@@ -38,7 +38,7 @@ function PrivacyPolicy() {
           <CardHeader>
             <CardTitle className="text-3xl">Privacy Policy</CardTitle>
             <CardDescription>
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: January 15, 2025
             </CardDescription>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none">
