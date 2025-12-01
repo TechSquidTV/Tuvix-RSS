@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Deploy Script with Local Config Support
-# Handles database_id substitution from wrangler.toml.local or D1_DATABASE_ID env var
+# Deploy Script with wrangler.example.toml Pattern
+# Creates wrangler.toml from example and substitutes database_id from wrangler.toml.local or D1_DATABASE_ID env var
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$(dirname "$SCRIPT_DIR")"
 WRANGLER_TOML="$API_DIR/wrangler.toml"
+WRANGLER_EXAMPLE="$API_DIR/wrangler.example.toml"
 WRANGLER_TOML_LOCAL="$API_DIR/wrangler.toml.local"
-WRANGLER_TOML_BACKUP="$API_DIR/wrangler.toml.backup"
 
 # Function to extract database_id from wrangler.toml.local
 get_database_id_from_local() {
@@ -38,8 +38,15 @@ fi
 
 echo "📦 Database ID: $DB_ID"
 
-# Backup original wrangler.toml
-cp "$WRANGLER_TOML" "$WRANGLER_TOML_BACKUP"
+# Check if wrangler.example.toml exists
+if [ ! -f "$WRANGLER_EXAMPLE" ]; then
+  echo "❌ Error: wrangler.example.toml not found at $WRANGLER_EXAMPLE"
+  exit 1
+fi
+
+# Create wrangler.toml from example
+echo "📋 Creating wrangler.toml from wrangler.example.toml..."
+cp "$WRANGLER_EXAMPLE" "$WRANGLER_TOML"
 
 # Substitute database_id in wrangler.toml
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -50,13 +57,14 @@ else
   sed -i "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
 fi
 
+echo "✅ Created wrangler.toml with substituted database_id"
+
 # Deploy
 echo "🚀 Deploying to Cloudflare Workers..."
 cd "$API_DIR"
 npx wrangler deploy
 
-# Restore original wrangler.toml
-mv "$WRANGLER_TOML_BACKUP" "$WRANGLER_TOML"
-
 echo "✅ Deployment complete!"
-
+echo ""
+echo "Note: wrangler.toml was created for this deployment and is gitignored."
+echo "      It will be recreated on next deployment from wrangler.example.toml"

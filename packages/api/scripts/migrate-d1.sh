@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# D1 Migration Script with Local Config Support
-# Handles database_id substitution from wrangler.toml.local or D1_DATABASE_ID env var
+# D1 Migration Script with wrangler.example.toml Pattern
+# Creates wrangler.toml from example and substitutes database_id from wrangler.toml.local or D1_DATABASE_ID env var
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$(dirname "$SCRIPT_DIR")"
 WRANGLER_TOML="$API_DIR/wrangler.toml"
+WRANGLER_EXAMPLE="$API_DIR/wrangler.example.toml"
 WRANGLER_TOML_LOCAL="$API_DIR/wrangler.toml.local"
-WRANGLER_TOML_BACKUP="$API_DIR/wrangler.toml.backup"
 
 # Function to extract database_id from wrangler.toml.local
 get_database_id_from_local() {
@@ -38,8 +38,15 @@ fi
 
 echo "📦 Database ID: $DB_ID"
 
-# Backup original wrangler.toml
-cp "$WRANGLER_TOML" "$WRANGLER_TOML_BACKUP"
+# Check if wrangler.example.toml exists
+if [ ! -f "$WRANGLER_EXAMPLE" ]; then
+  echo "❌ Error: wrangler.example.toml not found at $WRANGLER_EXAMPLE"
+  exit 1
+fi
+
+# Create wrangler.toml from example
+echo "📋 Creating wrangler.toml from wrangler.example.toml..."
+cp "$WRANGLER_EXAMPLE" "$WRANGLER_TOML"
 
 # Substitute database_id in wrangler.toml
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -50,6 +57,8 @@ else
   sed -i "s/\${D1_DATABASE_ID}/$DB_ID/g" "$WRANGLER_TOML"
 fi
 
+echo "✅ Created wrangler.toml with substituted database_id"
+
 # Run migrations
 echo "🔄 Running D1 migrations..."
 cd "$API_DIR"
@@ -58,8 +67,7 @@ cp drizzle/*.sql migrations/ 2>/dev/null || true
 wrangler d1 migrations apply tuvix --remote
 rm -rf migrations
 
-# Restore original wrangler.toml
-mv "$WRANGLER_TOML_BACKUP" "$WRANGLER_TOML"
-
 echo "✅ Migrations complete!"
-
+echo ""
+echo "Note: wrangler.toml was created for this migration and is gitignored."
+echo "      It will be recreated on next migration from wrangler.example.toml"

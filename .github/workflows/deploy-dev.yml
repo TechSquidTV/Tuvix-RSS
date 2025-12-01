@@ -50,7 +50,7 @@ jobs:
       - name: Build API
         run: pnpm run build:api
 
-      - name: Substitute D1 database ID
+      - name: Create wrangler.toml from example
         uses: ./.github/actions/substitute-d1-database-id
         with:
           d1-database-id: ${{ secrets.D1_DATABASE_ID }}
@@ -61,12 +61,10 @@ jobs:
         with:
           suffix: '-dev'
 
-      - name: Override worker name in wrangler.toml
+      - name: Override worker name in wrangler.toml for dev
         run: |
           cd packages/api
-          # Backup original
-          cp wrangler.toml wrangler.toml.backup
-          # Replace name line with dev suffix
+          # Replace name line with dev suffix (wrangler.toml was just created from example)
           sed -i.bak "s/^name = \".*\"/name = \"${{ steps.worker-name.outputs.name }}\"/" wrangler.toml
           rm -f wrangler.toml.bak
           echo "Deploying to Worker: ${{ steps.worker-name.outputs.name }} (dev)"
@@ -108,15 +106,6 @@ jobs:
           echo "## API Deployment (Dev)" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Restore original wrangler.toml
-        if: always()
-        run: |
-          cd packages/api
-          if [ -f wrangler.toml.backup ]; then
-            mv wrangler.toml.backup wrangler.toml
-            echo "✅ Restored original wrangler.toml"
-          fi
 
       - name: Run database migrations
         if: success()

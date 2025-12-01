@@ -447,7 +447,7 @@ npx wrangler d1 create tuvix
 
 #### Step 2: Configure wrangler.toml
 
-The `wrangler.toml` file is already configured with environment variable placeholders:
+The `wrangler.example.toml` file serves as a template with environment variable placeholders. You'll create your own `wrangler.toml` from this template:
 
 ```toml
 name = "tuvix-api"
@@ -497,13 +497,15 @@ crons = ["*/5 * * * *"]  # Every 5 minutes
 ```
 
 **Security Notes:**
-- ✅ **Safe to commit**: Environment variable placeholders, structure, names, bindings
-- ❌ **Never commit**: Filled-in `database_id` values (account-specific)
+- ✅ **Safe to commit**: `wrangler.example.toml` with environment variable placeholders
+- ❌ **Never commit**: `wrangler.toml` with filled-in values (now gitignored)
 - 🔒 **Use GitHub Secrets** (not Variables) for sensitive data
 
 **Local Development Setup:**
 
-Wrangler doesn't support environment variable substitution in `wrangler.toml`. For local development, create `wrangler.toml.local`:
+For local development, you have two options:
+
+**Option 1: Create wrangler.toml.local** (Recommended for quick setup):
 
 ```bash
 cd packages/api
@@ -515,11 +517,29 @@ cp wrangler.toml.local.example wrangler.toml.local
 # Example: database_id = "7078240d-69e3-46fb-bb21-aa8e5208de9b"
 ```
 
-**Note:** `wrangler.toml.local` is gitignored and will override values in `wrangler.toml`.
+**Note:** `wrangler.toml.local` is gitignored and will override values when scripts read configuration.
+
+**Option 2: Create wrangler.toml directly** (Alternative):
+
+```bash
+cd packages/api
+
+# Copy the example to wrangler.toml
+cp wrangler.example.toml wrangler.toml
+
+# Edit wrangler.toml and replace ${D1_DATABASE_ID} with your actual database ID
+# Note: wrangler.toml is gitignored, so your values won't be committed
+```
+
+**Deployment Scripts:**
+
+The deployment scripts (`deploy.sh`, `migrate-d1.sh`) automatically create `wrangler.toml` from `wrangler.example.toml` and substitute the database ID from either:
+- `D1_DATABASE_ID` environment variable, OR
+- `wrangler.toml.local` file
 
 **CI/CD Setup:**
 
-The GitHub Actions workflow automatically substitutes `${D1_DATABASE_ID}` in `wrangler.toml` before deployment using `envsubst`.
+The GitHub Actions workflow automatically creates `wrangler.toml` from `wrangler.example.toml` and substitutes `${D1_DATABASE_ID}` before deployment.
 
 **To configure:**
 1. Go to your GitHub repository → Settings → Secrets and variables → Actions
@@ -1023,7 +1043,7 @@ curl -X POST https://api.example.com/_admin/init
 | `EMAIL_FROM` | No | Email sender address (must match verified domain in Resend) |
 | `COOKIE_DOMAIN` | No | Root domain for cross-subdomain cookies (e.g., "example.com") |
 
-**⚠️ Security Note**: Never commit secrets to `wrangler.toml`. Use `wrangler secret put` for all sensitive values. The `wrangler.toml` file with empty IDs is safe to commit as a template.
+**⚠️ Security Note**: Never commit secrets to `wrangler.toml`. Use `wrangler secret put` for all sensitive values. Only `wrangler.example.toml` should be committed (with placeholders); `wrangler.toml` is gitignored.
 
 ### Database Migrations
 
@@ -1202,7 +1222,7 @@ feature branch → PR → development → [Auto Deploy to Dev] → PR → main �
 1. Checks out `development` branch (or specified branch)
 2. Runs type checks and tests for API
 3. Builds API
-4. Substitutes `D1_DATABASE_ID` in `wrangler.toml` using `envsubst`
+4. Creates `wrangler.toml` from `wrangler.example.toml` and substitutes `D1_DATABASE_ID`
 5. Deploys API to Cloudflare Workers (dev environment)
 6. Runs database migrations (after successful API deployment)
 7. Runs type checks and tests for App
@@ -1223,7 +1243,7 @@ feature branch → PR → development → [Auto Deploy to Dev] → PR → main �
 1. Checks out release tag (from release or manual input)
 2. Runs type checks and tests for API
 3. Builds API
-4. Substitutes `D1_DATABASE_ID` in `wrangler.toml` using `envsubst`
+4. Creates `wrangler.toml` from `wrangler.example.toml` and substitutes `D1_DATABASE_ID`
 5. Deploys API to Cloudflare Workers
 6. Runs database migrations (after successful API deployment)
 7. Runs type checks and tests for App
@@ -1408,7 +1428,7 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 #### Production Workflow (`deploy-cloudflare.yml`)
 - ✅ **Sequential Deployment:** API deploys first, then App (ensures API is ready)
-- ✅ **Environment Variable Substitution:** `D1_DATABASE_ID` automatically substituted via `envsubst` before deployment
+- ✅ **Wrangler Config Creation:** Creates `wrangler.toml` from `wrangler.example.toml` with substituted values
 - ✅ **Validation:** Type checks and tests run before deployment
 - ✅ **Database Migrations:** Automatically run after successful API deployment
 - ✅ **Concurrency Control:** Prevents duplicate runs
@@ -1421,13 +1441,13 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 #### Development Workflow (`deploy-dev.yml`)
 - ✅ **Automatic Deployment:** Triggers on pushes to `development` branch
 - ✅ **Sequential Deployment:** API deploys first, then App (ensures API is ready)
-- ✅ **Environment Variable Substitution:** `D1_DATABASE_ID` automatically substituted via `envsubst` before deployment
+- ✅ **Wrangler Config Creation:** Creates `wrangler.toml` from `wrangler.example.toml` with substituted values
 - ✅ **Validation:** Type checks and tests run before deployment
 - ✅ **Database Migrations:** Automatically run after successful API deployment
 - ✅ **Concurrency Control:** Cancels in-progress runs (allows rapid iteration)
 - ✅ **Caching:** Optimized dependency caching
 - ✅ **Environment Protection:** Uses `development` GitHub environment (separate secrets)
-- ✅ **Worker Name Override:** Supports separate dev Worker via `CLOUDFLARE_WORKER_NAME_DEV` secret
+- ✅ **Worker Name Override:** Supports separate dev Worker via `-dev` suffix
 - ✅ **Commit-based Versioning:** Uses git commit SHA as release version
 - ✅ **Deployment URLs:** Displayed in workflow summary with commit SHA
 
