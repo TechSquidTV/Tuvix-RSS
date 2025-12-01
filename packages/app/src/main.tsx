@@ -13,6 +13,7 @@ import { routeTree } from "./routeTree.gen";
 
 import { registerPWA } from "./pwa-register";
 import type { RouterContext } from "./lib/types/router-context";
+import { ErrorBoundaryFallback } from "./components/error-boundary-fallback";
 
 // Create a new router instance
 const router = createRouter({
@@ -239,11 +240,19 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <TRPCProvider>
-        <AudioContextProvider>
-          <RouterProvider router={router} />
-        </AudioContextProvider>
-      </TRPCProvider>
+      <Sentry.ErrorBoundary
+        fallback={ErrorBoundaryFallback}
+        showDialog={false}
+        beforeCapture={(scope) => {
+          scope.setTag("error_boundary", "root");
+        }}
+      >
+        <TRPCProvider>
+          <AudioContextProvider>
+            <RouterProvider router={router} />
+          </AudioContextProvider>
+        </TRPCProvider>
+      </Sentry.ErrorBoundary>
     </StrictMode>,
   );
 }
