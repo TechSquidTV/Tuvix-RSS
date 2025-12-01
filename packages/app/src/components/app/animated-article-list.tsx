@@ -31,7 +31,7 @@ export function AnimatedArticleList({
   return (
     <motion.div
       className={cn("flex flex-col gap-4", className)}
-      initial={isInitialAppearance ? { opacity: 0 } : false}
+      initial={isInitialAppearance ? { opacity: 0 } : undefined}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >

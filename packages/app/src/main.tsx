@@ -184,10 +184,14 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
 
   // Test Sentry is working (only in development)
   if (import.meta.env.DEV) {
-    Sentry.captureMessage(
-      "Sentry test message - initialization complete",
-      "info",
-    );
+    try {
+      Sentry.captureMessage(
+        "Sentry test message - initialization complete",
+        "info",
+      );
+    } catch {
+      // Sentry not available - silently ignore
+    }
   }
 } else {
   console.warn(

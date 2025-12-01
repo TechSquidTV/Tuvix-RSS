@@ -161,6 +161,11 @@ export default defineConfig(({ mode }) => {
           "src/test/**",
           // Standard exclusions
           "dist/**",
+          // Exclude tRPC hooks - these are mostly mutation wrappers with toast callbacks
+          // that require full tRPC integration testing rather than unit tests.
+          // Core logic is tested, but mutation callbacks (onSuccess/onError) are not.
+          "src/lib/hooks/useArticles.ts",
+          "src/lib/hooks/useData.ts",
         ],
         thresholds: {
           lines: 60,

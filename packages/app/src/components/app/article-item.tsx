@@ -91,7 +91,18 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
     }
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: MouseEvent) => {
+    // Check if the click was on a link inside the description (e.g., HN comments)
+    // Use closest() to handle clicks on link children (e.g., <a><strong>text</strong></a>)
+    const target = e.target as HTMLElement | null;
+    if (target?.closest) {
+      const clickedLink = target.closest("a");
+      if (clickedLink) {
+        // Let the browser handle the link navigation naturally
+        return;
+      }
+    }
+
     // Only open link on mobile and if not dragging
     if (isMobile && !isDragging && article.link) {
       window.open(article.link, "_blank", "noopener,noreferrer");
@@ -231,20 +242,18 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
               </ItemTitle>
               {article.description && (
                 <ItemDescription
-                  className="text-muted-foreground line-clamp-3 leading-relaxed"
+                  className={cn(
+                    "text-muted-foreground line-clamp-3 leading-relaxed",
+                    // Mobile: Make links easier to tap with larger hit area (44px minimum touch target)
+                    // Use only vertical padding to increase tap area without causing text overlap
+                    "[&_a]:inline-block [&_a]:py-1.5",
+                    // Desktop: Normal inline links
+                    "sm:[&_a]:inline sm:[&_a]:py-0",
+                  )}
                   // SECURITY: Safe to use dangerouslySetInnerHTML here because descriptions are
                   // sanitized at ingestion via sanitize-html library (packages/api/src/services/rss-fetcher.ts:689)
                   // Only safe HTML tags are allowed (links, formatting), dangerous content is stripped
                   dangerouslySetInnerHTML={{ __html: article.description }}
-                  onClick={(e) => {
-                    // Prevent click event from bubbling up to the card's onClick handler
-                    // when clicking links inside the description (e.g., HN comments links)
-                    // Use closest() to handle links with nested elements (e.g., <a><strong>text</strong></a>)
-                    const anchor = (e.target as HTMLElement).closest("a");
-                    if (anchor) {
-                      e.stopPropagation();
-                    }
-                  }}
                 />
               )}
             </div>

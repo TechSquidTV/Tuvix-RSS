@@ -153,10 +153,14 @@ function AudioContextProvider({ children }: { children: React.ReactNode }) {
         () => {
           const audio = audioRef.current;
           if (!audio) {
-            Sentry.captureMessage("Audio ref not available", {
-              level: "warning",
-              tags: { component: "audio-context", operation: "play" },
-            });
+            try {
+              Sentry.captureMessage("Audio ref not available", {
+                level: "warning",
+                tags: { component: "audio-context", operation: "play" },
+              });
+            } catch {
+              // Sentry not available - silently ignore
+            }
             return;
           }
 
@@ -240,10 +244,14 @@ function AudioContextProvider({ children }: { children: React.ReactNode }) {
   const seekTo = React.useCallback((time: number) => {
     const audio = audioRef.current;
     if (!audio) {
-      Sentry.captureMessage("Cannot seek: audio ref not available", {
-        level: "warning",
-        tags: { component: "audio-context", operation: "seek" },
-      });
+      try {
+        Sentry.captureMessage("Cannot seek: audio ref not available", {
+          level: "warning",
+          tags: { component: "audio-context", operation: "seek" },
+        });
+      } catch {
+        // Sentry not available - silently ignore
+      }
       return;
     }
 

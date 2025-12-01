@@ -26,19 +26,23 @@ function PlansPage() {
 
   // Track that a user accessed the plans/upgrade page
   useEffect(() => {
-    Sentry.captureMessage("User accessed upgrade plans page", {
-      level: "info",
-      tags: {
-        feature: "plans",
-        action: "upgrade_interest",
-      },
-      contexts: {
-        page: {
-          name: "Plans",
-          path: "/app/plans",
+    try {
+      Sentry.captureMessage("User accessed upgrade plans page", {
+        level: "info",
+        tags: {
+          feature: "plans",
+          action: "upgrade_interest",
         },
-      },
-    });
+        contexts: {
+          page: {
+            name: "Plans",
+            path: "/app/plans",
+          },
+        },
+      });
+    } catch {
+      // Sentry not available - silently ignore
+    }
   }, []);
 
   // Find specific plans

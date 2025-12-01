@@ -3,6 +3,21 @@ import { toast } from "sonner";
 import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 
+// Type for paginated article structure in React Query cache
+export type InfiniteArticlesData = {
+  pages: Array<{
+    items: Array<{
+      id: number;
+      read: boolean;
+      saved: boolean;
+      source: { id: number }; // Required - API always returns source via database join
+    }>;
+    total: number;
+    hasMore: boolean;
+  }>;
+  pageParams: unknown[];
+};
+
 // Hooks
 export const useArticles = (filters?: {
   categoryId?: number;
@@ -28,7 +43,8 @@ export const useInfiniteArticles = (filters?: {
   saved?: boolean;
 }) => {
   return trpc.articles.list.useInfiniteQuery(
-    { ...filters, limit: 20, offset: 0 },
+    // Use function form to receive pageParam (offset) for each page fetch
+    (pageParam) => ({ ...filters, limit: 20, offset: pageParam }),
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
@@ -51,56 +67,196 @@ export const useArticle = (id: number) => {
 
 export const useMarkArticleRead = () => {
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
 
   return trpc.articles.markRead.useMutation({
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await utils.articles.list.cancel();
+
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueriesData({
+        queryKey: [["trpc"], ["articles", "list"]],
+      });
+
+      // Optimistically update all cached queries
+      queryClient.setQueriesData<InfiniteArticlesData>(
+        { queryKey: [["trpc"], ["articles", "list"]] },
+        (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((article) =>
+                article.id === id ? { ...article, read: true } : article,
+              ),
+            })),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Failed to mark as read");
+    },
     onSuccess: () => {
+      // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
       toast.success("Marked as read");
-    },
-    onError: () => {
-      toast.error("Failed to mark as read");
     },
   });
 };
 
 export const useMarkArticleUnread = () => {
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
 
   return trpc.articles.markUnread.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.articles.list.cancel();
+
+      const previousData = queryClient.getQueriesData({
+        queryKey: [["trpc"], ["articles", "list"]],
+      });
+
+      queryClient.setQueriesData<InfiniteArticlesData>(
+        { queryKey: [["trpc"], ["articles", "list"]] },
+        (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((article) =>
+                article.id === id ? { ...article, read: false } : article,
+              ),
+            })),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Failed to mark as unread");
+    },
     onSuccess: () => {
+      // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
       toast.success("Marked as unread");
-    },
-    onError: () => {
-      toast.error("Failed to mark as unread");
     },
   });
 };
 
 export const useSaveArticle = () => {
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
 
   return trpc.articles.save.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.articles.list.cancel();
+
+      const previousData = queryClient.getQueriesData({
+        queryKey: [["trpc"], ["articles", "list"]],
+      });
+
+      queryClient.setQueriesData<InfiniteArticlesData>(
+        { queryKey: [["trpc"], ["articles", "list"]] },
+        (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((article) =>
+                article.id === id ? { ...article, saved: true } : article,
+              ),
+            })),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Failed to save article");
+    },
     onSuccess: () => {
+      // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
       toast.success("Article saved");
-    },
-    onError: () => {
-      toast.error("Failed to save article");
     },
   });
 };
 
 export const useUnsaveArticle = () => {
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
 
   return trpc.articles.unsave.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.articles.list.cancel();
+
+      const previousData = queryClient.getQueriesData({
+        queryKey: [["trpc"], ["articles", "list"]],
+      });
+
+      queryClient.setQueriesData<InfiniteArticlesData>(
+        { queryKey: [["trpc"], ["articles", "list"]] },
+        (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((article) =>
+                article.id === id ? { ...article, saved: false } : article,
+              ),
+            })),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Failed to unsave article");
+    },
     onSuccess: () => {
+      // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
       toast.success("Article unsaved");
-    },
-    onError: () => {
-      toast.error("Failed to unsave article");
     },
   });
 };
@@ -112,7 +268,7 @@ export const useBulkMarkRead = () => {
   return trpc.articles.bulkMarkRead.useMutation({
     onSuccess: (data) => {
       utils.articles.list.invalidate();
-      toast.success(`${data.count} articles updated`);
+      toast.success(`${data.updated} articles updated`);
     },
     onError: () => {
       toast.error("Failed to mark articles");
@@ -127,7 +283,7 @@ export const useMarkAllRead = () => {
     onSuccess: (data) => {
       utils.articles.list.invalidate();
       toast.success(
-        `${data.count} article${data.count === 1 ? "" : "s"} marked as read`,
+        `${data.updated} article${data.updated === 1 ? "" : "s"} marked as read`,
       );
     },
     onError: () => {
@@ -137,16 +293,11 @@ export const useMarkAllRead = () => {
 };
 
 export const useRefreshFeeds = () => {
-  const queryClient = useQueryClient();
-
   return trpc.articles.refresh.useMutation({
     onSuccess: () => {
-      // Trigger refetch instead of invalidate to allow smart merging
-      // Use queryClient.refetchQueries for infinite queries
-      queryClient.refetchQueries({
-        queryKey: [["trpc"], ["articles", "list"]],
-      });
-      toast.success("Feeds refreshed");
+      // Don't refetch immediately - the background fetch takes time
+      // Let the caller handle refetch timing (e.g., useCreateSubscriptionWithRefetch)
+      toast.success("Feed refresh started");
     },
     onError: () => {
       toast.error("Failed to refresh feeds");

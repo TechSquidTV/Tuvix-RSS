@@ -53,29 +53,38 @@ export async function extractOgImage(
         const decoder = new TextDecoder("utf-8");
         let headContent = "";
 
-        while (true) {
-          const result: ReadableStreamReadResult<Uint8Array> =
-            await reader.read();
-          if (result.done) break;
+        try {
+          while (true) {
+            const result: ReadableStreamReadResult<Uint8Array> =
+              await reader.read();
+            if (result.done) break;
 
-          const chunk = result.value;
-          if (chunk) {
-            headContent += decoder.decode(chunk, { stream: true });
-          }
+            const chunk = result.value;
+            if (chunk) {
+              headContent += decoder.decode(chunk, { stream: true });
+            }
 
-          // Check for </head> tag
-          const headEndIndex = headContent.indexOf("</head>");
-          if (headEndIndex !== -1) {
-            controller.abort();
-            headContent = headContent.substring(0, headEndIndex);
-            break;
-          }
+            // Check for </head> tag
+            const headEndIndex = headContent.indexOf("</head>");
+            if (headEndIndex !== -1) {
+              headContent = headContent.substring(0, headEndIndex);
+              break;
+            }
 
-          // Safety limit
-          if (headContent.length > maxBufferSize) {
-            controller.abort();
-            break;
+            // Safety limit
+            if (headContent.length > maxBufferSize) {
+              break;
+            }
           }
+        } finally {
+          // Clear timeout to prevent unnecessary timer leaks
+          clearTimeout(timeoutId);
+          // Always cancel the reader to prevent stalled HTTP responses
+          // This releases the connection even if we didn't read the full response
+          reader.cancel().catch(() => {
+            // Ignore cancellation errors
+          });
+          controller.abort();
         }
 
         // Extract og:image from meta tags

@@ -140,11 +140,15 @@ export function useAudioProgressRestore(
 
   const play = useCallback(() => {
     if (!audioUrl) {
-      Sentry.captureMessage("Cannot play: audio URL is null", {
-        level: "warning",
-        tags: { component: "audio-progress", operation: "restore" },
-        extra: { articleId },
-      });
+      try {
+        Sentry.captureMessage("Cannot play: audio URL is null", {
+          level: "warning",
+          tags: { component: "audio-progress", operation: "restore" },
+          extra: { articleId },
+        });
+      } catch {
+        // Sentry not available - silently ignore
+      }
       return;
     }
 

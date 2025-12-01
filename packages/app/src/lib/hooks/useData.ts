@@ -2,8 +2,9 @@
 import { toast } from "sonner";
 import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-import { useRefreshFeeds } from "./useArticles";
+import { useEffect, useRef, useState } from "react";
+import { useRefreshFeeds, type InfiniteArticlesData } from "./useArticles";
+import * as Sentry from "@sentry/react";
 
 // Categories
 export const useCategories = () => {
@@ -74,7 +75,7 @@ export const useCreateSubscription = () => {
       utils.categories.list.invalidate();
       toast.success("Subscription added");
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       // Handle duplicate subscription error specifically
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -90,26 +91,60 @@ export const useCreateSubscription = () => {
   });
 };
 
+// Article polling configuration
+const POLL_INTERVAL_MS = 2000; // 2 seconds between polls
+const MAX_POLL_ATTEMPTS = 15; // 30 seconds total (15 × 2s)
+const SLOW_FETCH_THRESHOLD = 5; // Show warning after 5th attempt (10s)
+
 /**
- * Hook for creating subscriptions with server-side feed refresh.
- * Reuses the standard subscription creation logic and:
- * 1. Triggers server-side feed refresh to fetch articles from the new subscription
- * 2. Does a delayed client-side refetch after 5 seconds to display the new articles
+ * Hook for creating subscriptions with smart polling for new articles.
+ *
+ * Flow:
+ * 1. Creates subscription
+ * 2. Triggers server-side feed refresh
+ * 3. Polls for new articles every 2 seconds
+ * 4. Shows progressive feedback based on timing
+ * 5. Captures Sentry warning if articles don't appear after 10s
+ *
+ * Exports isPolling and pollAttempts for UI feedback:
+ * - isPolling: boolean - true while actively polling for articles
+ * - pollAttempts: number - current poll attempt count (0-15)
+ *
+ * Consumers can use these to show loading states, progress indicators,
+ * or disable UI elements during the polling process.
  */
 export const useCreateSubscriptionWithRefetch = () => {
   const createSubscription = useCreateSubscription();
   const refreshFeeds = useRefreshFeeds();
   const queryClient = useQueryClient();
-  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const attemptsRef = useRef(0); // Use ref to avoid closure issues
+  const isMountedRef = useRef(true); // Track mount status to prevent state updates after unmount
+  const isExecutingRef = useRef(false); // Prevent concurrent executions
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
 
-  // Cleanup timeout on unmount
+  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
+      isMountedRef.current = false;
+      isExecutingRef.current = false; // Reset execution flag on unmount
+      if (pollIntervalRef.current) {
+        clearTimeout(pollIntervalRef.current);
       }
     };
   }, []);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) {
+      clearTimeout(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    attemptsRef.current = 0;
+    isExecutingRef.current = false; // Reset execution flag when polling stops
+    setIsPolling(false);
+    setPollAttempts(0);
+  };
 
   const createWithRefetch = async (input: {
     url: string;
@@ -119,31 +154,161 @@ export const useCreateSubscriptionWithRefetch = () => {
     categoryIds?: number[];
     newCategoryNames?: string[];
   }) => {
-    // Clear any existing timeout
-    if (refetchTimeoutRef.current) {
-      clearTimeout(refetchTimeoutRef.current);
+    // Prevent concurrent executions - if already executing, ignore this call
+    if (isExecutingRef.current) {
+      return;
     }
 
-    await createSubscription.mutateAsync(input);
+    isExecutingRef.current = true;
 
-    // Trigger server-side feed refresh to fetch articles from the new subscription
-    // This calls fetchAllFeeds on the server which fetches articles from RSS feeds
-    refreshFeeds.mutate();
+    // Stop any existing polling (synchronously to prevent race conditions)
+    stopPolling();
 
-    // Delayed refetch of articles to show new articles smoothly
-    // Feed processing happens server-side and can take a few seconds
-    refetchTimeoutRef.current = setTimeout(() => {
-      queryClient.refetchQueries({
+    // Set polling state immediately to prevent race conditions from rapid clicks
+    setIsPolling(true);
+
+    try {
+      // Create subscription and get the source ID
+      const subscription = await createSubscription.mutateAsync(input);
+
+      // Validate that we have a source ID before proceeding
+      if (!subscription.source) {
+        throw new Error("Subscription created but source is missing");
+      }
+
+      const sourceId = subscription.source.id;
+
+      // Get initial article count for this source
+      const initialResult = queryClient.getQueriesData<InfiniteArticlesData>({
         queryKey: [["trpc"], ["articles", "list"]],
       });
-      toast.info("Checking for new articles...");
-      refetchTimeoutRef.current = null;
-    }, 5000); // 5 second delay
+
+      let initialCount = 0;
+      for (const [, data] of initialResult) {
+        if (data?.pages) {
+          for (const page of data.pages) {
+            initialCount += page.items.filter(
+              (item) => item.source.id === sourceId,
+            ).length;
+          }
+        }
+      }
+
+      // Trigger server-side feed refresh
+      refreshFeeds.mutate();
+
+      // Start smart polling (state already set above)
+      // Recursive polling function to ensure serial execution
+      const poll = async () => {
+        // Check if polling was stopped
+        if (!pollIntervalRef.current) return;
+
+        attemptsRef.current++;
+        setPollAttempts(attemptsRef.current);
+
+        // Refetch articles list and wait for cache update
+        // The await ensures the cache is updated before we read from it
+        await queryClient.refetchQueries({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
+
+        // Check if component unmounted during async refetch
+        if (!isMountedRef.current) return;
+
+        // Count articles from the new source (cache is guaranteed fresh after await above)
+        // Optimized: reduce instead of nested loops with filter
+        const results = queryClient.getQueriesData<InfiniteArticlesData>({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
+
+        const currentCount = results.reduce((total, [, data]) => {
+          if (!data?.pages) return total;
+          return (
+            total +
+            data.pages.reduce(
+              (pageTotal, page) =>
+                pageTotal +
+                page.items.reduce(
+                  (itemTotal, item) =>
+                    itemTotal + (item.source.id === sourceId ? 1 : 0),
+                  0,
+                ),
+              0,
+            )
+          );
+        }, 0);
+
+        // Articles found!
+        if (currentCount > initialCount) {
+          const newArticles = currentCount - initialCount;
+          stopPolling();
+          toast.success(
+            `Loaded ${newArticles} new article${newArticles === 1 ? "" : "s"}`,
+          );
+          return;
+        }
+
+        // After threshold, capture Sentry warning and update UI
+        if (attemptsRef.current === SLOW_FETCH_THRESHOLD) {
+          // Capture Sentry warning for slow fetch (safely handle if Sentry not initialized)
+          try {
+            Sentry.captureMessage("RSS fetch taking longer than expected", {
+              level: "warning",
+              tags: {
+                operation: "subscription_create",
+                feed_url: input.url,
+              },
+              extra: {
+                source_id: sourceId,
+                poll_attempts: attemptsRef.current,
+                elapsed_seconds: attemptsRef.current * 2,
+              },
+            });
+          } catch {
+            // Sentry not available - silently ignore
+          }
+
+          toast.info("Taking longer than usual. Articles will appear soon...");
+        }
+
+        // Timeout after max attempts
+        if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+          stopPolling();
+          toast.info("Articles will appear soon. Try refreshing in a moment.", {
+            duration: 5000,
+          });
+          return;
+        }
+
+        // Schedule next poll only after current poll completes
+        pollIntervalRef.current = setTimeout(
+          poll,
+          POLL_INTERVAL_MS,
+        ) as NodeJS.Timeout;
+      };
+
+      // Start first poll
+      pollIntervalRef.current = setTimeout(
+        poll,
+        POLL_INTERVAL_MS,
+      ) as NodeJS.Timeout;
+    } catch (error) {
+      // Reset polling state if subscription creation fails
+      // stopPolling() will reset isExecutingRef
+      stopPolling();
+      throw error; // Re-throw to let the mutation handle the error
+    }
+    // Note: isExecutingRef is reset in stopPolling(), which is called on:
+    // - Success (line 242)
+    // - Timeout (line 274)
+    // - Error (catch block above)
   };
 
   return {
     ...createSubscription,
     mutateAsync: createWithRefetch,
+    isPolling,
+    pollAttempts,
   };
 };
 
