@@ -128,6 +128,7 @@ export const useCreateSubscriptionWithRefetch = () => {
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      isExecutingRef.current = false; // Reset execution flag on unmount
       if (pollIntervalRef.current) {
         clearTimeout(pollIntervalRef.current);
       }
@@ -140,6 +141,7 @@ export const useCreateSubscriptionWithRefetch = () => {
       pollIntervalRef.current = null;
     }
     attemptsRef.current = 0;
+    isExecutingRef.current = false; // Reset execution flag when polling stops
     setIsPolling(false);
     setPollAttempts(0);
   };
@@ -291,16 +293,15 @@ export const useCreateSubscriptionWithRefetch = () => {
         POLL_INTERVAL_MS,
       ) as NodeJS.Timeout;
     } catch (error) {
-      // Reset polling state and execution flag if subscription creation fails
+      // Reset polling state if subscription creation fails
+      // stopPolling() will reset isExecutingRef
       stopPolling();
-      isExecutingRef.current = false;
       throw error; // Re-throw to let the mutation handle the error
-    } finally {
-      // Always reset execution flag when done (including successful polling completion)
-      // Note: stopPolling() is called in various places (success, timeout, error) which will
-      // naturally end execution, but we need finally to handle any other exit paths
-      isExecutingRef.current = false;
     }
+    // Note: isExecutingRef is reset in stopPolling(), which is called on:
+    // - Success (line 242)
+    // - Timeout (line 274)
+    // - Error (catch block above)
   };
 
   return {
