@@ -199,7 +199,15 @@ wrangler secret put SENTRY_ENVIRONMENT
 # 1. Create database
 wrangler d1 create tuvix
 
-# 2. Update GitHub secret (for CI/CD) or wrangler.toml.local (for local deployment)
+# 2. Configure for local development:
+# Option A: Create wrangler.toml.local (recommended)
+cp wrangler.toml.local.example wrangler.toml.local
+# Edit wrangler.toml.local and add your database_id
+
+# Option B: Set environment variable
+export D1_DATABASE_ID="<database-id-from-step-1>"
+
+# For CI/CD: Set GitHub secret
 gh secret set D1_DATABASE_ID --body "<database-id-from-step-1>"
 
 # 3. Run migrations
@@ -213,6 +221,7 @@ pnpm db:migrate:d1
 pnpm deploy
 
 # The deploy script automatically:
+# - Creates wrangler.toml from wrangler.example.toml
 # - Substitutes database_id from wrangler.toml.local or D1_DATABASE_ID env var
 # - Deploys with CPU limits configured (30 seconds)
 # - Applies cron trigger schedule (every 5 minutes)

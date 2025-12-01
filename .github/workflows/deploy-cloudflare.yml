@@ -48,7 +48,7 @@ jobs:
       - name: Build API
         run: pnpm run build:api
 
-      - name: Substitute D1 database ID
+      - name: Create wrangler.toml from example
         uses: ./.github/actions/substitute-d1-database-id
         with:
           d1-database-id: ${{ secrets.D1_DATABASE_ID }}

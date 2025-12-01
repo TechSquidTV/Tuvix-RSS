@@ -38,7 +38,14 @@ Thumbs.db
 .wrangler/
 .dev.vars
 wrangler.toml.local
+wrangler.toml  # Actual config (use wrangler.example.toml as template)
 migrations/  # Generated folder for Wrangler (copied from drizzle/)
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
 # Drizzle (keep migration files, ignore meta snapshots if desired)
 # drizzle/meta/
