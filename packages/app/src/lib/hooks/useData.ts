@@ -4,6 +4,17 @@ import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useRefreshFeeds } from "./useArticles";
+import * as Sentry from "@sentry/react";
+
+// Type for paginated article structure in React Query cache
+type InfiniteArticlesData = {
+  pages: Array<{
+    items: Array<{
+      source?: { id: number };
+    }>;
+  }>;
+  pageParams: unknown[];
+};
 
 // Categories
 export const useCategories = () => {
@@ -74,7 +85,7 @@ export const useCreateSubscription = () => {
       utils.categories.list.invalidate();
       toast.success("Subscription added");
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       // Handle duplicate subscription error specifically
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -119,7 +130,7 @@ export const useCreateSubscriptionWithRefetch = () => {
 
   const stopPolling = () => {
     if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
+      clearTimeout(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
     setIsPolling(false);
@@ -134,71 +145,85 @@ export const useCreateSubscriptionWithRefetch = () => {
     categoryIds?: number[];
     newCategoryNames?: string[];
   }) => {
-    // Stop any existing polling
+    // Stop any existing polling (synchronously to prevent race conditions)
     stopPolling();
 
-    // Create subscription and get the source ID
-    const subscription = await createSubscription.mutateAsync(input);
-    const sourceId = subscription.source.id;
-
-    // Get initial article count for this source
-    const initialResult = queryClient.getQueriesData<{ pages: Array<{ items: Array<{ source?: { id: number } }> }> }>({
-      queryKey: [["trpc"], ["articles", "list"]],
-    });
-
-    let initialCount = 0;
-    for (const [, data] of initialResult) {
-      if (data?.pages) {
-        for (const page of data.pages) {
-          initialCount += page.items.filter(item => item.source?.id === sourceId).length;
-        }
-      }
-    }
-
-    // Trigger server-side feed refresh
-    refreshFeeds.mutate();
-
-    // Start smart polling
+    // Set polling state immediately to prevent race conditions from rapid clicks
     setIsPolling(true);
-    let attempts = 0;
-    const maxAttempts = 15; // 30 seconds (15 polls × 2s)
 
-    pollIntervalRef.current = setInterval(async () => {
-      attempts++;
-      setPollAttempts(attempts);
+    try {
+      // Create subscription and get the source ID
+      const subscription = await createSubscription.mutateAsync(input);
+      const sourceId = subscription.source.id;
 
-      // Refetch articles list
-      await queryClient.refetchQueries({
-        queryKey: [["trpc"], ["articles", "list"]],
-      });
+      // Get initial article count for this source
+      const initialResult =
+        queryClient.getQueriesData<InfiniteArticlesData>({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
 
-      // Count articles from the new source
-      const results = queryClient.getQueriesData<{ pages: Array<{ items: Array<{ source?: { id: number } }> }> }>({
-        queryKey: [["trpc"], ["articles", "list"]],
-      });
-
-      let currentCount = 0;
-      for (const [, data] of results) {
+      let initialCount = 0;
+      for (const [, data] of initialResult) {
         if (data?.pages) {
           for (const page of data.pages) {
-            currentCount += page.items.filter(item => item.source?.id === sourceId).length;
+            initialCount += page.items.filter(
+              (item) => item.source?.id === sourceId,
+            ).length;
           }
         }
       }
 
-      // Articles found!
-      if (currentCount > initialCount) {
-        const newArticles = currentCount - initialCount;
-        stopPolling();
-        toast.success(`Loaded ${newArticles} new article${newArticles === 1 ? "" : "s"}`);
-        return;
-      }
+      // Trigger server-side feed refresh
+      refreshFeeds.mutate();
 
-      // After 5th poll (10 seconds), capture Sentry warning and update UI
-      if (attempts === 5) {
-        // Capture Sentry warning for slow fetch
-        if (typeof window !== "undefined" && window.Sentry) {
-          window.Sentry.captureMessage("RSS fetch taking longer than expected", {
+      // Start smart polling (state already set above)
+      let attempts = 0;
+      const maxAttempts = 15; // 30 seconds (15 polls × 2s)
+
+      // Recursive polling function to ensure serial execution
+      const poll = async () => {
+        // Check if polling was stopped
+        if (!pollIntervalRef.current) return;
+
+        attempts++;
+        setPollAttempts(attempts);
+
+        // Refetch articles list and wait for cache update
+        // The await ensures the cache is updated before we read from it
+        await queryClient.refetchQueries({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
+
+        // Count articles from the new source (cache is guaranteed fresh after await above)
+        const results = queryClient.getQueriesData<InfiniteArticlesData>({
+          queryKey: [["trpc"], ["articles", "list"]],
+        });
+
+        let currentCount = 0;
+        for (const [, data] of results) {
+          if (data?.pages) {
+            for (const page of data.pages) {
+              currentCount += page.items.filter(
+                (item) => item.source?.id === sourceId,
+              ).length;
+            }
+          }
+        }
+
+        // Articles found!
+        if (currentCount > initialCount) {
+          const newArticles = currentCount - initialCount;
+          stopPolling();
+          toast.success(
+            `Loaded ${newArticles} new article${newArticles === 1 ? "" : "s"}`,
+          );
+          return;
+        }
+
+        // After 5th poll (10 seconds), capture Sentry warning and update UI
+        if (attempts === 5) {
+          // Capture Sentry warning for slow fetch
+          Sentry.captureMessage("RSS fetch taking longer than expected", {
             level: "warning",
             tags: {
               operation: "subscription_create",
@@ -210,19 +235,30 @@ export const useCreateSubscriptionWithRefetch = () => {
               elapsed_seconds: attempts * 2,
             },
           });
+
+          toast.info("Taking longer than usual. Articles will appear soon...");
         }
 
-        toast.info("Taking longer than usual. Articles will appear soon...");
-      }
+        // Timeout after max attempts
+        if (attempts >= maxAttempts) {
+          stopPolling();
+          toast.info("Articles will appear soon. Try refreshing in a moment.", {
+            duration: 5000,
+          });
+          return;
+        }
 
-      // Timeout after max attempts
-      if (attempts >= maxAttempts) {
-        stopPolling();
-        toast.info("Articles will appear soon. Try refreshing in a moment.", {
-          duration: 5000,
-        });
-      }
-    }, 2000); // Poll every 2 seconds
+        // Schedule next poll only after current poll completes
+        pollIntervalRef.current = setTimeout(poll, 2000) as NodeJS.Timeout;
+      };
+
+      // Start first poll
+      pollIntervalRef.current = setTimeout(poll, 2000) as NodeJS.Timeout;
+    } catch (error) {
+      // Reset polling state if subscription creation fails
+      stopPolling();
+      throw error; // Re-throw to let the mutation handle the error
+    }
   };
 
   return {
