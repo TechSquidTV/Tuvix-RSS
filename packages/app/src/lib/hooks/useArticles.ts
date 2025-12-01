@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
+import { mergePages } from "../utils/pagination";
 
 // Type for paginated article structure in React Query cache
 export type InfiniteArticlesData = {
@@ -48,13 +49,16 @@ export const useInfiniteArticles = (filters?: {
     {
       getNextPageParam: (lastPage, allPages) => {
         // Backend returns {items: Article[], total: number, hasMore: boolean}
+        // Stop pagination when no more items are available
         if (!lastPage?.hasMore) return undefined;
-        // Calculate next offset based on all pages loaded so far
-        const totalLoaded = allPages.reduce(
-          (sum, page) => sum + page.items.length,
-          0,
-        );
-        return totalLoaded;
+
+        // If the last page returned empty items, stop pagination to prevent infinite loop
+        if (!lastPage.items || lastPage.items.length === 0) return undefined;
+
+        // Calculate next offset based on unique items loaded so far
+        // Use deduplication to handle any overlap between pages
+        const uniqueItems = mergePages(allPages);
+        return uniqueItems.length;
       },
       initialPageParam: 0,
     },

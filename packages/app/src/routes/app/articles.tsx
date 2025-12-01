@@ -37,6 +37,7 @@ import {
   ResponsiveAlertDialogTitle,
 } from "@/components/ui/responsive-alert-dialog";
 import type { RouterOutputs } from "@/lib/api/trpc";
+import { deduplicateById } from "@/lib/utils/pagination";
 
 type Article = RouterOutputs["articles"]["list"]["items"][number];
 
@@ -111,11 +112,13 @@ function ArticlesPage() {
 
   // Get all articles and calculate counts
   // Backend returns paginated response: {items: Article[], total: number, hasMore: boolean}
-  // Memoize to prevent unnecessary re-renders
-  const allArticles = useMemo(
-    () => data?.pages.flatMap((page: { items: Article[] }) => page.items) || [],
-    [data?.pages],
-  );
+  // Memoize to prevent unnecessary re-renders and deduplicate to prevent duplicate articles
+  const allArticles = useMemo(() => {
+    const items =
+      data?.pages.flatMap((page: { items: Article[] }) => page.items) || [];
+    // Deduplicate by id to handle any overlap between pages
+    return deduplicateById(items);
+  }, [data?.pages]);
 
   // Track previous article IDs to detect changes
   const previousArticleIdsRef = useRef<Set<number>>(new Set());
