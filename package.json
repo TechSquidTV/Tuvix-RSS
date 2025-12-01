@@ -79,7 +79,7 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "nyc": "^17.1.0",
-    "prettier": "^3.6.2",
-    "shadcn": "^3.5.0"
+    "prettier": "^3.7.3",
+    "shadcn": "^3.5.1"
   }
 }
