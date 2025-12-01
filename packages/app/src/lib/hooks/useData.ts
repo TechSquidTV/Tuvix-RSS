@@ -3,20 +3,8 @@ import { toast } from "sonner";
 import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useRefreshFeeds } from "./useArticles";
+import { useRefreshFeeds, type InfiniteArticlesData } from "./useArticles";
 import * as Sentry from "@sentry/react";
-
-// Type for paginated article structure in React Query cache
-type InfiniteArticlesData = {
-  pages: Array<{
-    items: Array<{
-      source?: { id: number };
-    }>;
-    total: number;
-    hasMore: boolean;
-  }>;
-  pageParams: unknown[];
-};
 
 // Categories
 export const useCategories = () => {

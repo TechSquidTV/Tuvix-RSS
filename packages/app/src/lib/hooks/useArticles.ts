@@ -4,7 +4,7 @@ import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Type for paginated article structure in React Query cache
-type InfiniteArticlesData = {
+export type InfiniteArticlesData = {
   pages: Array<{
     items: Array<{
       id: number;
