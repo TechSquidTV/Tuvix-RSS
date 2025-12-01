@@ -161,10 +161,6 @@ export default defineConfig(({ mode }) => {
           "src/test/**",
           // Standard exclusions
           "dist/**",
-          // TODO: Remove after adding proper tRPC mutation tests
-          // Temporarily exclude hooks with complex mutation testing requirements
-          "src/lib/hooks/useArticles.ts",
-          "src/lib/hooks/useData.ts",
         ],
         thresholds: {
           lines: 60,
