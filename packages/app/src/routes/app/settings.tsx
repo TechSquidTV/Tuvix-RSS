@@ -429,6 +429,45 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Legal & Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Legal & Information</CardTitle>
+            <CardDescription>
+              Privacy policy and terms of service
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="font-medium">Privacy Policy</p>
+                <p className="text-sm text-muted-foreground">
+                  Learn how we handle your data
+                </p>
+              </div>
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                  View Policy
+                </Button>
+              </a>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="font-medium">Terms of Service</p>
+                <p className="text-sm text-muted-foreground">
+                  Read our terms and conditions
+                </p>
+              </div>
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                  View Terms
+                </Button>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Danger Zone */}
         <Card className="border-destructive/50">
           <CardHeader>
