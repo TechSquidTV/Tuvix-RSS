@@ -75,7 +75,6 @@ function ArticlesPage() {
   const filters: {
     categoryId?: number;
     subscriptionId?: number;
-    unread?: boolean;
     read?: boolean;
     saved?: boolean;
   } = {};
@@ -86,7 +85,7 @@ function ArticlesPage() {
   // Apply active filter from tab
   switch (activeFilter) {
     case "unread":
-      filters.unread = true;
+      filters.read = false;
       break;
     case "read":
       filters.read = true;
@@ -141,9 +140,6 @@ function ArticlesPage() {
     [data?.pages],
   );
 
-  // Get the total count from the API (accurate for current filter)
-  const totalCount = data?.pages?.[0]?.total ?? 0;
-
   // Fetch counts for all tabs (lightweight queries that only fetch totals)
   // We need separate queries for each filter to show accurate badge counts
   const allCountQuery = useInfiniteArticles({
@@ -153,7 +149,7 @@ function ArticlesPage() {
   const unreadCountQuery = useInfiniteArticles({
     categoryId: search.category_id,
     subscriptionId: search.subscription_id,
-    unread: true,
+    read: false,
   });
   const readCountQuery = useInfiniteArticles({
     categoryId: search.category_id,
