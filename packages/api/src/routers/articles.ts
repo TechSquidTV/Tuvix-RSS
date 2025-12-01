@@ -237,22 +237,17 @@ export const articlesRouter = router({
 
       if (!hasSubscriptionFilters) {
         // EFFICIENT PATH: No subscription filters, use direct database pagination
-        // Use cursor-based pagination if cursor is provided, otherwise use offset
-        let paginationQuery;
+        // Always order by publishedAt for chronological feed
+        let paginationQuery = queryBuilder.orderBy(
+          desc(schema.articles.publishedAt)
+        );
 
-        if (input.cursor) {
-          // Cursor-based: order by ID (what we're filtering on) for consistent pagination
-          paginationQuery = queryBuilder
-            .where(lt(schema.articles.id, input.cursor))
-            .orderBy(desc(schema.articles.id));
-        } else {
-          // Offset-based or first page: order by publishedAt for chronological feed
-          paginationQuery = queryBuilder.orderBy(
-            desc(schema.articles.publishedAt)
-          );
-          if (input.offset > 0) {
-            paginationQuery = paginationQuery.offset(input.offset);
-          }
+        // Use cursor OR offset (cursor takes precedence for infinite scroll)
+        // Frontend sends cursor as cumulative item count (50, 100, 150...)
+        const effectiveOffset = input.cursor ?? input.offset ?? 0;
+
+        if (effectiveOffset > 0) {
+          paginationQuery = paginationQuery.offset(effectiveOffset);
         }
 
         const results = await withQueryMetrics(
