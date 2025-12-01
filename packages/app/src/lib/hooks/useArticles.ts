@@ -101,6 +101,8 @@ export const useMarkArticleRead = () => {
     onError: (err, variables, context) => {
       // Rollback on error
       if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
         context.previousData.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data);
         });
@@ -145,6 +147,8 @@ export const useMarkArticleUnread = () => {
     },
     onError: (err, variables, context) => {
       if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
         context.previousData.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data);
         });
@@ -189,6 +193,8 @@ export const useSaveArticle = () => {
     },
     onError: (err, variables, context) => {
       if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
         context.previousData.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data);
         });
@@ -233,6 +239,8 @@ export const useUnsaveArticle = () => {
     },
     onError: (err, variables, context) => {
       if (context?.previousData) {
+        // getQueriesData returns [QueryKey, TData][] tuples
+        // setQueryData accepts QueryKey directly - formats are compatible
         context.previousData.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data);
         });
