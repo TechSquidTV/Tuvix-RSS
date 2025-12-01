@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteArticles, useMarkAllRead } from "@/lib/hooks/useArticles";
+import {
+  useInfiniteArticles,
+  useMarkAllRead,
+  useArticleCounts,
+} from "@/lib/hooks/useArticles";
 import { useRefreshFeeds } from "@/lib/hooks/useArticles";
 import { useUserSettings } from "@/lib/hooks/useUserSettings";
 import { AnimatedArticleList } from "@/components/app/animated-article-list";
@@ -71,12 +75,35 @@ function ArticlesPage() {
   const seenArticleIds = useRef<Set<number>>(new Set());
   const [newArticleIds, setNewArticleIds] = useState<Set<number>>(new Set());
 
-  // Build filters from search params (only category and subscription, not read/saved)
-  const filters: Record<string, unknown> = {};
+  // Build filters from search params AND active tab filter
+  const filters: {
+    categoryId?: number;
+    subscriptionId?: number;
+    read?: boolean;
+    saved?: boolean;
+  } = {};
+
   if (search.category_id) filters.categoryId = search.category_id;
   if (search.subscription_id) filters.subscriptionId = search.subscription_id;
 
-  // Fetch all articles (unfiltered by read/saved state)
+  // Apply active filter from tab
+  switch (activeFilter) {
+    case "unread":
+      filters.read = false;
+      break;
+    case "read":
+      filters.read = true;
+      break;
+    case "saved":
+      filters.saved = true;
+      break;
+    case "all":
+    default:
+      // No additional filter for "all"
+      break;
+  }
+
+  // Fetch articles with filters applied server-side
   const {
     data,
     fetchNextPage,
@@ -109,13 +136,26 @@ function ArticlesPage() {
     }
   }, [userSettings?.defaultFilter, activeFilter]);
 
-  // Get all articles and calculate counts
+  // Get all articles from the current filter
   // Backend returns paginated response: {items: Article[], total: number, hasMore: boolean}
   // Memoize to prevent unnecessary re-renders
-  const allArticles = useMemo(
+  const articles = useMemo(
     () => data?.pages.flatMap((page: { items: Article[] }) => page.items) || [],
     [data?.pages],
   );
+
+  // Fetch counts for all tabs using optimized endpoint
+  // Single query that returns ONLY counts (no article data)
+  // Replaces 4 separate queries that fetched 200 articles just for counts!
+  const { data: counts } = useArticleCounts({
+    categoryId: search.category_id,
+    subscriptionId: search.subscription_id,
+  });
+
+  const allCount = counts?.all ?? 0;
+  const unreadCount = counts?.unread ?? 0;
+  const readCount = counts?.read ?? 0;
+  const savedCount = counts?.saved ?? 0;
 
   // Track previous article IDs to detect changes
   const previousArticleIdsRef = useRef<Set<number>>(new Set());
@@ -123,9 +163,9 @@ function ArticlesPage() {
 
   // Smart detection: Track new articles for animation
   useEffect(() => {
-    if (!data?.pages?.[0] || allArticles.length === 0) return;
+    if (!data?.pages?.[0] || articles.length === 0) return;
 
-    const currentIds = new Set<number>(allArticles.map((a: Article) => a.id));
+    const currentIds = new Set<number>(articles.map((a: Article) => a.id));
 
     // Initialize seen IDs on first load
     if (!isInitializedRef.current) {
@@ -148,7 +188,7 @@ function ArticlesPage() {
       return;
     }
 
-    const newArticles = allArticles.filter(
+    const newArticles = articles.filter(
       (a: Article) => !seenArticleIds.current.has(a.id),
     );
 
@@ -176,40 +216,14 @@ function ArticlesPage() {
       // Update previous IDs ref
       previousArticleIdsRef.current = currentIds;
     }
-  }, [data, allArticles]);
+  }, [data, articles]);
 
-  const totalCount = allArticles.length;
-  const unreadCount = allArticles.filter((a: Article) => !a.read).length;
-  const readCount = allArticles.filter((a: Article) => a.read).length;
-  const savedCount = allArticles.filter((a: Article) => a.saved).length;
-
-  // Filter articles based on active tab
-  const filteredArticles = allArticles.filter((article: Article) => {
-    switch (activeFilter) {
-      case "unread":
-        return !article.read;
-      case "read":
-        return article.read;
-      case "saved":
-        return article.saved;
-      case "all":
-      default:
-        return true;
-    }
-  });
-
-  // Load more when scrolling to bottom (only for "all" filter)
-  // Other filters are client-side filtered, so we shouldn't fetch more pages
+  // Load more when scrolling to bottom (all tabs now support pagination)
   useEffect(() => {
-    if (
-      inView &&
-      hasNextPage &&
-      !isFetchingNextPage &&
-      activeFilter === "all"
-    ) {
+    if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage, activeFilter]);
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleRefresh = () => {
     refreshFeeds.mutate();
@@ -310,7 +324,7 @@ function ArticlesPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && allArticles.length === 0 && (
+      {!isLoading && !isError && articles.length === 0 && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -329,7 +343,7 @@ function ArticlesPage() {
         </Empty>
       )}
 
-      {!isLoading && !isError && allArticles.length > 0 && (
+      {!isLoading && !isError && articles.length > 0 && (
         <Tabs value={activeFilter} onValueChange={handleFilterChange}>
           {/* Filter Tabs */}
           <div className="w-full flex flex-col sm:flex-row items-center sm:justify-between gap-4">
@@ -337,9 +351,9 @@ function ArticlesPage() {
               <TabsList>
                 <TabsTrigger value="all">
                   All
-                  {totalCount > 0 && (
+                  {allCount > 0 && (
                     <Badge variant="secondary" className="ml-2">
-                      {totalCount}
+                      {allCount}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -401,7 +415,7 @@ function ArticlesPage() {
 
           <TabsContents>
             <TabsContent value="all">
-              {filteredArticles.length === 0 ? (
+              {articles.length === 0 ? (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -412,10 +426,10 @@ function ArticlesPage() {
                 </Empty>
               ) : (
                 <AnimatedArticleList
-                  articles={filteredArticles}
+                  articles={articles}
                   newArticleIds={newArticleIds}
                 >
-                  {/* Infinite scroll trigger - only on "all" tab */}
+                  {/* Infinite scroll trigger */}
                   <div ref={ref} className="flex justify-center py-4">
                     {isFetchingNextPage && (
                       <div className="flex items-center gap-2">
@@ -425,7 +439,7 @@ function ArticlesPage() {
                         </span>
                       </div>
                     )}
-                    {!hasNextPage && allArticles.length > 0 && (
+                    {!hasNextPage && articles.length > 0 && (
                       <span className="text-sm text-muted-foreground">
                         No more articles
                       </span>
@@ -436,7 +450,7 @@ function ArticlesPage() {
             </TabsContent>
 
             <TabsContent value="unread">
-              {filteredArticles.length === 0 ? (
+              {articles.length === 0 ? (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -448,14 +462,31 @@ function ArticlesPage() {
                 </Empty>
               ) : (
                 <AnimatedArticleList
-                  articles={filteredArticles}
+                  articles={articles}
                   newArticleIds={newArticleIds}
-                />
+                >
+                  {/* Infinite scroll trigger */}
+                  <div ref={ref} className="flex justify-center py-4">
+                    {isFetchingNextPage && (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="animate-spin size-4" />
+                        <span className="text-sm text-muted-foreground">
+                          Loading more articles...
+                        </span>
+                      </div>
+                    )}
+                    {!hasNextPage && articles.length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        No more articles
+                      </span>
+                    )}
+                  </div>
+                </AnimatedArticleList>
               )}
             </TabsContent>
 
             <TabsContent value="read">
-              {filteredArticles.length === 0 ? (
+              {articles.length === 0 ? (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -469,14 +500,31 @@ function ArticlesPage() {
                 </Empty>
               ) : (
                 <AnimatedArticleList
-                  articles={filteredArticles}
+                  articles={articles}
                   newArticleIds={newArticleIds}
-                />
+                >
+                  {/* Infinite scroll trigger */}
+                  <div ref={ref} className="flex justify-center py-4">
+                    {isFetchingNextPage && (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="animate-spin size-4" />
+                        <span className="text-sm text-muted-foreground">
+                          Loading more articles...
+                        </span>
+                      </div>
+                    )}
+                    {!hasNextPage && articles.length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        No more articles
+                      </span>
+                    )}
+                  </div>
+                </AnimatedArticleList>
               )}
             </TabsContent>
 
             <TabsContent value="saved">
-              {filteredArticles.length === 0 ? (
+              {articles.length === 0 ? (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -490,9 +538,26 @@ function ArticlesPage() {
                 </Empty>
               ) : (
                 <AnimatedArticleList
-                  articles={filteredArticles}
+                  articles={articles}
                   newArticleIds={newArticleIds}
-                />
+                >
+                  {/* Infinite scroll trigger */}
+                  <div ref={ref} className="flex justify-center py-4">
+                    {isFetchingNextPage && (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="animate-spin size-4" />
+                        <span className="text-sm text-muted-foreground">
+                          Loading more articles...
+                        </span>
+                      </div>
+                    )}
+                    {!hasNextPage && articles.length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        No more articles
+                      </span>
+                    )}
+                  </div>
+                </AnimatedArticleList>
               )}
             </TabsContent>
           </TabsContents>

@@ -207,113 +207,70 @@ export const articlesRouter = router({
         queryBuilder = queryBuilder.where(and(...conditions));
       }
 
-      // Fetch results (fetch more than needed to account for filtering)
-      // We'll fetch 2x the limit to ensure we have enough after filtering
-      const fetchLimit = input.limit * 2 + 1;
-      const results = await withQueryMetrics(
-        "articles.list",
+      // When subscription filters are enabled, we need a different pagination strategy
+      // Check if any subscriptions have filters by querying the subscriptions
+      const subscriptionsWithFilters = await withQueryMetrics(
+        "articles.list.checkFilters",
         async () =>
-          queryBuilder
-            .orderBy(desc(schema.articles.publishedAt))
-            .limit(fetchLimit)
-            .offset(input.offset),
+          ctx.db
+            .select()
+            .from(schema.subscriptions)
+            .where(
+              and(
+                eq(schema.subscriptions.userId, userId),
+                eq(schema.subscriptions.filterEnabled, true)
+              )
+            ),
         {
-          "db.table": "articles",
+          "db.table": "subscriptions",
           "db.operation": "select",
-          "db.user_id": userId,
-          "db.has_category_filter": !!input.categoryId,
-          "db.has_subscription_filter": !!input.subscriptionId,
-          "db.has_read_filter": input.read !== undefined,
-          "db.has_saved_filter": input.saved !== undefined,
         }
       );
 
-      // Transform results
-      const transformedResults = results.map(transformArticleRow);
+      const hasSubscriptionFilters = subscriptionsWithFilters.length > 0;
 
-      // Load filters for subscriptions that have filtering enabled
-      const subscriptionIdsWithFilters = new Set<number>();
-      transformedResults.forEach((article) => {
-        if (article._subscription.filterEnabled) {
-          subscriptionIdsWithFilters.add(article._subscription.id);
-        }
-      });
+      // Strategy 1: No subscription filters - use database pagination (efficient)
+      // Strategy 2: Has subscription filters - fetch more and filter in-memory (necessary evil)
+      let paginatedResults;
+      let hasMore = false;
+      let total: number;
 
-      // Batch load all filters for these subscriptions
-      const filtersBySubscription = new Map<
-        number,
-        (typeof schema.subscriptionFilters.$inferSelect)[]
-      >();
-
-      if (subscriptionIdsWithFilters.size > 0) {
-        const subscriptionIdsArray = Array.from(subscriptionIdsWithFilters);
-        const filters = await withQueryMetrics(
-          "articles.list.loadFilters",
+      if (!hasSubscriptionFilters) {
+        // EFFICIENT PATH: No subscription filters, use direct database pagination
+        const results = await withQueryMetrics(
+          "articles.list",
           async () =>
-            ctx.db
-              .select()
-              .from(schema.subscriptionFilters)
-              .where(
-                inArray(
-                  schema.subscriptionFilters.subscriptionId,
-                  subscriptionIdsArray
-                )
-              ),
+            queryBuilder
+              .orderBy(desc(schema.articles.publishedAt))
+              .limit(input.limit + 1) // Fetch one extra to check hasMore
+              .offset(input.offset),
           {
-            "db.table": "subscription_filters",
+            "db.table": "articles",
             "db.operation": "select",
-            "db.subscription_count": subscriptionIdsArray.length,
+            "db.user_id": userId,
+            "db.has_category_filter": !!input.categoryId,
+            "db.has_subscription_filter": !!input.subscriptionId,
+            "db.has_read_filter": input.read !== undefined,
+            "db.has_saved_filter": input.saved !== undefined,
           }
         );
 
-        // Group filters by subscription ID
-        filters.forEach((filter) => {
-          const existing =
-            filtersBySubscription.get(filter.subscriptionId) || [];
-          existing.push(filter);
-          filtersBySubscription.set(filter.subscriptionId, existing);
-        });
-      }
+        // Transform results
+        const transformedResults = results.map(transformArticleRow);
 
-      // Check if any subscriptions have filtering enabled
-      const hasSubscriptionFilters = subscriptionIdsWithFilters.size > 0;
-
-      // Apply subscription filters
-      const filteredResults = transformedResults.filter((article) => {
-        if (!article._subscription.filterEnabled) {
-          // No filtering enabled for this subscription
-          return true;
-        }
-
-        const filters =
-          filtersBySubscription.get(article._subscription.id) || [];
-        return matchesSubscriptionFilters(
-          article,
-          filters,
-          article._subscription.filterMode
+        // Remove the internal _subscription field
+        const cleanedResults = transformedResults.map(
+          ({ _subscription, ...article }) => article
         );
-      });
 
-      // Remove the internal _subscription field before returning
-      const cleanedResults = filteredResults.map(
-        ({ _subscription, ...article }) => article
-      );
+        // Check if we have more results
+        hasMore = cleanedResults.length > input.limit;
 
-      // Apply pagination to filtered results
-      const paginatedResults = cleanedResults.slice(0, input.limit);
+        // Return only the requested number of items
+        paginatedResults = cleanedResults.slice(0, input.limit);
 
-      // Calculate hasMore: check if we have more items after filtering than requested
-      const hasMore = cleanedResults.length > input.limit;
-
-      // Calculate total count
-      let total: number;
-      if (!hasSubscriptionFilters) {
-        // No subscription filters = we can get accurate count from database
+        // Calculate total count (accurate since no subscription filtering)
         // Build COUNT query with same JOINs and WHERE as main query
-        // Use DISTINCT because JOINs (especially category filter) can create duplicate rows
-
-        // Start building count query from scratch (can't reuse buildArticlesBaseQuery
-        // because it already has .select() called)
         let countQuery = ctx.db
           .select()
           .from(schema.articles)
@@ -352,6 +309,7 @@ export const articlesRouter = router({
         }
 
         // Apply same WHERE conditions
+        const conditions = buildArticlesWhereConditions(input);
         if (conditions.length > 0) {
           countQuery = countQuery.where(and(...conditions));
         }
@@ -372,8 +330,105 @@ export const articlesRouter = router({
         );
         total = uniqueArticleIds.size;
       } else {
-        // Subscription filters active = approximate total
-        // Use offset + current results as estimate
+        // FILTERED PATH: Has subscription filters, must fetch more and filter
+        // Fetch more results to account for filtering (3x should be sufficient)
+        // We need to keep fetching until we have enough results or run out
+        const fetchLimit = Math.max(input.limit * 3, 100);
+
+        const results = await withQueryMetrics(
+          "articles.list",
+          async () =>
+            queryBuilder
+              .orderBy(desc(schema.articles.publishedAt))
+              .limit(fetchLimit)
+              .offset(input.offset),
+          {
+            "db.table": "articles",
+            "db.operation": "select",
+            "db.user_id": userId,
+            "db.has_category_filter": !!input.categoryId,
+            "db.has_subscription_filter": !!input.subscriptionId,
+            "db.has_read_filter": input.read !== undefined,
+            "db.has_saved_filter": input.saved !== undefined,
+            "db.has_subscription_filters": true,
+          }
+        );
+
+        // Transform results
+        const transformedResults = results.map(transformArticleRow);
+
+        // Load filters for subscriptions that have filtering enabled
+        const subscriptionIdsWithFilters = new Set<number>();
+        transformedResults.forEach((article) => {
+          if (article._subscription.filterEnabled) {
+            subscriptionIdsWithFilters.add(article._subscription.id);
+          }
+        });
+
+        // Batch load all filters for these subscriptions
+        const filtersBySubscription = new Map<
+          number,
+          (typeof schema.subscriptionFilters.$inferSelect)[]
+        >();
+
+        if (subscriptionIdsWithFilters.size > 0) {
+          const subscriptionIdsArray = Array.from(subscriptionIdsWithFilters);
+          const filters = await withQueryMetrics(
+            "articles.list.loadFilters",
+            async () =>
+              ctx.db
+                .select()
+                .from(schema.subscriptionFilters)
+                .where(
+                  inArray(
+                    schema.subscriptionFilters.subscriptionId,
+                    subscriptionIdsArray
+                  )
+                ),
+            {
+              "db.table": "subscription_filters",
+              "db.operation": "select",
+              "db.subscription_count": subscriptionIdsArray.length,
+            }
+          );
+
+          // Group filters by subscription ID
+          filters.forEach((filter) => {
+            const existing =
+              filtersBySubscription.get(filter.subscriptionId) || [];
+            existing.push(filter);
+            filtersBySubscription.set(filter.subscriptionId, existing);
+          });
+        }
+
+        // Apply subscription filters
+        const filteredResults = transformedResults.filter((article) => {
+          if (!article._subscription.filterEnabled) {
+            // No filtering enabled for this subscription
+            return true;
+          }
+
+          const filters =
+            filtersBySubscription.get(article._subscription.id) || [];
+          return matchesSubscriptionFilters(
+            article,
+            filters,
+            article._subscription.filterMode
+          );
+        });
+
+        // Remove the internal _subscription field before returning
+        const cleanedResults = filteredResults.map(
+          ({ _subscription, ...article }) => article
+        );
+
+        // Check if we have more than requested (for hasMore)
+        hasMore = cleanedResults.length > input.limit;
+
+        // Return only the requested number of items
+        paginatedResults = cleanedResults.slice(0, input.limit);
+
+        // Total is approximate when subscription filters are active
         total = cleanedResults.length + input.offset;
       }
 
@@ -910,6 +965,80 @@ export const articlesRouter = router({
       return {
         triggered: true,
         message: "Feed refresh triggered in background",
+      };
+    }),
+
+  /**
+   * Get article counts for all filter tabs
+   * Optimized endpoint that returns ONLY counts without fetching article data
+   * This replaces fetching 4 full article queries just to get totals
+   */
+  getCounts: rateLimitedProcedure
+    .input(
+      z.object({
+        categoryId: z.number().optional(),
+        subscriptionId: z.number().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.user.userId;
+
+      // Helper to execute count query efficiently
+      const executeCount = async (additionalFilters?: {
+        read?: boolean;
+        saved?: boolean;
+      }) => {
+        // Use buildArticlesBaseQuery - same JOINs as main query
+        let baseQuery = buildArticlesBaseQuery(ctx.db, userId);
+
+        // Apply category filter if provided
+        if (input.categoryId) {
+          baseQuery = applyCategoryFilter(baseQuery, input.categoryId);
+        }
+
+        // Build WHERE conditions
+        const conditions = buildArticlesWhereConditions({
+          subscriptionId: input.subscriptionId,
+          ...additionalFilters,
+        });
+
+        if (conditions.length > 0) {
+          baseQuery = baseQuery.where(and(...conditions));
+        }
+
+        // Execute and count unique article IDs
+        const results = await baseQuery;
+        return new Set(results.map((r) => r.articles.id)).size;
+      };
+
+      // Execute all counts in parallel
+      const [allCount, unreadCount, readCount, savedCount] = await Promise.all([
+        withQueryMetrics("articles.counts.all", () => executeCount(), {
+          "db.operation": "count",
+          "db.user_id": userId,
+        }),
+        withQueryMetrics(
+          "articles.counts.unread",
+          () => executeCount({ read: false }),
+          { "db.operation": "count", "db.user_id": userId }
+        ),
+        withQueryMetrics(
+          "articles.counts.read",
+          () => executeCount({ read: true }),
+          { "db.operation": "count", "db.user_id": userId }
+        ),
+        withQueryMetrics(
+          "articles.counts.saved",
+          () => executeCount({ saved: true }),
+          { "db.operation": "count", "db.user_id": userId }
+        ),
+      ]);
+
+      return {
+        all: allCount,
+        unread: unreadCount,
+        read: readCount,
+        saved: savedCount,
       };
     }),
 });
