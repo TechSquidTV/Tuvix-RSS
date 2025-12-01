@@ -62,7 +62,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251121.0",
+    "@cloudflare/workers-types": "^4.20251128.0",
     "@react-email/preview-server": "5.0.5",
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -70,19 +70,19 @@
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
     "@types/node-cron": "^3.0.11",
-    "@types/react": "^19.2.6",
-    "@typescript-eslint/eslint-plugin": "^8.47.0",
-    "@typescript-eslint/parser": "^8.47.0",
-    "@vitest/coverage-v8": "^4.0.13",
+    "@types/react": "^19.2.7",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "@vitest/coverage-v8": "^4.0.14",
     "drizzle-kit": "^0.31.7",
     "eslint": "^9.39.1",
-    "knip": "^5.70.1",
-    "prettier": "^3.6.2",
+    "knip": "^5.71.0",
+    "prettier": "^3.7.3",
     "react": "^19.2.0",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.13",
-    "wrangler": "^4.50.0"
+    "vitest": "^4.0.14",
+    "wrangler": "^4.51.0"
   },
   "engines": {
     "node": ">=20.0.0"
