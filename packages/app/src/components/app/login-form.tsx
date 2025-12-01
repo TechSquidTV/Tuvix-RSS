@@ -85,6 +85,23 @@ export function LoginForm() {
             Sign up
           </a>
         </p>
+
+        <div className="text-xs text-muted-foreground text-center space-x-2">
+          <span>By using TuvixRSS, you agree to our</span>
+          <a
+            href="/terms"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            Terms of Service
+          </a>
+          <span>and</span>
+          <a
+            href="/privacy"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            Privacy Policy
+          </a>
+        </div>
       </form>
     </Form>
   );
