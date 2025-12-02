@@ -58,6 +58,20 @@ App: `http://localhost:5173` | API: `http://localhost:3001`
 
 ## 👨‍💻 Development
 
+### Git Workflow
+
+Tuvix uses a **trunk-based development** workflow with branch protection:
+
+- **`main`** - Production-ready code, protected, deploys to production
+- **`dev`** - Active development branch, protected, deploys to staging
+- **Feature branches** - Created from `dev`, merged back via PR
+
+**Development Process:**
+1. Create feature branches from `dev`: `git checkout -b feature/my-feature`
+2. Open PRs targeting `dev` for review and CI checks
+3. After approval, changes merge to `dev` and deploy to staging
+4. Periodic releases merge `dev` → `main` for production deployment
+
 ### Configuration
 
 **Required:** `BETTER_AUTH_SECRET` (generate: `openssl rand -base64 32`)
