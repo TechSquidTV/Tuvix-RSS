@@ -71,3 +71,11 @@ RUNTIME = "cloudflare"
 # Actual fetch/prune timing is controlled by global_settings table
 [triggers]
 crons = ["*/5 * * * *"]
+
+# Observability configuration for Workers logs
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
