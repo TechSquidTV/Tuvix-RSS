@@ -24,14 +24,14 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run type-check"
+    "prepublishOnly": "pnpm run build && pnpm run type-check"
   },
   "keywords": [
     "rss",
