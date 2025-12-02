@@ -753,9 +753,12 @@ export const subscriptionsRouter = router({
       )
     )
     .mutation(async ({ ctx: _ctx, input }) => {
-      const { discoverFeeds, NoFeedsFoundError } = await import(
-        "@tuvixrss/tricorder"
-      );
+      const {
+        discoverFeeds,
+        NoFeedsFoundError,
+        FeedValidationError,
+        FeedDiscoveryError,
+      } = await import("@tuvixrss/tricorder");
       const { sentryTelemetryAdapter } = await import(
         "@/adapters/sentry-telemetry"
       );
@@ -774,7 +777,21 @@ export const subscriptionsRouter = router({
             message: error.message,
           });
         }
-        throw error;
+        if (
+          error instanceof FeedValidationError ||
+          error instanceof FeedDiscoveryError
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error.message,
+          });
+        }
+        // Unknown error - wrap it
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred during feed discovery",
+          cause: error,
+        });
       }
 
       // Filter to only rss/atom types to match output schema (maintain backward compatibility)

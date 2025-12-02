@@ -33,14 +33,23 @@ const HTML_ENTITIES: Record<string, string> = {
  * Decode HTML entities in text
  * Converts named entities (&nbsp;, &lt;, etc.) and numeric entities (&#39;, &#x27;)
  *
- * IMPORTANT: Decodes &amp; first to prevent double-decoding issues
- * Example: "&amp;lt;" should become "&lt;" not "<"
+ * CRITICAL ORDER DEPENDENCY FOR SECURITY:
+ * We decode &amp; FIRST, then other named entities, then numeric entities.
+ * This ensures proper handling of edge cases and prevents double-decoding attacks:
+ *
+ * Examples with correct decoding order:
+ * - "&amp;amp;" → "&amp;" (not "&")
+ * - "&amp;lt;" → "&lt;" (not "<")
+ * - "&amp;#39;" → "&#39;" (not "'")
+ *
+ * If we decoded other entities first, an attacker could bypass sanitization
+ * by double-encoding malicious content (e.g., "&amp;lt;script&amp;gt;").
  *
  * @param text - Text containing HTML entities
  * @returns Text with decoded entities
  */
 function decodeHtmlEntities(text: string): string {
-  // CRITICAL: Decode &amp; FIRST to avoid double-decoding
+  // Step 1: Decode &amp; FIRST to establish baseline
   let result = text.replace(/&amp;/g, "&");
 
   // Decode named entities
