@@ -20,7 +20,7 @@ if (!fs.existsSync(tempDir)) {
 }
 
 // Copy coverage files from each package
-const packages = ["api", "app"];
+const packages = ["tricorder", "api", "app"];
 let fileIndex = 0;
 
 packages.forEach((pkg) => {

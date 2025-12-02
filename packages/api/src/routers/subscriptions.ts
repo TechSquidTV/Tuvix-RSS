@@ -753,10 +753,46 @@ export const subscriptionsRouter = router({
       )
     )
     .mutation(async ({ ctx: _ctx, input }) => {
-      const { discoverFeeds } = await import("@/services/feed-discovery");
+      const {
+        discoverFeeds,
+        NoFeedsFoundError,
+        FeedValidationError,
+        FeedDiscoveryError,
+      } = await import("@tuvixrss/tricorder");
+      const { sentryTelemetryAdapter } = await import(
+        "@/adapters/sentry-telemetry"
+      );
 
-      // Use the extensible discovery system
-      const discoveredFeeds = await discoverFeeds(input.url);
+      // Use the extensible discovery system with Sentry telemetry
+      let discoveredFeeds;
+      try {
+        discoveredFeeds = await discoverFeeds(input.url, {
+          telemetry: sentryTelemetryAdapter,
+        });
+      } catch (error) {
+        // Convert tricorder errors to TRPC errors
+        if (error instanceof NoFeedsFoundError) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: error.message,
+          });
+        }
+        if (
+          error instanceof FeedValidationError ||
+          error instanceof FeedDiscoveryError
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error.message,
+          });
+        }
+        // Unknown error - wrap it
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred during feed discovery",
+          cause: error,
+        });
+      }
 
       // Filter to only rss/atom types to match output schema (maintain backward compatibility)
       // rdf and json feeds are converted to rss for compatibility

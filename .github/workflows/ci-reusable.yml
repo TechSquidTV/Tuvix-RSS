@@ -46,6 +46,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
 
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
+
       - name: Lint
         run: pnpm run lint
 
@@ -78,6 +81,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
 
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
+
       - name: Type check API
         run: pnpm run type-check:api
 
@@ -96,6 +102,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
 
       - name: Run API tests with coverage
         run: pnpm run test:coverage:api
@@ -164,6 +173,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
 
       - name: Build API
         run: pnpm run build:api

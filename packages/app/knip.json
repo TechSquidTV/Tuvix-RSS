@@ -13,7 +13,7 @@
     "src/lib/themes/**",
     "src/test/**"
   ],
-  "ignoreDependencies": ["@tuvix/api", "tailwindcss", "tw-animate-css"],
+  "ignoreDependencies": ["@tuvixrss/api", "tailwindcss", "tw-animate-css"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true

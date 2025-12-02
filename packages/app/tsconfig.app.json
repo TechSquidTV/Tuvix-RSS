@@ -28,7 +28,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@tuvix/api": ["../api/src/index.ts"]
+      "@tuvixrss/api": ["../api/src/index.ts"]
     }
   },
   "include": ["src"]

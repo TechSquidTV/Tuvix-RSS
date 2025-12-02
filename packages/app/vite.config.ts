@@ -116,7 +116,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        "@tuvix/api": path.resolve(__dirname, "../api/src/index.ts"),
+        "@tuvixrss/api": path.resolve(__dirname, "../api/src/index.ts"),
       },
     },
     server: {

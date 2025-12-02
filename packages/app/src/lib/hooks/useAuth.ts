@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import * as Sentry from "@sentry/react";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/lib/api/trpc";
-import type { AppRouter } from "@tuvix/api";
+import type { AppRouter } from "@tuvixrss/api";
 
 // Better Auth uses cookies, so we don't need token management
 // Session is automatically handled by Better Auth via HTTP-only cookies

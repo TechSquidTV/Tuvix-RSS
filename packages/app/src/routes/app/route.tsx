@@ -20,7 +20,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/animate-ui/components/radix/sidebar";
-import type { AppRouter } from "@tuvix/api";
+import type { AppRouter } from "@tuvixrss/api";
 import * as Sentry from "@sentry/react";
 
 export const Route = createFileRoute("/app")({

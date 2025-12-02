@@ -1,5 +1,5 @@
 {
-  "name": "@tuvix/api",
+  "name": "@tuvixrss/api",
   "version": "0.1.0",
   "type": "module",
   "description": "TuvixRSS tRPC API - Portable TypeScript backend for Docker and Cloudflare Workers",
@@ -47,6 +47,7 @@
     "@sentry/cloudflare": "^10.26.0",
     "@sentry/node": "^10.26.0",
     "@trpc/server": "^11.7.2",
+    "@tuvixrss/tricorder": "workspace:*",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.4.1",
     "better-sqlite3": "^12.4.6",

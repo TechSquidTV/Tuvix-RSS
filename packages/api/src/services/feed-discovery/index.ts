@@ -6,7 +6,7 @@
 
 import { DiscoveryRegistry } from "./registry";
 import { AppleDiscoveryService } from "./apple-discovery";
-import { RedditDiscoveryService } from "./reddit-discovery";
+import { RedditDiscoveryService } from "@tuvixrss/tricorder";
 import { StandardDiscoveryService } from "./standard-discovery";
 import type { DiscoveredFeed } from "./types";
 
@@ -40,5 +40,5 @@ export type {
 } from "./types";
 export { DiscoveryRegistry } from "./registry";
 export { AppleDiscoveryService } from "./apple-discovery";
-export { RedditDiscoveryService } from "./reddit-discovery";
+export { RedditDiscoveryService } from "@tuvixrss/tricorder";
 export { StandardDiscoveryService } from "./standard-discovery";

@@ -1,0 +1,75 @@
+{
+  "name": "@tuvixrss/tricorder",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "RSS and Atom feed discovery library for Node.js and browsers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run type-check"
+  },
+  "keywords": [
+    "rss",
+    "atom",
+    "feed",
+    "discovery",
+    "podcast",
+    "browser",
+    "extension"
+  ],
+  "author": "TechSquidTV",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TechSquidTV/TuvixRSS.git",
+    "directory": "packages/tricorder"
+  },
+  "bugs": {
+    "url": "https://github.com/TechSquidTV/TuvixRSS/issues"
+  },
+  "homepage": "https://github.com/TechSquidTV/TuvixRSS/tree/main/packages/tricorder#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "feedsmith": "^2.6.0",
+    "sanitize-html": "^2.17.0"
+  },
+  "devDependencies": {
+    "@types/sanitize-html": "^2.16.0",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "@vitest/coverage-v8": "^4.0.13",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.13"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

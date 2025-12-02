@@ -7,7 +7,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { customSessionClient } from "better-auth/client/plugins";
-import type { createAuth } from "@tuvix/api";
+import type { createAuth } from "@tuvixrss/api";
 
 // Better Auth needs to point to the API server, not the frontend
 // VITE_API_URL is like "http://localhost:3001/trpc", so we extract the origin
