@@ -41,6 +41,16 @@ build/
 data/
 *.sqlite-journal
 
+# SQLite in-memory database journal files
+:memory:
+:memory:-shm
+:memory:-wal
+:memory:-journal
+**/:memory:
+**/:memory:-shm
+**/:memory:-wal
+**/:memory:-journal
+
 # ============================================
 # IDE & Editor
 # ============================================
