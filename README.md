@@ -67,6 +67,7 @@ Tuvix uses a **trunk-based development** workflow with branch protection:
 - **Feature branches** - Created from `dev`, merged back via PR
 
 **Development Process:**
+
 1. Create feature branches from `dev`: `git checkout -b feature/my-feature`
 2. Open PRs targeting `dev` for review and CI checks
 3. After approval, changes merge to `dev` and deploy to staging
