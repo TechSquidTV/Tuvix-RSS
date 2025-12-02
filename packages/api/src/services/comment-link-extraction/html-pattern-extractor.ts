@@ -4,6 +4,20 @@
  * Extracts comment links by parsing HTML content for links with
  * comment-related text (e.g., "[comments]", "Comments").
  * Used by Reddit and feeds that embed comment links in description.
+ *
+ * Current Implementation:
+ * - Supports English-language patterns (comments, discussion, discuss)
+ * - Handles common emoji indicators (💬, 🗨️)
+ * - Works with standard HTML attribute quoting
+ *
+ * Known Limitations:
+ * - Does not handle internationalized text (non-English feeds)
+ * - Does not decode complex HTML entities in link text
+ * - Pattern matching is optimized for common English feeds
+ *
+ * Extensibility:
+ * To support additional languages or patterns, create a new CommentLinkExtractor
+ * implementation and register it with the CommentLinkRegistry.
  */
 
 import type {

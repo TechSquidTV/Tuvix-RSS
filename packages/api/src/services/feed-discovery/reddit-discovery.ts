@@ -162,10 +162,17 @@ export class RedditDiscoveryService implements DiscoveryService {
 
       return undefined;
     } catch (error) {
-      console.error(
-        `[RedditDiscovery] Failed to fetch icon for r/${subreddit}:`,
-        error
-      );
+      // Handle timeout errors specifically for better logging
+      if (error instanceof Error && error.name === "AbortError") {
+        console.error(
+          `[RedditDiscovery] Timeout fetching icon for r/${subreddit} (${FETCH_TIMEOUT}ms)`
+        );
+      } else {
+        console.error(
+          `[RedditDiscovery] Failed to fetch icon for r/${subreddit}:`,
+          error
+        );
+      }
       return undefined;
     } finally {
       clearTimeout(timeout);
