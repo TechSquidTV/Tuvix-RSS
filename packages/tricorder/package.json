@@ -17,9 +17,7 @@
   },
   "files": [
     "dist",
-    "README.md",
-    "CHANGELOG.md",
-    "ARCHITECTURE.md"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",

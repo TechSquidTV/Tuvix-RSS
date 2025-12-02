@@ -306,17 +306,11 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Apple Podcasts and standard feed discovery
 - Comprehensive API reference and usage examples
 
-**Additional Documentation:**
-- **[Architecture Guide](../packages/tricorder/ARCHITECTURE.md)** - Design patterns, telemetry system, performance optimizations
-- **[Publishing Guide](../packages/tricorder/PUBLISHING.md)** - NPM publishing instructions and versioning
-- **[Changelog](../packages/tricorder/CHANGELOG.md)** - Version history and release notes
-
 **Use this when:**
 - Implementing feed discovery in new projects
 - Building browser extensions for RSS discovery
 - Understanding the zero-overhead telemetry pattern
 - Adding custom discovery services (YouTube, Reddit, etc.)
-- Publishing updates to NPM
 
 
 ## Documentation by Purpose
@@ -378,8 +372,6 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 | Admin Guide | Guide | ✅ Complete | 2025-01-15 |
 | **Package Documentation** | | | |
 | Tricorder README | Guide | ✅ Complete | 2025-12-02 |
-| Tricorder Architecture | Reference | ✅ Complete | 2025-12-02 |
-| Tricorder Changelog | Reference | ✅ Complete | 2025-12-02 |
 
 ## Planning Documents
 
@@ -394,8 +386,6 @@ The `planning/` directory is reserved for implementation plans and technical pro
 - **[packages/api/README.md](../packages/api/README.md)** - API package documentation
 - **[packages/app/README.md](../packages/app/README.md)** - Frontend package documentation
 - **[packages/tricorder/README.md](../packages/tricorder/README.md)** - Tricorder feed discovery library
-- **[packages/tricorder/ARCHITECTURE.md](../packages/tricorder/ARCHITECTURE.md)** - Tricorder architecture and design patterns
-- **[packages/tricorder/CHANGELOG.md](../packages/tricorder/CHANGELOG.md)** - Tricorder version history
 
 ### External Resources
 
