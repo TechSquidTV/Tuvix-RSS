@@ -21,11 +21,13 @@ export {
 // Services
 export { StandardDiscoveryService } from "./services/standard-discovery";
 export { AppleDiscoveryService } from "./services/apple-discovery";
+export { RedditDiscoveryService } from "./services/reddit-discovery";
 
 // Import for use in factory functions
 import { DiscoveryRegistry } from "./core/registry";
 import { StandardDiscoveryService } from "./services/standard-discovery";
 import { AppleDiscoveryService } from "./services/apple-discovery";
+import { RedditDiscoveryService } from "./services/reddit-discovery";
 import type { DiscoveredFeed, TelemetryAdapter } from "./core/types";
 
 // Validators
@@ -41,6 +43,7 @@ export { stripHtml } from "./utils/text-sanitizer";
  *
  * This factory function creates a {@link DiscoveryRegistry} pre-configured with:
  * - {@link AppleDiscoveryService} (priority: 10) - For Apple Podcasts URLs
+ * - {@link RedditDiscoveryService} (priority: 10) - For Reddit URLs
  * - {@link StandardDiscoveryService} (priority: 100) - For all other URLs
  *
  * Services are executed in priority order (lower number = higher priority) and
@@ -88,6 +91,7 @@ export function createDefaultRegistry(options?: {
 }): DiscoveryRegistry {
   const registry = new DiscoveryRegistry(options?.telemetry);
   registry.register(new AppleDiscoveryService());
+  registry.register(new RedditDiscoveryService());
   registry.register(new StandardDiscoveryService());
   return registry;
 }

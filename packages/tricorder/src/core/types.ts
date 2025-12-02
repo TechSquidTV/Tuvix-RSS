@@ -16,6 +16,8 @@ export interface DiscoveredFeed {
   type: "rss" | "atom" | "rdf" | "json";
   /** Feed description (optional) */
   description?: string;
+  /** Feed icon URL (optional) */
+  iconUrl?: string;
 }
 
 /**
