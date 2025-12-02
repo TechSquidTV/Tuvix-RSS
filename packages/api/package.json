@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file=.env --env-file=../../.env src/entries/node.ts",
-    "dev:workers": "wrangler dev",
+    "dev:workers": "wrangler dev --persist-to .wrangler/state",
     "build": "tsc",
     "start": "node dist/entries/node.js",
     "type-check": "tsc --noEmit",
@@ -34,6 +34,7 @@
     "deploy": "pnpm predeploy && bash scripts/deploy.sh",
     "create-admin": "tsx src/cli/create-admin.ts",
     "clear-articles": "tsx src/cli/clear-articles.ts",
+    "refresh-reddit-icons": "tsx src/cli/refresh-reddit-icons.ts",
     "migrate:public-categories": "tsx src/scripts/migrate-public-categories-to-feeds.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",

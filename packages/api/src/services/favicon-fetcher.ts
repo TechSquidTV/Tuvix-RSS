@@ -45,23 +45,44 @@ export async function discoverFavicon(
         console.log("[discoverFavicon] Feed icon URL (provided):", feedIconUrl);
         console.log("[discoverFavicon] Domain:", domain);
 
-        // Build candidate list - prioritize feedIconUrl when provided
-        const candidates = feedIconUrl
+        // Check if this is a Reddit feed and extract subreddit icon
+        let redditIconUrl: string | undefined;
+        if (domain.includes("reddit.com")) {
+          redditIconUrl = await getRedditIcon(feedUrl);
+          if (redditIconUrl) {
+            console.log("[discoverFavicon] Reddit icon found:", redditIconUrl);
+          }
+        }
+
+        // Build candidate list - prioritize Reddit icon, then feedIconUrl
+        const candidates = redditIconUrl
           ? [
-              { url: feedIconUrl, strategy: "feed_metadata" }, // Prioritize feed-provided icon (e.g., iTunes image)
+              { url: redditIconUrl, strategy: "reddit_about" },
+              ...(feedIconUrl
+                ? [{ url: feedIconUrl, strategy: "feed_metadata" }]
+                : []),
               {
                 url: `https://icons.duckduckgo.com/ip3/${domain}.ico`,
                 strategy: "duckduckgo",
               },
               { url: `${rootUrl}/favicon.ico`, strategy: "root_favicon" },
             ]
-          : [
-              {
-                url: `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-                strategy: "duckduckgo",
-              },
-              { url: `${rootUrl}/favicon.ico`, strategy: "root_favicon" },
-            ];
+          : feedIconUrl
+            ? [
+                { url: feedIconUrl, strategy: "feed_metadata" }, // Prioritize feed-provided icon (e.g., iTunes image)
+                {
+                  url: `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                  strategy: "duckduckgo",
+                },
+                { url: `${rootUrl}/favicon.ico`, strategy: "root_favicon" },
+              ]
+            : [
+                {
+                  url: `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                  strategy: "duckduckgo",
+                },
+                { url: `${rootUrl}/favicon.ico`, strategy: "root_favicon" },
+              ];
 
         console.log("[discoverFavicon] Candidates:", candidates);
 
@@ -161,6 +182,79 @@ async function isValidIcon(iconUrl: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Extract subreddit icon from Reddit's about.json API
+ *
+ * Reddit RSS feed URLs are typically:
+ * - https://www.reddit.com/r/subreddit/.rss
+ * - https://reddit.com/r/subreddit.rss
+ *
+ * The about.json endpoint is:
+ * - https://www.reddit.com/r/subreddit/about.json
+ */
+async function getRedditIcon(feedUrl: string): Promise<string | undefined> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+  try {
+    // Extract subreddit name from feed URL
+    // Matches: /r/subreddit/.rss or /r/subreddit.rss
+    const match = feedUrl.match(/\/r\/([^/.]+)/);
+    if (!match) {
+      console.log("[getRedditIcon] Could not extract subreddit from URL");
+      return undefined;
+    }
+
+    const subreddit = match[1];
+    const aboutUrl = `https://www.reddit.com/r/${subreddit}/about.json`;
+
+    console.log("[getRedditIcon] Fetching subreddit info:", aboutUrl);
+
+    const response = await fetch(aboutUrl, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+      },
+    });
+
+    if (!response.ok) {
+      console.log(
+        "[getRedditIcon] Failed to fetch about.json:",
+        response.status
+      );
+      return undefined;
+    }
+
+    const data = (await response.json()) as {
+      data?: {
+        community_icon?: string;
+        icon_img?: string;
+      };
+    };
+
+    // Reddit about.json structure:
+    // { data: { community_icon, icon_img } }
+    const iconUrl =
+      data?.data?.community_icon || data?.data?.icon_img; // Modern Reddit icon // Legacy Reddit icon
+
+    if (iconUrl) {
+      // Reddit returns icons with URL-encoded query params, decode them
+      const decodedUrl = iconUrl.split("?")[0]; // Remove query params
+      console.log("[getRedditIcon] Found icon:", decodedUrl);
+      return decodedUrl;
+    }
+
+    console.log("[getRedditIcon] No icon found in about.json");
+    return undefined;
+  } catch (error) {
+    console.error("[getRedditIcon] Error fetching Reddit icon:", error);
+    return undefined;
   } finally {
     clearTimeout(timeout);
   }
