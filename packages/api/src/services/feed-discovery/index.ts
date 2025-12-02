@@ -6,15 +6,17 @@
 
 import { DiscoveryRegistry } from "./registry";
 import { AppleDiscoveryService } from "./apple-discovery";
+import { RedditDiscoveryService } from "./reddit-discovery";
 import { StandardDiscoveryService } from "./standard-discovery";
 import type { DiscoveredFeed } from "./types";
 
 // Create singleton registry with default services
 const registry = new DiscoveryRegistry();
 
-// Register default services
-registry.register(new AppleDiscoveryService());
-registry.register(new StandardDiscoveryService());
+// Register default services (in priority order)
+registry.register(new AppleDiscoveryService()); // Priority 10
+registry.register(new RedditDiscoveryService()); // Priority 10
+registry.register(new StandardDiscoveryService()); // Priority 100 (fallback)
 
 /**
  * Discover feeds from a URL
@@ -38,4 +40,5 @@ export type {
 } from "./types";
 export { DiscoveryRegistry } from "./registry";
 export { AppleDiscoveryService } from "./apple-discovery";
+export { RedditDiscoveryService } from "./reddit-discovery";
 export { StandardDiscoveryService } from "./standard-discovery";
