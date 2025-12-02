@@ -25,7 +25,7 @@ const SUGGESTED_FEEDS: FeedSuggestion[] = [
     iconUrl: "https://icons.duckduckgo.com/ip3/news.ycombinator.com.ico",
   },
   {
-    url: "https://www.reddit.com/r/news/.rss",
+    url: "https://old.reddit.com/r/news/.rss",
     title: "Reddit News",
     description: "Breaking news and current events from Reddit",
     iconUrl: "https://icons.duckduckgo.com/ip3/reddit.com.ico",

@@ -99,16 +99,16 @@ export class RedditDiscoveryService implements DiscoveryService {
       let iconUrl: string | undefined;
 
       if (subreddit) {
-        // Subreddit feed - preserve original domain (www.reddit.com, reddit.com, old.reddit.com, etc.)
-        feedUrl = `${baseUrl}/r/${subreddit}/.rss`;
+        // Subreddit feed - use old.reddit.com for better RSS reliability
+        feedUrl = `https://old.reddit.com/r/${subreddit}/.rss`;
         iconUrl = await this.getSubredditIcon(subreddit, context);
         context.telemetry?.addBreadcrumb?.({
           message: `Found subreddit feed: r/${subreddit}`,
           data: { feed_url: feedUrl, subreddit },
         });
       } else if (username) {
-        // User feed - preserve original domain
-        feedUrl = `${baseUrl}/user/${username}/.rss`;
+        // User feed - use old.reddit.com for better RSS reliability
+        feedUrl = `https://old.reddit.com/user/${username}/.rss`;
         context.telemetry?.addBreadcrumb?.({
           message: `Found user feed: u/${username}`,
           data: { feed_url: feedUrl, username },
@@ -170,7 +170,7 @@ export class RedditDiscoveryService implements DiscoveryService {
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
     try {
-      const aboutUrl = `https://www.reddit.com/r/${subreddit}/about.json`;
+      const aboutUrl = `https://old.reddit.com/r/${subreddit}/about.json`;
 
       const response = await fetch(aboutUrl, {
         signal: controller.signal,
