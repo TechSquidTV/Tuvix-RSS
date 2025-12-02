@@ -295,6 +295,29 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Monitoring system security
 - Troubleshooting admin operations
 
+### Package Documentation
+
+#### [Tricorder Feed Discovery Library](../packages/tricorder/README.md)
+**Platform-agnostic RSS/Atom feed discovery library**
+
+- Zero-overhead optional telemetry via dependency injection
+- Works in Node.js, browsers, and Chrome extensions
+- Extensible plugin-based architecture for custom discovery services
+- Apple Podcasts and standard feed discovery
+- Comprehensive API reference and usage examples
+
+**Additional Documentation:**
+- **[Architecture Guide](../packages/tricorder/ARCHITECTURE.md)** - Design patterns, telemetry system, performance optimizations
+- **[Publishing Guide](../packages/tricorder/PUBLISHING.md)** - NPM publishing instructions and versioning
+- **[Changelog](../packages/tricorder/CHANGELOG.md)** - Version history and release notes
+
+**Use this when:**
+- Implementing feed discovery in new projects
+- Building browser extensions for RSS discovery
+- Understanding the zero-overhead telemetry pattern
+- Adding custom discovery services (YouTube, Reddit, etc.)
+- Publishing updates to NPM
+
 
 ## Documentation by Purpose
 
@@ -353,14 +376,14 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 | Theme System | Reference | ✅ Complete | 2025-01-15 |
 | **Admin & Operations** | | | |
 | Admin Guide | Guide | ✅ Complete | 2025-01-15 |
-| **Planning Documents** | | | |
-| User Settings Enhancement Plan | Plan | ✅ Complete | 2025-01-15 |
+| **Package Documentation** | | | |
+| Tricorder README | Guide | ✅ Complete | 2025-12-02 |
+| Tricorder Architecture | Reference | ✅ Complete | 2025-12-02 |
+| Tricorder Changelog | Reference | ✅ Complete | 2025-12-02 |
 
 ## Planning Documents
 
-Implementation plans and technical proposals for future enhancements:
-
-- **[User Settings Enhancement Plan](./planning/user-settings-enhancement-plan.md)** - User settings system enhancement plan
+The `planning/` directory is reserved for implementation plans and technical proposals for future enhancements. Currently empty - all previous plans have been completed.
 
 ---
 
@@ -370,6 +393,9 @@ Implementation plans and technical proposals for future enhancements:
 
 - **[packages/api/README.md](../packages/api/README.md)** - API package documentation
 - **[packages/app/README.md](../packages/app/README.md)** - Frontend package documentation
+- **[packages/tricorder/README.md](../packages/tricorder/README.md)** - Tricorder feed discovery library
+- **[packages/tricorder/ARCHITECTURE.md](../packages/tricorder/ARCHITECTURE.md)** - Tricorder architecture and design patterns
+- **[packages/tricorder/CHANGELOG.md](../packages/tricorder/CHANGELOG.md)** - Tricorder version history
 
 ### External Resources
 
@@ -388,7 +414,6 @@ When adding new documentation:
    - `architecture/`: System architecture and design documentation
    - `developer/`: Technical implementation reference docs
    - `guides/admin/`: Admin and operations guides
-   - `planning/`: Implementation plans and proposals
 
 2. **Follow naming conventions:**
    - All documentation files: `kebab-case.md` (e.g., `deployment.md`, `trpc-api-architecture.md`, `authentication.md`)
@@ -434,5 +459,5 @@ When adding new documentation:
 
 ---
 
-**Last Updated:** 2025-01-15
+**Last Updated:** 2025-12-02
 **Maintained By:** TuvixRSS Team
