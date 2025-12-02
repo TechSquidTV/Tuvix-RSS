@@ -37,11 +37,9 @@ function TermsOfService() {
         <Card>
           <CardHeader>
             <CardTitle className="text-3xl">Terms of Service</CardTitle>
-            <CardDescription>
-              Last updated: {new Date().toLocaleDateString()}
-            </CardDescription>
+            <CardDescription>Last updated: 2025-12-01</CardDescription>
           </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none">
+          <CardContent className="prose prose-stone prose-sm dark:prose-invert max-w-none">
             <h2>Introduction</h2>
             <p>
               TuvixRSS is an open-source RSS feed aggregator licensed under the
