@@ -10,10 +10,18 @@ binding = "DB"
 database_name = "tuvix"
 database_id = "your-database-id-here"  # Replace with your actual D1 database ID
 
-# Observability configuration for Workers logs
+# Observability configuration for Workers logs and traces
 [observability]
+
 [observability.logs]
-enabled = false
+enabled = true
+destinations = ["sentry-logs"]
 head_sampling_rate = 1
+persist = true
 invocation_logs = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+destinations = ["sentry-traces"]
 persist = true
