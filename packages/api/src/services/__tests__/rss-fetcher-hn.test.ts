@@ -253,14 +253,14 @@ describe("RSS Fetcher - Hacker News Integration", () => {
     expect(article.title).toBe("Show HN: Proof of aliens");
     expect(article.link).toBe("https://github.com/example/alien-proof-pdf");
 
-    // CRITICAL: Description should have sanitized HTML with comment link
-    expect(article.description).toBeDefined();
-    expect(article.description).toContain(
-      'href="https://news.example.com/item?id=555555555555"'
+    // Description should be empty after removing standalone Comments link
+    // (The comment link is now extracted to the commentLink field)
+    expect(article.description).toBe("");
+
+    // Comment link should be extracted to dedicated field
+    expect(article.commentLink).toBe(
+      "https://news.example.com/item?id=555555555555"
     );
-    expect(article.description).toContain('target="_blank"');
-    expect(article.description).toContain('rel="noopener noreferrer"');
-    expect(article.description).toContain("Comments");
 
     // Should NOT contain any unsafe attributes or tags
     expect(article.description).not.toContain("<script>");
