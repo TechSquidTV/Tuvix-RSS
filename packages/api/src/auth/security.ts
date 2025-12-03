@@ -88,3 +88,34 @@ export function getUserAgent(
 ): string | undefined {
   return headers["user-agent"];
 }
+
+/**
+ * Extract headers from request into a normalized Record
+ * Handles both Headers object and plain object formats
+ */
+export function extractHeaders(
+  reqHeaders:
+    | Headers
+    | Record<string, string | string[] | undefined>
+    | undefined
+): Record<string, string | undefined> {
+  const headers: Record<string, string | undefined> = {};
+
+  if (!reqHeaders) {
+    return headers;
+  }
+
+  if (reqHeaders instanceof Headers) {
+    reqHeaders.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+  } else {
+    Object.entries(reqHeaders).forEach(([key, value]) => {
+      headers[key.toLowerCase()] = Array.isArray(value)
+        ? value[0]
+        : String(value);
+    });
+  }
+
+  return headers;
+}
