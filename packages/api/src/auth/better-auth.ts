@@ -19,7 +19,7 @@ import {
 } from "@/services/email";
 import { logSecurityEvent } from "@/auth/security";
 import { getGlobalSettings } from "@/services/global-settings";
-import { getClientIp, getUserAgent } from "@/auth/security";
+import { getClientIp, getUserAgent, extractHeaders } from "@/auth/security";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
@@ -151,6 +151,18 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             },
           },
           async (span) => {
+            // Add breadcrumb for email sending attempt
+            await Sentry.addBreadcrumb({
+              category: "email",
+              message: "Sending password reset email",
+              level: "info",
+              data: {
+                userEmail: user.email,
+                userId: user.id,
+                emailType: "password_reset",
+              },
+            });
+
             const userWithPlugins = user as BetterAuthUser;
             const emailResult = await sendPasswordResetEmail(env, {
               to: user.email,
@@ -170,6 +182,31 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 "email.error",
                 emailResult.error || "Unknown error"
               );
+
+              // Add breadcrumb for failure
+              await Sentry.addBreadcrumb({
+                category: "email",
+                message: "Password reset email failed",
+                level: "error",
+                data: {
+                  userEmail: user.email,
+                  userId: user.id,
+                  error: emailResult.error,
+                  emailType: "password_reset",
+                },
+              });
+            } else {
+              // Add breadcrumb for success
+              await Sentry.addBreadcrumb({
+                category: "email",
+                message: "Password reset email sent successfully",
+                level: "info",
+                data: {
+                  userEmail: user.email,
+                  userId: user.id,
+                  emailType: "password_reset",
+                },
+              });
             }
 
             // Log email result to security audit log
@@ -311,6 +348,18 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             // This ensures proper logo loading and post-verification redirect
             const frontendVerificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
+            // Add breadcrumb for email sending attempt
+            Sentry.addBreadcrumb({
+              category: "email",
+              message: "Sending verification email",
+              level: "info",
+              data: {
+                userEmail: user.email,
+                userId: user.id,
+                emailType: "verification",
+              },
+            });
+
             // Send verification email (fire-and-forget)
             sendVerificationEmail(env, {
               to: user.email,
@@ -320,33 +369,114 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 "User",
               verificationToken: token,
               verificationUrl: frontendVerificationUrl, // Frontend URL instead of backend URL
-            }).catch((error) => {
-              // Log critical email failures to Sentry
-              Sentry.captureException(error, {
-                tags: {
-                  component: "better-auth",
-                  operation: "email-verification",
-                  email_type: "verification",
-                },
-                extra: {
+            })
+              .then((emailResult) => {
+                // Check if email sending failed
+                if (!emailResult.success) {
+                  // Add breadcrumb for failure
+                  Sentry.addBreadcrumb({
+                    category: "email",
+                    message: "Verification email failed",
+                    level: "error",
+                    data: {
+                      userEmail: user.email,
+                      userId: user.id,
+                      error: emailResult.error,
+                      emailType: "verification",
+                    },
+                  });
+
+                  // Log critical email failures to Sentry
+                  Sentry.captureException(
+                    new Error(
+                      emailResult.error || "Failed to send verification email"
+                    ),
+                    {
+                      tags: {
+                        component: "better-auth",
+                        operation: "email-verification",
+                        email_type: "verification",
+                      },
+                      extra: {
+                        userEmail: user.email,
+                        userId: user.id,
+                        errorMessage: emailResult.error,
+                      },
+                      level: "error",
+                    }
+                  );
+
+                  console.error("Failed to send verification email:", {
+                    userEmail: user.email,
+                    userId: user.id,
+                    error: emailResult.error,
+                  });
+                } else {
+                  // Add breadcrumb for success
+                  Sentry.addBreadcrumb({
+                    category: "email",
+                    message: "Verification email sent successfully",
+                    level: "info",
+                    data: {
+                      userEmail: user.email,
+                      userId: user.id,
+                      emailType: "verification",
+                    },
+                  });
+                }
+              })
+              .catch((error) => {
+                // Add breadcrumb for unexpected error
+                Sentry.addBreadcrumb({
+                  category: "email",
+                  message: "Unexpected error sending verification email",
+                  level: "error",
+                  data: {
+                    userEmail: user.email,
+                    userId: user.id,
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                    emailType: "verification",
+                  },
+                });
+
+                // Log unexpected exceptions (e.g., network errors, timeouts)
+                Sentry.captureException(error, {
+                  tags: {
+                    component: "better-auth",
+                    operation: "email-verification",
+                    email_type: "verification",
+                  },
+                  extra: {
+                    userEmail: user.email,
+                    userId: user.id,
+                  },
+                  level: "error",
+                });
+
+                console.error("Unexpected error sending verification email:", {
                   userEmail: user.email,
                   userId: user.id,
-                },
-                level: "error",
+                  error: error instanceof Error ? error.message : String(error),
+                });
               });
-
-              console.error("Failed to send verification email:", {
-                userEmail: user.email,
-                userId: user.id,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
           })
-          .catch((error) => {
+          .catch(async (error) => {
             console.error(
               "Failed to check email verification settings:",
               error
             );
+            await Sentry.captureException(error, {
+              tags: {
+                component: "better-auth",
+                operation: "check-verification-settings",
+              },
+              extra: {
+                userId: user.id,
+                userEmail: user.email,
+              },
+              level: "warning",
+            });
           });
 
         // Return immediately without awaiting
@@ -391,20 +521,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
           if (newSession?.user) {
             const user = newSession.user;
 
-            // Get IP and user agent from headers
-            const headers: Record<string, string | undefined> = {};
-            if (ctx.headers) {
-              if (ctx.headers instanceof Headers) {
-                ctx.headers.forEach((value, key) => {
-                  headers[key.toLowerCase()] = value;
-                });
-              } else {
-                Object.entries(ctx.headers).forEach(([key, value]) => {
-                  headers[key.toLowerCase()] = String(value);
-                });
-              }
-            }
-
             // Note: Registration event logging is handled in the register endpoint
             // after the user is created in the user table, to avoid foreign key constraint issues
 
@@ -424,6 +540,18 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                   const appUrl = frontendUrl;
                   const userWithPlugins = user as BetterAuthUser;
 
+                  // Add breadcrumb for email sending attempt
+                  Sentry.addBreadcrumb({
+                    category: "email",
+                    message: "Sending welcome email",
+                    level: "info",
+                    data: {
+                      userEmail: user.email,
+                      userId: user.id,
+                      emailType: "welcome",
+                    },
+                  });
+
                   // Send welcome email (fire-and-forget)
                   sendWelcomeEmail(env, {
                     to: user.email,
@@ -432,83 +560,129 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       user.name ||
                       "User",
                     appUrl,
-                  }).catch((error) => {
-                    // Log email failures to Sentry
-                    Sentry.captureException(error, {
-                      tags: {
-                        component: "better-auth",
-                        operation: "welcome-email",
-                        email_type: "welcome",
-                      },
-                      extra: {
-                        userEmail: user.email,
-                        userId: user.id,
-                      },
-                      level: "error",
-                    });
+                  })
+                    .then((emailResult) => {
+                      // Check if email sending failed
+                      if (!emailResult.success) {
+                        // Add breadcrumb for failure
+                        Sentry.addBreadcrumb({
+                          category: "email",
+                          message: "Welcome email failed",
+                          level: "error",
+                          data: {
+                            userEmail: user.email,
+                            userId: user.id,
+                            error: emailResult.error,
+                            emailType: "welcome",
+                          },
+                        });
 
-                    console.error(
-                      `Failed to send welcome email to ${user.email}:`,
-                      {
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : String(error),
+                        // Log email failures to Sentry
+                        Sentry.captureException(
+                          new Error(
+                            emailResult.error || "Failed to send welcome email"
+                          ),
+                          {
+                            tags: {
+                              component: "better-auth",
+                              operation: "welcome-email",
+                              email_type: "welcome",
+                            },
+                            extra: {
+                              userEmail: user.email,
+                              userId: user.id,
+                              errorMessage: emailResult.error,
+                            },
+                            level: "error",
+                          }
+                        );
+
+                        console.error(
+                          `Failed to send welcome email to ${user.email}:`,
+                          {
+                            error: emailResult.error,
+                          }
+                        );
+                      } else {
+                        // Add breadcrumb for success
+                        Sentry.addBreadcrumb({
+                          category: "email",
+                          message: "Welcome email sent successfully",
+                          level: "info",
+                          data: {
+                            userEmail: user.email,
+                            userId: user.id,
+                            emailType: "welcome",
+                          },
+                        });
                       }
-                    );
-                  });
+                    })
+                    .catch((error) => {
+                      // Add breadcrumb for unexpected error
+                      Sentry.addBreadcrumb({
+                        category: "email",
+                        message: "Unexpected error sending welcome email",
+                        level: "error",
+                        data: {
+                          userEmail: user.email,
+                          userId: user.id,
+                          error:
+                            error instanceof Error
+                              ? error.message
+                              : String(error),
+                          emailType: "welcome",
+                        },
+                      });
+
+                      // Log unexpected exceptions (e.g., network errors, timeouts)
+                      Sentry.captureException(error, {
+                        tags: {
+                          component: "better-auth",
+                          operation: "welcome-email",
+                          email_type: "welcome",
+                        },
+                        extra: {
+                          userEmail: user.email,
+                          userId: user.id,
+                        },
+                        level: "error",
+                      });
+
+                      console.error(
+                        `Unexpected error sending welcome email to ${user.email}:`,
+                        {
+                          error:
+                            error instanceof Error
+                              ? error.message
+                              : String(error),
+                        }
+                      );
+                    });
                 }
               })
-              .catch((error) => {
+              .catch(async (error) => {
                 console.error(
                   `Error checking welcome email requirements:`,
                   error
                 );
+                await Sentry.captureException(error, {
+                  tags: {
+                    component: "better-auth",
+                    operation: "check-welcome-settings",
+                  },
+                  extra: {
+                    userId: user.id,
+                    userEmail: user.email,
+                  },
+                  level: "warning",
+                });
               });
           }
         }
 
         // Handle sign-in events
-        if (ctx.path.startsWith("/sign-in")) {
-          const session = ctx.context.session;
-          if (session?.user) {
-            const user = session.user;
-
-            // Get IP and user agent from headers
-            const headers: Record<string, string | undefined> = {};
-            if (ctx.headers) {
-              if (ctx.headers instanceof Headers) {
-                ctx.headers.forEach((value, key) => {
-                  headers[key.toLowerCase()] = value;
-                });
-              } else {
-                Object.entries(ctx.headers).forEach(([key, value]) => {
-                  headers[key.toLowerCase()] = String(value);
-                });
-              }
-            }
-
-            const ipAddress = getClientIp(headers);
-            const userAgent = getUserAgent(headers);
-
-            // Log successful login (non-blocking - don't fail login if logging fails)
-            try {
-              await logSecurityEvent(database, {
-                userId: Number(user.id),
-                action: "login_success",
-                ipAddress,
-                userAgent,
-                success: true,
-              });
-            } catch (error) {
-              console.error(
-                `Failed to log login event for user ${user.id}:`,
-                error instanceof Error ? error.message : "Unknown error"
-              );
-              // Don't throw - logging failures shouldn't prevent login
-            }
-          }
-        }
+        // Note: Login audit logging is handled in auth.ts router for consistency with signup flow
+        // and to have access to more request context
 
         // Handle sign-out events
         if (ctx.path.startsWith("/sign-out")) {
@@ -517,49 +691,33 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             const user = session.user;
 
             // Get IP and user agent from headers
-            const headers: Record<string, string | undefined> = {};
-            if (ctx.headers) {
-              if (ctx.headers instanceof Headers) {
-                ctx.headers.forEach((value, key) => {
-                  headers[key.toLowerCase()] = value;
-                });
-              } else {
-                Object.entries(ctx.headers).forEach(([key, value]) => {
-                  headers[key.toLowerCase()] = String(value);
-                });
-              }
-            }
-
+            const headers = extractHeaders(ctx.headers);
             const ipAddress = getClientIp(headers);
             const userAgent = getUserAgent(headers);
 
-            // Log logout event
-            await logSecurityEvent(database, {
-              userId: Number(user.id),
-              action: "logout",
-              ipAddress,
-              userAgent,
-              success: true,
-            });
+            // Log logout event (non-blocking - don't fail logout if logging fails)
+            try {
+              await logSecurityEvent(database, {
+                userId: Number(user.id),
+                action: "logout",
+                ipAddress,
+                userAgent,
+                success: true,
+              });
+            } catch (error) {
+              console.error(
+                `Failed to log logout event for user ${user.id}:`,
+                error instanceof Error ? error.message : "Unknown error"
+              );
+              // Don't throw - logging failures shouldn't prevent logout
+            }
           }
         }
 
         // Handle password reset request events
         if (ctx.path.startsWith("/request-password-reset")) {
           // Get IP and user agent from headers
-          const headers: Record<string, string | undefined> = {};
-          if (ctx.headers) {
-            if (ctx.headers instanceof Headers) {
-              ctx.headers.forEach((value, key) => {
-                headers[key.toLowerCase()] = value;
-              });
-            } else {
-              Object.entries(ctx.headers).forEach(([key, value]) => {
-                headers[key.toLowerCase()] = String(value);
-              });
-            }
-          }
-
+          const headers = extractHeaders(ctx.headers);
           const ipAddress = getClientIp(headers);
           const userAgent = getUserAgent(headers);
 
@@ -576,20 +734,10 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
 
               if (userRecord) {
                 // Log password reset request
+                // Note: Email sent status is logged in sendResetPassword callback with actual result
                 await logSecurityEvent(database, {
                   userId: Number(userRecord.id),
                   action: "password_reset_request",
-                  ipAddress,
-                  userAgent,
-                  success: true,
-                });
-
-                // Log password reset email sent (if email was sent successfully)
-                // Note: We can't determine email success here, so we'll log it as success
-                // The actual email result is handled in sendResetPassword callback
-                await logSecurityEvent(database, {
-                  userId: Number(userRecord.id),
-                  action: "password_reset_email_sent",
                   ipAddress,
                   userAgent,
                   success: true,
