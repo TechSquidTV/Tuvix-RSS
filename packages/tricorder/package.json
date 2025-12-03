@@ -44,13 +44,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TechSquidTV/TuvixRSS.git",
+    "url": "https://github.com/TechSquidTV/Tuvix-RSS.git",
     "directory": "packages/tricorder"
   },
   "bugs": {
-    "url": "https://github.com/TechSquidTV/TuvixRSS/issues"
+    "url": "https://github.com/TechSquidTV/Tuvix-RSS/issues"
   },
-  "homepage": "https://github.com/TechSquidTV/TuvixRSS/tree/main/packages/tricorder#readme",
+  "homepage": "https://github.com/TechSquidTV/Tuvix-RSS/tree/main/packages/tricorder#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
