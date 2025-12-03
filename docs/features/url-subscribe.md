@@ -9,17 +9,17 @@ Tuvix supports multiple ways to subscribe to RSS feeds and import OPML files, in
 ### Basic URL Format
 
 ```
-https://feedsmith.dev/app/subscriptions?subscribe=<encoded_feed_url>
+https://feed.tuvix.app/app/subscriptions?subscribe=<encoded_feed_url>
 ```
 
 ### Examples
 
 ```
 # Subscribe to a blog feed
-https://feedsmith.dev/app/subscriptions?subscribe=https%3A%2F%2Fblog.example.com%2Ffeed.xml
+https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fblog.example.com%2Ffeed.xml
 
 # Subscribe from a website URL (auto-discovery)
-https://feedsmith.dev/app/subscriptions?subscribe=https%3A%2F%2Fblog.example.com
+https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fblog.example.com
 ```
 
 ## How It Works
@@ -57,7 +57,7 @@ Create a browser bookmarklet for one-click subscriptions:
 
 ```javascript
 javascript:(function(){
-  const tuvixUrl = 'https://feedsmith.dev/app/subscriptions';
+  const tuvixUrl = 'https://feed.tuvix.app/app/subscriptions';
   const currentUrl = encodeURIComponent(window.location.href);
   window.open(`${tuvixUrl}?subscribe=${currentUrl}`, '_blank');
 })();
@@ -68,7 +68,7 @@ javascript:(function(){
 Add "Subscribe in Tuvix" buttons to your blog:
 
 ```html
-<a href="https://feedsmith.dev/app/subscriptions?subscribe=https%3A%2F%2Fyourblog.com%2Ffeed.xml">
+<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fyourblog.com%2Ffeed.xml">
   Subscribe in Tuvix
 </a>
 ```
@@ -81,12 +81,12 @@ Use the URL format in browser extensions to detect feeds on pages and provide qu
 
 ```html
 <!-- Blog homepage -->
-<a href="https://feedsmith.dev/app/subscriptions?subscribe=https://blog.example.com/feed">
+<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https://blog.example.com/feed">
   📰 Follow our blog in Tuvix
 </a>
 
 <!-- Documentation site -->
-<a href="https://feedsmith.dev/app/subscriptions?subscribe=https://docs.example.com/changelog.xml">
+<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https://docs.example.com/changelog.xml">
   🔔 Get changelog updates
 </a>
 ```
