@@ -7,6 +7,10 @@ on:
       - 'tricorder-v*.*.*'
       - '@tuvixrss/tricorder@*.*.*'
 
+  # Trigger on GitHub releases for tricorder package
+  release:
+    types: [published]
+
   # Manual trigger with version input
   workflow_dispatch:
     inputs:
@@ -29,10 +33,34 @@ permissions:
   contents: read   # Required to read repository contents
 
 jobs:
+  # Check if this release is for tricorder package
+  check-package:
+    name: Check if tricorder package release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    outputs:
+      should-publish: ${{ steps.check.outputs.should-publish }}
+    steps:
+      - name: Check release tag format
+        id: check
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ "$TAG" =~ ^(tricorder-v|@tuvixrss/tricorder@) ]]; then
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "✅ Tricorder package release detected: $TAG"
+          else
+            echo "should-publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Not a tricorder release: $TAG - skipping publish"
+          fi
+
   # Verify tricorder package independently
   verify:
     name: Verify Tricorder Package
     runs-on: ubuntu-latest
+    needs: [check-package]
+    if: |
+      always() &&
+      (needs.check-package.result == 'skipped' || needs.check-package.outputs.should-publish == 'true')
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
