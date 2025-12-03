@@ -140,18 +140,23 @@ jobs:
       - name: Build tricorder
         run: pnpm --filter @tuvixrss/tricorder build
 
-      - name: Verify version matches tag
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Extract and set version from tag/release
+        id: version
         run: |
-          TAG_REF=${GITHUB_REF#refs/tags/}
+          # Extract version from tag (if tag push) or release (if release event)
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG_REF="${{ github.event.release.tag_name }}"
+          else
+            TAG_REF=${GITHUB_REF#refs/tags/}
+          fi
 
           # Extract version from either format:
           # - tricorder-vX.Y.Z -> X.Y.Z
           # - @tuvixrss/tricorder@X.Y.Z -> X.Y.Z
           if [[ "$TAG_REF" =~ ^tricorder-v(.+)$ ]]; then
-            TAG_VERSION="${BASH_REMATCH[1]}"
+            VERSION="${BASH_REMATCH[1]}"
           elif [[ "$TAG_REF" =~ ^@tuvixrss/tricorder@(.+)$ ]]; then
-            TAG_VERSION="${BASH_REMATCH[1]}"
+            VERSION="${BASH_REMATCH[1]}"
           else
             echo "❌ Invalid tag format: $TAG_REF"
             echo "Expected format: tricorder-vX.Y.Z or @tuvixrss/tricorder@X.Y.Z"
@@ -159,35 +164,32 @@ jobs:
           fi
 
           # Validate semantic version format (major.minor.patch with optional pre-release)
-          if ! echo "$TAG_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
-            echo "❌ Invalid tag version format: $TAG_VERSION"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "❌ Invalid version format: $VERSION"
             echo "Expected format: X.Y.Z or X.Y.Z-prerelease"
             echo "Examples: 1.0.0, 1.2.3, 2.0.0-beta.1"
             exit 1
           fi
 
-          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Publishing version: $VERSION"
 
-          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "❌ Version mismatch!"
-            echo "Git tag: $TAG_REF"
-            echo "Extracted version: $TAG_VERSION"
-            echo "package.json version: $PACKAGE_VERSION"
-            exit 1
-          fi
-
-          echo "✅ Version matches: $TAG_VERSION"
+      - name: Update package.json version
+        run: |
+          cd packages/tricorder
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+          echo "✅ Updated package.json to version ${{ steps.version.outputs.version }}"
 
       - name: Check if version already published
         id: check_version
         run: |
-          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
+          VERSION="${{ steps.version.outputs.version }}"
 
-          if npm view @tuvixrss/tricorder@$PACKAGE_VERSION version 2>/dev/null; then
-            echo "⚠️  Version $PACKAGE_VERSION is already published to NPM"
+          if npm view @tuvixrss/tricorder@$VERSION version 2>/dev/null; then
+            echo "⚠️  Version $VERSION is already published to NPM"
             echo "already_published=true" >> $GITHUB_OUTPUT
           else
-            echo "✅ Version $PACKAGE_VERSION is not published yet"
+            echo "✅ Version $VERSION is not published yet"
             echo "already_published=false" >> $GITHUB_OUTPUT
           fi
 
@@ -251,6 +253,6 @@ jobs:
       - name: Output published version
         if: steps.check_version.outputs.already_published == 'false'
         run: |
-          PACKAGE_VERSION=$(node -p "require('./packages/tricorder/package.json').version")
-          echo "📦 Successfully published @tuvixrss/tricorder@$PACKAGE_VERSION"
-          echo "🔗 https://www.npmjs.com/package/@tuvixrss/tricorder/v/$PACKAGE_VERSION"
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "📦 Successfully published @tuvixrss/tricorder@$VERSION"
+          echo "🔗 https://www.npmjs.com/package/@tuvixrss/tricorder/v/$VERSION"
