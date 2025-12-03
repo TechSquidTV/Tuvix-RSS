@@ -17,6 +17,10 @@ Head over to **[tuvix.app](https://tuvix.app)** to create your free account and 
 
 Immediately begin subscribing to your favorite feeds. Remember, you can always export your data to OPML and migrate to your own self-hosted instance, or any other RSS reader.
 
+### Browser Extension
+
+Install the **[Tuvix Tricorder Extension](https://github.com/TechSquidTV/Tuvix-Tricorder-Extension)** for Chrome and Firefox to easily discover and subscribe to RSS feeds on any website with one click.
+
 ---
 
 ## 🚀 Deployment
