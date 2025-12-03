@@ -1,10 +1,11 @@
 name: Publish Tricorder Package
 
 on:
-  # Trigger on version tags for tricorder
+  # Trigger on version tags for tricorder (supports both formats)
   push:
     tags:
       - 'tricorder-v*.*.*'
+      - '@tuvixrss/tricorder@*.*.*'
 
   # Manual trigger with version input
   workflow_dispatch:
@@ -114,7 +115,20 @@ jobs:
       - name: Verify version matches tag
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/tricorder-v}
+          TAG_REF=${GITHUB_REF#refs/tags/}
+
+          # Extract version from either format:
+          # - tricorder-vX.Y.Z -> X.Y.Z
+          # - @tuvixrss/tricorder@X.Y.Z -> X.Y.Z
+          if [[ "$TAG_REF" =~ ^tricorder-v(.+)$ ]]; then
+            TAG_VERSION="${BASH_REMATCH[1]}"
+          elif [[ "$TAG_REF" =~ ^@tuvixrss/tricorder@(.+)$ ]]; then
+            TAG_VERSION="${BASH_REMATCH[1]}"
+          else
+            echo "❌ Invalid tag format: $TAG_REF"
+            echo "Expected format: tricorder-vX.Y.Z or @tuvixrss/tricorder@X.Y.Z"
+            exit 1
+          fi
 
           # Validate semantic version format (major.minor.patch with optional pre-release)
           if ! echo "$TAG_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
@@ -128,7 +142,8 @@ jobs:
 
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "❌ Version mismatch!"
-            echo "Git tag version: $TAG_VERSION"
+            echo "Git tag: $TAG_REF"
+            echo "Extracted version: $TAG_VERSION"
             echo "package.json version: $PACKAGE_VERSION"
             exit 1
           fi
@@ -164,7 +179,19 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const version = context.ref.replace('refs/tags/tricorder-v', '');
+            const tagRef = context.ref.replace('refs/tags/', '');
+
+            // Extract version from either format:
+            // - tricorder-vX.Y.Z -> X.Y.Z
+            // - @tuvixrss/tricorder@X.Y.Z -> X.Y.Z
+            let version;
+            if (tagRef.startsWith('tricorder-v')) {
+              version = tagRef.replace('tricorder-v', '');
+            } else if (tagRef.startsWith('@tuvixrss/tricorder@')) {
+              version = tagRef.replace('@tuvixrss/tricorder@', '');
+            } else {
+              throw new Error(`Invalid tag format: ${tagRef}`);
+            }
 
             // Check if release already exists
             let releaseExists = false;
