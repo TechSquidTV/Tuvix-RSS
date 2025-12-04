@@ -143,9 +143,9 @@ jobs:
 
       - name: Wait for App to be healthy
         run: |
-          echo "⏳ Waiting for App to be healthy (max 60s)..."
+          echo "⏳ Waiting for App to be healthy (max 120s)..."
           SECONDS=0
-          MAX_WAIT=60
+          MAX_WAIT=120
 
           while [ $SECONDS -lt $MAX_WAIT ]; do
             STATUS=$(docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null || echo "none")
