@@ -458,7 +458,7 @@ export const securityAuditLog = sqliteTable(
     success: integer("success", { mode: "boolean" }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .$defaultFn(() => new Date()),
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
   },
   (table) => [
     index("idx_security_audit_log_user_id").on(table.userId),
