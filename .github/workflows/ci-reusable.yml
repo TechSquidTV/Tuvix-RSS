@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload API test coverage
         if: ${{ inputs.upload_coverage }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ inputs.pr_number && format('api-coverage-pr-{0}', inputs.pr_number) || 'api-coverage' }}
           path: packages/api/coverage
@@ -145,7 +145,7 @@ jobs:
 
       - name: Upload App test coverage
         if: ${{ inputs.upload_coverage }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ inputs.pr_number && format('app-coverage-pr-{0}', inputs.pr_number) || 'app-coverage' }}
           path: packages/app/coverage
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload build artifacts
         if: ${{ inputs.upload_artifacts }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifacts
           path: |
