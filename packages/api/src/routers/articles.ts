@@ -812,7 +812,38 @@ export const articlesRouter = router({
           })
       );
 
-      await executeBatch(ctx.db, statements);
+      // Wrap batch execution in Sentry span for monitoring
+      await Sentry.startSpan(
+        {
+          op: "db.batch",
+          name: "Mark Articles Read/Unread",
+          attributes: {
+            "db.batch_size": statements.length,
+            "db.operation": input.read ? "mark_read" : "mark_unread",
+            "db.user_id": userId,
+          },
+        },
+        async (span) => {
+          try {
+            await executeBatch(ctx.db, statements);
+            span.setStatus({ code: 1, message: "ok" });
+          } catch (error) {
+            span.setStatus({ code: 2, message: "batch failed" });
+            await Sentry.captureException(error, {
+              tags: {
+                operation: "mark_articles_read",
+                batch_size: statements.length.toString(),
+              },
+              extra: {
+                userId,
+                articleCount: input.articleIds.length,
+                read: input.read,
+              },
+            });
+            throw error;
+          }
+        }
+      );
 
       return { updated: input.articleIds.length };
     }),
@@ -914,7 +945,39 @@ export const articlesRouter = router({
           })
       );
 
-      await executeBatch(ctx.db, statements);
+      // Wrap batch execution in Sentry span for monitoring
+      await Sentry.startSpan(
+        {
+          op: "db.batch",
+          name: "Mark All Articles Read",
+          attributes: {
+            "db.batch_size": statements.length,
+            "db.operation": "mark_all_read",
+            "db.user_id": userId,
+            "filter.older_than_days": input.olderThanDays,
+          },
+        },
+        async (span) => {
+          try {
+            await executeBatch(ctx.db, statements);
+            span.setStatus({ code: 1, message: "ok" });
+          } catch (error) {
+            span.setStatus({ code: 2, message: "batch failed" });
+            await Sentry.captureException(error, {
+              tags: {
+                operation: "mark_all_read",
+                batch_size: statements.length.toString(),
+              },
+              extra: {
+                userId,
+                articleCount: articleIds.length,
+                olderThanDays: input.olderThanDays,
+              },
+            });
+            throw error;
+          }
+        }
+      );
 
       return { updated: articleIds.length };
     }),
