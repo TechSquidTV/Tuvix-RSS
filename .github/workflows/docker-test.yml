@@ -141,6 +141,11 @@ jobs:
           echo "📋 Container status:"
           docker ps -a
 
+          echo ""
+          echo "🧪 Testing health endpoint manually:"
+          sleep 2
+          docker exec tuvix-app wget -O- http://127.0.0.1:8080/health || echo "Manual health check failed"
+
       - name: Wait for App to be healthy
         run: |
           echo "⏳ Waiting for App to be healthy (max 120s)..."
