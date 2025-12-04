@@ -32,6 +32,12 @@ import {
 import { getBaseUrl } from "@/utils/base-url";
 import * as Sentry from "@/utils/sentry";
 import { emitCounter, emitMetrics } from "@/utils/metrics";
+import {
+  logSecurityEvent,
+  getRequestMetadata,
+  getClientIp,
+  getUserAgent,
+} from "@/auth/security";
 import type {
   BetterAuthUser,
   SignUpEmailResult,
@@ -267,9 +273,6 @@ export const authRouter = router({
                 op: "db.insert",
               },
               async (span) => {
-                const { logSecurityEvent, getClientIp, getUserAgent } =
-                  await import("@/auth/security");
-
                 // Extract IP and user agent from request headers
                 const headers: Record<string, string | undefined> = {};
                 if (ctx.req.headers) {
@@ -447,6 +450,8 @@ export const authRouter = router({
           });
 
           const auth = createAuth(ctx.env, ctx.db);
+          const { logSecurityEvent, getRequestMetadata } =
+            await import("@/auth/security");
 
           // Convert headers for Better Auth
           const authHeaders =
@@ -497,9 +502,6 @@ export const authRouter = router({
             }
 
             // Log successful login to security audit
-            const { logSecurityEvent, getRequestMetadata } =
-              await import("@/auth/security");
-
             const { ipAddress, userAgent } = getRequestMetadata(
               ctx.req.headers
             );
@@ -594,9 +596,6 @@ export const authRouter = router({
             });
 
             // Log failed login attempt to security audit (if not a generic auth error)
-            const { logSecurityEvent, getRequestMetadata } =
-              await import("@/auth/security");
-
             const { ipAddress, userAgent } = getRequestMetadata(
               ctx.req.headers
             );
@@ -856,8 +855,6 @@ export const authRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getRequestMetadata } =
-        await import("@/auth/security");
 
       // Convert headers for Better Auth
       const authHeaders =
@@ -954,9 +951,6 @@ export const authRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getClientIp, getUserAgent } = await import(
-        "@/auth/security"
-      );
 
       // Convert headers for Better Auth
       const authHeaders =
@@ -1048,8 +1042,6 @@ export const authRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getRequestMetadata } =
-        await import("@/auth/security");
 
       // Convert headers for Better Auth
       const authHeaders =
