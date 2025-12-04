@@ -19,6 +19,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 COPY packages/api ./packages/api
 COPY packages/tricorder ./packages/tricorder
 
+# Build tricorder first (dependency of api)
+RUN pnpm --filter @tuvixrss/tricorder build
+
 # Build the application with tsup (bundles and resolves ESM)
 RUN pnpm --filter @tuvixrss/api build
 
@@ -46,6 +49,14 @@ COPY --from=builder /app/packages/api/drizzle ./packages/api/drizzle
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data
+
+# Create non-root user and set ownership
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app && \
+    chown -R nodejs:nodejs /app/data
+
+USER nodejs
 
 # Expose the API port
 EXPOSE 3001

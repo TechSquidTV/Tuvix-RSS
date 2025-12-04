@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+build/
+**/.output/
+
+# Development
+.git/
+.github/
+.vscode/
+.idea/
+*.md
+docs/
+
+# Testing
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
+coverage/
+**/coverage/
+.nyc_output/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+**/.cache/
+.parcel-cache/
+.wrangler/
+**/.wrangler/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+.DS_Store
+
+# Application specific
+packages/app/dist/
+packages/api/dist/
+data/
+*.db
+*.db-*
