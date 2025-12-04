@@ -19,6 +19,7 @@ export type SecurityAction =
   | "password_reset_request"
   | "password_reset_email_sent"
   | "password_reset_success"
+  | "password_reset_failed"
   | "account_locked"
   | "account_unlocked"
   | "token_expired"
@@ -111,9 +112,12 @@ export function extractHeaders(
     });
   } else {
     Object.entries(reqHeaders).forEach(([key, value]) => {
-      headers[key.toLowerCase()] = Array.isArray(value)
-        ? value[0]
-        : String(value);
+      headers[key.toLowerCase()] =
+        value === undefined
+          ? undefined
+          : Array.isArray(value)
+            ? value[0]
+            : String(value);
     });
   }
 
