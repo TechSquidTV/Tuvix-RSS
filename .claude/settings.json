@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git log *)",
+      "Bash(git checkout *)",
+      "Bash(git status *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(tree *)",
+      "WebSearch",
+      "WebFetch(domain:*.anthropic.com)",
+      "WebFetch(domain:docs.sentry.io)",
+      "WebFetch(domain:www.better-auth.com)",
+      "WebFetch(domain:hono.dev)",
+      "WebFetch(domain:tanstack.com)",
+      "WebFetch(domain:trpc.io)",
+      "WebFetch(domain:orm.drizzle.team)",
+      "mcp__sentry__*",
+      "mcp__better-auth__*",
+      "mcp__shadcn__*",
+      "Skill(*)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Read(**/.env*)",
+      "Read(**/secrets.*)",
+      "Read(**/*secret*)",
+      "Read(**/*credential*)",
+      "Read(**/wrangler.toml)",
+      "Write(.env*)",
+      "Write(**/.env*)",
+      "Bash(wrangler d1 execute * --remote *)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "git": {
+    "includeCoAuthoredBy": true
+  }
+}
