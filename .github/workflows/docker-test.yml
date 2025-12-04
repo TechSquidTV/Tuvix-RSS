@@ -77,33 +77,90 @@ jobs:
           echo "api_size=${API_SIZE_RAW}" >> $GITHUB_OUTPUT
           echo "app_size=${APP_SIZE_RAW}" >> $GITHUB_OUTPUT
 
-      - name: Start Docker Compose services
+      - name: Start API container
         run: |
-          echo "🚀 Starting Docker Compose services..."
-          docker compose up -d
+          echo "🚀 Starting API container..."
+          docker compose up -d api --wait=false
 
-          echo "⏳ Waiting for containers to start..."
-          sleep 5
-
+          echo "📋 Container status:"
           docker ps -a
+
+          echo ""
+          echo "🔍 Initial API logs:"
+          sleep 2
+          docker logs tuvix-api 2>&1 | head -30 || echo "No logs yet"
 
       - name: Wait for API to be healthy
         run: |
-          echo "⏳ Waiting for API to be healthy..."
-          timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null | grep -q "healthy"; do
-            echo "API status: $(docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null || echo "not found")"
+          echo "⏳ Waiting for API to be healthy (max 90s)..."
+          SECONDS=0
+          MAX_WAIT=90
+
+          while [ $SECONDS -lt $MAX_WAIT ]; do
+            STATUS=$(docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null || echo "none")
+            echo "[$SECONDS s] API health status: $STATUS"
+
+            if [ "$STATUS" = "healthy" ]; then
+              echo "✅ API is healthy!"
+              break
+            fi
+
+            # Show recent logs every 10 seconds
+            if [ $((SECONDS % 10)) -eq 0 ]; then
+              echo "📜 Recent API logs:"
+              docker logs tuvix-api 2>&1 | tail -20
+            fi
+
             sleep 2
-          done'
-          echo "✅ API is healthy"
+          done
+
+          if [ $SECONDS -ge $MAX_WAIT ]; then
+            echo "❌ API failed to become healthy after ${MAX_WAIT}s"
+            echo ""
+            echo "📋 Container status:"
+            docker ps -a
+            echo ""
+            echo "📜 Full API logs:"
+            docker logs tuvix-api 2>&1
+            exit 1
+          fi
+
+      - name: Start App container
+        run: |
+          echo "🚀 Starting App container..."
+          docker compose up -d app
+
+          echo "📋 Container status:"
+          docker ps -a
 
       - name: Wait for App to be healthy
         run: |
-          echo "⏳ Waiting for App to be healthy..."
-          timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null | grep -q "healthy"; do
-            echo "App status: $(docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null || echo "not found")"
+          echo "⏳ Waiting for App to be healthy (max 60s)..."
+          SECONDS=0
+          MAX_WAIT=60
+
+          while [ $SECONDS -lt $MAX_WAIT ]; do
+            STATUS=$(docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null || echo "none")
+            echo "[$SECONDS s] App health status: $STATUS"
+
+            if [ "$STATUS" = "healthy" ]; then
+              echo "✅ App is healthy!"
+              break
+            fi
+
             sleep 2
-          done'
-          echo "✅ App is healthy"
+          done
+
+          if [ $SECONDS -ge $MAX_WAIT ]; then
+            echo "❌ App failed to become healthy after ${MAX_WAIT}s"
+            echo ""
+            echo "📋 Container status:"
+            docker ps -a
+            echo ""
+            echo "📜 Full App logs:"
+            docker logs tuvix-app 2>&1
+            exit 1
+          fi
 
       - name: Test API health endpoint
         run: |
