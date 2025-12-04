@@ -68,6 +68,7 @@ data/
 
 # Claude AI
 .claude/
+!.claude/settings.json  # Share team settings, keep local settings private
 # Cursor AI
 .cursor/
 .cursorrules
