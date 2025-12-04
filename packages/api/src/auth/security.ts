@@ -50,9 +50,7 @@ export async function logSecurityEvent(
       userAgent: params.userAgent,
       metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
       success: params.success,
-      // Explicitly set createdAt for consistency with app time
-      // DB has SQL DEFAULT but we set it here for defense-in-depth
-      createdAt: new Date(),
+      // createdAt uses SQL DEFAULT from schema
     });
   } catch (error) {
     // Log but don't throw - audit logging shouldn't break the app

@@ -408,6 +408,11 @@ export const subscriptionsRouter = router({
           }
         } catch (error) {
           // This catch block is only for FETCH errors now
+          // If it's a TRPCError (from parse error), rethrow immediately
+          if (error instanceof TRPCError) {
+            throw error;
+          }
+
           lastError = error instanceof Error ? error : new Error(String(error));
 
           // If this is the last attempt or not a transient error, throw
@@ -1084,6 +1089,11 @@ export const subscriptionsRouter = router({
           }
         } catch (error) {
           // This catch block is only for FETCH errors now
+          // If it's a TRPCError (from parse error), rethrow immediately
+          if (error instanceof TRPCError) {
+            throw error;
+          }
+
           lastError = error instanceof Error ? error : new Error(String(error));
 
           // If this is the last attempt, throw with full context
