@@ -184,6 +184,9 @@ pnpm-lock.yaml.bak
 package-lock.json
 yarn.lock
 
+# Individual package lockfiles (use workspace root lockfile)
+packages/*/pnpm-lock.yaml
+
 # ============================================
 # Misc
 # ============================================
