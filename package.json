@@ -28,6 +28,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:up": "docker compose up -d",
+    "docker:test": "bash scripts/test-docker.sh",
+    "docker:test:ci": "docker compose -f docker-compose.yml -f docker-compose.test.yml up --abort-on-container-exit",
     "format": "pnpm run format:root && pnpm --filter @tuvixrss/tricorder format && pnpm --filter @tuvixrss/api format && pnpm --filter @tuvixrss/app format",
     "format:check": "pnpm run format:root:check && pnpm --filter @tuvixrss/tricorder format:check && pnpm --filter @tuvixrss/api format:check && pnpm --filter @tuvixrss/app format:check",
     "format:root": "prettier --write \"*.{js,json,md}\" \"scripts/*.js\"",

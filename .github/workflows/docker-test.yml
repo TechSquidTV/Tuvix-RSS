@@ -1,0 +1,236 @@
+name: Docker Build & Test
+
+on:
+  pull_request:
+    paths:
+      - 'packages/api/**'
+      - 'packages/app/**'
+      - 'packages/tricorder/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.test.yml'
+      - '**/Dockerfile'
+      - '.dockerignore'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  push:
+    branches:
+      - main
+      - dev
+
+env:
+  # CI-specific environment variables
+  BETTER_AUTH_SECRET: test-secret-for-ci-must-be-at-least-32-characters-long-xyz
+  CORS_ORIGIN: http://localhost:5173
+  DATABASE_PATH: /app/data/test.db
+
+jobs:
+  docker-build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          echo "📦 Building Docker images..."
+          docker compose build
+        env:
+          COMPOSE_DOCKER_CLI_BUILD: 1
+          DOCKER_BUILDKIT: 1
+
+      - name: Check image sizes
+        run: |
+          echo "📏 Checking image sizes..."
+
+          # Get image sizes
+          API_SIZE_RAW=$(docker images --format "{{.Size}}" tuvixrss-api:latest)
+          APP_SIZE_RAW=$(docker images --format "{{.Size}}" tuvixrss-app:latest)
+
+          echo "API Image: ${API_SIZE_RAW}"
+          echo "App Image: ${APP_SIZE_RAW}"
+
+          # Extract numeric size (handle both MB and GB)
+          API_SIZE=$(echo "$API_SIZE_RAW" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "$API_SIZE_RAW" | sed 's/[^0-9.]//g')
+          APP_SIZE=$(echo "$APP_SIZE_RAW" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "$APP_SIZE_RAW" | sed 's/[^0-9.]//g')
+
+          # Convert to integer for comparison
+          API_SIZE_INT=$(printf "%.0f" "$API_SIZE" 2>/dev/null || echo "0")
+          APP_SIZE_INT=$(printf "%.0f" "$APP_SIZE" 2>/dev/null || echo "0")
+
+          # Check size limits (API: 400MB, App: 100MB)
+          if [ "$API_SIZE_INT" -gt 400 ]; then
+            echo "❌ API image too large: ${API_SIZE_RAW} (limit: 400MB)"
+            exit 1
+          fi
+
+          if [ "$APP_SIZE_INT" -gt 100 ]; then
+            echo "❌ App image too large: ${APP_SIZE_RAW} (limit: 100MB)"
+            exit 1
+          fi
+
+          echo "✅ Image sizes within limits"
+          echo "api_size=${API_SIZE_RAW}" >> $GITHUB_OUTPUT
+          echo "app_size=${APP_SIZE_RAW}" >> $GITHUB_OUTPUT
+
+      - name: Start Docker Compose services
+        run: |
+          echo "🚀 Starting Docker Compose services..."
+          docker compose up -d
+
+          echo "⏳ Waiting for containers to start..."
+          sleep 5
+
+          docker ps -a
+
+      - name: Wait for API to be healthy
+        run: |
+          echo "⏳ Waiting for API to be healthy..."
+          timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null | grep -q "healthy"; do
+            echo "API status: $(docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null || echo "not found")"
+            sleep 2
+          done'
+          echo "✅ API is healthy"
+
+      - name: Wait for App to be healthy
+        run: |
+          echo "⏳ Waiting for App to be healthy..."
+          timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null | grep -q "healthy"; do
+            echo "App status: $(docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null || echo "not found")"
+            sleep 2
+          done'
+          echo "✅ App is healthy"
+
+      - name: Test API health endpoint
+        run: |
+          echo "🔍 Testing API health endpoint..."
+          RESPONSE=$(curl -s http://localhost:3001/health)
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            exit 1
+          fi
+
+      - name: Test App health endpoint
+        run: |
+          echo "🔍 Testing App health endpoint..."
+          RESPONSE=$(curl -s http://localhost:5173/health)
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q 'ok'; then
+            echo "✅ App health check passed"
+          else
+            echo "❌ App health check failed"
+            exit 1
+          fi
+
+      - name: Verify containers run as non-root
+        run: |
+          echo "🔒 Verifying security (non-root users)..."
+
+          API_USER=$(docker exec tuvix-api id -u)
+          APP_USER=$(docker exec tuvix-app id -u)
+
+          echo "API running as uid: $API_USER"
+          echo "App running as uid: $APP_USER"
+
+          if [ "$API_USER" = "0" ]; then
+            echo "❌ API running as root"
+            exit 1
+          fi
+
+          if [ "$APP_USER" = "0" ]; then
+            echo "❌ App running as root"
+            exit 1
+          fi
+
+          if [ "$API_USER" != "1001" ]; then
+            echo "⚠️  Warning: API not running as expected user (expected: 1001, got: $API_USER)"
+          fi
+
+          if [ "$APP_USER" != "1001" ]; then
+            echo "⚠️  Warning: App not running as expected user (expected: 1001, got: $APP_USER)"
+          fi
+
+          echo "✅ All containers running as non-root"
+
+      - name: Verify database migrations
+        run: |
+          echo "🗄️  Verifying database migrations..."
+
+          # Check if database exists
+          if docker exec tuvix-api test -f /app/data/test.db; then
+            echo "✅ Database file created"
+            docker exec tuvix-api ls -lh /app/data/test.db
+          else
+            echo "❌ Database file not found"
+            exit 1
+          fi
+
+          # Check migration logs
+          if docker logs tuvix-api 2>&1 | grep -q "Migrations complete\|✅ Migrations completed"; then
+            echo "✅ Migrations executed successfully"
+          else
+            echo "❌ Migrations not found in logs"
+            docker logs tuvix-api 2>&1 | grep -i migration || echo "No migration logs found"
+            exit 1
+          fi
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+
+          # Test that API is responding
+          curl -f http://localhost:3001/health || exit 1
+
+          # Test that App is serving content
+          curl -f http://localhost:5173/ || exit 1
+
+          # Test that App serves static assets
+          curl -f http://localhost:5173/health || exit 1
+
+          echo "✅ All smoke tests passed"
+
+      - name: Show container stats
+        if: always()
+        run: |
+          echo "📊 Container statistics:"
+          docker stats --no-stream
+
+          echo ""
+          echo "📋 Container details:"
+          docker ps -a
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "===================="
+          echo "=== API Logs ==="
+          echo "===================="
+          docker logs tuvix-api
+
+          echo ""
+          echo "===================="
+          echo "=== App Logs ==="
+          echo "===================="
+          docker logs tuvix-app
+
+          echo ""
+          echo "===================="
+          echo "=== Docker Compose Logs ==="
+          echo "===================="
+          docker compose logs
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up..."
+          docker compose down -v
+          docker system prune -af --volumes

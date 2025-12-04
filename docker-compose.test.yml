@@ -1,0 +1,26 @@
+# Docker Compose configuration for CI/CD testing
+# This file extends docker-compose.yml with test-specific settings
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up
+
+services:
+  api:
+    environment:
+      # Override for testing
+      - NODE_ENV=test
+      - DATABASE_PATH=/app/data/test.db
+      # Faster health checks for CI
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 10
+
+  app:
+    # Faster health checks for CI
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      start_period: 5s
+      retries: 10
