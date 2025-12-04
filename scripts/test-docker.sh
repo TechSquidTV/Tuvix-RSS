@@ -87,23 +87,29 @@ main() {
 
     # Wait for API health
     log_info "Waiting for API to be healthy (max 60s)..."
-    if timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null | grep -q "healthy"; do sleep 2; done'; then
-        log_success "API is healthy"
-    else
-        log_error "API failed to become healthy"
-        docker logs tuvix-api
-        exit 1
-    fi
+    SECONDS=0
+    until docker inspect --format="{{.State.Health.Status}}" tuvix-api 2>/dev/null | grep -q "healthy"; do
+        if [ $SECONDS -gt 60 ]; then
+            log_error "API failed to become healthy after 60s"
+            docker logs tuvix-api
+            exit 1
+        fi
+        sleep 2
+    done
+    log_success "API is healthy"
 
     # Wait for App health
     log_info "Waiting for App to be healthy (max 60s)..."
-    if timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null | grep -q "healthy"; do sleep 2; done'; then
-        log_success "App is healthy"
-    else
-        log_error "App failed to become healthy"
-        docker logs tuvix-app
-        exit 1
-    fi
+    SECONDS=0
+    until docker inspect --format="{{.State.Health.Status}}" tuvix-app 2>/dev/null | grep -q "healthy"; do
+        if [ $SECONDS -gt 60 ]; then
+            log_error "App failed to become healthy after 60s"
+            docker logs tuvix-app
+            exit 1
+        fi
+        sleep 2
+    done
+    log_success "App is healthy"
 
     # Test API endpoint
     log_info "Testing API health endpoint..."
