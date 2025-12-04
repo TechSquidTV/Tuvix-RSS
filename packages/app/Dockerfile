@@ -32,9 +32,19 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/packages/app/dist /usr/share/nginx/html
 
+# Create non-root user for nginx
+RUN addgroup -g 1001 -S nginx-app && \
+    adduser -S nginx-app -u 1001 && \
+    chown -R nginx-app:nginx-app /usr/share/nginx/html && \
+    chown -R nginx-app:nginx-app /var/cache/nginx && \
+    chown -R nginx-app:nginx-app /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx-app:nginx-app /var/run/nginx.pid
+
 # Create nginx configuration for SPA routing and health check
+# Listen on port 8080 (non-privileged) since we run as non-root user
 RUN echo 'server { \
-    listen 80; \
+    listen 8080; \
     server_name _; \
     root /usr/share/nginx/html; \
     index index.html; \
@@ -57,21 +67,12 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-# Create non-root user for nginx
-RUN addgroup -g 1001 -S nginx-app && \
-    adduser -S nginx-app -u 1001 && \
-    chown -R nginx-app:nginx-app /usr/share/nginx/html && \
-    chown -R nginx-app:nginx-app /var/cache/nginx && \
-    chown -R nginx-app:nginx-app /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx-app:nginx-app /var/run/nginx.pid
-
 USER nginx-app
 
-EXPOSE 80
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
