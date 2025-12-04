@@ -87,7 +87,14 @@ export async function runMigrationsIfNeeded(
 }
 
 // CLI entry point - run migrations if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Note: This check is disabled when bundled to prevent double-execution
+const isMainModule =
+  typeof process !== "undefined" &&
+  import.meta.url === `file://${process.argv[1]}` &&
+  // Additional check: only run if not bundled (dist/entries would indicate bundled)
+  !process.argv[1]?.includes("dist/entries");
+
+if (isMainModule) {
   runMigrationsIfNeeded()
     .then(() => {
       process.exit(0);

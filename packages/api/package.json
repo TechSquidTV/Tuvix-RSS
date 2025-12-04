@@ -14,7 +14,8 @@
   "scripts": {
     "dev": "tsx watch --env-file=.env --env-file=../../.env src/entries/node.ts",
     "dev:workers": "wrangler dev --persist-to .wrangler/state",
-    "build": "tsc",
+    "build": "tsup",
+    "build:tsc": "tsc",
     "start": "node dist/entries/node.js",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
@@ -79,6 +80,7 @@
     "knip": "^5.70.1",
     "prettier": "^3.6.2",
     "react": "^19.2.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.13",
