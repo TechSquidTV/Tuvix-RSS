@@ -1141,7 +1141,7 @@ export const authRouter = router({
         try {
           await logSecurityEvent(ctx.db, {
             userId,
-            action: "password_reset_success",
+            action: "password_reset_failed",
             ipAddress,
             userAgent,
             success: false,

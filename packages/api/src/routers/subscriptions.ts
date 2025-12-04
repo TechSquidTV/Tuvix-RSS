@@ -353,7 +353,6 @@ export const subscriptionsRouter = router({
               TRANSIENT_STATUS_CODES.includes(response.status) &&
               attempt < MAX_RETRIES
             ) {
-              lastError = new Error(errorMessage);
               continue; // Retry
             }
 
@@ -362,22 +361,54 @@ export const subscriptionsRouter = router({
           }
 
           feedContent = await response.text();
-          const result = parseFeed(feedContent);
-          feedData = result.feed;
 
-          await Sentry.addBreadcrumb({
-            category: "subscription",
-            message: `Successfully parsed feed as ${result.format}`,
-            level: "info",
-            data: {
-              feed_format: result.format,
-              attempts: attempt + 1,
-            },
-          });
+          // Parse feed - parsing errors should NOT be retried
+          try {
+            const result = parseFeed(feedContent);
+            feedData = result.feed;
 
-          // Success - break out of retry loop
-          break;
+            await Sentry.addBreadcrumb({
+              category: "subscription",
+              message: `Successfully parsed feed as ${result.format}`,
+              level: "info",
+              data: {
+                feed_format: result.format,
+                attempts: attempt + 1,
+              },
+            });
+
+            // Success - break out of retry loop
+            break;
+          } catch (parseError) {
+            // Parse error - capture and throw immediately (don't retry)
+            const errorMessage =
+              parseError instanceof Error
+                ? parseError.message
+                : "Failed to parse feed";
+
+            await Sentry.captureException(parseError, {
+              level: "error",
+              tags: {
+                operation: "subscription_feed_parse",
+                domain: domain || "unknown",
+                error_type: "parse_error",
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                user_id: userId,
+                error_message: errorMessage,
+                fetch_status: lastStatusCode,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to parse feed: ${errorMessage}`,
+            });
+          }
         } catch (error) {
+          // This catch block is only for FETCH errors now
           lastError = error instanceof Error ? error : new Error(String(error));
 
           // If this is the last attempt or not a transient error, throw
@@ -1005,7 +1036,6 @@ export const subscriptionsRouter = router({
               TRANSIENT_STATUS_CODES.includes(response.status) &&
               attempt < MAX_RETRIES
             ) {
-              lastError = new Error(errorMessage);
               continue; // Retry
             }
 
@@ -1014,25 +1044,56 @@ export const subscriptionsRouter = router({
           }
 
           feedContent = await response.text();
-          const result = parseFeed(feedContent);
-          feedData = result.feed;
 
-          await Sentry.addBreadcrumb({
-            category: "subscription",
-            message: `Preview parsed feed as ${result.format}`,
-            level: "info",
-            data: {
-              feed_format: result.format,
-              attempts: attempt + 1,
-            },
-          });
+          // Parse feed - parsing errors should NOT be retried
+          try {
+            const result = parseFeed(feedContent);
+            feedData = result.feed;
 
-          // Success - break out of retry loop
-          break;
+            await Sentry.addBreadcrumb({
+              category: "subscription",
+              message: `Preview parsed feed as ${result.format}`,
+              level: "info",
+              data: {
+                feed_format: result.format,
+                attempts: attempt + 1,
+              },
+            });
+
+            // Success - break out of retry loop
+            break;
+          } catch (parseError) {
+            // Parse error - capture and throw immediately (don't retry)
+            const errorMessage =
+              parseError instanceof Error
+                ? parseError.message
+                : "Failed to parse feed";
+
+            await Sentry.captureException(parseError, {
+              level: "error",
+              tags: {
+                operation: "subscription_preview_parse",
+                domain: domain || "unknown",
+                error_type: "parse_error",
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                error_message: errorMessage,
+                fetch_status: lastStatusCode,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to parse feed: ${errorMessage}`,
+            });
+          }
         } catch (error) {
+          // This catch block is only for FETCH errors now
           lastError = error instanceof Error ? error : new Error(String(error));
 
-          // If this is the last attempt or not a transient error, throw
+          // If this is the last attempt, throw with full context
           if (attempt === MAX_RETRIES) {
             // Extract HTTP status if this is an HTTP error
             const errorMessage = lastError.message;
@@ -1044,10 +1105,11 @@ export const subscriptionsRouter = router({
             await Sentry.captureException(lastError, {
               level: "error",
               tags: {
-                operation: "subscription_preview_parse",
+                operation: "subscription_preview_fetch",
                 domain: domain || "unknown",
                 ...(httpStatus && { http_status: httpStatus }),
                 attempts: (attempt + 1).toString(),
+                error_type: "fetch_error",
               },
               extra: {
                 url: input.url,
@@ -1059,7 +1121,7 @@ export const subscriptionsRouter = router({
 
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `Failed to fetch or parse feed: ${errorMessage}`,
+              message: `Failed to fetch feed: ${errorMessage}`,
             });
           }
 
@@ -1073,10 +1135,11 @@ export const subscriptionsRouter = router({
             await Sentry.captureException(lastError, {
               level: "error",
               tags: {
-                operation: "subscription_preview_parse",
+                operation: "subscription_preview_fetch",
                 domain: domain || "unknown",
                 http_status: httpStatus.toString(),
                 attempts: (attempt + 1).toString(),
+                error_type: "fetch_error",
               },
               extra: {
                 url: input.url,
@@ -1086,7 +1149,7 @@ export const subscriptionsRouter = router({
 
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `Failed to fetch or parse feed: ${errorMessage}`,
+              message: `Failed to fetch feed: ${errorMessage}`,
             });
           }
         }
