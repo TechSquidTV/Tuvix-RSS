@@ -32,12 +32,14 @@ packages/
 **⛔ NEVER run production database migrations or modifications without explicit user permission.**
 
 This includes but is not limited to:
+
 - `wrangler d1 execute <db> --remote`
 - Any SQL migrations against production databases
 - Schema alterations on live systems
 - Data modifications in production
 
 **Required Process:**
+
 1. Generate migrations locally
 2. Show the user what will change
 3. Explain impact and safety
@@ -57,17 +59,20 @@ Deployment is explicitly forbidden and handled by CI/CD pipelines.
 ## Common Workflows
 
 ### Database Changes
+
 1. Modify schema in `packages/api/src/db/schema.ts`
 2. Generate migration: `pnpm db:generate`
 3. Review generated SQL in `packages/api/drizzle/`
 4. Apply locally: `pnpm db:migrate:local`
 
 ### Running Tests
+
 - API: `pnpm --filter @tuvixrss/api test`
 - App: `pnpm --filter @tuvixrss/app test`
 - All: `pnpm test`
 
 ### Type Checking & Linting
+
 - `pnpm type-check` - Check all packages
 - `pnpm lint` - Lint all packages
 - `pnpm format` - Format with Prettier
