@@ -18,11 +18,10 @@ import {
   applyCategoryFilter,
   buildArticlesWhereConditions,
 } from "./articles-helpers";
-import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
 import * as schema from "@/db/schema";
-import { executeBatch } from "@/db/utils";
-import { withQueryMetrics } from "@/utils/db-metrics";
+import { D1_MAX_PARAMETERS, chunkArray, executeBatch } from "@/db/utils";
 import { upsertArticleState } from "@/db/helpers";
+import { withQueryMetrics } from "@/utils/db-metrics";
 import * as Sentry from "@/utils/sentry";
 
 /**
