@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 COPY packages/api ./packages/api
 COPY packages/tricorder ./packages/tricorder
 
-# Build the application
+# Build the application with tsup (bundles and resolves ESM)
 RUN pnpm --filter @tuvixrss/api build
 
 # Production stage
@@ -54,5 +54,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Run migrations then start the server
-CMD ["sh", "-c", "node packages/api/dist/db/migrate-local.js && node packages/api/dist/entries/node.js"]
+# Start the server (migrations run automatically inside node.ts)
+CMD ["node", "packages/api/dist/entries/node.js"]
