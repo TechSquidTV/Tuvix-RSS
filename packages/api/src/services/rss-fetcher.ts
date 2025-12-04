@@ -870,14 +870,42 @@ async function extractArticleData(
 
   // Final fallback: OpenGraph image from article URL
   if (!imageUrl && link) {
-    try {
-      const ogImage = await extractOgImage(link);
-      if (ogImage) {
-        imageUrl = ogImage;
+    await Sentry.startSpan(
+      {
+        op: "http.client",
+        name: "Fetch OpenGraph Image",
+        attributes: {
+          "http.url": link,
+          "og.domain": extractDomain(link) ?? "unknown",
+        },
+      },
+      async (span) => {
+        try {
+          const ogImage = await extractOgImage(link);
+          if (ogImage) {
+            imageUrl = ogImage;
+            span.setAttribute("og.found", true);
+            span.setStatus({ code: 1, message: "ok" });
+          } else {
+            span.setAttribute("og.found", false);
+            span.setStatus({ code: 1, message: "no image found" });
+          }
+        } catch (error) {
+          // Track OG fetch failures for pattern analysis
+          span.setAttribute(
+            "og.error",
+            error instanceof Error ? error.message : String(error)
+          );
+          span.setStatus({ code: 2, message: "fetch failed" });
+
+          // Don't spam Sentry with every OG failure, but track metrics
+          emitCounter("og_image.fetch_error", 1, {
+            domain: extractDomain(link) ?? "unknown",
+            error_type: error instanceof Error ? error.name : "unknown",
+          });
+        }
       }
-    } catch (error) {
-      // Silently ignore OG fetch errors
-    }
+    );
   }
 
   // Audio URL from enclosures (for podcasts)

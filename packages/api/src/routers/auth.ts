@@ -32,6 +32,12 @@ import {
 import { getBaseUrl } from "@/utils/base-url";
 import * as Sentry from "@/utils/sentry";
 import { emitCounter, emitMetrics } from "@/utils/metrics";
+import {
+  logSecurityEvent,
+  getClientIp,
+  getUserAgent,
+  getRequestMetadata,
+} from "@/auth/security";
 import type {
   BetterAuthUser,
   SignUpEmailResult,
@@ -267,9 +273,6 @@ export const authRouter = router({
                 op: "db.insert",
               },
               async (span) => {
-                const { logSecurityEvent, getClientIp, getUserAgent } =
-                  await import("@/auth/security");
-
                 // Extract IP and user agent from request headers
                 const headers: Record<string, string | undefined> = {};
                 if (ctx.req.headers) {
@@ -421,78 +424,247 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const auth = createAuth(ctx.env, ctx.db);
-
-      // Convert headers for Better Auth
-      const authHeaders =
-        ctx.req.headers instanceof Headers
-          ? ctx.req.headers
-          : fromNodeHeaders(
-              Object.fromEntries(
-                Object.entries(ctx.req.headers || {}).map(([k, v]) => [
-                  k,
-                  Array.isArray(v) ? v[0] : v,
-                ])
-              ) as Record<string, string>
-            );
-
-      try {
-        // Use Better Auth's signIn with username plugin
-        // Note: Username plugin adds signInUsername method
-        const result: SignInUsernameResult = await auth.api.signInUsername({
-          body: {
-            username: input.username,
-            password: input.password,
+      // Wrap entire login in Sentry span
+      return Sentry.startSpan(
+        {
+          name: "auth.login",
+          op: "auth.signin",
+          attributes: {
+            "auth.method": "username_password",
+            "auth.username": input.username,
           },
-          headers: authHeaders,
-        });
+        },
+        async (parentSpan) => {
+          const startTime = Date.now();
+          let userId: number | undefined;
 
-        if (!result || !result.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Invalid credentials",
+          // Add breadcrumb for login attempt
+          await Sentry.addBreadcrumb({
+            category: "auth",
+            message: "Login attempt",
+            level: "info",
+            data: {
+              username: input.username,
+              method: "username_password",
+            },
           });
+
+          const auth = createAuth(ctx.env, ctx.db);
+
+          // Convert headers for Better Auth
+          const authHeaders =
+            ctx.req.headers instanceof Headers
+              ? ctx.req.headers
+              : fromNodeHeaders(
+                  Object.fromEntries(
+                    Object.entries(ctx.req.headers || {}).map(([k, v]) => [
+                      k,
+                      Array.isArray(v) ? v[0] : v,
+                    ])
+                  ) as Record<string, string>
+                );
+
+          try {
+            // Use Better Auth's signIn with username plugin
+            // Note: Username plugin adds signInUsername method
+            const result: SignInUsernameResult = await auth.api.signInUsername({
+              body: {
+                username: input.username,
+                password: input.password,
+              },
+              headers: authHeaders,
+            });
+
+            if (!result || !result.user) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid credentials",
+              });
+            }
+
+            userId = Number(result.user.id);
+            const resultUser = result.user as Partial<BetterAuthUser>;
+
+            // Get user from Better Auth user table for role/plan info
+            const [dbUser] = await ctx.db
+              .select()
+              .from(schema.user)
+              .where(eq(schema.user.id, userId))
+              .limit(1);
+
+            if (!dbUser) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "User not found",
+              });
+            }
+
+            // Log successful login to security audit
+            const {
+              ipAddress,
+              userAgent,
+            }: {
+              ipAddress: string | undefined;
+              userAgent: string | undefined;
+            } = getRequestMetadata(ctx.req.headers);
+
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId,
+                action: "login_success",
+                ipAddress,
+                userAgent,
+                success: true,
+              });
+            } catch (auditError) {
+              // Don't fail login if audit logging fails
+              console.error("Failed to log login event:", auditError);
+              await Sentry.captureException(auditError, {
+                tags: {
+                  flow: "login",
+                  step: "audit_log",
+                },
+                level: "warning",
+              });
+            }
+
+            // Add success breadcrumb
+            await Sentry.addBreadcrumb({
+              category: "auth",
+              message: "Login successful",
+              level: "info",
+              data: {
+                userId: userId.toString(),
+                username: input.username,
+                role: dbUser.role,
+              },
+            });
+
+            const totalDuration = Date.now() - startTime;
+
+            // Set success attributes on span
+            parentSpan?.setAttributes({
+              "auth.login_success": true,
+              "auth.user_id": userId.toString(),
+              "auth.role": dbUser.role || "user",
+              "auth.duration_ms": totalDuration,
+            });
+
+            // Emit metrics
+            emitMetrics([
+              {
+                type: "counter",
+                name: "auth.login_success",
+                value: 1,
+                attributes: {
+                  role: dbUser.role || "user",
+                },
+              },
+              {
+                type: "distribution",
+                name: "auth.login_duration",
+                value: totalDuration,
+                unit: "millisecond",
+              },
+            ]);
+
+            // Return user info (session is handled by Better Auth via cookies)
+            return {
+              user: {
+                id: userId,
+                username:
+                  (resultUser.username as string | undefined) ||
+                  result.user.name ||
+                  "",
+                email: result.user.email,
+                role: (dbUser.role as "user" | "admin") || "user",
+                plan: dbUser.plan || DEFAULT_USER_PLAN,
+                banned: dbUser.banned || false,
+              },
+            };
+          } catch (error) {
+            const totalDuration = Date.now() - startTime;
+
+            // Add failure breadcrumb
+            await Sentry.addBreadcrumb({
+              category: "auth",
+              message: "Login failed",
+              level: "error",
+              data: {
+                username: input.username,
+                error: (error as Error).message,
+                errorType: (error as Error).constructor.name,
+              },
+            });
+
+            // Log failed login attempt to security audit (if not a generic auth error)
+            const {
+              ipAddress,
+              userAgent,
+            }: {
+              ipAddress: string | undefined;
+              userAgent: string | undefined;
+            } = getRequestMetadata(ctx.req.headers);
+
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId,
+                action: "login_failed",
+                ipAddress,
+                userAgent,
+                success: false,
+                metadata: {
+                  username: input.username,
+                  error: (error as Error).message,
+                },
+              });
+            } catch (auditError) {
+              // Don't fail login if audit logging fails
+              console.error("Failed to log failed login event:", auditError);
+            }
+
+            // Set error attributes on span
+            parentSpan?.setAttributes({
+              "auth.login_success": false,
+              "auth.error": (error as Error).message,
+              "auth.error_code": (error as TRPCError).code || "unknown",
+              "auth.duration_ms": totalDuration,
+            });
+
+            // Capture in Sentry
+            await Sentry.captureException(error, {
+              tags: {
+                flow: "login",
+                step: "overall",
+              },
+              contexts: {
+                login: {
+                  username: input.username,
+                  user_id: userId?.toString(),
+                  duration_ms: totalDuration,
+                },
+              },
+              user: userId ? { id: userId.toString() } : undefined,
+            });
+
+            // Emit failure metrics
+            emitCounter("auth.login_failed", 1, {
+              error_code: (error as TRPCError).code || "unknown",
+              error_type: (error as Error).constructor.name,
+            });
+
+            // Better Auth errors are already logged
+            const authError = error as { status?: number; message?: string };
+            throw new TRPCError({
+              code:
+                authError.status === 401
+                  ? "UNAUTHORIZED"
+                  : "INTERNAL_SERVER_ERROR",
+              message: authError.message || "Login failed",
+            });
+          }
         }
-
-        const resultUser = result.user as Partial<BetterAuthUser>;
-
-        // Get user from Better Auth user table for role/plan info
-        const [dbUser] = await ctx.db
-          .select()
-          .from(schema.user)
-          .where(eq(schema.user.id, Number(result.user.id)))
-          .limit(1);
-
-        if (!dbUser) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "User not found",
-          });
-        }
-
-        // Return user info (session is handled by Better Auth via cookies)
-        return {
-          user: {
-            id: Number(result.user.id),
-            username:
-              (resultUser.username as string | undefined) ||
-              result.user.name ||
-              "",
-            email: result.user.email,
-            role: (dbUser.role as "user" | "admin") || "user",
-            plan: dbUser.plan || DEFAULT_USER_PLAN,
-            banned: dbUser.banned || false,
-          },
-        };
-      } catch (error) {
-        // Better Auth errors are already logged
-        const authError = error as { status?: number; message?: string };
-        throw new TRPCError({
-          code:
-            authError.status === 401 ? "UNAUTHORIZED" : "INTERNAL_SERVER_ERROR",
-          message: authError.message || "Login failed",
-        });
-      }
+      );
     }),
 
   /**
@@ -703,6 +875,15 @@ export const authRouter = router({
               ) as Record<string, string>
             );
 
+      // Extract IP and user agent for audit logging
+      const {
+        ipAddress,
+        userAgent,
+      }: {
+        ipAddress: string | undefined;
+        userAgent: string | undefined;
+      } = getRequestMetadata(ctx.req.headers);
+
       try {
         await auth.api.changePassword({
           body: {
@@ -712,8 +893,48 @@ export const authRouter = router({
           headers: authHeaders,
         });
 
+        // Log successful password change
+        try {
+          await logSecurityEvent(ctx.db, {
+            userId: ctx.user.userId,
+            action: "password_change",
+            ipAddress,
+            userAgent,
+            success: true,
+          });
+        } catch (auditError) {
+          // Don't fail password change if audit logging fails
+          console.error("Failed to log password change event:", auditError);
+          await Sentry.captureException(auditError, {
+            tags: {
+              flow: "password_change",
+              step: "audit_log",
+            },
+            level: "warning",
+          });
+        }
+
         return { success: true };
       } catch (error) {
+        // Log failed password change attempt
+        try {
+          await logSecurityEvent(ctx.db, {
+            userId: ctx.user.userId,
+            action: "password_change",
+            ipAddress,
+            userAgent,
+            success: false,
+            metadata: {
+              error: (error as Error).message,
+            },
+          });
+        } catch (auditError) {
+          console.error(
+            "Failed to log failed password change event:",
+            auditError
+          );
+        }
+
         const authError = error as { status?: number; message?: string };
         throw new TRPCError({
           code:
@@ -742,9 +963,6 @@ export const authRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getClientIp, getUserAgent } = await import(
-        "@/auth/security"
-      );
 
       // Convert headers for Better Auth
       const authHeaders =
@@ -850,6 +1068,41 @@ export const authRouter = router({
               ) as Record<string, string>
             );
 
+      // Extract IP and user agent for audit logging
+      const {
+        ipAddress,
+        userAgent,
+      }: {
+        ipAddress: string | undefined;
+        userAgent: string | undefined;
+      } = getRequestMetadata(ctx.req.headers);
+
+      // Find user by verification token BEFORE resetting (token is deleted after use)
+      let userId: number | undefined;
+      try {
+        const [verification] = await ctx.db
+          .select()
+          .from(schema.verification)
+          .where(eq(schema.verification.value, input.token))
+          .limit(1);
+
+        if (verification) {
+          // identifier is the user's email
+          const [userRecord] = await ctx.db
+            .select()
+            .from(schema.user)
+            .where(eq(schema.user.email, verification.identifier))
+            .limit(1);
+
+          if (userRecord) {
+            userId = Number(userRecord.id);
+          }
+        }
+      } catch (error) {
+        // Continue even if we can't find the user
+        console.error("Failed to find user for password reset logging:", error);
+      }
+
       try {
         await auth.api.resetPassword({
           body: {
@@ -859,8 +1112,49 @@ export const authRouter = router({
           headers: authHeaders,
         });
 
+        // Log successful password reset with actual user ID
+        try {
+          await logSecurityEvent(ctx.db, {
+            userId,
+            action: "password_reset_success",
+            ipAddress,
+            userAgent,
+            success: true,
+          });
+        } catch (auditError) {
+          // Don't fail password reset if audit logging fails
+          console.error("Failed to log password reset event:", auditError);
+          await Sentry.captureException(auditError, {
+            tags: {
+              flow: "password_reset",
+              step: "audit_log",
+            },
+            level: "warning",
+          });
+        }
+
         return { success: true };
       } catch (error) {
+        // Log failed password reset attempt
+        try {
+          await logSecurityEvent(ctx.db, {
+            userId,
+            action: "password_reset_failed",
+            ipAddress,
+            userAgent,
+            success: false,
+            metadata: {
+              error: (error as Error).message,
+              note: "Invalid or expired token",
+            },
+          });
+        } catch (auditError) {
+          console.error(
+            "Failed to log failed password reset event:",
+            auditError
+          );
+        }
+
         const authError = error as { status?: number; message?: string };
         throw new TRPCError({
           code:

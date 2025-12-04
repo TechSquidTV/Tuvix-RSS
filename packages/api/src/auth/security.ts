@@ -19,6 +19,7 @@ export type SecurityAction =
   | "password_reset_request"
   | "password_reset_email_sent"
   | "password_reset_success"
+  | "password_reset_failed"
   | "account_locked"
   | "account_unlocked"
   | "token_expired"
@@ -49,6 +50,7 @@ export async function logSecurityEvent(
       userAgent: params.userAgent,
       metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
       success: params.success,
+      // createdAt uses SQL DEFAULT from schema
     });
   } catch (error) {
     // Log but don't throw - audit logging shouldn't break the app
@@ -87,4 +89,59 @@ export function getUserAgent(
   headers: Record<string, string | undefined>
 ): string | undefined {
   return headers["user-agent"];
+}
+
+/**
+ * Extract request metadata for security audit logging
+ * Convenience function that combines header extraction, IP, and user agent
+ */
+export function getRequestMetadata(
+  reqHeaders:
+    | Headers
+    | Record<string, string | string[] | undefined>
+    | undefined
+): {
+  headers: Record<string, string | undefined>;
+  ipAddress: string | undefined;
+  userAgent: string | undefined;
+} {
+  const headers = extractHeaders(reqHeaders);
+  const ipAddress = getClientIp(headers);
+  const userAgent = getUserAgent(headers);
+
+  return { headers, ipAddress, userAgent };
+}
+
+/**
+ * Extract headers from request into a normalized Record
+ * Handles both Headers object and plain object formats
+ */
+export function extractHeaders(
+  reqHeaders:
+    | Headers
+    | Record<string, string | string[] | undefined>
+    | undefined
+): Record<string, string | undefined> {
+  const headers: Record<string, string | undefined> = {};
+
+  if (!reqHeaders) {
+    return headers;
+  }
+
+  if (reqHeaders instanceof Headers) {
+    reqHeaders.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+  } else {
+    Object.entries(reqHeaders).forEach(([key, value]) => {
+      headers[key.toLowerCase()] =
+        value === undefined
+          ? undefined
+          : Array.isArray(value)
+            ? value[0]
+            : String(value);
+    });
+  }
+
+  return headers;
 }

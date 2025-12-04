@@ -46,6 +46,7 @@ const AdminUserSchema = z.object({
   id: z.number(),
   username: z.string(),
   email: z.string(),
+  emailVerified: z.boolean(),
   role: z.enum(["user", "admin"]),
   plan: z.string(), // Plan ID - validated against plans table
   banned: z.boolean(),
@@ -88,6 +89,7 @@ export const adminRouter = router({
         role: z.enum(["user", "admin"]).optional(),
         plan: z.string().optional(), // Plan ID filter - validated at runtime
         banned: z.boolean().optional(),
+        emailVerified: z.boolean().optional(), // Filter by email verification status
         search: z.string().optional(), // Search by username or email
       })
     )
@@ -103,6 +105,9 @@ export const adminRouter = router({
       }
       if (input.banned !== undefined) {
         conditions.push(eq(schema.user.banned, input.banned));
+      }
+      if (input.emailVerified !== undefined) {
+        conditions.push(eq(schema.user.emailVerified, input.emailVerified));
       }
       if (input.search) {
         conditions.push(
@@ -127,6 +132,7 @@ export const adminRouter = router({
           "db.has_role_filter": input.role !== undefined,
           "db.has_plan_filter": input.plan !== undefined,
           "db.has_banned_filter": input.banned !== undefined,
+          "db.has_email_verified_filter": input.emailVerified !== undefined,
           "db.has_search": !!input.search,
         }
       );
@@ -169,6 +175,7 @@ export const adminRouter = router({
             id: user.id,
             username: user.username || user.name,
             email: user.email,
+            emailVerified: user.emailVerified || false,
             role: (user.role as "user" | "admin") || "user",
             plan: user.plan || "free",
             banned: user.banned || false,
@@ -263,6 +270,7 @@ export const adminRouter = router({
         id: user.id,
         username: user.username || user.name,
         email: user.email,
+        emailVerified: user.emailVerified || false,
         role: (user.role as "user" | "admin") || "user",
         plan: user.plan || "free",
         banned: user.banned || false,

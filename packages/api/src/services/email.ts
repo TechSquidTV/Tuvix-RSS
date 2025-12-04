@@ -106,6 +106,19 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     return { success: true }; // Return success in dev mode
   }
 
+  // Add breadcrumb at service level for debugging
+  await Sentry.addBreadcrumb({
+    category: "email.service",
+    message: `Attempting to send ${type} email`,
+    level: "info",
+    data: {
+      emailType: type,
+      recipient: to,
+      subject,
+      configured: isEmailConfigured(env),
+    },
+  });
+
   // Wrap email sending in Sentry span for observability and timing
   const sendEmailWithSentry = async (): Promise<SendEmailResult> => {
     return await withTiming(
@@ -114,6 +127,17 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
         try {
           // Initialize Resend client
           const resend = new Resend(env.RESEND_API_KEY);
+
+          // Add breadcrumb before API call
+          await Sentry.addBreadcrumb({
+            category: "email.service",
+            message: "Calling Resend API",
+            level: "info",
+            data: {
+              emailType: type,
+              recipient: to,
+            },
+          });
 
           // Send email via Resend (using React Email component directly)
           const { data, error } = await resend.emails.send({
@@ -125,6 +149,21 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
 
           if (error) {
             const errorMessage = `Failed to send ${type} email: ${error.message || "Unknown error"}`;
+
+            // Add breadcrumb for Resend API error
+            await Sentry.addBreadcrumb({
+              category: "email.service",
+              message: "Resend API returned error",
+              level: "error",
+              data: {
+                emailType: type,
+                recipient: to,
+                errorMessage: error.message,
+                errorCode: (error as { code?: string })?.code,
+                errorStatus: (error as { status?: number })?.status,
+              },
+            });
+
             console.error(errorMessage, {
               type,
               to,
@@ -161,6 +200,18 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             };
           }
 
+          // Add breadcrumb for successful send
+          await Sentry.addBreadcrumb({
+            category: "email.service",
+            message: `${type} email sent successfully`,
+            level: "info",
+            data: {
+              emailType: type,
+              recipient: to,
+              emailId: data?.id,
+            },
+          });
+
           // Log success (in development)
           if (process.env.NODE_ENV !== "production") {
             console.log(`✅ ${type} email sent to ${to} (ID: ${data?.id})`);
@@ -177,6 +228,19 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           const errorStack = error instanceof Error ? error.stack : undefined;
+
+          // Add breadcrumb for exception
+          await Sentry.addBreadcrumb({
+            category: "email.service",
+            message: "Exception thrown while sending email",
+            level: "error",
+            data: {
+              emailType: type,
+              recipient: to,
+              errorMessage,
+              errorType: error instanceof Error ? error.name : "Unknown",
+            },
+          });
 
           console.error(`Error sending ${type} email:`, {
             errorMessage,
