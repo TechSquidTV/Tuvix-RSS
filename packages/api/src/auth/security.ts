@@ -50,6 +50,7 @@ export async function logSecurityEvent(
       userAgent: params.userAgent,
       metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
       success: params.success,
+      createdAt: new Date(),
     });
   } catch (error) {
     // Log but don't throw - audit logging shouldn't break the app

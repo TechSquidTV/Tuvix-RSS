@@ -43,6 +43,13 @@
       "when": 1764633557616,
       "tag": "0005_panoramic_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1764822482306,
+      "tag": "0006_fix_security_audit_log_default",
+      "breakpoints": true
     }
   ]
 }
