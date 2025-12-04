@@ -497,16 +497,12 @@ export const authRouter = router({
             }
 
             // Log successful login to security audit
-            const {
-              logSecurityEvent,
-              getClientIp,
-              getUserAgent,
-              extractHeaders,
-            } = await import("@/auth/security");
+            const { logSecurityEvent, getRequestMetadata } =
+              await import("@/auth/security");
 
-            const headers = extractHeaders(ctx.req.headers);
-            const ipAddress = getClientIp(headers);
-            const userAgent = getUserAgent(headers);
+            const { ipAddress, userAgent } = getRequestMetadata(
+              ctx.req.headers
+            );
 
             try {
               await logSecurityEvent(ctx.db, {
@@ -598,16 +594,12 @@ export const authRouter = router({
             });
 
             // Log failed login attempt to security audit (if not a generic auth error)
-            const {
-              logSecurityEvent,
-              getClientIp,
-              getUserAgent,
-              extractHeaders,
-            } = await import("@/auth/security");
+            const { logSecurityEvent, getRequestMetadata } =
+              await import("@/auth/security");
 
-            const headers = extractHeaders(ctx.req.headers);
-            const ipAddress = getClientIp(headers);
-            const userAgent = getUserAgent(headers);
+            const { ipAddress, userAgent } = getRequestMetadata(
+              ctx.req.headers
+            );
 
             try {
               await logSecurityEvent(ctx.db, {
@@ -864,7 +856,7 @@ export const authRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getClientIp, getUserAgent, extractHeaders } =
+      const { logSecurityEvent, getRequestMetadata } =
         await import("@/auth/security");
 
       // Convert headers for Better Auth
@@ -881,9 +873,7 @@ export const authRouter = router({
             );
 
       // Extract IP and user agent for audit logging
-      const headers = extractHeaders(ctx.req.headers);
-      const ipAddress = getClientIp(headers);
-      const userAgent = getUserAgent(headers);
+      const { ipAddress, userAgent } = getRequestMetadata(ctx.req.headers);
 
       try {
         await auth.api.changePassword({
@@ -1058,7 +1048,7 @@ export const authRouter = router({
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const auth = createAuth(ctx.env, ctx.db);
-      const { logSecurityEvent, getClientIp, getUserAgent, extractHeaders } =
+      const { logSecurityEvent, getRequestMetadata } =
         await import("@/auth/security");
 
       // Convert headers for Better Auth
@@ -1075,9 +1065,7 @@ export const authRouter = router({
             );
 
       // Extract IP and user agent for audit logging
-      const headers = extractHeaders(ctx.req.headers);
-      const ipAddress = getClientIp(headers);
-      const userAgent = getUserAgent(headers);
+      const { ipAddress, userAgent } = getRequestMetadata(ctx.req.headers);
 
       // Find user by verification token BEFORE resetting (token is deleted after use)
       let userId: number | undefined;

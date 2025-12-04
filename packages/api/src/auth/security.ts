@@ -50,6 +50,8 @@ export async function logSecurityEvent(
       userAgent: params.userAgent,
       metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
       success: params.success,
+      // Explicitly set createdAt for consistency with app time
+      // DB has SQL DEFAULT but we set it here for defense-in-depth
       createdAt: new Date(),
     });
   } catch (error) {
@@ -89,6 +91,27 @@ export function getUserAgent(
   headers: Record<string, string | undefined>
 ): string | undefined {
   return headers["user-agent"];
+}
+
+/**
+ * Extract request metadata for security audit logging
+ * Convenience function that combines header extraction, IP, and user agent
+ */
+export function getRequestMetadata(
+  reqHeaders:
+    | Headers
+    | Record<string, string | string[] | undefined>
+    | undefined
+): {
+  headers: Record<string, string | undefined>;
+  ipAddress: string | undefined;
+  userAgent: string | undefined;
+} {
+  const headers = extractHeaders(reqHeaders);
+  const ipAddress = getClientIp(headers);
+  const userAgent = getUserAgent(headers);
+
+  return { headers, ipAddress, userAgent };
 }
 
 /**

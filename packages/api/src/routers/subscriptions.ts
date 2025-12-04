@@ -5,6 +5,11 @@
  */
 
 import * as Sentry from "@/utils/sentry";
+
+// Retry configuration for transient HTTP failures
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
+const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
@@ -301,12 +306,6 @@ export const subscriptionsRouter = router({
       let feedUrl = input.url;
       let feedData;
       let feedContent: string | undefined;
-
-      // Retry logic for transient failures
-      const MAX_RETRIES = 2;
-      const RETRY_DELAY_MS = 1000;
-      const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
-
       let lastError: Error | undefined;
       let lastStatusCode: number | undefined;
 
@@ -990,12 +989,6 @@ export const subscriptionsRouter = router({
       let feedData;
       let feedUrl = input.url;
       let feedContent: string | undefined;
-
-      // Retry logic for transient failures
-      const MAX_RETRIES = 2;
-      const RETRY_DELAY_MS = 1000;
-      const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
-
       let lastError: Error | undefined;
       let lastStatusCode: number | undefined;
 
