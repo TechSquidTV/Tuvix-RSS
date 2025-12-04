@@ -5,25 +5,32 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm@10.19.0
 
+# Copy workspace files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY packages/app/package.json ./packages/app/
+COPY packages/api/package.json ./packages/api/
+COPY packages/tricorder/package.json ./packages/tricorder/
+
+# Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
-COPY . .
+COPY packages/app ./packages/app
 
 # Build argument for API URL
 ARG VITE_API_URL=http://localhost:3001/trpc
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Build the application
-RUN pnpm build
+RUN pnpm --filter @tuvixrss/app build
 
 # Production stage with nginx
 FROM nginx:alpine
 
 # Copy built files from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/packages/app/dist /usr/share/nginx/html
 
 # Create nginx configuration for SPA routing and health check
 RUN echo 'server { \
@@ -50,6 +57,21 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
+# Create non-root user for nginx
+RUN addgroup -g 1001 -S nginx-app && \
+    adduser -S nginx-app -u 1001 && \
+    chown -R nginx-app:nginx-app /usr/share/nginx/html && \
+    chown -R nginx-app:nginx-app /var/cache/nginx && \
+    chown -R nginx-app:nginx-app /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx-app:nginx-app /var/run/nginx.pid
+
+USER nginx-app
+
 EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

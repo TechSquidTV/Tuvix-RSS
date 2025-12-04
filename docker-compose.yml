@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./packages/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./packages/api/Dockerfile
     pull_policy: build
     container_name: tuvix-api
     restart: unless-stopped
@@ -30,8 +30,8 @@ services:
 
   app:
     build:
-      context: ./packages/app
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./packages/app/Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/trpc}
     pull_policy: build

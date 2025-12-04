@@ -293,15 +293,22 @@ docker compose up -d
 
 #### Dockerfile Structure
 
+**Important:** Both Dockerfiles use the monorepo root as the build context and copy workspace files. This ensures the correct `pnpm-lock.yaml` from the workspace root is used.
+
 **API Dockerfile** (`packages/api/Dockerfile`):
 - Multi-stage build (builder + production)
+- Build context: monorepo root (not `packages/api`)
+- Copies workspace files (`pnpm-workspace.yaml`, root `pnpm-lock.yaml`)
 - Installs pnpm 10.19.0
+- Installs dependencies for all needed packages (api + tricorder)
 - Runs migrations on startup
 - Exposes port 3001
 - Health check on /health endpoint
 
 **App Dockerfile** (`packages/app/Dockerfile`):
 - Multi-stage build with nginx
+- Build context: monorepo root (not `packages/app`)
+- Copies workspace files (`pnpm-workspace.yaml`, root `pnpm-lock.yaml`)
 - Accepts VITE_API_URL build arg
 - SPA routing support
 - Static asset caching
@@ -312,7 +319,9 @@ docker compose up -d
 ```yaml
 services:
   api:
-    build: ./packages/api
+    build:
+      context: .
+      dockerfile: ./packages/api/Dockerfile
     ports:
       - "3001:3001"
     volumes:
@@ -329,7 +338,8 @@ services:
 
   app:
     build:
-      context: ./packages/app
+      context: .
+      dockerfile: ./packages/app/Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/trpc}
     ports:
