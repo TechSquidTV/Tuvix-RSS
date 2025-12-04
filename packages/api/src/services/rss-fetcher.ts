@@ -876,7 +876,7 @@ async function extractArticleData(
         name: "Fetch OpenGraph Image",
         attributes: {
           "http.url": link,
-          "og.domain": extractDomain(link),
+          "og.domain": extractDomain(link) ?? "unknown",
         },
       },
       async (span) => {
@@ -900,7 +900,7 @@ async function extractArticleData(
 
           // Don't spam Sentry with every OG failure, but track metrics
           emitCounter("og_image.fetch_error", 1, {
-            domain: extractDomain(link),
+            domain: extractDomain(link) ?? "unknown",
             error_type: error instanceof Error ? error.name : "unknown",
           });
         }
