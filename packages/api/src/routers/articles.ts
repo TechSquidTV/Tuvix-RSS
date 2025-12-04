@@ -23,6 +23,7 @@ import * as schema from "@/db/schema";
 import { executeBatch } from "@/db/utils";
 import { withQueryMetrics } from "@/utils/db-metrics";
 import { upsertArticleState } from "@/db/helpers";
+import * as Sentry from "@/utils/sentry";
 
 /**
  * Helper function to transform database row to article output
@@ -954,7 +955,7 @@ export const articlesRouter = router({
             "db.batch_size": statements.length,
             "db.operation": "mark_all_read",
             "db.user_id": userId,
-            "filter.older_than_days": input.olderThanDays,
+            "filter.older_than_days": input.olderThanDays ?? "none",
           },
         },
         async (span) => {
