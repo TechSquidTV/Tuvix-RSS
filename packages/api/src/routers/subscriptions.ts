@@ -302,61 +302,151 @@ export const subscriptionsRouter = router({
       let feedData;
       let feedContent: string | undefined;
 
-      try {
-        await Sentry.addBreadcrumb({
-          category: "subscription",
-          message: `Fetching feed from ${feedUrl}`,
-          level: "info",
-        });
+      // Retry logic for transient failures
+      const MAX_RETRIES = 2;
+      const RETRY_DELAY_MS = 1000;
+      const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
 
-        const response = await fetch(feedUrl, {
-          headers: {
-            "User-Agent": "TuvixRSS/1.0",
-            Accept:
-              "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-          },
-          signal: AbortSignal.timeout(30000),
-        });
+      let lastError: Error | undefined;
+      let lastStatusCode: number | undefined;
 
-        if (!response.ok) {
-          const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-          // Don't capture here - let the catch block handle it to avoid duplicates
-          throw new Error(errorMessage);
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Add delay between retries with exponential backoff
+            const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+
+            await Sentry.addBreadcrumb({
+              category: "subscription",
+              message: `Retrying feed fetch (attempt ${attempt + 1}/${MAX_RETRIES + 1})`,
+              level: "info",
+              data: {
+                attempt: attempt + 1,
+                delay_ms: delay,
+              },
+            });
+          } else {
+            await Sentry.addBreadcrumb({
+              category: "subscription",
+              message: `Fetching feed from ${feedUrl}`,
+              level: "info",
+            });
+          }
+
+          const response = await fetch(feedUrl, {
+            headers: {
+              "User-Agent": "TuvixRSS/1.0",
+              Accept:
+                "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+            },
+            signal: AbortSignal.timeout(30000),
+          });
+
+          lastStatusCode = response.status;
+
+          if (!response.ok) {
+            const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+            // Check if this is a transient error that should be retried
+            if (
+              TRANSIENT_STATUS_CODES.includes(response.status) &&
+              attempt < MAX_RETRIES
+            ) {
+              lastError = new Error(errorMessage);
+              continue; // Retry
+            }
+
+            // Non-transient error or max retries reached
+            throw new Error(errorMessage);
+          }
+
+          feedContent = await response.text();
+          const result = parseFeed(feedContent);
+          feedData = result.feed;
+
+          await Sentry.addBreadcrumb({
+            category: "subscription",
+            message: `Successfully parsed feed as ${result.format}`,
+            level: "info",
+            data: {
+              feed_format: result.format,
+              attempts: attempt + 1,
+            },
+          });
+
+          // Success - break out of retry loop
+          break;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+
+          // If this is the last attempt or not a transient error, throw
+          if (attempt === MAX_RETRIES) {
+            // Extract HTTP status if this is an HTTP error
+            const errorMessage = lastError.message;
+            const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
+            const httpStatus = httpStatusMatch
+              ? httpStatusMatch[1]
+              : lastStatusCode?.toString();
+
+            await Sentry.captureException(lastError, {
+              level: "error",
+              tags: {
+                operation: "subscription_feed_parse",
+                domain: domain || "unknown",
+                ...(httpStatus && { http_status: httpStatus }),
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                user_id: userId,
+                error_message: errorMessage,
+                final_attempt: attempt + 1,
+                last_status_code: lastStatusCode,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to fetch or parse feed: ${errorMessage}`,
+            });
+          }
+
+          // Check if we should retry this error
+          const errorMessage = lastError.message;
+          const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
+          const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 0;
+
+          if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
+            // Non-transient error - don't retry
+            await Sentry.captureException(lastError, {
+              level: "error",
+              tags: {
+                operation: "subscription_feed_parse",
+                domain: domain || "unknown",
+                http_status: httpStatus.toString(),
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                user_id: userId,
+                error_message: errorMessage,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to fetch or parse feed: ${errorMessage}`,
+            });
+          }
         }
+      }
 
-        feedContent = await response.text();
-        const result = parseFeed(feedContent);
-        feedData = result.feed;
-
-        await Sentry.addBreadcrumb({
-          category: "subscription",
-          message: `Successfully parsed feed as ${result.format}`,
-          level: "info",
-          data: { feed_format: result.format },
-        });
-      } catch (error) {
-        // Extract HTTP status if this is an HTTP error
-        const errorMessage = error instanceof Error ? error.message : "Unknown";
-        const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
-        const httpStatus = httpStatusMatch ? httpStatusMatch[1] : undefined;
-
-        await Sentry.captureException(error, {
-          level: "error",
-          tags: {
-            operation: "subscription_feed_parse",
-            domain: domain || "unknown",
-            ...(httpStatus && { http_status: httpStatus }),
-          },
-          extra: {
-            url: input.url,
-            user_id: userId,
-            error_message: errorMessage,
-          },
-        });
-
+      // If we get here, feedData should be defined from successful parse
+      if (!feedData) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Failed to fetch or parse feed: ${errorMessage}`,
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Feed parsing failed unexpectedly",
         });
       }
 
@@ -870,54 +960,143 @@ export const subscriptionsRouter = router({
       let feedUrl = input.url;
       let feedContent: string | undefined;
 
-      try {
-        const response = await fetch(feedUrl, {
-          headers: {
-            "User-Agent": "TuvixRSS/1.0",
-            Accept:
-              "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-          },
-          signal: AbortSignal.timeout(30000),
-        });
+      // Retry logic for transient failures
+      const MAX_RETRIES = 2;
+      const RETRY_DELAY_MS = 1000;
+      const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
 
-        if (!response.ok) {
-          const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-          // Don't capture here - let the catch block handle it to avoid duplicates
-          throw new Error(errorMessage);
+      let lastError: Error | undefined;
+      let lastStatusCode: number | undefined;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Add delay between retries with exponential backoff
+            const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+
+            await Sentry.addBreadcrumb({
+              category: "subscription",
+              message: `Retrying feed preview (attempt ${attempt + 1}/${MAX_RETRIES + 1})`,
+              level: "info",
+              data: {
+                attempt: attempt + 1,
+                delay_ms: delay,
+              },
+            });
+          }
+
+          const response = await fetch(feedUrl, {
+            headers: {
+              "User-Agent": "TuvixRSS/1.0",
+              Accept:
+                "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+            },
+            signal: AbortSignal.timeout(30000),
+          });
+
+          lastStatusCode = response.status;
+
+          if (!response.ok) {
+            const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+            // Check if this is a transient error that should be retried
+            if (
+              TRANSIENT_STATUS_CODES.includes(response.status) &&
+              attempt < MAX_RETRIES
+            ) {
+              lastError = new Error(errorMessage);
+              continue; // Retry
+            }
+
+            // Non-transient error or max retries reached
+            throw new Error(errorMessage);
+          }
+
+          feedContent = await response.text();
+          const result = parseFeed(feedContent);
+          feedData = result.feed;
+
+          await Sentry.addBreadcrumb({
+            category: "subscription",
+            message: `Preview parsed feed as ${result.format}`,
+            level: "info",
+            data: {
+              feed_format: result.format,
+              attempts: attempt + 1,
+            },
+          });
+
+          // Success - break out of retry loop
+          break;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+
+          // If this is the last attempt or not a transient error, throw
+          if (attempt === MAX_RETRIES) {
+            // Extract HTTP status if this is an HTTP error
+            const errorMessage = lastError.message;
+            const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
+            const httpStatus = httpStatusMatch
+              ? httpStatusMatch[1]
+              : lastStatusCode?.toString();
+
+            await Sentry.captureException(lastError, {
+              level: "error",
+              tags: {
+                operation: "subscription_preview_parse",
+                domain: domain || "unknown",
+                ...(httpStatus && { http_status: httpStatus }),
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                error_message: errorMessage,
+                final_attempt: attempt + 1,
+                last_status_code: lastStatusCode,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to fetch or parse feed: ${errorMessage}`,
+            });
+          }
+
+          // Check if we should retry this error
+          const errorMessage = lastError.message;
+          const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
+          const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 0;
+
+          if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
+            // Non-transient error - don't retry
+            await Sentry.captureException(lastError, {
+              level: "error",
+              tags: {
+                operation: "subscription_preview_parse",
+                domain: domain || "unknown",
+                http_status: httpStatus.toString(),
+                attempts: (attempt + 1).toString(),
+              },
+              extra: {
+                url: input.url,
+                error_message: errorMessage,
+              },
+            });
+
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Failed to fetch or parse feed: ${errorMessage}`,
+            });
+          }
         }
+      }
 
-        feedContent = await response.text();
-        const result = parseFeed(feedContent);
-        feedData = result.feed;
-
-        await Sentry.addBreadcrumb({
-          category: "subscription",
-          message: `Preview parsed feed as ${result.format}`,
-          level: "info",
-          data: { feed_format: result.format },
-        });
-      } catch (error) {
-        // Extract HTTP status if this is an HTTP error
-        const errorMessage = error instanceof Error ? error.message : "Unknown";
-        const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
-        const httpStatus = httpStatusMatch ? httpStatusMatch[1] : undefined;
-
-        await Sentry.captureException(error, {
-          level: "error",
-          tags: {
-            operation: "subscription_preview_parse",
-            domain: domain || "unknown",
-            ...(httpStatus && { http_status: httpStatus }),
-          },
-          extra: {
-            url: input.url,
-            error_message: errorMessage,
-          },
-        });
-
+      // If we get here, feedData should be defined from successful parse
+      if (!feedData) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Failed to fetch or parse feed: ${errorMessage}`,
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Feed parsing failed unexpectedly",
         });
       }
 
@@ -1580,210 +1759,309 @@ export const subscriptionsRouter = router({
       let errorCount = 0;
       const errors: { url: string; error: string }[] = [];
 
-      // Process each feed
-      for (const feedInfo of feedsToProcess) {
-        try {
-          // Fetch and validate feed
-          const response = await fetch(feedInfo.url, {
-            headers: {
-              "User-Agent": "TuvixRSS/1.0",
-              Accept:
-                "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-            },
-            signal: AbortSignal.timeout(15000),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const feedContent = await response.text();
-          const feedResult = parseFeed(feedContent);
-          const feedData = feedResult.feed;
-
-          // Extract metadata
-          const feedTitle =
-            "title" in feedData && feedData.title
-              ? feedData.title
-              : feedInfo.title;
-          const feedDescription =
-            "description" in feedData && feedData.description
-              ? stripHtml(feedData.description)
-              : "subtitle" in feedData && feedData.subtitle
-                ? stripHtml(feedData.subtitle)
-                : undefined;
-          const siteUrl =
-            "link" in feedData && feedData.link
-              ? feedData.link
-              : "links" in feedData &&
-                  Array.isArray(feedData.links) &&
-                  feedData.links[0]?.href
-                ? feedData.links[0].href
-                : undefined;
-
-          // Check if source exists
-          // Normalize Reddit URLs to prevent duplicates across different domains
-          const normalizedFeedUrl = normalizeRedditUrl(feedInfo.url);
-
-          const existingSources = await ctx.db
-            .select()
-            .from(schema.sources)
-            .where(eq(schema.sources.url, normalizedFeedUrl))
-            .limit(1);
-
-          let sourceId: number;
-
-          if (existingSources.length > 0) {
-            sourceId = existingSources[0].id;
-            await ctx.db
-              .update(schema.sources)
-              .set({
-                title: feedTitle,
-                description: feedDescription,
-                siteUrl,
-                lastFetched: new Date(),
-              })
-              .where(eq(schema.sources.id, sourceId));
-          } else {
-            const newSource = await ctx.db
-              .insert(schema.sources)
-              .values({
-                url: normalizedFeedUrl,
-                title: feedTitle,
-                description: feedDescription,
-                siteUrl,
-                iconType: "auto",
-                lastFetched: new Date(),
-              })
-              .returning();
-            sourceId = newSource[0].id;
-          }
-
-          // Check if already subscribed
-          const existingSubscription = await ctx.db
-            .select()
-            .from(schema.subscriptions)
-            .where(
-              and(
-                eq(schema.subscriptions.userId, userId),
-                eq(schema.subscriptions.sourceId, sourceId)
-              )
-            )
-            .limit(1);
-
-          if (existingSubscription.length > 0) {
-            // Already subscribed, skip
-            successCount++;
-            continue;
-          }
-
-          // Check source limit before creating subscription
-          const limitCheck = await checkSourceLimit(ctx.db, userId);
-          if (!limitCheck.allowed) {
-            // Limit reached, stop importing
-            errorCount++;
-            errors.push({
-              url: feedInfo.url,
-              error: `Source limit reached (${limitCheck.limit}/${limitCheck.limit}). Remaining feeds not imported.`,
-            });
-            break; // Stop processing remaining feeds
-          }
-
-          // Determine filter settings from OPML data
-          const filterEnabled =
-            feedInfo.filterEnabled !== undefined
-              ? feedInfo.filterEnabled
-              : feedInfo.filters && feedInfo.filters.length > 0
-                ? true
-                : false;
-          const filterMode = feedInfo.filterMode || "include";
-
-          // Create subscription
-          const newSubscription = await ctx.db
-            .insert(schema.subscriptions)
-            .values({
-              userId,
-              sourceId,
-              customTitle: null,
-              filterEnabled,
-              filterMode,
-            })
-            .returning();
-
-          const subscriptionId = newSubscription[0].id;
-
-          // Create/link categories (using normalization helper to prevent duplicates)
-          if (feedInfo.categories.length > 0) {
-            // Track category IDs to prevent duplicate links
-            const linkedCategoryIds = new Set<number>();
-
-            for (const categoryName of feedInfo.categories) {
-              // Use findOrCreateCategory for case-insensitive normalization
-              const categoryId = await findOrCreateCategory(
-                ctx.db,
-                schema.categories,
-                userId,
-                categoryName,
-                generateColorFromString
-              );
-
-              // Only link if we haven't already linked this category
-              if (!linkedCategoryIds.has(categoryId)) {
-                linkedCategoryIds.add(categoryId);
-                await ctx.db.insert(schema.subscriptionCategories).values({
-                  subscriptionId,
-                  categoryId,
-                });
-              }
+      // Wrap entire OPML import in Sentry transaction for monitoring
+      await Sentry.startSpan(
+        {
+          op: "opml.import",
+          name: "OPML Import",
+          attributes: {
+            "opml.total_feeds": feedsToProcess.length,
+            "opml.user_id": userId,
+          },
+        },
+        async (importSpan) => {
+          // Process each feed
+          let shouldStopImporting = false;
+          for (const feedInfo of feedsToProcess) {
+            if (shouldStopImporting) {
+              break; // Stop processing remaining feeds if limit reached
             }
-          }
 
-          // Create filters if provided
-          if (feedInfo.filters && feedInfo.filters.length > 0) {
-            for (const filter of feedInfo.filters) {
-              try {
-                // Validate regex pattern if matchType is 'regex'
-                if (filter.matchType === "regex") {
-                  try {
-                    new RegExp(filter.pattern);
-                  } catch (regexError) {
-                    // Invalid regex - skip this filter but continue
+            // Create a span for each feed import
+            await Sentry.startSpan(
+              {
+                op: "opml.import_feed",
+                name: `Import Feed: ${feedInfo.title}`,
+                attributes: {
+                  "feed.url": feedInfo.url,
+                  "feed.title": feedInfo.title,
+                  "feed.domain": extractDomain(feedInfo.url) || "unknown",
+                  "feed.has_filters": feedInfo.filters
+                    ? feedInfo.filters.length > 0
+                    : false,
+                  "feed.categories_count": feedInfo.categories.length,
+                },
+              },
+              async (feedSpan) => {
+                try {
+                  // Fetch and validate feed
+                  const response = await fetch(feedInfo.url, {
+                    headers: {
+                      "User-Agent": "TuvixRSS/1.0",
+                      Accept:
+                        "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+                    },
+                    signal: AbortSignal.timeout(15000),
+                  });
+
+                  if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                  }
+
+                  const feedContent = await response.text();
+                  const feedResult = parseFeed(feedContent);
+                  const feedData = feedResult.feed;
+
+                  // Extract metadata
+                  const feedTitle =
+                    "title" in feedData && feedData.title
+                      ? feedData.title
+                      : feedInfo.title;
+                  const feedDescription =
+                    "description" in feedData && feedData.description
+                      ? stripHtml(feedData.description)
+                      : "subtitle" in feedData && feedData.subtitle
+                        ? stripHtml(feedData.subtitle)
+                        : undefined;
+                  const siteUrl =
+                    "link" in feedData && feedData.link
+                      ? feedData.link
+                      : "links" in feedData &&
+                          Array.isArray(feedData.links) &&
+                          feedData.links[0]?.href
+                        ? feedData.links[0].href
+                        : undefined;
+
+                  // Check if source exists
+                  // Normalize Reddit URLs to prevent duplicates across different domains
+                  const normalizedFeedUrl = normalizeRedditUrl(feedInfo.url);
+
+                  const existingSources = await ctx.db
+                    .select()
+                    .from(schema.sources)
+                    .where(eq(schema.sources.url, normalizedFeedUrl))
+                    .limit(1);
+
+                  let sourceId: number;
+
+                  if (existingSources.length > 0) {
+                    sourceId = existingSources[0].id;
+                    await ctx.db
+                      .update(schema.sources)
+                      .set({
+                        title: feedTitle,
+                        description: feedDescription,
+                        siteUrl,
+                        lastFetched: new Date(),
+                      })
+                      .where(eq(schema.sources.id, sourceId));
+                  } else {
+                    const newSource = await ctx.db
+                      .insert(schema.sources)
+                      .values({
+                        url: normalizedFeedUrl,
+                        title: feedTitle,
+                        description: feedDescription,
+                        siteUrl,
+                        iconType: "auto",
+                        lastFetched: new Date(),
+                      })
+                      .returning();
+                    sourceId = newSource[0].id;
+                  }
+
+                  // Check if already subscribed
+                  const existingSubscription = await ctx.db
+                    .select()
+                    .from(schema.subscriptions)
+                    .where(
+                      and(
+                        eq(schema.subscriptions.userId, userId),
+                        eq(schema.subscriptions.sourceId, sourceId)
+                      )
+                    )
+                    .limit(1);
+
+                  if (existingSubscription.length > 0) {
+                    // Already subscribed, skip
+                    successCount++;
+
+                    // Mark span as successful (already exists)
+                    feedSpan.setAttribute("feed.status", "already_exists");
+                    feedSpan.setStatus({
+                      code: 1,
+                      message: "already subscribed",
+                    });
+                    return; // Return from span callback (equivalent to continue)
+                  }
+
+                  // Check source limit before creating subscription
+                  const limitCheck = await checkSourceLimit(ctx.db, userId);
+                  if (!limitCheck.allowed) {
+                    // Limit reached, stop importing
+                    errorCount++;
                     errors.push({
                       url: feedInfo.url,
-                      error: `Invalid regex pattern in filter: ${regexError instanceof Error ? regexError.message : "Unknown error"}`,
+                      error: `Source limit reached (${limitCheck.limit}/${limitCheck.limit}). Remaining feeds not imported.`,
                     });
-                    continue;
-                  }
-                }
 
-                // Insert filter directly (more efficient than API call)
-                await ctx.db.insert(schema.subscriptionFilters).values({
-                  subscriptionId,
-                  field: filter.field,
-                  matchType: filter.matchType,
-                  pattern: filter.pattern,
-                  caseSensitive: filter.caseSensitive,
-                });
-              } catch (filterError) {
-                // Filter creation failed - log error but continue
-                errors.push({
-                  url: feedInfo.url,
-                  error: `Failed to create filter: ${filterError instanceof Error ? filterError.message : "Unknown error"}`,
-                });
-                // Continue with next filter
+                    // Mark span as failed due to limit
+                    feedSpan.setAttribute("feed.status", "limit_reached");
+                    feedSpan.setStatus({
+                      code: 2,
+                      message: "source limit reached",
+                    });
+
+                    shouldStopImporting = true; // Signal to stop processing remaining feeds
+                    return; // Return from span callback
+                  }
+
+                  // Determine filter settings from OPML data
+                  const filterEnabled =
+                    feedInfo.filterEnabled !== undefined
+                      ? feedInfo.filterEnabled
+                      : feedInfo.filters && feedInfo.filters.length > 0
+                        ? true
+                        : false;
+                  const filterMode = feedInfo.filterMode || "include";
+
+                  // Create subscription
+                  const newSubscription = await ctx.db
+                    .insert(schema.subscriptions)
+                    .values({
+                      userId,
+                      sourceId,
+                      customTitle: null,
+                      filterEnabled,
+                      filterMode,
+                    })
+                    .returning();
+
+                  const subscriptionId = newSubscription[0].id;
+
+                  // Create/link categories (using normalization helper to prevent duplicates)
+                  if (feedInfo.categories.length > 0) {
+                    // Track category IDs to prevent duplicate links
+                    const linkedCategoryIds = new Set<number>();
+
+                    for (const categoryName of feedInfo.categories) {
+                      // Use findOrCreateCategory for case-insensitive normalization
+                      const categoryId = await findOrCreateCategory(
+                        ctx.db,
+                        schema.categories,
+                        userId,
+                        categoryName,
+                        generateColorFromString
+                      );
+
+                      // Only link if we haven't already linked this category
+                      if (!linkedCategoryIds.has(categoryId)) {
+                        linkedCategoryIds.add(categoryId);
+                        await ctx.db
+                          .insert(schema.subscriptionCategories)
+                          .values({
+                            subscriptionId,
+                            categoryId,
+                          });
+                      }
+                    }
+                  }
+
+                  // Create filters if provided
+                  if (feedInfo.filters && feedInfo.filters.length > 0) {
+                    for (const filter of feedInfo.filters) {
+                      try {
+                        // Validate regex pattern if matchType is 'regex'
+                        if (filter.matchType === "regex") {
+                          try {
+                            new RegExp(filter.pattern);
+                          } catch (regexError) {
+                            // Invalid regex - skip this filter but continue
+                            errors.push({
+                              url: feedInfo.url,
+                              error: `Invalid regex pattern in filter: ${regexError instanceof Error ? regexError.message : "Unknown error"}`,
+                            });
+                            continue;
+                          }
+                        }
+
+                        // Insert filter directly (more efficient than API call)
+                        await ctx.db.insert(schema.subscriptionFilters).values({
+                          subscriptionId,
+                          field: filter.field,
+                          matchType: filter.matchType,
+                          pattern: filter.pattern,
+                          caseSensitive: filter.caseSensitive,
+                        });
+                      } catch (filterError) {
+                        // Filter creation failed - log error but continue
+                        errors.push({
+                          url: feedInfo.url,
+                          error: `Failed to create filter: ${filterError instanceof Error ? filterError.message : "Unknown error"}`,
+                        });
+                        // Continue with next filter
+                      }
+                    }
+                  }
+
+                  successCount++;
+
+                  // Mark span as successful
+                  feedSpan.setAttribute("feed.status", "success");
+                  feedSpan.setStatus({ code: 1, message: "ok" });
+                } catch (error) {
+                  errorCount++;
+                  const errorMessage =
+                    error instanceof Error ? error.message : "Unknown error";
+
+                  errors.push({
+                    url: feedInfo.url,
+                    error: errorMessage,
+                  });
+
+                  // Mark span as failed
+                  feedSpan.setAttribute("feed.status", "error");
+                  feedSpan.setAttribute("feed.error", errorMessage);
+                  feedSpan.setStatus({
+                    code: 2,
+                    message: "feed import failed",
+                  });
+
+                  // Capture exception for this specific feed
+                  await Sentry.captureException(error, {
+                    level: "warning",
+                    tags: {
+                      operation: "opml_import_feed",
+                      domain: extractDomain(feedInfo.url) || "unknown",
+                    },
+                    extra: {
+                      feed_url: feedInfo.url,
+                      feed_title: feedInfo.title,
+                      user_id: userId,
+                    },
+                  });
+                }
               }
-            }
+            );
           }
 
-          successCount++;
-        } catch (error) {
-          errorCount++;
-          errors.push({
-            url: feedInfo.url,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
+          // Set final status on import span
+          importSpan.setAttribute("opml.success_count", successCount);
+          importSpan.setAttribute("opml.error_count", errorCount);
+          importSpan.setAttribute(
+            "opml.success_rate",
+            feedsToProcess.length > 0 ? successCount / feedsToProcess.length : 0
+          );
+
+          if (errorCount === 0) {
+            importSpan.setStatus({ code: 1, message: "ok" });
+          } else if (successCount === 0) {
+            importSpan.setStatus({ code: 2, message: "all feeds failed" });
+          } else {
+            importSpan.setStatus({ code: 1, message: "partial success" });
+          }
         }
-      }
+      );
 
       // Recalculate usage stats to ensure accuracy after bulk import
       await recalculateUsage(ctx.db, userId);
