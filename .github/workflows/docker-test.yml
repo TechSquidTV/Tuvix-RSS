@@ -77,6 +77,14 @@ jobs:
           echo "api_size=${API_SIZE_RAW}" >> $GITHUB_OUTPUT
           echo "app_size=${APP_SIZE_RAW}" >> $GITHUB_OUTPUT
 
+      - name: Prepare data directory
+        run: |
+          echo "📁 Creating data directory with proper permissions..."
+          mkdir -p ./data
+          # Set permissions so container user (uid 1001) can write
+          chmod 777 ./data
+          ls -la ./data
+
       - name: Start API container
         run: |
           echo "🚀 Starting API container..."
