@@ -502,10 +502,9 @@ export const authRouter = router({
             }
 
             // Log successful login to security audit
-            const { ipAddress, userAgent }: {
-              ipAddress: string | undefined;
-              userAgent: string | undefined;
-            } = getRequestMetadata(ctx.req.headers);
+            const { ipAddress, userAgent } = getRequestMetadata(
+              ctx.req.headers
+            ) as { ipAddress: string | undefined; userAgent: string | undefined };
 
             try {
               await logSecurityEvent(ctx.db, {
@@ -597,10 +596,9 @@ export const authRouter = router({
             });
 
             // Log failed login attempt to security audit (if not a generic auth error)
-            const { ipAddress, userAgent }: {
-              ipAddress: string | undefined;
-              userAgent: string | undefined;
-            } = getRequestMetadata(ctx.req.headers);
+            const { ipAddress, userAgent } = getRequestMetadata(
+              ctx.req.headers
+            ) as { ipAddress: string | undefined; userAgent: string | undefined };
 
             try {
               await logSecurityEvent(ctx.db, {
@@ -872,10 +870,9 @@ export const authRouter = router({
             );
 
       // Extract IP and user agent for audit logging
-      const { ipAddress, userAgent }: {
-        ipAddress: string | undefined;
-        userAgent: string | undefined;
-      } = getRequestMetadata(ctx.req.headers);
+      const { ipAddress, userAgent } = getRequestMetadata(
+        ctx.req.headers
+      ) as { ipAddress: string | undefined; userAgent: string | undefined };
 
       try {
         await auth.api.changePassword({
@@ -1062,10 +1059,9 @@ export const authRouter = router({
             );
 
       // Extract IP and user agent for audit logging
-      const { ipAddress, userAgent }: {
-        ipAddress: string | undefined;
-        userAgent: string | undefined;
-      } = getRequestMetadata(ctx.req.headers);
+      const { ipAddress, userAgent } = getRequestMetadata(
+        ctx.req.headers
+      ) as { ipAddress: string | undefined; userAgent: string | undefined };
 
       // Find user by verification token BEFORE resetting (token is deleted after use)
       let userId: number | undefined;
