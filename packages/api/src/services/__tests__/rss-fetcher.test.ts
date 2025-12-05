@@ -301,6 +301,114 @@ describe("RSS Fetcher Service", () => {
       expect(result.successCount).toBe(2);
       expect(result.errorCount).toBe(1);
     });
+
+    it("should only fetch stale feeds (not recently fetched)", async () => {
+      // Create feeds with different lastFetched timestamps
+      const now = new Date();
+      const oldFeed = await seedTestSource(db, {
+        url: "https://example.com/old-feed.xml",
+      });
+      const recentFeed = await seedTestSource(db, {
+        url: "https://example.com/recent-feed.xml",
+      });
+
+      // Set old feed to 1 hour ago (stale)
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 60 * 60 * 1000) })
+        .where(eq(schema.sources.id, oldFeed.id));
+
+      // Set recent feed to 5 minutes ago (fresh, within 30-min threshold)
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 5 * 60 * 1000) })
+        .where(eq(schema.sources.id, recentFeed.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Fetch with default 30-minute staleness threshold
+      const result = await fetchAllFeeds(db);
+
+      // Should only fetch the old feed (1 hour old), not the recent one (5 min old)
+      expect(result.total).toBe(1); // Only 1 feed was stale and processed
+      expect(result.successCount).toBe(1); // Only old feed processed
+      expect(result.errorCount).toBe(0);
+    });
+
+    it("should fetch all feeds when staleness threshold is 0", async () => {
+      const now = new Date();
+      const feed1 = await seedTestSource(db, {
+        url: "https://example.com/feed1.xml",
+      });
+      const feed2 = await seedTestSource(db, {
+        url: "https://example.com/feed2.xml",
+      });
+
+      // Set both feeds to 1 minute ago
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 1 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed1.id));
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 1 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed2.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Fetch with 0-minute threshold (all feeds are stale)
+      const result = await fetchAllFeeds(db, { stalenessThresholdMinutes: 0 });
+
+      expect(result.total).toBe(2);
+      expect(result.successCount).toBe(2); // Both feeds processed
+      expect(result.errorCount).toBe(0);
+    });
+
+    it("should fetch feeds with null lastFetched (never fetched)", async () => {
+      await seedTestSource(db, {
+        url: "https://example.com/never-fetched.xml",
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchAllFeeds(db);
+
+      // Null lastFetched should always be considered stale
+      expect(result.total).toBe(1);
+      expect(result.successCount).toBe(1);
+    });
+
+    it("should respect custom staleness threshold", async () => {
+      const now = new Date();
+      const feed1 = await seedTestSource(db, {
+        url: "https://example.com/feed1.xml",
+      });
+      const feed2 = await seedTestSource(db, {
+        url: "https://example.com/feed2.xml",
+      });
+
+      // Feed 1: 10 minutes old
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 10 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed1.id));
+
+      // Feed 2: 20 minutes old
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 20 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed2.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Use 15-minute threshold - only feed2 (20 min) should be stale
+      const result = await fetchAllFeeds(db, {
+        stalenessThresholdMinutes: 15,
+      });
+
+      expect(result.total).toBe(1); // Only 1 feed was stale and processed
+      expect(result.successCount).toBe(1); // Only feed2 (20 min old)
+    });
   });
 
   describe("Feed Format Handling", () => {
