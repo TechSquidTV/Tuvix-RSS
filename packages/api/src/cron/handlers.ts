@@ -30,7 +30,7 @@ async function _handleRSSFetch(env: Env): Promise<void> {
     const result = await fetchAllFeeds(db);
 
     console.log(`✅ RSS fetch completed:`, {
-      total: result.total,
+      processed: result.processedCount,
       success: result.successCount,
       errors: result.errorCount,
     });

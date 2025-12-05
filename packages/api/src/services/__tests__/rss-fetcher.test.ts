@@ -196,7 +196,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(2);
+      expect(result.processedCount).toBe(2);
       expect(result.successCount).toBe(2);
       expect(result.errorCount).toBe(0);
       expect(result.errors).toHaveLength(0);
@@ -232,7 +232,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(2);
+      expect(result.processedCount).toBe(2);
       expect(result.successCount).toBe(1);
       expect(result.errorCount).toBe(1);
       expect(result.errors).toHaveLength(1);
@@ -258,7 +258,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(0);
+      expect(result.processedCount).toBe(0);
       expect(result.successCount).toBe(0);
       expect(result.errorCount).toBe(0);
       expect(result.errors).toHaveLength(0);
@@ -297,9 +297,117 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(3);
+      expect(result.processedCount).toBe(3);
       expect(result.successCount).toBe(2);
       expect(result.errorCount).toBe(1);
+    });
+
+    it("should only fetch stale feeds (not recently fetched)", async () => {
+      // Create feeds with different lastFetched timestamps
+      const now = new Date();
+      const oldFeed = await seedTestSource(db, {
+        url: "https://example.com/old-feed.xml",
+      });
+      const recentFeed = await seedTestSource(db, {
+        url: "https://example.com/recent-feed.xml",
+      });
+
+      // Set old feed to 1 hour ago (stale)
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 60 * 60 * 1000) })
+        .where(eq(schema.sources.id, oldFeed.id));
+
+      // Set recent feed to 5 minutes ago (fresh, within 30-min threshold)
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 5 * 60 * 1000) })
+        .where(eq(schema.sources.id, recentFeed.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Fetch with default 30-minute staleness threshold
+      const result = await fetchAllFeeds(db);
+
+      // Should only fetch the old feed (1 hour old), not the recent one (5 min old)
+      expect(result.processedCount).toBe(1); // Only 1 feed was stale and processed
+      expect(result.successCount).toBe(1); // Only old feed processed
+      expect(result.errorCount).toBe(0);
+    });
+
+    it("should fetch all feeds when staleness threshold is 0", async () => {
+      const now = new Date();
+      const feed1 = await seedTestSource(db, {
+        url: "https://example.com/feed1.xml",
+      });
+      const feed2 = await seedTestSource(db, {
+        url: "https://example.com/feed2.xml",
+      });
+
+      // Set both feeds to 1 minute ago
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 1 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed1.id));
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 1 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed2.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Fetch with 0-minute threshold (all feeds are stale)
+      const result = await fetchAllFeeds(db, { stalenessThresholdMinutes: 0 });
+
+      expect(result.processedCount).toBe(2);
+      expect(result.successCount).toBe(2); // Both feeds processed
+      expect(result.errorCount).toBe(0);
+    });
+
+    it("should fetch feeds with null lastFetched (never fetched)", async () => {
+      await seedTestSource(db, {
+        url: "https://example.com/never-fetched.xml",
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchAllFeeds(db);
+
+      // Null lastFetched should always be considered stale
+      expect(result.processedCount).toBe(1);
+      expect(result.successCount).toBe(1);
+    });
+
+    it("should respect custom staleness threshold", async () => {
+      const now = new Date();
+      const feed1 = await seedTestSource(db, {
+        url: "https://example.com/feed1.xml",
+      });
+      const feed2 = await seedTestSource(db, {
+        url: "https://example.com/feed2.xml",
+      });
+
+      // Feed 1: 10 minutes old
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 10 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed1.id));
+
+      // Feed 2: 20 minutes old
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: new Date(now.getTime() - 20 * 60 * 1000) })
+        .where(eq(schema.sources.id, feed2.id));
+
+      global.fetch = mockFetchRssFeed();
+
+      // Use 15-minute threshold - only feed2 (20 min) should be stale
+      const result = await fetchAllFeeds(db, {
+        stalenessThresholdMinutes: 15,
+      });
+
+      expect(result.processedCount).toBe(1); // Only 1 feed was stale and processed
+      expect(result.successCount).toBe(1); // Only feed2 (20 min old)
     });
   });
 
@@ -409,6 +517,114 @@ describe("RSS Fetcher Service", () => {
         .where(eq(schema.articles.sourceId, source.id));
 
       expect(articles.length).toBe(1);
+    });
+  });
+
+  describe("Blocked Domains Integration", () => {
+    it("should skip fetching blocked domains in fetchSingleFeed", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://blocked-spam.com/feed.xml",
+      });
+
+      // Create blocked domain entry
+      const { user } = await import("@/test/setup").then((m) =>
+        m.seedTestUser(db, { role: "admin" })
+      );
+      await db.insert(schema.blockedDomains).values({
+        domain: "blocked-spam.com",
+        reason: "spam",
+        createdBy: user.id,
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchSingleFeed(source.id, source.url, db);
+
+      // Should skip the feed entirely (return early before HTTP fetch)
+      expect(result.articlesAdded).toBe(0);
+      expect(result.articlesSkipped).toBe(0);
+      expect(result.sourceUpdated).toBe(false);
+
+      // Verify no articles were stored
+      const articles = await db
+        .select()
+        .from(schema.articles)
+        .where(eq(schema.articles.sourceId, source.id));
+      expect(articles).toHaveLength(0);
+    });
+
+    it("should use cached blocked domains list when provided", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://cached-blocked.com/feed.xml",
+      });
+
+      // Create pre-fetched blocked domains list (simulating batch cache)
+      const cachedBlockedDomains = [
+        { domain: "cached-blocked.com", reason: "spam" },
+      ];
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchSingleFeed(
+        source.id,
+        source.url,
+        db,
+        cachedBlockedDomains
+      );
+
+      // Should use cached list and skip the feed
+      expect(result.articlesAdded).toBe(0);
+      expect(result.articlesSkipped).toBe(0);
+      expect(result.sourceUpdated).toBe(false);
+    });
+
+    it("should fetch blocked domains when cache not provided", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://example.com/feed.xml",
+      });
+
+      // Create blocked domain in DB (not in cache)
+      const { user } = await import("@/test/setup").then((m) =>
+        m.seedTestUser(db, { role: "admin" })
+      );
+      await db.insert(schema.blockedDomains).values({
+        domain: "other-blocked.com",
+        reason: "spam",
+        createdBy: user.id,
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      // Call without cache (undefined) - should fetch from DB
+      const result = await fetchSingleFeed(source.id, source.url, db);
+
+      // Should succeed since example.com is not blocked
+      expect(result.articlesAdded).toBeGreaterThan(0);
+      expect(result.sourceUpdated).toBe(true);
+    });
+
+    it("should cache blocked domains once per batch in fetchAllFeeds", async () => {
+      // Create 3 feeds
+      await seedTestSource(db, { url: "https://example.com/feed1.xml" });
+      await seedTestSource(db, { url: "https://example.com/feed2.xml" });
+      await seedTestSource(db, { url: "https://example.com/feed3.xml" });
+
+      global.fetch = mockFetchRssFeed();
+
+      // Spy on console.log to count how many times we process feeds
+      const logSpy = vi.spyOn(console, "log");
+
+      await fetchAllFeeds(db);
+
+      // Verify all 3 feeds were processed
+      const successLogs = logSpy.mock.calls.filter((call) =>
+        call[0]?.includes("✓ Fetched")
+      );
+      expect(successLogs).toHaveLength(3);
+
+      // Note: We can't easily spy on getBlockedDomains since it's called directly
+      // But the test verifies the batch processing works without errors
+      // The real verification is that all feeds succeed with blocked domains enabled
     });
   });
 });

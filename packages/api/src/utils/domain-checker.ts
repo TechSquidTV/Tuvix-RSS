@@ -2,7 +2,25 @@
  * Domain Checker Utility
  *
  * Functions for extracting, normalizing, and checking domains against blocked lists.
- * Supports wildcard patterns (*.example.com) and enterprise user bypass.
+ * Supports wildcard patterns (*.example.com).
+ *
+ * ## Blocking Architecture
+ *
+ * Domain blocking happens at two levels:
+ *
+ * 1. **Fetch-Time Blocking (RSS Fetcher)**
+ *    - Blocks HTTP requests to domains on the blocked list
+ *    - Saves bandwidth and avoids fetching unwanted content
+ *    - NO enterprise bypass at this level (all users affected equally)
+ *    - Applied in: `src/services/rss-fetcher.ts`
+ *
+ * 2. **Delivery-Time Filtering (Query Layer) - TODO**
+ *    - Enterprise users can query/view articles from blocked domains
+ *    - Implemented at article query level with WHERE clauses
+ *    - Applied in: Article routers/queries (future implementation)
+ *
+ * This two-tier approach optimizes performance (don't fetch blocked content)
+ * while allowing enterprise users to opt-in to blocked domains if needed.
  */
 
 import type { Database } from "@/db/client";
@@ -144,35 +162,16 @@ export function getBlockedDomainReason(
 /**
  * Get all blocked domains from database
  *
- * Safe migration: Returns empty array if table doesn't exist yet (migrations run after deployment).
- * This allows code to deploy before migrations without errors.
- *
  * @param db - Database instance
  * @returns Array of blocked domain objects with domain and reason
+ * @throws Error if blocked_domains table does not exist or query fails
  */
 export async function getBlockedDomains(
   db: Database
 ): Promise<Array<{ domain: string; reason: string | null }>> {
-  try {
-    const blocked = await db.select().from(schema.blockedDomains);
-    return blocked.map((b) => ({
-      domain: b.domain,
-      reason: b.reason,
-    }));
-  } catch (error) {
-    // Safe migration: If table doesn't exist yet, return empty array
-    // This allows code to deploy before migrations without errors
-    if (
-      error instanceof Error &&
-      (error.message.includes("no such table") ||
-        error.message.includes("does not exist"))
-    ) {
-      console.warn(
-        "blocked_domains table not found - migrations may not have run yet. Returning empty blocked domains list."
-      );
-      return [];
-    }
-    // Re-throw other errors
-    throw error;
-  }
+  const blocked = await db.select().from(schema.blockedDomains);
+  return blocked.map((b) => ({
+    domain: b.domain,
+    reason: b.reason,
+  }));
 }

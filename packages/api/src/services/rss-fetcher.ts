@@ -10,7 +10,7 @@ import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
 import type { Database } from "../db/client";
 import * as schema from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or, isNull, lt } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
 import {
   sanitizeHtml,
@@ -29,19 +29,63 @@ import { extractItunesImage } from "@/utils/feed-utils";
 import { extractCommentLink } from "./comment-link-extraction";
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** HTTP configuration for feed fetching */
+const FETCH_CONFIG = {
+  userAgent: "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+  accept:
+    "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  timeoutMs: 30000, // 30 seconds
+} as const;
+
+/** Delays between feed processing to prevent rate limiting */
+const PROCESSING_DELAYS = {
+  betweenFeeds: 500, // 500ms between successful fetches
+  afterError: 1000, // 1s after errors to back off
+} as const;
+
+/** Limits for content processing and batching */
+const LIMITS = {
+  batchInsertChunkSize: 50, // Articles per batch insert
+  contentMaxBytes: 500000, // 500KB max for article content
+  descriptionMaxChars: 5000, // Max chars for article description
+} as const;
+
+/** Default configuration for staleness-based filtering */
+const STALENESS_DEFAULTS = {
+  thresholdMinutes: 30, // Process feeds older than 30 minutes
+  batchSize: 20, // Feeds per batch (optimized for D1 query limits)
+} as const;
+
+// =============================================================================
 // Types
 // =============================================================================
 
+/**
+ * Result from fetchAllFeeds batch operation
+ */
 export interface FetchResult {
+  /** Number of feeds successfully fetched and processed */
   successCount: number;
+  /** Number of feeds that failed to fetch or process */
   errorCount: number;
-  total: number;
+  /** Total number of feeds processed in this batch (successCount + errorCount) */
+  processedCount: number;
+  /** Detailed error information for failed feeds */
   errors: Array<{ sourceId: number; url: string; error: string }>;
 }
 
+/**
+ * Result from fetchSingleFeed operation
+ */
 export interface FetchSingleResult {
+  /** Number of new articles added to database */
   articlesAdded: number;
+  /** Number of articles skipped (already exist or invalid) */
   articlesSkipped: number;
+  /** Whether source metadata was updated */
   sourceUpdated: boolean;
 }
 
@@ -58,6 +102,56 @@ type AnyItem =
   | Json.Item<string>;
 
 // =============================================================================
+// Query Helpers
+// =============================================================================
+
+/**
+ * Build WHERE clause for staleness filtering
+ */
+function buildStalenessWhereClause(staleThreshold: Date) {
+  return or(
+    isNull(schema.sources.lastFetched), // Never fetched
+    lt(schema.sources.lastFetched, staleThreshold) // Older than threshold
+  );
+}
+
+/**
+ * Get stale sources that need fetching
+ */
+async function getStaleSources(
+  db: Database,
+  staleThreshold: Date,
+  limit: number
+) {
+  return await db
+    .select()
+    .from(schema.sources)
+    .where(buildStalenessWhereClause(staleThreshold))
+    .orderBy(schema.sources.lastFetched)
+    .limit(limit);
+}
+
+/**
+ * Get total count of all sources using SQL COUNT aggregation
+ */
+async function getTotalSourcesCount(db: Database): Promise<number> {
+  return await db.$count(schema.sources);
+}
+
+/**
+ * Get count of stale sources using SQL COUNT aggregation
+ */
+async function getStaleSourcesCount(
+  db: Database,
+  staleThreshold: Date
+): Promise<number> {
+  return await db.$count(
+    schema.sources,
+    buildStalenessWhereClause(staleThreshold)
+  );
+}
+
+// =============================================================================
 // Public API
 // =============================================================================
 
@@ -69,28 +163,43 @@ type AnyItem =
  */
 export async function fetchAllFeeds(
   db: Database,
-  options?: { maxFeedsPerBatch?: number }
+  options?: {
+    maxFeedsPerBatch?: number;
+    stalenessThresholdMinutes?: number;
+  }
 ): Promise<FetchResult> {
   return await withTiming(
     "rss.fetch_all_duration",
     async () => {
-      // Default to 100 feeds per batch - optimized for faster rotation
-      // With 1-minute cron frequency, this processes 6,000 feeds/hour
-      const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 100;
+      // Default to 20 feeds per batch to stay under D1 query limits per invocation
+      // With 1-minute cron frequency, this processes 1,200 feeds/hour
+      // Lower batch size prevents "Too many API requests by single worker invocation" errors
+      const maxFeedsPerBatch =
+        options?.maxFeedsPerBatch ?? STALENESS_DEFAULTS.batchSize;
 
-      // Get sources, ordered by lastFetched (oldest first, null first)
+      // Default to 30-minute staleness threshold (Phase 2: Staleness-based filtering)
+      // Only process feeds that haven't been fetched in the last N minutes
+      // This prevents wasting resources on recently-fetched feeds
+      const stalenessThresholdMinutes =
+        options?.stalenessThresholdMinutes ??
+        STALENESS_DEFAULTS.thresholdMinutes;
+      const staleThreshold = new Date(
+        Date.now() - stalenessThresholdMinutes * 60 * 1000
+      );
+
+      // Get sources that are "stale" (not fetched recently)
+      // Ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time
       // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
-      const sources = await db
-        .select()
-        .from(schema.sources)
-        .orderBy(schema.sources.lastFetched)
-        .limit(maxFeedsPerBatch);
+      const sources = await getStaleSources(
+        db,
+        staleThreshold,
+        maxFeedsPerBatch
+      );
 
-      // Get total count for metrics
-      // Note: Drizzle ORM type inference requires .select() with no args
-      const totalCountResult = await db.select().from(schema.sources);
-      const totalSources = totalCountResult.length;
+      // Get metrics for monitoring
+      const totalSources = await getTotalSourcesCount(db);
+      const totalStaleFeeds = await getStaleSourcesCount(db, staleThreshold);
 
       let successCount = 0;
       let errorCount = 0;
@@ -98,16 +207,26 @@ export async function fetchAllFeeds(
         [];
 
       console.log(
-        `Starting fetch for ${sources.length} sources (${totalSources} total, batch size: ${maxFeedsPerBatch})`
+        `Starting fetch for ${sources.length} sources (${totalStaleFeeds} stale feeds, ${totalSources} total, batch size: ${maxFeedsPerBatch}, staleness threshold: ${stalenessThresholdMinutes}min)`
       );
 
       // Emit gauge for total sources
       emitGauge("rss.sources_total", totalSources);
+      emitGauge("rss.sources_stale", totalStaleFeeds);
       emitGauge("rss.sources_in_batch", sources.length);
+
+      // Fetch blocked domains once per batch (not per feed)
+      // This reduces 20 redundant queries per batch to just 1
+      const blockedDomainsList = await getBlockedDomains(db);
 
       for (const source of sources) {
         try {
-          const result = await fetchSingleFeed(source.id, source.url, db);
+          const result = await fetchSingleFeed(
+            source.id,
+            source.url,
+            db,
+            blockedDomainsList
+          );
           console.log(
             `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
           );
@@ -116,7 +235,9 @@ export async function fetchAllFeeds(
           // Add small delay between feeds to avoid rate limiting
           // This helps prevent HTTP 429 errors from external APIs
           if (sources.length > 1) {
-            await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+            await new Promise((resolve) =>
+              setTimeout(resolve, PROCESSING_DELAYS.betweenFeeds)
+            );
           }
         } catch (error) {
           errorCount++;
@@ -131,7 +252,9 @@ export async function fetchAllFeeds(
 
           // Add longer delay after errors to back off from rate limits
           if (sources.length > 1) {
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay after error
+            await new Promise((resolve) =>
+              setTimeout(resolve, PROCESSING_DELAYS.afterError)
+            );
           }
         }
       }
@@ -151,7 +274,7 @@ export async function fetchAllFeeds(
       return {
         successCount,
         errorCount,
-        total: sources.length,
+        processedCount: sources.length,
         errors,
       };
     },
@@ -161,11 +284,14 @@ export async function fetchAllFeeds(
 
 /**
  * Fetch a single feed and store new articles
+ *
+ * @param blockedDomainsList - Optional pre-fetched list of blocked domains (avoids redundant queries in batch processing)
  */
 export async function fetchSingleFeed(
   sourceId: number,
   feedUrl: string,
-  db: Database
+  db: Database,
+  blockedDomainsList?: Awaited<ReturnType<typeof getBlockedDomains>>
 ): Promise<FetchSingleResult> {
   return await Sentry.startSpan(
     {
@@ -180,67 +306,25 @@ export async function fetchSingleFeed(
     async (span) => {
       try {
         // 0. Check if domain is blocked (before fetching)
+        // Note: This check happens at fetch-time to avoid wasting HTTP requests
+        // on blocked domains. Enterprise user bypass is handled at article
+        // delivery time (query filtering), not here.
         const domain = extractDomain(feedUrl);
         if (domain) {
-          try {
-            // Get all users subscribed to this source
-            const subscriptions = await db
-              .select()
-              .from(schema.subscriptions)
-              .where(eq(schema.subscriptions.sourceId, sourceId));
+          // Use cached list if provided (batch processing), otherwise fetch
+          const domainsToCheck =
+            blockedDomainsList ?? (await getBlockedDomains(db));
 
-            if (subscriptions.length > 0) {
-              // Get their plans (check if any are enterprise)
-              const userIds = subscriptions.map((s) => s.userId);
-              // Chunk userIds for Cloudflare D1 parameter limit
-              const chunks = chunkArray(userIds, D1_MAX_PARAMETERS - 1);
-
-              let hasEnterpriseUser = false;
-              for (const chunk of chunks) {
-                // Select all fields - inArray requires this for type inference
-                const users = await db
-                  .select()
-                  .from(schema.user)
-                  .where(inArray(schema.user.id, chunk));
-
-                if (users.some((u) => u.plan === "enterprise")) {
-                  hasEnterpriseUser = true;
-                  break;
-                }
-              }
-
-              // If no enterprise users, check if domain is blocked
-              if (!hasEnterpriseUser) {
-                const blockedDomainsList = await getBlockedDomains(db);
-                const blockedDomains = blockedDomainsList.map((b) => b.domain);
-
-                if (isDomainBlocked(domain, blockedDomains)) {
-                  console.log(`Skipping blocked domain: ${domain}`);
-                  span.setAttribute("domain_blocked", true);
-                  span.setStatus({ code: 1, message: "Domain blocked" });
-                  return {
-                    articlesAdded: 0,
-                    articlesSkipped: 0,
-                    sourceUpdated: false,
-                  };
-                }
-              }
-            }
-          } catch (error) {
-            // Safe migration: If table doesn't exist yet, continue with fetch
-            // This allows code to deploy before migrations without errors
-            if (
-              error instanceof Error &&
-              (error.message.includes("no such table") ||
-                error.message.includes("does not exist"))
-            ) {
-              console.warn(
-                "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
-              );
-            } else {
-              // Log other errors but continue (fail open for safety)
-              console.error("Error checking blocked domains:", error);
-            }
+          const blockedDomains = domainsToCheck.map((b) => b.domain);
+          if (isDomainBlocked(domain, blockedDomains)) {
+            console.log(`Skipping blocked domain: ${domain}`);
+            span.setAttribute("domain_blocked", true);
+            span.setStatus({ code: 1, message: "Domain blocked" });
+            return {
+              articlesAdded: 0,
+              articlesSkipped: 0,
+              sourceUpdated: false,
+            };
           }
         }
 
@@ -254,12 +338,10 @@ export async function fetchSingleFeed(
         // 1. Fetch feed with timeout
         const response = await fetch(feedUrl, {
           headers: {
-            "User-Agent":
-              "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-            Accept:
-              "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+            "User-Agent": FETCH_CONFIG.userAgent,
+            Accept: FETCH_CONFIG.accept,
           },
-          signal: AbortSignal.timeout(30000), // 30s timeout
+          signal: AbortSignal.timeout(FETCH_CONFIG.timeoutMs),
         });
 
         span.setAttribute("http_status", response.status);
@@ -412,7 +494,7 @@ async function updateSourceMetadata(
 
   // Extract metadata (handle different feed formats)
   if ("title" in feed && feed.title) {
-    updates.title = typeof feed.title === "string" ? feed.title : feed.title;
+    updates.title = feed.title;
   }
 
   if ("description" in feed && feed.description) {
@@ -517,10 +599,10 @@ async function storeArticles(
       span.setAttribute("items_found", items.length);
 
       let articlesSkipped = 0;
-      const sampleGuids: string[] = [];
+      const guidSamplesForLogging: string[] = [];
 
       // Step 1: Extract GUIDs from all items
-      const itemsWithGuids: Array<{ item: AnyItem; guid: string }> = [];
+      const validItems: Array<{ item: AnyItem; guid: string }> = [];
 
       for (const item of items) {
         const guid = extractGuid(item, sourceId);
@@ -532,14 +614,14 @@ async function storeArticles(
         }
 
         // Log first 5 GUIDs as breadcrumbs
-        if (sampleGuids.length < 5) {
-          sampleGuids.push(guid);
+        if (guidSamplesForLogging.length < 5) {
+          guidSamplesForLogging.push(guid);
         }
 
-        itemsWithGuids.push({ item, guid });
+        validItems.push({ item, guid });
       }
 
-      if (itemsWithGuids.length === 0) {
+      if (validItems.length === 0) {
         span.setAttribute("articles_added", 0);
         span.setAttribute("articles_skipped", articlesSkipped);
         span.setStatus({ code: 1, message: "No valid items" });
@@ -548,26 +630,26 @@ async function storeArticles(
 
       // Step 2: Batch check which articles already exist
       // Split into chunks to respect D1 parameter limits
-      const allGuids = itemsWithGuids.map((x) => x.guid);
+      const allGuids = validItems.map((x) => x.guid);
       const guidChunks = chunkArray(allGuids, D1_MAX_PARAMETERS - 1);
-      const existingGuidsSet = new Set<string>();
+      const existingGuids = new Set<string>();
 
       for (const chunk of guidChunks) {
-        const existing = await db
+        const existingArticles = await db
           .select()
           .from(schema.articles)
           .where(inArray(schema.articles.guid, chunk));
 
-        for (const row of existing) {
-          existingGuidsSet.add(row.guid);
+        for (const article of existingArticles) {
+          existingGuids.add(article.guid);
         }
       }
 
       // Step 3: Filter out existing articles and extract data for new ones
-      const newArticlesData: Array<typeof schema.articles.$inferInsert> = [];
+      const newArticles: Array<typeof schema.articles.$inferInsert> = [];
 
-      for (const { item, guid } of itemsWithGuids) {
-        if (existingGuidsSet.has(guid)) {
+      for (const { item, guid } of validItems) {
+        if (existingGuids.has(guid)) {
           articlesSkipped++;
           continue;
         }
@@ -580,7 +662,7 @@ async function storeArticles(
             guid,
             true
           );
-          newArticlesData.push(articleData);
+          newArticles.push(articleData);
         } catch (error) {
           console.error("Failed to extract article data:", error);
           await Sentry.captureException(error, {
@@ -601,9 +683,12 @@ async function storeArticles(
       // Step 4: Batch insert all new articles
       let articlesAdded = 0;
 
-      if (newArticlesData.length > 0) {
+      if (newArticles.length > 0) {
         // Split into chunks for batch insert (D1 batch API supports multiple statements)
-        const insertChunks = chunkArray(newArticlesData, 50); // Conservative chunk size
+        const insertChunks = chunkArray(
+          newArticles,
+          LIMITS.batchInsertChunkSize
+        );
 
         for (const chunk of insertChunks) {
           try {
@@ -654,7 +739,7 @@ async function storeArticles(
         }
       }
 
-      if (sampleGuids.length > 0) {
+      if (guidSamplesForLogging.length > 0) {
         await Sentry.addBreadcrumb({
           category: "feed.store",
           message: `Processed ${items.length} items from feed`,
@@ -663,7 +748,7 @@ async function storeArticles(
             source_id: sourceId,
             articles_added: articlesAdded,
             articles_skipped: articlesSkipped,
-            sample_guids: sampleGuids,
+            sample_guids: guidSamplesForLogging,
           },
         });
       }
@@ -732,68 +817,9 @@ function extractGuid(item: AnyItem, sourceId: number): string | null {
 }
 
 /**
- * Extract published date from feed item
- * Note: feedsmith returns dates as strings, not Date objects
+ * Extract article content from feed item
  */
-function extractPublishedDate(item: AnyItem): Date | null {
-  // Try different date fields (all are strings from feedsmith parser)
-  const dateFields = [
-    "pubDate",
-    "published",
-    "updated",
-    "date_published",
-    "date_modified",
-  ] as const;
-
-  for (const field of dateFields) {
-    if (field in item) {
-      const value = (item as Record<string, unknown>)[field];
-      if (typeof value === "string") {
-        try {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            return date;
-          }
-        } catch {
-          // Invalid date, try next field
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Extract article data from feed item
- */
-async function extractArticleData(
-  item: AnyItem,
-  sourceId: number,
-  guid: string,
-  skipOgImageFetch = false
-): Promise<typeof schema.articles.$inferInsert> {
-  // Title
-  const title = ("title" in item && item.title) || "Untitled";
-
-  // Link - handle both RSS/JSON Feed (string) and Atom (links array)
-  let link = "";
-  if ("link" in item && typeof item.link === "string") {
-    link = item.link;
-  } else if ("url" in item && typeof item.url === "string") {
-    // JSON Feed uses 'url'
-    link = item.url;
-  } else if (
-    "links" in item &&
-    Array.isArray(item.links) &&
-    item.links[0]?.href
-  ) {
-    // Atom uses links array
-    link = item.links[0].href;
-  }
-
-  // Content (try different fields)
-  // SECURITY: Strip HTML to prevent XSS and store only plain text
+function extractArticleContent(item: AnyItem): string {
   let rawContent = "";
 
   // JSON Feed
@@ -825,10 +851,19 @@ async function extractArticleData(
   }
 
   // Strip HTML from content and truncate to prevent bloat
-  const content = truncateText(stripHtml(rawContent), 500000); // 500KB max
+  return truncateText(stripHtml(rawContent), LIMITS.contentMaxBytes);
+}
 
-  // Description (separate from content)
-  // SECURITY: Sanitize HTML to allow safe tags (links, formatting) while preventing XSS
+/**
+ * Extract article description from feed item
+ *
+ * @param item - Feed item to extract description from
+ * @param processedContent - Already-processed content (stripped and truncated)
+ */
+function extractArticleDescription(
+  item: AnyItem,
+  processedContent: string
+): string {
   let rawDescription = "";
   if ("description" in item && typeof item.description === "string") {
     rawDescription = item.description;
@@ -839,13 +874,12 @@ async function extractArticleData(
     if (typeof snippet === "string") {
       rawDescription = snippet;
     }
-  } else if (rawContent) {
-    // Generate description from content
-    rawDescription = rawContent;
+  } else if (processedContent) {
+    // Generate description from already-processed content
+    rawDescription = processedContent;
   }
 
   // Sanitize HTML first (allow safe tags like links), then truncate safely
-  // Pass alreadySanitized flag to avoid double-sanitization
   let sanitizedDescription = sanitizeHtml(rawDescription);
 
   // Clean up feed-specific patterns
@@ -856,7 +890,6 @@ async function extractArticleData(
   );
 
   // Remove "submitted by /u/username" text and links (Reddit)
-  // Handle both with and without spaces around username
   sanitizedDescription = sanitizedDescription.replace(
     /submitted by\s*<a[^>]*>\s*\/u\/[^<]+\s*<\/a>\s*/gi,
     ""
@@ -872,7 +905,7 @@ async function extractArticleData(
     ""
   );
 
-  // Remove [link] and [comments] links (Reddit - we have proper buttons)
+  // Remove [link] and [comments] links (Reddit)
   sanitizedDescription = sanitizedDescription.replace(
     /<a[^>]*>\[link\]<\/a>\s*/gi,
     ""
@@ -883,16 +916,12 @@ async function extractArticleData(
   );
 
   // Remove standalone "Comments" link (Hacker News)
-  // Note: Anchors (^ and $) are intentional - only remove when entire description
-  // is just a "Comments" link. Preserve "Comments" within actual content.
   sanitizedDescription = sanitizedDescription.replace(
     /^<a[^>]*>Comments<\/a>$/gi,
     ""
   );
 
   // Clean up extra whitespace and line breaks
-  // Note: Intentionally collapses multiple breaks to improve readability.
-  // Reddit/HN feeds often have excessive spacing that clutters the UI.
   sanitizedDescription = sanitizedDescription
     .replace(/(<br\s*\/?\s*>\s*){2,}/gi, "<br>") // Collapse multiple <br> tags
     .replace(/<br\s*\/?\s*>\s*$/gi, "") // Remove trailing <br>
@@ -907,30 +936,30 @@ async function extractArticleData(
     sanitizedDescription = "";
   }
 
-  const description = truncateHtml(sanitizedDescription, 5000, "...", {
+  return truncateHtml(sanitizedDescription, LIMITS.descriptionMaxChars, "...", {
     alreadySanitized: true,
   });
+}
 
-  // Author
-  let author: string | undefined = undefined;
-
+/**
+ * Extract article author from feed item
+ */
+function extractArticleAuthor(item: AnyItem): string | undefined {
   // RSS string author or Atom/JSON Feed author object
   if ("authors" in item && Array.isArray(item.authors) && item.authors[0]) {
     const firstAuthor = item.authors[0];
-    author =
-      typeof firstAuthor === "string"
-        ? firstAuthor
-        : firstAuthor.name || undefined;
+    return typeof firstAuthor === "string"
+      ? firstAuthor
+      : firstAuthor.name || undefined;
   } else if ("author" in item) {
     const itemAuthor = (item as Record<string, unknown>).author;
-    author =
-      typeof itemAuthor === "string"
-        ? itemAuthor
-        : (itemAuthor as { name?: string })?.name || undefined;
+    return typeof itemAuthor === "string"
+      ? itemAuthor
+      : (itemAuthor as { name?: string })?.name || undefined;
   } else if ("creator" in item) {
     const creator = (item as Record<string, unknown>).creator;
     if (typeof creator === "string") {
-      author = creator;
+      return creator;
     }
   }
   // Dublin Core creator
@@ -939,11 +968,21 @@ async function extractArticleData(
       | { creator?: string | string[] }
       | undefined;
     if (dc?.creator) {
-      author = Array.isArray(dc.creator) ? dc.creator[0] : dc.creator;
+      return Array.isArray(dc.creator) ? dc.creator[0] : dc.creator;
     }
   }
 
-  // Image URL
+  return undefined;
+}
+
+/**
+ * Extract article image URL from feed item
+ */
+async function extractArticleImage(
+  item: AnyItem,
+  link: string,
+  skipOgImageFetch: boolean
+): Promise<string | undefined> {
   let imageUrl: string | undefined = undefined;
 
   // Priority 1: iTunes image (podcasts)
@@ -989,7 +1028,7 @@ async function extractArticleData(
   }
 
   // Final fallback: OpenGraph image from article URL
-  // Skip during cron job to reduce HTTP requests and stay within worker limits
+  // Skip during cron job to reduce HTTP requests
   if (!imageUrl && link && !skipOgImageFetch) {
     await Sentry.startSpan(
       {
@@ -1019,6 +1058,12 @@ async function extractArticleData(
           );
           span.setStatus({ code: 2, message: "fetch failed" });
 
+          // Log error for debugging (especially useful in development)
+          console.error(
+            `Failed to fetch OG image for ${link}:`,
+            error instanceof Error ? error.message : String(error)
+          );
+
           // Don't spam Sentry with every OG failure, but track metrics
           emitCounter("og_image.fetch_error", 1, {
             domain: extractDomain(link) ?? "unknown",
@@ -1029,21 +1074,94 @@ async function extractArticleData(
     );
   }
 
-  // Audio URL from enclosures (for podcasts)
-  let audioUrl: string | undefined = undefined;
+  return imageUrl;
+}
+
+/**
+ * Extract audio URL from feed item (for podcasts)
+ */
+function extractArticleAudio(item: AnyItem): string | undefined {
   if ("enclosures" in item && Array.isArray(item.enclosures)) {
     const audioEnclosure = item.enclosures.find((enc) =>
       enc.type?.startsWith("audio/")
     );
     if (audioEnclosure?.url) {
-      audioUrl = audioEnclosure.url;
+      return audioEnclosure.url;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extract published date from feed item
+ * Note: feedsmith returns dates as strings, not Date objects
+ */
+function extractPublishedDate(item: AnyItem): Date | null {
+  // Try different date fields (all are strings from feedsmith parser)
+  const dateFields = [
+    "pubDate",
+    "published",
+    "updated",
+    "date_published",
+    "date_modified",
+  ] as const;
+
+  for (const field of dateFields) {
+    if (field in item) {
+      const value = (item as Record<string, unknown>)[field];
+      if (typeof value === "string") {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        } catch {
+          // Invalid date, try next field
+        }
+      }
     }
   }
 
-  // Published date
-  const publishedAt = extractPublishedDate(item);
+  return null;
+}
 
-  // Comment link
+/**
+ * Extract article data from feed item
+ *
+ * Orchestrates extraction of all article fields by delegating to focused helper functions.
+ */
+async function extractArticleData(
+  item: AnyItem,
+  sourceId: number,
+  guid: string,
+  skipOgImageFetch = false
+): Promise<typeof schema.articles.$inferInsert> {
+  // Title
+  const title = ("title" in item && item.title) || "Untitled";
+
+  // Link - handle both RSS/JSON Feed (string) and Atom (links array)
+  let link = "";
+  if ("link" in item && typeof item.link === "string") {
+    link = item.link;
+  } else if ("url" in item && typeof item.url === "string") {
+    // JSON Feed uses 'url'
+    link = item.url;
+  } else if (
+    "links" in item &&
+    Array.isArray(item.links) &&
+    item.links[0]?.href
+  ) {
+    // Atom uses links array
+    link = item.links[0].href;
+  }
+
+  // Extract article fields using focused helpers
+  const content = extractArticleContent(item);
+  const description = extractArticleDescription(item, content);
+  const author = extractArticleAuthor(item);
+  const imageUrl = await extractArticleImage(item, link, skipOgImageFetch);
+  const audioUrl = extractArticleAudio(item);
+  const publishedAt = extractPublishedDate(item);
   const commentLink = extractCommentLink(item);
 
   return {
@@ -1067,12 +1185,10 @@ async function extractArticleData(
 export async function fetchAndParseFeed(feedUrl: string): Promise<AnyFeed> {
   const response = await fetch(feedUrl, {
     headers: {
-      "User-Agent":
-        "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-      Accept:
-        "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+      "User-Agent": FETCH_CONFIG.userAgent,
+      Accept: FETCH_CONFIG.accept,
     },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(FETCH_CONFIG.timeoutMs),
   });
 
   if (!response.ok) {
