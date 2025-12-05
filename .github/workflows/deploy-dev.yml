@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to deploy (default: main)'
+        description: "Branch to deploy (default: main)"
         required: false
-        default: 'main'
+        default: "main"
         type: string
 
 concurrency:
@@ -18,7 +18,7 @@ concurrency:
 
 env:
   PNPM_VERSION: 10.19.0
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   deploy-api:
@@ -59,7 +59,7 @@ jobs:
         id: worker-name
         uses: ./.github/actions/get-worker-name
         with:
-          suffix: '-dev'
+          suffix: "-dev"
 
       - name: Override worker name in wrangler.toml for dev
         run: |
@@ -151,7 +151,7 @@ jobs:
         id: api-url
         uses: ./.github/actions/get-worker-name
         with:
-          suffix: '-dev'
+          suffix: "-dev"
 
       - name: Set API URL
         id: api-url-set
@@ -170,7 +170,7 @@ jobs:
           echo "Secret exists check: ${{ secrets.VITE_SENTRY_DSN != '' }}"
           echo "Secret length: ${#VITE_SENTRY_DSN}"
           echo "Secret starts with: ${VITE_SENTRY_DSN:0:20}..."
-          
+
           if [ -z "$VITE_SENTRY_DSN" ] || [ "$VITE_SENTRY_DSN" = "" ]; then
             echo "⚠️  WARNING: VITE_SENTRY_DSN secret is not set or is empty in GitHub Secrets"
             echo "   Frontend Sentry will not be initialized."
@@ -194,7 +194,7 @@ jobs:
           echo "VITE_SENTRY_DSN length: ${#VITE_SENTRY_DSN}"
           echo "VITE_SENTRY_DSN starts with: ${VITE_SENTRY_DSN:0:20}..."
           echo "Verification step result: ${{ steps.verify-sentry.outputs.has_dsn }}"
-          
+
           # Verify the DSN is actually set and not empty
           if [ -z "$VITE_SENTRY_DSN" ] || [ "$VITE_SENTRY_DSN" = "" ]; then
             echo "❌ ERROR: VITE_SENTRY_DSN is empty or unset during build!"
@@ -202,7 +202,7 @@ jobs:
             echo "   Check that the secret is set correctly in GitHub Secrets."
             exit 1
           fi
-          
+
           echo "✅ Building with Sentry DSN configured (length: ${#VITE_SENTRY_DSN} chars)"
           pnpm run build:app
 
@@ -240,7 +240,7 @@ jobs:
         id: worker-name
         uses: ./.github/actions/get-worker-name
         with:
-          suffix: '-dev'
+          suffix: "-dev"
 
       - name: Deployment Summary
         run: |
