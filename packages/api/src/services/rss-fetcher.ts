@@ -89,9 +89,7 @@ export async function fetchAllFeeds(
 
       // Get total count for metrics
       // Note: Drizzle ORM type inference requires .select() with no args
-      const totalCountResult = await db
-        .select()
-        .from(schema.sources);
+      const totalCountResult = await db.select().from(schema.sources);
       const totalSources = totalCountResult.length;
 
       let successCount = 0;
@@ -616,7 +614,9 @@ async function storeArticles(
               );
               // Type assertion needed: Drizzle's insert() returns PgInsertBase which doesn't match DatabaseWithBatch's expected type
               // This is safe because D1's batch() accepts Drizzle insert statements
-              await db.batch(statements as Array<{ execute: () => Promise<unknown> }>);
+              await db.batch(
+                statements as Array<{ execute: () => Promise<unknown> }>
+              );
               articlesAdded += chunk.length;
             } else {
               // Fallback for better-sqlite3 (local dev)
