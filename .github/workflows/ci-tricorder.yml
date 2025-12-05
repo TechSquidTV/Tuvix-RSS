@@ -4,11 +4,11 @@ on:
   pull_request:
     paths:
       # Only run when tricorder package files change
-      - 'packages/tricorder/**'
+      - "packages/tricorder/**"
       # Also run if workflow itself changes
-      - '.github/workflows/ci-tricorder.yml'
+      - ".github/workflows/ci-tricorder.yml"
       # Run if shared actions change
-      - '.github/actions/**'
+      - ".github/actions/**"
 
   push:
     branches:
@@ -16,16 +16,16 @@ on:
       - development
     paths:
       # Only run when tricorder package files change
-      - 'packages/tricorder/**'
+      - "packages/tricorder/**"
       # Also run if workflow itself changes
-      - '.github/workflows/ci-tricorder.yml'
+      - ".github/workflows/ci-tricorder.yml"
 
   # Allow manual trigger
   workflow_dispatch:
 
 env:
   PNPM_VERSION: 10.19.0
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 # Cancel in-progress runs when a new run is triggered
 concurrency:
@@ -49,7 +49,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -73,7 +73,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -97,7 +97,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -121,7 +121,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -161,7 +161,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

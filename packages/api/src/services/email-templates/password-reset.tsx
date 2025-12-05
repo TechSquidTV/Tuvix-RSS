@@ -1,9 +1,4 @@
-import {
-  Button,
-  Heading,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Button, Heading, Section, Text } from "@react-email/components";
 import * as React from "react";
 import { EmailLayout } from "./layout";
 
@@ -25,10 +20,7 @@ export const PasswordResetEmail: React.FC<
   }
 
   return (
-    <EmailLayout
-      preview="Reset your TuvixRSS password"
-      appUrl={appUrl}
-    >
+    <EmailLayout preview="Reset your TuvixRSS password" appUrl={appUrl}>
       <Section className="mt-4">
         <Heading className="mx-0 mb-8 mt-2 p-0 text-lg font-normal">
           Reset Your Password
@@ -37,8 +29,8 @@ export const PasswordResetEmail: React.FC<
           Hello {username},
         </Text>
         <Text className="text-[14px] leading-6 text-muted">
-          We received a request to reset your password. Click the button
-          below to create a new password:
+          We received a request to reset your password. Click the button below
+          to create a new password:
         </Text>
       </Section>
 
@@ -53,12 +45,12 @@ export const PasswordResetEmail: React.FC<
 
       <Section className="mt-4">
         <Text className="text-[14px] leading-6 text-muted">
-          This link will expire in 1 hour. If you didn&apos;t request a
-          password reset, you can safely ignore this email.
+          This link will expire in 1 hour. If you didn&apos;t request a password
+          reset, you can safely ignore this email.
         </Text>
         <Text className="text-[14px] leading-6 text-muted">
-          If the button doesn&apos;t work, copy and paste this link into
-          your browser:
+          If the button doesn&apos;t work, copy and paste this link into your
+          browser:
         </Text>
         <Text className="text-[14px] leading-6 text-[#0066cc] break-all">
           {resetUrl}
@@ -69,4 +61,3 @@ export const PasswordResetEmail: React.FC<
 };
 
 export default PasswordResetEmail;
-

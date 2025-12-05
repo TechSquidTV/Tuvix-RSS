@@ -129,6 +129,7 @@ pnpm dev
 ```
 
 The Express adapter automatically:
+
 - Initializes the SQLite database
 - Starts the tRPC server
 - Starts cron jobs (RSS fetch every 15 minutes)
@@ -159,6 +160,7 @@ NODE_ENV=production BETTER_AUTH_SECRET=your-secret node dist/adapters/express.js
 #### Cloudflare Workers
 
 **Prerequisites:**
+
 - Cloudflare Workers Paid plan ($5/month) - Required for password hashing CPU limits
 - D1 database created: `wrangler d1 create tuvix`
 
@@ -335,7 +337,7 @@ export const myRouter = router({
     .output(MyOutputSchema)
     .query(async ({ ctx, input }) => {
       // Implementation
-      return { result: 'success' };
+      return { result: "success" };
     }),
 });
 ```
@@ -399,8 +401,8 @@ pnpm add @trpc/client @trpc/react-query @tanstack/react-query
 ### Setup tRPC Client
 
 ```typescript
-import { createTRPCReact } from '@trpc/react-query';
-import type { AppRouter } from '@tuvix/api';
+import { createTRPCReact } from "@trpc/react-query";
+import type { AppRouter } from "@tuvix/api";
 
 export const trpc = createTRPCReact<AppRouter>();
 ```
@@ -429,11 +431,13 @@ function MyComponent() {
 ### Docker (Self-Hosted)
 
 **Pros:**
+
 - Full control
 - No cold starts
 - Larger resource limits
 
 **Cons:**
+
 - Server maintenance required
 - Single region (add CDN for multi-region)
 - Manual scaling
@@ -443,6 +447,7 @@ function MyComponent() {
 ### Cloudflare Workers (Cloud)
 
 **Pros:**
+
 - Global edge deployment (300+ locations)
 - Auto-scaling
 - Zero maintenance
@@ -450,6 +455,7 @@ function MyComponent() {
 - Free tier available
 
 **Cons:**
+
 - 128MB memory limit
 - 30s CPU time limit
 - Requires D1 setup
@@ -475,7 +481,7 @@ The adapters include CORS headers. If you need to customize:
 
 ```typescript
 // In express.ts or cloudflare.ts
-headers.set('Access-Control-Allow-Origin', 'https://yourdomain.com');
+headers.set("Access-Control-Allow-Origin", "https://yourdomain.com");
 ```
 
 ### Better Auth Secret Warning
@@ -490,15 +496,18 @@ openssl rand -base64 32
 ## Related Documentation
 
 ### This Package
+
 - [Admin Guide](../../docs/admin-guide.md) - Admin operations and user management
 
 ### Project-Level
+
 - [Documentation Index](../../docs/README.md) - Complete documentation index
 - [Deployment Guide](../../docs/deployment.md) - Docker & Cloudflare Workers deployment
 - [tRPC API Architecture](../../docs/trpc-api-architecture.md) - Complete API reference
 - [Project Integration](../../docs/project-integration.md) - Frontend-backend integration guide
 
 ### External
+
 - [tRPC Documentation](https://trpc.io)
 - [Drizzle ORM](https://orm.drizzle.team)
 - [Cloudflare Workers](https://developers.cloudflare.com/workers)

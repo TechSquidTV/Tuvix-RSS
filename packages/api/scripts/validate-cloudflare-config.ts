@@ -43,13 +43,13 @@ function validateCloudflareConfig(): ValidationResult {
   // Check runtime
   if (!configContent.includes('RUNTIME = "cloudflare"')) {
     warnings.push(
-      'RUNTIME is not set to "cloudflare" in wrangler.toml (may be intentional for local dev)',
+      'RUNTIME is not set to "cloudflare" in wrangler.toml (may be intentional for local dev)'
     );
   }
 
   // Check D1 database - handle multiline TOML format
   const d1SectionMatch = configContent.match(
-    /\[\[d1_databases\]\]\s*\n\s*binding\s*=\s*"DB"\s*\n\s*database_name\s*=\s*"[^"]+"\s*\n\s*database_id\s*=\s*"([^"]*)"(?:\s*#.*)?/,
+    /\[\[d1_databases\]\]\s*\n\s*binding\s*=\s*"DB"\s*\n\s*database_name\s*=\s*"[^"]+"\s*\n\s*database_id\s*=\s*"([^"]*)"(?:\s*#.*)?/
   );
   if (!d1SectionMatch) {
     errors.push("DB (D1) database binding not found in wrangler.toml");
@@ -57,7 +57,7 @@ function validateCloudflareConfig(): ValidationResult {
     const dbId = d1SectionMatch[1];
     if (!dbId || dbId.trim() === "") {
       errors.push(
-        "DB (D1) database ID is empty in wrangler.toml. Create database with: wrangler d1 create tuvix",
+        "DB (D1) database ID is empty in wrangler.toml. Create database with: wrangler d1 create tuvix"
       );
     }
   }
@@ -84,7 +84,9 @@ function main(): void {
   if (errors.length > 0) {
     console.error("❌ Configuration Errors:");
     errors.forEach((e) => console.error(`   - ${e}`));
-    console.error("\n💡 Fix these issues before deploying to Cloudflare Workers.");
+    console.error(
+      "\n💡 Fix these issues before deploying to Cloudflare Workers."
+    );
     console.error("\n📖 See docs/deployment.md for setup instructions.");
     process.exit(1);
   }
@@ -103,4 +105,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { validateCloudflareConfig };
-

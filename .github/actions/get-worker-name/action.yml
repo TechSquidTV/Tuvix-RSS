@@ -1,23 +1,23 @@
-name: 'Get Worker Name'
-description: 'Extracts worker name from wrangler.toml and optionally appends suffix'
+name: "Get Worker Name"
+description: "Extracts worker name from wrangler.toml and optionally appends suffix"
 
 inputs:
   wrangler-toml-path:
-    description: 'Path to wrangler.toml file'
+    description: "Path to wrangler.toml file"
     required: false
-    default: 'packages/api/wrangler.toml'
+    default: "packages/api/wrangler.toml"
   suffix:
-    description: 'Optional suffix to append to worker name (e.g., -dev)'
+    description: "Optional suffix to append to worker name (e.g., -dev)"
     required: false
-    default: ''
+    default: ""
 
 outputs:
   name:
-    description: 'The worker name'
+    description: "The worker name"
     value: ${{ steps.get-name.outputs.name }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Get worker name
       id: get-name
@@ -28,4 +28,3 @@ runs:
         echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
         echo "WORKER_NAME=$WORKER_NAME" >> $GITHUB_ENV
         echo "Worker name: $WORKER_NAME"
-

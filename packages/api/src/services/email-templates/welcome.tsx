@@ -1,10 +1,4 @@
-import {
-  Button,
-  Heading,
-  Link,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Button, Heading, Link, Section, Text } from "@react-email/components";
 import * as React from "react";
 import { EmailLayout } from "./layout";
 
@@ -31,11 +25,14 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
         <Text className="text-[14px] leading-6 text-muted">
           We&apos;re thrilled you chose us to manage your RSS feeds. To get
           started, we recommend adding your first RSS feed from the{" "}
-          <Link href={`${defaultAppUrl}/sources`} className="text-muted underline">
+          <Link
+            href={`${defaultAppUrl}/sources`}
+            className="text-muted underline"
+          >
             Sources page
           </Link>
-          . This will help you organize your reading and stay up to date
-          with your favorite websites.
+          . This will help you organize your reading and stay up to date with
+          your favorite websites.
         </Text>
       </Section>
 
@@ -49,8 +46,8 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
             and keep your reading organized.
           </li>
           <li className="text-[14px] leading-6 text-muted">
-            <strong>Create public feeds:</strong> Share curated collections
-            of articles with others, or ingest in other RSS readers.
+            <strong>Create public feeds:</strong> Share curated collections of
+            articles with others, or ingest in other RSS readers.
           </li>
           <li className="text-[14px] leading-6 text-muted">
             <strong>Stay updated:</strong> Automatic fetching keeps your
@@ -70,9 +67,9 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
 
       <Section className="mt-4">
         <Text className="text-[14px] leading-6 text-muted">
-          We hope TuvixRSS helps you stay organized and informed. If you
-          have any questions or need help getting started, don&apos;t
-          hesitate to reach out.
+          We hope TuvixRSS helps you stay organized and informed. If you have
+          any questions or need help getting started, don&apos;t hesitate to
+          reach out.
         </Text>
         <Text className="text-[14px] leading-6 mt-4">Happy reading! 📰</Text>
         <Text className="text-[14px] leading-6">The Tuvix Team</Text>
@@ -82,4 +79,3 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
 };
 
 export default WelcomeEmail;
-

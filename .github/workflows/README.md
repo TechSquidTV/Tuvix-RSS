@@ -5,6 +5,7 @@ This directory contains CI/CD workflows for the TuvixRSS project.
 ## Workflow Overview
 
 ### Branch Flow
+
 ```
 feature branch → development branch → main branch
 ```
@@ -12,9 +13,11 @@ feature branch → development branch → main branch
 ### Workflows
 
 #### 1. CI - Feature Branch (`ci-feature.yml`)
+
 **Triggers:** Pull requests targeting the `development` branch
 
 **Jobs:**
+
 - Lint & Format Check
 - Type Check
 - Test API
@@ -24,9 +27,11 @@ feature branch → development branch → main branch
 **Purpose:** Validate code quality and ensure builds succeed before merging to development.
 
 #### 2. CI - Development Branch (`ci-development.yml`)
+
 **Triggers:** Pull requests targeting the `main` branch
 
 **Jobs:**
+
 - Lint & Format Check
 - Type Check
 - Test API (with coverage upload)
@@ -36,12 +41,15 @@ feature branch → development branch → main branch
 **Purpose:** Comprehensive validation before merging to main, including test coverage tracking.
 
 #### 3. CI - Tricorder Package (`ci-tricorder.yml`)
+
 **Triggers:**
+
 - Pull requests affecting `packages/tricorder/**`
 - Pushes to `main` or `development` affecting tricorder
 - Manual workflow dispatch
 
 **Jobs:**
+
 - Lint Tricorder
 - Format Check Tricorder
 - Type Check Tricorder
@@ -51,22 +59,27 @@ feature branch → development branch → main branch
 **Purpose:** Independent CI for the tricorder package. Only runs when tricorder-related files change to optimize CI performance.
 
 **Path Filtering:** This workflow uses GitHub's `paths` filter to only run when:
+
 - Files in `packages/tricorder/` are modified
 - The workflow file itself is modified
 - Shared actions are modified
 
 #### 4. Publish Tricorder Package (`publish-tricorder.yml`)
+
 **Triggers:**
+
 - Tags matching `tricorder-v*.*.*` (e.g., `tricorder-v1.0.1`)
 - Manual workflow dispatch with version input
 
 **Jobs:**
+
 1. **Verify**: Lint, format, type-check, test, and build tricorder
 2. **Publish**: Publish to NPM registry and create GitHub release
 
 **Purpose:** Automated publishing of @tuvixrss/tricorder package to NPM.
 
 **Safety Features:**
+
 - Version validation (tag must match package.json)
 - Duplicate check (won't republish existing versions)
 - Dry-run mode for testing
@@ -74,11 +87,14 @@ feature branch → development branch → main branch
 - Automatic GitHub release creation with changelog
 
 #### 5. Deploy to Cloudflare Workers (`deploy-cloudflare.yml`)
+
 **Triggers:**
+
 - Published releases
 - Manual workflow dispatch
 
 **Jobs:**
+
 - Deploy API to Cloudflare Workers
 - Deploy App to Cloudflare Pages
 - Run database migrations
@@ -95,6 +111,7 @@ Configure these secrets in your GitHub repository settings:
 - `NPM_TOKEN` - NPM authentication token for publishing packages
 
 **How to Get NPM Token:**
+
 1. Log in to npmjs.com
 2. Click your profile → "Access Tokens"
 3. Click "Generate New Token" → Choose "Automation" type
@@ -103,11 +120,13 @@ Configure these secrets in your GitHub repository settings:
 6. Name: `NPM_TOKEN`, Value: (paste token)
 
 **NPM Scope Setup:**
+
 - If using `@tuvixrss/tricorder`: Create organization at https://www.npmjs.com/org/create
 - If using `@techsquidtv/tricorder`: No setup needed (uses your username automatically)
 - Ensure your token has publish permissions for the scope
 
 ### Cloudflare Secrets
+
 - `CLOUDFLARE_API_TOKEN` - Cloudflare API token with Workers and Pages permissions
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
 - `D1_DATABASE_ID` - Your D1 database ID (from `wrangler d1 create tuvix`)
@@ -145,12 +164,14 @@ Configure these secrets in your GitHub repository settings:
 ## Usage
 
 ### Feature Branch Workflow
+
 1. Create a feature branch from `development`
 2. Make changes and push
 3. Create a PR targeting `development`
 4. CI runs automatically on PR open/update
 
 ### Development Branch Workflow
+
 1. Merge feature branch to `development`
 2. Create a PR from `development` to `main`
 3. CI runs automatically with coverage tracking
@@ -161,6 +182,7 @@ Configure these secrets in your GitHub repository settings:
 The tricorder package is published independently from the main TuvixRSS application.
 
 #### Method 1: Automatic (via Git Tag) - Recommended
+
 1. Update `packages/tricorder/CHANGELOG.md` with changes
 2. Bump version in `packages/tricorder/package.json`:
    ```bash
@@ -180,6 +202,7 @@ The tricorder package is published independently from the main TuvixRSS applicat
 5. Workflow automatically runs and publishes to NPM
 
 #### Method 2: Manual Workflow Dispatch
+
 1. Go to Actions → Publish Tricorder Package
 2. Click "Run workflow"
 3. Enter version (e.g., `1.0.1`)
@@ -187,6 +210,7 @@ The tricorder package is published independently from the main TuvixRSS applicat
 5. Click "Run workflow"
 
 #### Pre-Publish Checklist
+
 - [ ] CHANGELOG.md updated with changes
 - [ ] Version bumped in package.json
 - [ ] All tests passing locally (`pnpm --filter @tuvixrss/tricorder test`)
@@ -195,17 +219,20 @@ The tricorder package is published independently from the main TuvixRSS applicat
 - [ ] NPM scope ownership confirmed (@tuvix or @techsquidtv)
 
 #### Post-Publish Steps
+
 1. GitHub release is automatically created with changelog
 2. Verify package on NPM: https://www.npmjs.com/package/@tuvixrss/tricorder
 3. Update API package if needed to use new version
 4. Update browser extension to use new version
 
 #### Versioning Strategy
+
 - **Patch (1.0.x)**: Bug fixes, no breaking changes
 - **Minor (1.x.0)**: New features, backward compatible
 - **Major (x.0.0)**: Breaking API changes
 
 **Examples:**
+
 - Fixed error handling bug → `1.0.1`
 - Added YouTube discovery service → `1.1.0`
 - Changed telemetry interface → `2.0.0`
@@ -213,10 +240,12 @@ The tricorder package is published independently from the main TuvixRSS applicat
 ### Deployment Workflow (API & App)
 
 #### Automatic (on Release)
+
 1. Create a new release in GitHub (tagged version, e.g., `v1.0.0`)
 2. Workflow automatically deploys to Cloudflare
 
 #### Manual
+
 1. Go to Actions → Deploy to Cloudflare Workers
 2. Click "Run workflow"
 3. Enter version tag (e.g., `v1.0.0`)
@@ -237,21 +266,25 @@ The tricorder package is published independently from the main TuvixRSS applicat
 ## Troubleshooting
 
 ### Workflow Fails on Lint/Format
+
 - Run `pnpm run lint:fix` and `pnpm run format:fix` locally
 - Commit and push fixes
 
 ### Deployment Fails
+
 - Check Cloudflare API token permissions
 - Verify account ID is correct
 - Ensure Worker and Pages projects exist
 - Check Cloudflare dashboard for error details
 
 ### Tests Fail
+
 - Run tests locally: `pnpm run test`
 - Check test output for specific failures
 - Ensure all dependencies are installed
 
 ### Coverage Not Showing
+
 - Coverage is generated automatically during test runs
 - Check that `coverage/lcov.info` files exist in package directories
 - Coverage reports appear in PR comments automatically
@@ -260,6 +293,7 @@ The tricorder package is published independently from the main TuvixRSS applicat
 ## Customization
 
 ### Adding New Checks
+
 Edit the appropriate workflow file and add a new job:
 
 ```yaml
@@ -272,9 +306,11 @@ new-check:
 ```
 
 ### Changing Node/pnpm Versions
+
 Update the `env` section in workflow files or individual job steps.
 
 ### Extending Deployment
+
 Add additional deployment targets or steps in `deploy-cloudflare.yml`.
 
 ## Branch Protection Setup
@@ -282,6 +318,7 @@ Add additional deployment targets or steps in `deploy-cloudflare.yml`.
 To ensure CI checks are enforced, configure branch protection rules:
 
 ### For `development` branch:
+
 1. Go to Settings → Branches → Add rule
 2. Branch name pattern: `development`
 3. Enable:
@@ -296,6 +333,7 @@ To ensure CI checks are enforced, configure branch protection rules:
    - `build`
 
 ### For `main` branch:
+
 1. Go to Settings → Branches → Add rule
 2. Branch name pattern: `main`
 3. Enable:
@@ -313,6 +351,7 @@ To ensure CI checks are enforced, configure branch protection rules:
 ## Dependabot
 
 Dependabot is configured to:
+
 - Check for updates monthly
 - Group production and development dependencies separately
 - Create PRs with appropriate labels
@@ -325,6 +364,7 @@ PRs created by Dependabot will automatically trigger CI workflows.
 Coverage is automatically generated and reported in several ways:
 
 ### In Pull Requests
+
 - Coverage comments are automatically posted to PRs showing:
   - Overall coverage percentage
   - Coverage changes (increase/decrease)
@@ -332,17 +372,21 @@ Coverage is automatically generated and reported in several ways:
 - Coverage diff shows what changed in the PR
 
 ### Coverage Artifacts
+
 - Full HTML coverage reports are uploaded as artifacts
 - Download from Actions → Workflow run → Artifacts
 - View detailed line-by-line coverage in your browser
 
 ### Coverage Files
+
 Coverage is generated in multiple formats:
+
 - `lcov.info` - Used for GitHub integration
 - `coverage-final.json` - JSON format for merging
 - `index.html` - HTML report (in artifacts)
 
 ### Viewing Coverage Locally
+
 ```bash
 # Generate coverage for both packages
 pnpm run test:coverage
@@ -352,8 +396,8 @@ open coverage/index.html
 ```
 
 ### Coverage Thresholds
+
 - **App:** 60% minimum (lines, branches, functions, statements)
 - **API:** Currently no thresholds (aspirational - will increase over time)
 
 Coverage reporting uses Codecov's GitHub Action, which works automatically for public repositories. For private repositories, you may need to add a `CODECOV_TOKEN` secret.
-

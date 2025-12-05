@@ -4,33 +4,33 @@ on:
   workflow_call:
     inputs:
       upload_coverage:
-        description: 'Whether to upload coverage reports'
+        description: "Whether to upload coverage reports"
         required: false
         type: boolean
         default: false
       upload_artifacts:
-        description: 'Whether to upload build artifacts'
+        description: "Whether to upload build artifacts"
         required: false
         type: boolean
         default: false
       coverage_retention_days:
-        description: 'Number of days to retain coverage artifacts'
+        description: "Number of days to retain coverage artifacts"
         required: false
         type: number
         default: 7
       artifact_retention_days:
-        description: 'Number of days to retain build artifacts'
+        description: "Number of days to retain build artifacts"
         required: false
         type: number
         default: 7
       pr_number:
-        description: 'PR number for artifact naming'
+        description: "PR number for artifact naming"
         required: false
         type: string
 
 env:
   PNPM_VERSION: 10.19.0
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   lint:
@@ -192,4 +192,3 @@ jobs:
             packages/api/dist
             packages/app/dist
           retention-days: ${{ inputs.artifact_retention_days }}
-

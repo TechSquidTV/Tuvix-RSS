@@ -1,21 +1,21 @@
-name: 'Create wrangler.toml from example'
-description: 'Creates wrangler.toml from wrangler.example.toml and substitutes D1_DATABASE_ID'
+name: "Create wrangler.toml from example"
+description: "Creates wrangler.toml from wrangler.example.toml and substitutes D1_DATABASE_ID"
 
 inputs:
   wrangler-example-path:
-    description: 'Path to wrangler.example.toml file'
+    description: "Path to wrangler.example.toml file"
     required: false
-    default: 'packages/api/wrangler.example.toml'
+    default: "packages/api/wrangler.example.toml"
   wrangler-toml-path:
-    description: 'Path where wrangler.toml will be created'
+    description: "Path where wrangler.toml will be created"
     required: false
-    default: 'packages/api/wrangler.toml'
+    default: "packages/api/wrangler.toml"
   d1-database-id:
-    description: 'D1 Database ID secret'
+    description: "D1 Database ID secret"
     required: true
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Create wrangler.toml from example
       shell: bash

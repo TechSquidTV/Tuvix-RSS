@@ -4,8 +4,8 @@ on:
   # Trigger on version tags for tricorder (supports both formats)
   push:
     tags:
-      - 'tricorder-v*.*.*'
-      - '@tuvixrss/tricorder@*.*.*'
+      - "tricorder-v*.*.*"
+      - "@tuvixrss/tricorder@*.*.*"
 
   # Trigger on GitHub releases for tricorder package
   release:
@@ -15,22 +15,22 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., 1.0.1)'
+        description: "Version to publish (e.g., 1.0.1)"
         required: true
         type: string
       dry_run:
-        description: 'Dry run (test without publishing)'
+        description: "Dry run (test without publishing)"
         required: false
         type: boolean
         default: false
 
 env:
   PNPM_VERSION: 10.19.0
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 permissions:
-  id-token: write  # Required for OIDC trusted publishing
-  contents: read   # Required to read repository contents
+  id-token: write # Required for OIDC trusted publishing
+  contents: read # Required to read repository contents
 
 jobs:
   # Check if this release is for tricorder package
@@ -74,7 +74,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -128,8 +128,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Update npm to latest version
         run: npm install -g npm@latest

@@ -14,13 +14,13 @@
  * - Apply D1: wrangler d1 migrations apply DB --remote
  */
 
-import type { Config } from 'drizzle-kit';
+import type { Config } from "drizzle-kit";
 
 export default {
-  schema: './src/db/schema.ts',
-  out: './drizzle',
-  dialect: 'sqlite',
+  schema: "./src/db/schema.ts",
+  out: "./drizzle",
+  dialect: "sqlite",
   dbCredentials: {
-    url: process.env.DATABASE_PATH || './data/tuvix.db',
+    url: process.env.DATABASE_PATH || "./data/tuvix.db",
   },
 } satisfies Config;

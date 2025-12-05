@@ -90,7 +90,12 @@ describe("someFunction", () => {
 #### Database Setup
 
 ```typescript
-import { createTestDb, cleanupTestDb, seedTestUser, seedTestPlan } from "@/test/setup";
+import {
+  createTestDb,
+  cleanupTestDb,
+  seedTestUser,
+  seedTestPlan,
+} from "@/test/setup";
 
 // Create in-memory test database
 const db = createTestDb();
@@ -128,7 +133,11 @@ consoleMock.restore();
 #### Mocks
 
 ```typescript
-import { mockFetchRssFeed, MOCK_RSS_FEED, MOCK_BETTER_AUTH_SECRET } from "@/test/mocks";
+import {
+  mockFetchRssFeed,
+  MOCK_RSS_FEED,
+  MOCK_BETTER_AUTH_SECRET,
+} from "@/test/mocks";
 
 // Mock fetch for RSS feeds
 global.fetch = mockFetchRssFeed();
@@ -175,10 +184,12 @@ describe("User limits integration", () => {
 
   it("should enforce source limits", async () => {
     const { user } = await seedTestUser(db, { plan: "free" });
-    
+
     // Create 5 sources (at limit)
     for (let i = 0; i < 5; i++) {
-      const source = await seedTestSource(db, { url: `https://example.com/feed${i}.xml` });
+      const source = await seedTestSource(db, {
+        url: `https://example.com/feed${i}.xml`,
+      });
       await seedTestSubscription(db, user.id, source.id);
     }
 
@@ -196,9 +207,9 @@ Use `async/await` for asynchronous operations:
 ```typescript
 it("should fetch and parse RSS feed", async () => {
   global.fetch = mockFetchRssFeed();
-  
+
   const result = await fetchSingleFeed(1, "https://example.com/feed.xml", db);
-  
+
   expect(result.articlesAdded).toBeGreaterThan(0);
 });
 ```
@@ -209,10 +220,7 @@ Always test error scenarios:
 
 ```typescript
 it("should handle authentication errors", async () => {
-  await expectError(
-    () => someAuthFunction("invalid-input"),
-    "UNAUTHORIZED"
-  );
+  await expectError(() => someAuthFunction("invalid-input"), "UNAUTHORIZED");
 });
 ```
 
@@ -237,10 +245,9 @@ it("should handle authentication errors", async () => {
 ## CI/CD Integration
 
 Tests run automatically on:
+
 - Pre-commit (via git hooks, if configured)
 - Pull requests
 - Main branch merges
 
 Coverage reports are generated and should be reviewed regularly.
-
-
