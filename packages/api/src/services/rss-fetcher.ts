@@ -63,7 +63,7 @@ type AnyItem =
 
 /**
  * Fetch all feeds from the database and update articles
- * 
+ *
  * Implements batching to process a limited number of feeds per execution
  * to stay within Cloudflare Workers' CPU time and API request limits.
  */
@@ -74,8 +74,9 @@ export async function fetchAllFeeds(
   return await withTiming(
     "rss.fetch_all_duration",
     async () => {
-      // Default to 20 feeds per batch to stay within Cloudflare Workers limits
-      const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 20;
+      // Default to 100 feeds per batch - optimized for faster rotation
+      // With 1-minute cron frequency, this processes 6,000 feeds/hour
+      const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 100;
       
       // Get all sources, ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time

@@ -67,10 +67,10 @@ RUNTIME = "cloudflare"
 # EMAIL_FROM = "noreply@yourdomain.com"
 # BASE_URL = "https://yourdomain.com"
 
-# Cron trigger - polling interval (every 5 minutes)
+# Cron trigger - polling interval (every 1 minute for faster feed rotation)
 # Actual fetch/prune timing is controlled by global_settings table
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/1 * * * *"]
 
 # Observability configuration for Workers logs and traces
 # Collects logs and traces from Worker invocations for debugging and monitoring
