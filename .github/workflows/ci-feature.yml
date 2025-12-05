@@ -3,7 +3,7 @@ name: CI - Feature Branch
 on:
   pull_request:
     branches:
-      - development
+      - main
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:

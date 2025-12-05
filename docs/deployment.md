@@ -1192,59 +1192,50 @@ Or via admin UI:
 
 ## CI/CD Integration
 
-TuvixRSS uses GitHub Actions for automated CI/CD with a three-branch workflow: `feature` → `development` → `main`.
+TuvixRSS uses GitHub Actions for automated CI/CD with a trunk-based workflow.
 
 ### Branch Flow
 
 ```
-feature branch → PR → development → [Auto Deploy to Dev] → PR → main → Release → [Deploy to Production]
+feature branch → PR → main → [Auto Deploy to Staging] → Manual Promotion → [Deploy to Production]
 ```
 
 ### Workflows
 
-#### 1. CI - Feature Branch (`ci-feature.yml`)
-**Triggers:** Pull requests targeting `development`
+#### 1. CI (`ci-development.yml`)
+**Triggers:** Pull requests targeting `main`
 
 **Validates:**
 - Lint & format checks
 - TypeScript type checking
 - API and App tests (with coverage)
 - Build verification
-
-**Purpose:** Ensure code quality before merging to development branch.
-
-#### 2. CI - Development Branch (`ci-development.yml`)
-**Triggers:** Pull requests targeting `main`
-
-**Validates:**
-- All checks from feature branch workflow
 - Coverage tracking and reporting
-- Build artifact uploads
 
-**Purpose:** Comprehensive validation before merging to main, including coverage tracking.
+**Purpose:** Ensure code quality before merging to main.
 
-#### 3. Deploy to Cloudflare Workers (Dev) (`deploy-dev.yml`)
+#### 2. Deploy to Cloudflare Workers (Staging) (`deploy-dev.yml`)
 **Triggers:**
-- Pushes to `development` branch (automatic)
+- Pushes to `main` branch (automatic)
 - Manual workflow dispatch
 
 **Process:**
-1. Checks out `development` branch (or specified branch)
+1. Checks out `main` branch (or specified branch)
 2. Runs type checks and tests for API
 3. Builds API
 4. Creates `wrangler.toml` from `wrangler.example.toml` and substitutes `D1_DATABASE_ID`
-5. Deploys API to Cloudflare Workers (dev environment)
+5. Deploys API to Cloudflare Workers (staging environment with `-dev` suffix)
 6. Runs database migrations (after successful API deployment)
 7. Runs type checks and tests for App
 8. Builds App (with `VITE_API_URL` from development environment secrets)
-9. Deploys App to Cloudflare Pages (dev environment)
+9. Deploys App to Cloudflare Pages (staging environment)
 10. Outputs deployment summary with URLs and commit SHA
 
-**Purpose:** Automated development environment deployment on pushes to `development` branch.
+**Purpose:** Automated staging environment deployment on pushes to `main` branch.
 
 **Environment:** Uses `development` GitHub environment (separate secrets from production)
 
-#### 4. Deploy to Cloudflare Workers (Production) (`deploy-cloudflare.yml`)
+#### 3. Deploy to Cloudflare Workers (Production) (`deploy-cloudflare.yml`)
 **Triggers:**
 - Published GitHub releases (automatic)
 - Manual workflow dispatch
@@ -1269,9 +1260,9 @@ feature branch → PR → development → [Auto Deploy to Dev] → PR → main �
 
 TuvixRSS uses GitHub Environments to separate development and production secrets:
 
-- **`development`** - Used by `deploy-dev.yml` workflow
-  - Deploys on pushes to `development` branch
-  - Uses dev-specific Cloudflare resources (Worker, Pages project, optionally separate D1 database)
+- **`development`** - Used by `deploy-dev.yml` workflow (staging environment)
+  - Deploys on pushes to `main` branch
+  - Uses staging-specific Cloudflare resources (Worker with `-dev` suffix, Pages project, optionally separate D1 database)
   
 - **`production`** - Used by `deploy-cloudflare.yml` workflow
   - Deploys on published releases

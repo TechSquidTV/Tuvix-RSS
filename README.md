@@ -64,18 +64,17 @@ App: `http://localhost:5173` | API: `http://localhost:3001`
 
 ### Git Workflow
 
-Tuvix uses a **trunk-based development** workflow with branch protection:
+Tuvix uses a **trunk-based development** workflow:
 
-- **`main`** - Production-ready code, protected, deploys to production
-- **`dev`** - Active development branch, protected, deploys to staging
-- **Feature branches** - Created from `dev`, merged back via PR
+- **`main`** - Protected branch, all development happens here
+- **Feature branches** - Created from `main`, merged back via PR
 
 **Development Process:**
 
-1. Create feature branches from `dev`: `git checkout -b feature/my-feature`
-2. Open PRs targeting `dev` for review and CI checks
-3. After approval, changes merge to `dev` and deploy to staging
-4. Periodic releases merge `dev` → `main` for production deployment
+1. Create feature branches from `main`: `git checkout -b feature/my-feature`
+2. Open PRs targeting `main` for review and CI checks
+3. After approval, changes merge to `main` and auto-deploy to staging
+4. Production deployments happen via manual promotion or release tags
 
 ### Configuration
 
@@ -103,12 +102,11 @@ We welcome contributions from the community! Whether you're fixing bugs, adding 
 ### Quick Start for Contributors
 
 1. Fork the repository
-2. Checkout the `dev` branch: `git checkout dev`
-3. Create your feature branch: `git checkout -b feature/amazing-feature`
-4. Make your changes and test them
-5. Commit using [conventional commits](https://www.conventionalcommits.org/): `git commit -m 'feat: add amazing feature'`
-6. Push to your fork: `git push origin feature/amazing-feature`
-7. Open a Pull Request targeting the `dev` branch
+2. Create your feature branch from `main`: `git checkout -b feature/amazing-feature`
+3. Make your changes and test them
+4. Commit using [conventional commits](https://www.conventionalcommits.org/): `git commit -m 'feat: add amazing feature'`
+5. Push to your fork: `git push origin feature/amazing-feature`
+6. Open a Pull Request targeting the `main` branch
 
 ### Before Contributing
 
@@ -126,7 +124,6 @@ New to the project? Look for issues tagged with `good first issue` to get starte
 ```bash
 git clone https://github.com/YOUR_USERNAME/Tuvix-RSS.git
 cd Tuvix-RSS
-git checkout dev
 pnpm install
 cp env.example .env
 # Edit .env and set BETTER_AUTH_SECRET (generate: openssl rand -base64 32)

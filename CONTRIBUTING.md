@@ -41,9 +41,6 @@ This project adheres to a Code of Conduct. By participating, you are expected to
 git clone https://github.com/YOUR_USERNAME/Tuvix-RSS.git
 cd Tuvix-RSS
 
-# Checkout dev branch
-git checkout dev
-
 # Install dependencies
 pnpm install
 
@@ -171,11 +168,11 @@ chore(deps): update dependencies
 
 ## Pull Request Process
 
-1. **Branch from `dev`**: Always create your feature branch from `dev`
+1. **Branch from `main`**: Always create your feature branch from `main`
 
 ```bash
-git checkout dev
-git pull origin dev
+git checkout main
+git pull origin main
 git checkout -b feature/your-feature-name
 ```
 
@@ -197,7 +194,7 @@ pnpm run lint
 git push origin feature/your-feature-name
 ```
 
-6. **Open a Pull Request**: Target the `dev` branch (not `main`)
+6. **Open a Pull Request**: Target the `main` branch
 
 7. **Fill out the PR template**: Provide clear description and context
 
@@ -209,7 +206,7 @@ git push origin feature/your-feature-name
 
 ### PR Requirements
 
-- Must target `dev` branch
+- Must target `main` branch
 - All tests must pass
 - No TypeScript errors
 - Code follows style guidelines

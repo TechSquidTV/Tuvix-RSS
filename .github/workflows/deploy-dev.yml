@@ -1,15 +1,15 @@
-name: Deploy to Cloudflare Workers (Dev)
+name: Deploy to Cloudflare Workers (Staging)
 
 on:
   push:
     branches:
-      - development
+      - main
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to deploy (default: development)'
+        description: 'Branch to deploy (default: main)'
         required: false
-        default: 'development'
+        default: 'main'
         type: string
 
 concurrency:
@@ -22,7 +22,7 @@ env:
 
 jobs:
   deploy-api:
-    name: Deploy API to Cloudflare Workers (Dev)
+    name: Deploy API to Cloudflare Workers (Staging)
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -103,7 +103,7 @@ jobs:
         run: |
           API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
           echo "API_URL=$API_URL" >> $GITHUB_OUTPUT
-          echo "## API Deployment (Dev)" >> $GITHUB_STEP_SUMMARY
+          echo "## API Deployment (Staging)" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
 
@@ -117,7 +117,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-app:
-    name: Deploy App to Cloudflare Pages (Dev)
+    name: Deploy App to Cloudflare Pages (Staging)
     runs-on: ubuntu-latest
     needs: [deploy-api]
     environment:
@@ -221,7 +221,7 @@ jobs:
         run: |
           APP_URL="https://${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}.pages.dev"
           echo "APP_URL=$APP_URL" >> $GITHUB_OUTPUT
-          echo "## App Deployment (Dev)" >> $GITHUB_STEP_SUMMARY
+          echo "## App Deployment (Staging)" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** $APP_URL" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
 
@@ -244,7 +244,7 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "## 🚀 Dev Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed commit:** \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
