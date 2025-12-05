@@ -639,7 +639,16 @@ async function extractArticleData(
   skipOgImageFetch = false
 ): Promise<typeof schema.articles.$inferInsert> {
   const title = ("title" in item && item.title) || "Untitled";
-  const link = extractArticleLink(item);
+
+  // Link extraction - inline (handles RSS/Atom/JSON Feed formats)
+  let link = "";
+  if ("link" in item && typeof item.link === "string") {
+    link = item.link;
+  } else if ("url" in item && typeof item.url === "string") {
+    link = item.url;  // JSON Feed
+  } else if ("links" in item && Array.isArray(item.links)) {
+    link = item.links[0]?.href || "";  // Atom
+  }
 
   // Delegate to focused helpers
   const content = extractArticleContent(item);

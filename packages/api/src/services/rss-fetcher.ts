@@ -856,8 +856,14 @@ function extractArticleContent(item: AnyItem): string {
 
 /**
  * Extract article description from feed item
+ *
+ * @param item - Feed item to extract description from
+ * @param processedContent - Already-processed content (stripped and truncated)
  */
-function extractArticleDescription(item: AnyItem, rawContent: string): string {
+function extractArticleDescription(
+  item: AnyItem,
+  processedContent: string
+): string {
   let rawDescription = "";
   if ("description" in item && typeof item.description === "string") {
     rawDescription = item.description;
@@ -868,9 +874,9 @@ function extractArticleDescription(item: AnyItem, rawContent: string): string {
     if (typeof snippet === "string") {
       rawDescription = snippet;
     }
-  } else if (rawContent) {
-    // Generate description from content
-    rawDescription = rawContent;
+  } else if (processedContent) {
+    // Generate description from already-processed content
+    rawDescription = processedContent;
   }
 
   // Sanitize HTML first (allow safe tags like links), then truncate safely
@@ -1051,6 +1057,12 @@ async function extractArticleImage(
             error instanceof Error ? error.message : String(error)
           );
           span.setStatus({ code: 2, message: "fetch failed" });
+
+          // Log error for debugging (especially useful in development)
+          console.error(
+            `Failed to fetch OG image for ${link}:`,
+            error instanceof Error ? error.message : String(error)
+          );
 
           // Don't spam Sentry with every OG failure, but track metrics
           emitCounter("og_image.fetch_error", 1, {
