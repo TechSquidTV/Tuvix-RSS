@@ -77,7 +77,7 @@ export async function fetchAllFeeds(
       // Default to 100 feeds per batch - optimized for faster rotation
       // With 1-minute cron frequency, this processes 6,000 feeds/hour
       const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 100;
-      
+
       // Get all sources, ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time
       const allSources = await db
@@ -108,7 +108,7 @@ export async function fetchAllFeeds(
             `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
           );
           successCount++;
-          
+
           // Add small delay between feeds to avoid rate limiting
           // This helps prevent HTTP 429 errors from external APIs
           if (sources.length > 1) {
@@ -124,7 +124,7 @@ export async function fetchAllFeeds(
             error: errorMessage,
           });
           console.error(`✗ Failed to fetch ${source.url}:`, errorMessage);
-          
+
           // Add longer delay after errors to back off from rate limits
           if (sources.length > 1) {
             await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay after error
@@ -517,15 +517,12 @@ async function storeArticles(
 
       // Step 1: Extract GUIDs from all items
       const itemsWithGuids: Array<{ item: AnyItem; guid: string }> = [];
-      
+
       for (const item of items) {
         const guid = extractGuid(item, sourceId);
 
         if (!guid) {
-          console.warn(
-            "Skipping item without guid:",
-            item.title || "Untitled"
-          );
+          console.warn("Skipping item without guid:", item.title || "Untitled");
           articlesSkipped++;
           continue;
         }
@@ -556,7 +553,7 @@ async function storeArticles(
           .select({ guid: schema.articles.guid })
           .from(schema.articles)
           .where(inArray(schema.articles.guid, chunk));
-        
+
         for (const row of existing) {
           existingGuidsSet.add(row.guid);
         }
@@ -573,7 +570,12 @@ async function storeArticles(
 
         try {
           // Extract article data (skip OG image fetching during cron to save HTTP requests)
-          const articleData = await extractArticleData(item, sourceId, guid, true);
+          const articleData = await extractArticleData(
+            item,
+            sourceId,
+            guid,
+            true
+          );
           newArticlesData.push(articleData);
         } catch (error) {
           console.error("Failed to extract article data:", error);
@@ -594,11 +596,11 @@ async function storeArticles(
 
       // Step 4: Batch insert all new articles
       let articlesAdded = 0;
-      
+
       if (newArticlesData.length > 0) {
         // Split into chunks for batch insert (D1 batch API supports multiple statements)
         const insertChunks = chunkArray(newArticlesData, 50); // Conservative chunk size
-        
+
         for (const chunk of insertChunks) {
           try {
             // Use batch API if available (Cloudflare D1), otherwise insert sequentially
@@ -633,7 +635,10 @@ async function storeArticles(
                 await db.insert(schema.articles).values(data);
                 articlesAdded++;
               } catch (insertError) {
-                console.error("Failed to insert individual article:", insertError);
+                console.error(
+                  "Failed to insert individual article:",
+                  insertError
+                );
                 articlesSkipped++;
               }
             }
