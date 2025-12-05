@@ -2,7 +2,25 @@
  * Domain Checker Utility
  *
  * Functions for extracting, normalizing, and checking domains against blocked lists.
- * Supports wildcard patterns (*.example.com) and enterprise user bypass.
+ * Supports wildcard patterns (*.example.com).
+ *
+ * ## Blocking Architecture
+ *
+ * Domain blocking happens at two levels:
+ *
+ * 1. **Fetch-Time Blocking (RSS Fetcher)**
+ *    - Blocks HTTP requests to domains on the blocked list
+ *    - Saves bandwidth and avoids fetching unwanted content
+ *    - NO enterprise bypass at this level (all users affected equally)
+ *    - Applied in: `src/services/rss-fetcher.ts`
+ *
+ * 2. **Delivery-Time Filtering (Query Layer) - TODO**
+ *    - Enterprise users can query/view articles from blocked domains
+ *    - Implemented at article query level with WHERE clauses
+ *    - Applied in: Article routers/queries (future implementation)
+ *
+ * This two-tier approach optimizes performance (don't fetch blocked content)
+ * while allowing enterprise users to opt-in to blocked domains if needed.
  */
 
 import type { Database } from "@/db/client";

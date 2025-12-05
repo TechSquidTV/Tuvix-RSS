@@ -15,6 +15,7 @@ This document provides a comprehensive guide to understanding and working with t
 - [Polling Configuration](#polling-configuration)
 - [Feed Fetching Process](#feed-fetching-process)
 - [Article Parsing and Storage](#article-parsing-and-storage)
+- [Blocked Domains](#blocked-domains)
 - [Deduplication Strategy](#deduplication-strategy)
 - [Error Handling](#error-handling)
 - [Rate Limiting](#rate-limiting)
@@ -746,6 +747,156 @@ async function extractOgImage(url: string): Promise<string | null> {
   }
 }
 ```
+
+## Blocked Domains
+
+### Overview
+
+TuvixRSS supports blocking feeds from specific domains (e.g., spam, malware, illegal content). Domain blocking happens at **fetch-time** to avoid wasting HTTP requests and storage on unwanted content.
+
+**File**: `packages/api/src/utils/domain-checker.ts`
+
+### Architecture
+
+#### Fetch-Time Blocking
+
+**Where**: `packages/api/src/services/rss-fetcher.ts:325-366`
+
+Domain blocking is enforced during feed fetching, before making HTTP requests:
+
+```typescript
+// Check if domain is blocked (before fetching)
+const domain = extractDomain(feedUrl);
+if (domain) {
+  const blockedDomains = blockedDomainsList.map((b) => b.domain);
+  if (isDomainBlocked(domain, blockedDomains)) {
+    console.log(`Skipping blocked domain: ${domain}`);
+    return {
+      articlesAdded: 0,
+      articlesSkipped: 0,
+      sourceUpdated: false,
+    };
+  }
+}
+```
+
+**Benefits**:
+- Saves bandwidth (no HTTP request to blocked sites)
+- Prevents storage of unwanted content
+- Reduces D1 query usage
+
+**Trade-offs**:
+- Affects all users equally (no per-user bypass at fetch level)
+- Blocked feeds won't appear in any user's feed, regardless of plan
+
+### Domain Matching
+
+**Supports**:
+
+1. **Exact domain match**: `example.com` blocks `example.com`
+2. **Subdomain matching**: `example.com` blocks `sub.example.com`, `www.example.com`
+3. **Wildcard patterns**: `*.example.com` blocks any subdomain
+4. **Case-insensitive**: `Example.COM` == `example.com`
+5. **www normalization**: `www.example.com` → `example.com`
+
+**File**: `packages/api/src/utils/domain-checker.ts:56-93`
+
+```typescript
+export function isDomainBlocked(
+  domain: string,
+  blockedDomains: string[]
+): boolean {
+  const normalizedDomain = normalizeDomain(domain);
+
+  for (const blockedPattern of blockedDomains) {
+    const normalizedPattern = normalizeDomain(blockedPattern);
+
+    // Wildcard pattern: *.example.com
+    if (normalizedPattern.startsWith("*.")) {
+      const suffix = normalizedPattern.slice(2);
+      if (
+        normalizedDomain.endsWith(`.${suffix}`) ||
+        normalizedDomain === suffix
+      ) {
+        return true;
+      }
+    } else {
+      // Exact match or subdomain match
+      if (
+        normalizedDomain === normalizedPattern ||
+        normalizedDomain.endsWith(`.${normalizedPattern}`)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+```
+
+### Database Schema
+
+**Table**: `blocked_domains`
+**File**: `packages/api/src/db/schema.ts:641-673`
+
+```sql
+CREATE TABLE blocked_domains (
+  id INTEGER PRIMARY KEY,
+  domain TEXT NOT NULL UNIQUE,  -- e.g., "spam.com" or "*.malware.org"
+  reason TEXT,                   -- enum: illegal_content, spam, malware, etc.
+  notes TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  created_by INTEGER REFERENCES users(id)
+);
+
+CREATE INDEX idx_blocked_domains_domain ON blocked_domains(domain);
+```
+
+### Performance Optimization
+
+**Caching**: `packages/api/src/services/rss-fetcher.ts:218-237`
+
+Blocked domains are fetched once per batch (not per feed):
+
+```typescript
+// Fetch blocked domains once per batch (not per feed)
+let blockedDomainsList = [];
+try {
+  blockedDomainsList = await getBlockedDomains(db);
+} catch (error) {
+  // Safe migration: continue with empty list if table doesn't exist
+  console.warn("blocked_domains table not found");
+}
+
+// Pass cached list to each feed
+for (const source of sources) {
+  await fetchSingleFeed(source.id, source.url, db, blockedDomainsList);
+}
+```
+
+**Query Savings**:
+- Before optimization: 20 queries per batch (once per feed)
+- After optimization: 1 query per batch
+- **Savings**: 95% reduction (19 queries saved per batch)
+
+### Enterprise User Bypass (Future)
+
+Currently, all users are affected equally by blocked domains at fetch-time. Enterprise bypass is planned for implementation at the **delivery-time** (query filtering) level:
+
+**Planned Approach**:
+- Fetch all feeds (including blocked domains)
+- Store blocked status with articles
+- Filter at query time based on user plan
+- Enterprise users can opt-in to see blocked content
+
+**Trade-offs**:
+- Pro: Enterprise flexibility
+- Con: Wastes resources fetching blocked content
+- Con: Requires additional storage and query filtering
+
+This feature is documented as TODO in `packages/api/src/utils/domain-checker.ts:17-20`.
 
 ## Deduplication Strategy
 

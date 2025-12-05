@@ -323,89 +323,45 @@ export async function fetchSingleFeed(
     async (span) => {
       try {
         // 0. Check if domain is blocked (before fetching)
+        // Note: This check happens at fetch-time to avoid wasting HTTP requests
+        // on blocked domains. Enterprise user bypass is handled at article
+        // delivery time (query filtering), not here.
         const domain = extractDomain(feedUrl);
         if (domain) {
-          try {
-            // Get all users subscribed to this source
-            const subscriptions = await db
-              .select()
-              .from(schema.subscriptions)
-              .where(eq(schema.subscriptions.sourceId, sourceId));
-
-            if (subscriptions.length > 0) {
-              // Get their plans (check if any are enterprise)
-              const userIds = subscriptions.map((s) => s.userId);
-              // Chunk userIds for Cloudflare D1 parameter limit
-              const chunks = chunkArray(userIds, D1_MAX_PARAMETERS - 1);
-
-              let hasEnterpriseUser = false;
-              for (const chunk of chunks) {
-                // Select all fields - inArray requires this for type inference
-                const users = await db
-                  .select()
-                  .from(schema.user)
-                  .where(inArray(schema.user.id, chunk));
-
-                if (users.some((u) => u.plan === "enterprise")) {
-                  hasEnterpriseUser = true;
-                  break;
-                }
-              }
-
-              // If no enterprise users, check if domain is blocked
-              if (!hasEnterpriseUser) {
-                // Use cached list if provided (batch processing), otherwise fetch
-                let domainsToCheck = blockedDomainsList;
-                if (!domainsToCheck) {
-                  try {
-                    domainsToCheck = await getBlockedDomains(db);
-                  } catch (error) {
-                    // Safe migration: If table doesn't exist yet, use empty list
-                    if (
-                      error instanceof Error &&
-                      (error.message.includes("no such table") ||
-                        error.message.includes("does not exist"))
-                    ) {
-                      console.warn(
-                        "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
-                      );
-                      domainsToCheck = [];
-                    } else {
-                      // Log other errors but continue (fail open for safety)
-                      console.error("Error fetching blocked domains:", error);
-                      domainsToCheck = [];
-                    }
-                  }
-                }
-
-                const blockedDomains = domainsToCheck.map((b) => b.domain);
-                if (isDomainBlocked(domain, blockedDomains)) {
-                  console.log(`Skipping blocked domain: ${domain}`);
-                  span.setAttribute("domain_blocked", true);
-                  span.setStatus({ code: 1, message: "Domain blocked" });
-                  return {
-                    articlesAdded: 0,
-                    articlesSkipped: 0,
-                    sourceUpdated: false,
-                  };
-                }
+          // Use cached list if provided (batch processing), otherwise fetch
+          let domainsToCheck = blockedDomainsList;
+          if (!domainsToCheck) {
+            try {
+              domainsToCheck = await getBlockedDomains(db);
+            } catch (error) {
+              // Safe migration: If table doesn't exist yet, use empty list
+              if (
+                error instanceof Error &&
+                (error.message.includes("no such table") ||
+                  error.message.includes("does not exist"))
+              ) {
+                console.warn(
+                  "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
+                );
+                domainsToCheck = [];
+              } else {
+                // Log other errors but continue (fail open for safety)
+                console.error("Error fetching blocked domains:", error);
+                domainsToCheck = [];
               }
             }
-          } catch (error) {
-            // Catch subscription/user plan lookup errors
-            // Safe migration: If tables don't exist yet, continue with fetch
-            if (
-              error instanceof Error &&
-              (error.message.includes("no such table") ||
-                error.message.includes("does not exist"))
-            ) {
-              console.warn(
-                "Subscription tables not found - continuing with fetch (migrations may not have run yet)"
-              );
-            } else {
-              // Log other errors but continue (fail open for safety)
-              console.error("Error checking subscriptions:", error);
-            }
+          }
+
+          const blockedDomains = domainsToCheck.map((b) => b.domain);
+          if (isDomainBlocked(domain, blockedDomains)) {
+            console.log(`Skipping blocked domain: ${domain}`);
+            span.setAttribute("domain_blocked", true);
+            span.setStatus({ code: 1, message: "Domain blocked" });
+            return {
+              articlesAdded: 0,
+              articlesSkipped: 0,
+              sourceUpdated: false,
+            };
           }
         }
 
