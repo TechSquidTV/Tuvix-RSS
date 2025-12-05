@@ -95,16 +95,17 @@ Public feeds allow users to create custom RSS 2.0 feeds by aggregating articles 
 // If categories are specified
 if (categoryIds.length > 0) {
   // Find subscriptions in these categories
-  subscriptions = user.subscriptions
-    .filter(sub => sub.categories.includes(categoryIds))
+  subscriptions = user.subscriptions.filter((sub) =>
+    sub.categories.includes(categoryIds)
+  );
 
   // Get articles from those subscription sources
-  articles = getArticles(subscriptions.sources)
+  articles = getArticles(subscriptions.sources);
 }
 // If no categories specified
 else {
   // Get ALL articles from ALL user subscriptions
-  articles = getArticles(user.allSubscriptions.sources)
+  articles = getArticles(user.allSubscriptions.sources);
 }
 ```
 
@@ -115,10 +116,12 @@ else {
 ### Creating a Public Feed
 
 **Step 1: Navigate to Feeds Page**
+
 - Click "Feeds" in the sidebar
 - View existing feeds or create new one
 
 **Step 2: Fill Out Form**
+
 ```
 Title: "Tech News Digest"
 Slug: "tech-news-digest"
@@ -128,21 +131,25 @@ Categories: [Technology, Programming] (optional)
 ```
 
 **Step 3: Save Feed**
+
 - Click "Create"
 - Feed is immediately available at `/public/{username}/tech-news-digest`
 
 **Step 4: Share URL**
+
 - Copy the public URL
 - Share with others or add to RSS reader
 
 ### Editing a Feed
 
 **Update Metadata**:
+
 - Change title, description, or slug
 - Toggle public/private status
 - Add/remove categories
 
 **Important Notes**:
+
 - Changing slug will break existing subscriptions
 - Making feed private immediately hides it from public access
 - Category changes take effect immediately
@@ -182,6 +189,7 @@ CREATE INDEX idx_feeds_slug ON feeds(slug);
 ```
 
 **Fields**:
+
 - `id`: Auto-incrementing primary key
 - `user_id`: Owner of this feed
 - `slug`: URL-friendly identifier (lowercase, hyphens only)
@@ -192,6 +200,7 @@ CREATE INDEX idx_feeds_slug ON feeds(slug);
 - `updated_at`: Last modification time
 
 **Constraints**:
+
 - User can have multiple feeds with different slugs
 - Slug must be unique per user (not globally unique)
 - Cascade delete: Removing user removes all their feeds
@@ -213,6 +222,7 @@ CREATE INDEX idx_feed_categories_category_id ON feed_categories(category_id);
 ```
 
 **Relationships**:
+
 - One feed can include multiple categories
 - One category can be included in multiple feeds
 - Empty (no categories) = include all subscriptions
@@ -247,14 +257,16 @@ CREATE INDEX idx_public_feed_access_log_accessed_at ON public_feed_access_log(ac
 **Method**: Query
 
 **Input**:
+
 ```typescript
 {
-  limit: number;   // Default: 50, Max: 100
-  offset: number;  // Default: 0
+  limit: number; // Default: 50, Max: 100
+  offset: number; // Default: 0
 }
 ```
 
 **Output**:
+
 ```typescript
 {
   items: Array<{
@@ -273,10 +285,11 @@ CREATE INDEX idx_public_feed_access_log_accessed_at ON public_feed_access_log(ac
 ```
 
 **Example**:
+
 ```typescript
 const feeds = await client.feeds.list.query({ limit: 20, offset: 0 });
 
-feeds.items.forEach(feed => {
+feeds.items.forEach((feed) => {
   console.log(`${feed.title}: /public/${username}/${feed.slug}`);
 });
 ```
@@ -288,6 +301,7 @@ feeds.items.forEach(feed => {
 **Method**: Query
 
 **Input**:
+
 ```typescript
 {
   id: number;
@@ -295,6 +309,7 @@ feeds.items.forEach(feed => {
 ```
 
 **Output**:
+
 ```typescript
 {
   id: number;
@@ -316,6 +331,7 @@ feeds.items.forEach(feed => {
 **Method**: Mutation
 
 **Input**:
+
 ```typescript
 {
   title: string;              // Required, min 1 char
@@ -329,22 +345,25 @@ feeds.items.forEach(feed => {
 **Output**: Created feed object
 
 **Validation**:
+
 - Slug must match: `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`
 - Slug must be unique for this user
 - Must not exceed plan's public feed limit
 
 **Example**:
+
 ```typescript
 const feed = await client.feeds.create.mutate({
   title: "Tech News",
   slug: "tech-news",
   description: "Latest technology articles",
   public: true,
-  categoryIds: [1, 3, 5] // Technology, Programming, Science
+  categoryIds: [1, 3, 5], // Technology, Programming, Science
 });
 ```
 
 **Errors**:
+
 - `CONFLICT`: Slug already exists for this user
 - `FORBIDDEN`: Public feed limit reached
 - `BAD_REQUEST`: Invalid slug format
@@ -356,6 +375,7 @@ const feed = await client.feeds.create.mutate({
 **Method**: Mutation
 
 **Input**:
+
 ```typescript
 {
   id: number;                 // Required
@@ -370,17 +390,19 @@ const feed = await client.feeds.create.mutate({
 **Output**: Updated feed object
 
 **Important**:
+
 - Changing slug breaks existing RSS subscriptions
 - Changing from private to public checks limits
 - Category changes take effect immediately
 - All fields are optional (partial updates)
 
 **Example**:
+
 ```typescript
 // Just toggle public status
 await client.feeds.update.mutate({
   id: 123,
-  public: false
+  public: false,
 });
 
 // Update everything
@@ -390,7 +412,7 @@ await client.feeds.update.mutate({
   slug: "new-slug",
   description: "Updated description",
   public: true,
-  categoryIds: [1, 2, 3]
+  categoryIds: [1, 2, 3],
 });
 ```
 
@@ -401,6 +423,7 @@ await client.feeds.update.mutate({
 **Method**: Mutation
 
 **Input**:
+
 ```typescript
 {
   id: number;
@@ -408,6 +431,7 @@ await client.feeds.update.mutate({
 ```
 
 **Output**:
+
 ```typescript
 {
   success: boolean;
@@ -415,6 +439,7 @@ await client.feeds.update.mutate({
 ```
 
 **Side Effects**:
+
 - Feed removed from database
 - All feed_categories associations deleted (cascade)
 - Public feed count decremented (if was public)
@@ -427,6 +452,7 @@ await client.feeds.update.mutate({
 **Method**: Query
 
 **Input**:
+
 ```typescript
 {
   username: string;
@@ -437,14 +463,16 @@ await client.feeds.update.mutate({
 **Output**: RSS 2.0 XML string
 
 **Example**:
+
 ```typescript
 const xml = await client.feeds.getPublicXml.query({
   username: "john",
-  slug: "tech-news"
+  slug: "tech-news",
 });
 ```
 
 **Errors**:
+
 - `NOT_FOUND`: User doesn't exist
 - `NOT_FOUND`: Feed doesn't exist
 - `NOT_FOUND`: Feed is private
@@ -493,11 +521,13 @@ TuvixRSS uses the `feedsmith` library to generate standards-compliant RSS 2.0 XM
 ### Channel Metadata
 
 **Required Fields**:
+
 - `title`: Feed title from database
 - `link`: Public feed URL
 - `description`: Feed description (or title if none)
 
 **Optional Fields**:
+
 - `language`: Default "en-us"
 - `generator`: "TuvixRSS"
 - `pubDate`: Most recent article's publish date
@@ -505,6 +535,7 @@ TuvixRSS uses the `feedsmith` library to generate standards-compliant RSS 2.0 XM
 ### Item Metadata
 
 **Fields**:
+
 - `title`: Article title
 - `link`: Original article URL
 - `description`: Article content/excerpt
@@ -515,6 +546,7 @@ TuvixRSS uses the `feedsmith` library to generate standards-compliant RSS 2.0 XM
 ### Article Selection
 
 **Query Logic**:
+
 ```typescript
 // 1. Get feed configuration
 const feed = await db.feeds.findBySlug(username, slug);
@@ -523,17 +555,18 @@ const feed = await db.feeds.findBySlug(username, slug);
 const categoryIds = await db.feedCategories.getCategoryIds(feed.id);
 
 // 3. Find matching subscriptions
-const subscriptions = categoryIds.length > 0
-  ? await db.subscriptions.findByCategories(userId, categoryIds)
-  : await db.subscriptions.findByUser(userId);
+const subscriptions =
+  categoryIds.length > 0
+    ? await db.subscriptions.findByCategories(userId, categoryIds)
+    : await db.subscriptions.findByUser(userId);
 
 // 4. Get source IDs
-const sourceIds = subscriptions.map(sub => sub.sourceId);
+const sourceIds = subscriptions.map((sub) => sub.sourceId);
 
 // 5. Fetch articles
 const articles = await db.articles
   .where({ sourceId: sourceIds })
-  .orderBy('publishedAt', 'DESC')
+  .orderBy("publishedAt", "DESC")
   .limit(50);
 ```
 
@@ -550,14 +583,14 @@ const xml = generateRSS({
   title: feed.title,
   link: feedUrl,
   description: feed.description || feed.title,
-  items: articles.map(article => ({
+  items: articles.map((article) => ({
     title: article.title,
     link: article.link || feedUrl,
     description: article.description,
     author: article.author,
     pubDate: article.publishedAt,
-    guid: article.guid
-  }))
+    guid: article.guid,
+  })),
 });
 ```
 
@@ -568,6 +601,7 @@ const xml = generateRSS({
 ### Public vs Private Feeds
 
 **Public Feeds** (`public: true`):
+
 - Accessible at `/public/:username/:slug`
 - No authentication required
 - Indexed by search engines
@@ -575,6 +609,7 @@ const xml = generateRSS({
 - Rate limited by owner's plan
 
 **Private Feeds** (`public: false`):
+
 - Not accessible via public URL
 - Returns 404 even if you have the URL
 - Useful for drafts or personal archives
@@ -583,17 +618,19 @@ const xml = generateRSS({
 ### Ownership Verification
 
 **Authenticated Endpoints**: All feed management operations verify ownership
+
 ```typescript
 // Automatically checks that feed.userId === ctx.user.userId
 const feed = await requireOwnership(db, feeds, feedId, userId, "Feed");
 ```
 
 **Public Endpoint**: No ownership check, but feed must be public
+
 ```typescript
 if (!feed.public) {
   throw new TRPCError({
     code: "NOT_FOUND",
-    message: "Feed not found"  // Don't reveal it's private
+    message: "Feed not found", // Don't reveal it's private
   });
 }
 ```
@@ -601,6 +638,7 @@ if (!feed.public) {
 ### Slug Uniqueness
 
 **Per-User Uniqueness**: Slugs must be unique per user, not globally
+
 ```sql
 UNIQUE(user_id, slug)
 ```
@@ -608,6 +646,7 @@ UNIQUE(user_id, slug)
 **Why**: Allows multiple users to have `/public/john/tech-news` and `/public/jane/tech-news`
 
 **Validation**: Checked on create and update:
+
 ```typescript
 const exists = await slugExists(db, feeds, userId, slug, excludeId);
 if (exists) {
@@ -637,24 +676,26 @@ Public feeds are rate limited to prevent abuse while allowing anonymous access.
 **Storage**: Cloudflare Workers rate limit bindings (production) or disabled (Docker Compose)
 
 **Why per-owner?**:
+
 - RSS readers don't authenticate
 - Prevents abuse of any single user's feeds
 - Each user's plan determines their feed's rate limit
 
 ### Limits by Plan
 
-| Plan | Public Feed Rate Limit |
-|------|------------------------|
-| Free | ~17 requests/minute |
-| Pro | ~167 requests/minute |
+| Plan       | Public Feed Rate Limit |
+| ---------- | ---------------------- |
+| Free       | ~17 requests/minute    |
+| Pro        | ~167 requests/minute   |
 | Enterprise | ~1,667 requests/minute |
-| Custom | Admin-defined |
+| Custom     | Admin-defined          |
 
 Note: Limits are configured per-minute. Docker Compose deployments have no rate limiting.
 
 ### When Limit Exceeded
 
 **Response**:
+
 ```http
 HTTP/1.1 429 Too Many Requests
 
@@ -670,12 +711,14 @@ HTTP/1.1 429 Too Many Requests
 ### Admin Controls
 
 **View Usage**:
+
 ```typescript
 const status = await admin.getUserRateLimitStatus.query({ userId: 123 });
 console.log(`Feed usage: ${status.feedUsagePercent}%`);
 ```
 
 **Reset Limit**:
+
 ```typescript
 await admin.resetUserRateLimit.mutate({ userId: 123, type: "publicFeed" });
 ```
@@ -701,17 +744,19 @@ Users are limited in how many public feeds they can create based on their plan.
 ### Limit Enforcement
 
 **On Create**:
+
 ```typescript
 const limitCheck = await checkPublicFeedLimit(db, userId);
 if (!limitCheck.allowed) {
   throw new TRPCError({
     code: "FORBIDDEN",
-    message: `You have reached your limit of ${limitCheck.limit} public feeds`
+    message: `You have reached your limit of ${limitCheck.limit} public feeds`,
   });
 }
 ```
 
 **On Update** (private → public):
+
 ```typescript
 if (!wasPublic && willBePublic) {
   const limitCheck = await checkPublicFeedLimit(db, userId);
@@ -725,26 +770,31 @@ if (!wasPublic && willBePublic) {
 
 **Tracking**: `usage_stats.public_feed_count`
 **Updates**:
+
 - Incremented when creating public feed
 - Incremented when changing private → public
 - Decremented when changing public → private
 - Decremented when deleting public feed
 
 **Example**:
+
 ```typescript
 // Check current usage
 const user = await admin.getUser.query({ userId: 123 });
-console.log(`Public feeds: ${user.usage.publicFeedCount} / ${user.limits.maxPublicFeeds}`);
+console.log(
+  `Public feeds: ${user.usage.publicFeedCount} / ${user.limits.maxPublicFeeds}`
+);
 ```
 
 ### Custom Limits
 
 Admins can override plan limits for specific users:
+
 ```typescript
 await admin.setCustomLimits.mutate({
   userId: 123,
   maxPublicFeeds: 100,
-  notes: "Beta tester - unlimited feeds"
+  notes: "Beta tester - unlimited feeds",
 });
 ```
 
@@ -757,6 +807,7 @@ await admin.setCustomLimits.mutate({
 **Location**: `packages/app/src/routes/app/feeds.tsx`
 
 **Features**:
+
 - List all user's feeds (public and private)
 - Create new feed with form
 - Toggle public/private status
@@ -780,7 +831,7 @@ function FeedsPage() {
     title: "",
     slug: "",
     description: "",
-    public: true
+    public: true,
   });
 
   return (
@@ -793,7 +844,7 @@ function FeedsPage() {
       {showAddForm && <CreateFeedForm />}
 
       {/* Feeds List */}
-      {feeds.map(feed => (
+      {feeds.map((feed) => (
         <FeedCard
           key={feed.id}
           feed={feed}
@@ -824,7 +875,7 @@ export const useCreateFeed = () => {
     onSuccess: () => {
       utils.feeds.list.invalidate();
       toast.success("Feed created");
-    }
+    },
   });
 };
 
@@ -835,7 +886,7 @@ export const useUpdateFeed = () => {
     onSuccess: () => {
       utils.feeds.invalidate();
       toast.success("Feed updated");
-    }
+    },
   });
 };
 
@@ -846,7 +897,7 @@ export const useDeleteFeed = () => {
     onSuccess: () => {
       utils.feeds.list.invalidate();
       toast.success("Feed deleted");
-    }
+    },
   });
 };
 ```
@@ -854,18 +905,18 @@ export const useDeleteFeed = () => {
 ### Form Validation
 
 **Client-Side**:
+
 ```typescript
 const handleSlugChange = (value: string) => {
   // Auto-format slug
-  const formatted = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-");
+  const formatted = value.toLowerCase().replace(/[^a-z0-9-]/g, "-");
 
   setFormData({ ...formData, slug: formatted });
 };
 ```
 
 **Server-Side**: Zod validation with `slugValidator`:
+
 ```typescript
 export const slugValidator = z
   .string()
@@ -886,6 +937,7 @@ const handleCopyUrl = (username: string, slug: string) => {
 ```
 
 **Environment Configuration**:
+
 - `VITE_PUBLIC_URL`: Optional environment variable for the public base URL (e.g., `https://app.example.com`)
 - If not set, defaults to `window.location.origin` (works for development)
 - Should match server-side `BASE_URL` for consistency
@@ -899,6 +951,7 @@ const handleCopyUrl = (username: string, slug: string) => {
 Public feeds are accessible via two mechanisms:
 
 1. **tRPC Endpoint** (programmatic):
+
    ```
    POST /trpc/feeds.getPublicXml
    ```
@@ -947,7 +1000,7 @@ app.get("/public/:username/:slug", async (req, res) => {
     feedId: feed.id,
     ipAddress: req.ip,
     userAgent: req.headers["user-agent"],
-    accessedAt: new Date()
+    accessedAt: new Date(),
   });
 
   // 7. Return XML
@@ -961,6 +1014,7 @@ app.get("/public/:username/:slug", async (req, res) => {
 **Location**: `packages/api/src/adapters/cloudflare.ts`
 
 Similar to Express handler but uses Cloudflare-specific APIs:
+
 - `request.headers.get("cf-connecting-ip")` for IP address
 - Returns `new Response(xml, { ... })` instead of Express `res.send()`
 
@@ -975,6 +1029,7 @@ Content-Type: application/rss+xml; charset=utf-8
 ### CORS Headers
 
 Public feeds include CORS headers to allow web-based RSS readers:
+
 ```http
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET
@@ -993,7 +1048,7 @@ await db.insert(publicFeedAccessLog).values({
   feedId: feed.id,
   ipAddress: clientIP,
   userAgent: userAgent,
-  accessedAt: new Date()
+  accessedAt: new Date(),
 });
 ```
 
@@ -1004,6 +1059,7 @@ await db.insert(publicFeedAccessLog).values({
 **Location**: `/app/admin/rate-limits`
 
 **Metrics Available**:
+
 - Public feed access count (last 24 hours)
 - Most accessed feeds
 - Users approaching rate limits
@@ -1012,22 +1068,26 @@ await db.insert(publicFeedAccessLog).values({
 ### Querying Access Logs
 
 **Get access log for specific feed**:
+
 ```typescript
 const log = await admin.getPublicFeedAccessLog.query({
   feedId: 123,
   limit: 50,
-  offset: 0
+  offset: 0,
 });
 
-log.items.forEach(entry => {
+log.items.forEach((entry) => {
   console.log(`${entry.ipAddress} - ${entry.accessedAt}`);
 });
 ```
 
 **System-wide statistics**:
+
 ```typescript
 const stats = await admin.getRateLimitStats.query();
-console.log(`Total public feed access (24h): ${stats.totalPublicFeedAccessLast24h}`);
+console.log(
+  `Total public feed access (24h): ${stats.totalPublicFeedAccessLast24h}`
+);
 ```
 
 ### Popular Feed Identification
@@ -1060,12 +1120,13 @@ LIMIT 10;
    - Bad: `feed1`, `test`, `my-feed`
 
 2. **Write Clear Descriptions**
+
    ```typescript
    // Good
-   description: "Daily roundup of AI research papers from arXiv, Nature, and top ML conferences"
+   description: "Daily roundup of AI research papers from arXiv, Nature, and top ML conferences";
 
    // Bad
-   description: "My feed"
+   description: "My feed";
    ```
 
 3. **Use Categories Wisely**
@@ -1084,11 +1145,12 @@ LIMIT 10;
 ### For Developers
 
 1. **Handle Rate Limit Errors**
+
    ```typescript
    // Rate limiting is handled automatically by Cloudflare Workers
    // No headers are returned - check HTTP status code
    const response = await fetch(`/public/${username}/${slug}`);
-   
+
    if (response.status === 429) {
      const error = await response.json();
      console.warn(`Rate limit exceeded: ${error.message}`);
@@ -1097,13 +1159,14 @@ LIMIT 10;
    ```
 
 2. **Handle Errors Gracefully**
+
    ```typescript
    try {
      const xml = await fetch(`/public/${username}/${slug}`);
    } catch (error) {
      if (error.status === 429) {
        // Rate limit exceeded - wait before retrying
-       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute
+       await new Promise((resolve) => setTimeout(resolve, 60000)); // Wait 1 minute
      } else if (error.status === 404) {
        // Feed doesn't exist or is private
      }
@@ -1111,6 +1174,7 @@ LIMIT 10;
    ```
 
 3. **Cache RSS Feeds**
+
    ```typescript
    // Don't fetch more than once per 5 minutes
    const CACHE_TTL = 5 * 60 * 1000;
@@ -1135,15 +1199,17 @@ LIMIT 10;
    - Contact if approaching limits
 
 2. **Review Access Patterns**
+
    ```typescript
    // Check for suspicious activity
    const stats = await admin.getRateLimitStats.query();
-   stats.usersNearLimit.forEach(user => {
+   stats.usersNearLimit.forEach((user) => {
      console.log(`${user.username}: ${user.feedUsagePercent}% of limit`);
    });
    ```
 
 3. **Set Appropriate Limits**
+
    ```typescript
    // Personal blog: Free plan (1,000/hour)
    // Tech newsletter: Pro plan (10,000/hour)
@@ -1151,6 +1217,7 @@ LIMIT 10;
    ```
 
 4. **Handle Abuse**
+
 ```sql
 -- Find feeds with suspicious traffic patterns
 SELECT
@@ -1175,22 +1242,25 @@ ORDER BY total_requests DESC;
 ### Feed Not Found (404)
 
 **Possible Causes**:
+
 1. Feed doesn't exist
 2. Feed is private
 3. Username is incorrect
 4. Slug is incorrect
 
 **Diagnosis**:
+
 ```typescript
 // Check if feed exists
 const feed = await client.feeds.list.query();
-console.log(feed.items.find(f => f.slug === "tech-news"));
+console.log(feed.items.find((f) => f.slug === "tech-news"));
 
 // Check if feed is public
 console.log(`Public: ${feed.public}`);
 ```
 
 **Solution**:
+
 - Verify URL: `/public/{username}/{slug}`
 - Check feed is marked as public
 - Ensure slug matches exactly (case-sensitive)
@@ -1200,6 +1270,7 @@ console.log(`Public: ${feed.public}`);
 **Symptom**: 429 responses
 
 **Diagnosis**:
+
 ```typescript
 const status = await admin.getUserRateLimitStatus.query({ userId: 123 });
 console.log(`Feed usage: ${status.feedCurrent} / ${status.feedLimit}`);
@@ -1208,11 +1279,13 @@ console.log(`Feed usage: ${status.feedCurrent} / ${status.feedLimit}`);
 **Solutions**:
 
 1. **Temporary Relief**:
+
    ```typescript
    await admin.resetUserRateLimit.mutate({ userId: 123, type: "publicFeed" });
    ```
 
 2. **Upgrade Plan**:
+
    ```typescript
    await admin.changePlan.mutate({ userId: 123, plan: "pro" });
    ```
@@ -1221,18 +1294,20 @@ console.log(`Feed usage: ${status.feedCurrent} / ${status.feedLimit}`);
    ```typescript
    await admin.setCustomLimits.mutate({
      userId: 123,
-     publicFeedRateLimitPerMinute: 833 // ~50000/hour = ~833/minute
+     publicFeedRateLimitPerMinute: 833, // ~50000/hour = ~833/minute
    });
    ```
 
 ### Empty Feed (No Articles)
 
 **Possible Causes**:
+
 1. No categories selected and user has no subscriptions
 2. Selected categories have no subscriptions
 3. Subscriptions exist but no articles fetched yet
 
 **Diagnosis**:
+
 ```typescript
 // Check feed categories
 const feed = await client.feeds.getById.query({ id: 123 });
@@ -1251,6 +1326,7 @@ WHERE source_id IN (
 ```
 
 **Solutions**:
+
 - Wait for initial RSS fetch (cron job)
 - Add subscriptions to selected categories
 - Remove category filter (empty = all subscriptions)
@@ -1262,11 +1338,12 @@ WHERE source_id IN (
 **Cause**: Slug is not unique for this user
 
 **Solution**:
+
 ```typescript
 // Try different slug
-slug: "tech-news-2"
-slug: "tech-news-digest"
-slug: "my-tech-news"
+slug: "tech-news-2";
+slug: "tech-news-digest";
+slug: "my-tech-news";
 ```
 
 ### Can't Create More Feeds
@@ -1278,11 +1355,13 @@ slug: "my-tech-news"
 **Solutions**:
 
 1. **Delete unused feeds**:
+
    ```typescript
    await client.feeds.delete.mutate({ id: oldFeedId });
    ```
 
 2. **Make feeds private** (doesn't count toward limit):
+
    ```typescript
    await client.feeds.update.mutate({ id: feedId, public: false });
    ```

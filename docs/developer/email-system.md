@@ -60,6 +60,7 @@ packages/api/src/services/
 ### Shared Sending Logic
 
 All email types use a shared `sendEmail()` helper function that handles:
+
 - Configuration checking
 - Resend client initialization
 - Error handling
@@ -67,6 +68,7 @@ All email types use a shared `sendEmail()` helper function that handles:
 - Development mode fallback
 
 **Non-Blocking Behavior**:
+
 - Email sending failures do **not** block user registration or other operations
 - Failures are logged to console but don't throw errors
 - User registration completes successfully even if email sending fails
@@ -164,10 +166,12 @@ npx wrangler secret put BASE_URL
 **Subject**: "Verify Your TuvixRSS Email Address"
 
 **When Sent**:
+
 - Automatically on registration (if `requireEmailVerification` is enabled)
 - Manually via `auth.resendVerificationEmail` endpoint
 
 **Parameters**:
+
 - `to`: Recipient email address
 - `username`: User's display name
 - `verificationToken`: Verification token
@@ -176,8 +180,9 @@ npx wrangler secret put BASE_URL
 **Function**: `sendVerificationEmail(env, params)`
 
 **Example**:
+
 ```typescript
-import { sendVerificationEmail } from '@/services/email';
+import { sendVerificationEmail } from "@/services/email";
 
 await sendVerificationEmail(env, {
   to: user.email,
@@ -196,10 +201,12 @@ await sendVerificationEmail(env, {
 **Subject**: "Reset Your TuvixRSS Password"
 
 **When Sent**:
+
 - When user requests password reset via `auth.requestPasswordReset`
 - Triggered by Better Auth's `requestPasswordReset` endpoint
 
 **Parameters**:
+
 - `to`: Recipient email address
 - `username`: User's display name
 - `resetToken`: Password reset token
@@ -208,8 +215,9 @@ await sendVerificationEmail(env, {
 **Function**: `sendPasswordResetEmail(env, params)`
 
 **Example**:
+
 ```typescript
-import { sendPasswordResetEmail } from '@/services/email';
+import { sendPasswordResetEmail } from "@/services/email";
 
 await sendPasswordResetEmail(env, {
   to: user.email,
@@ -228,10 +236,12 @@ await sendPasswordResetEmail(env, {
 **Subject**: "Welcome to Tuvix!"
 
 **When Sent**:
+
 - Automatically after successful registration
 - Only if email verification is not required OR user is already verified
 
 **Parameters**:
+
 - `to`: Recipient email address
 - `username`: User's display name
 - `appUrl`: Frontend application URL
@@ -239,8 +249,9 @@ await sendPasswordResetEmail(env, {
 **Function**: `sendWelcomeEmail(env, params)`
 
 **Example**:
+
 ```typescript
-import { sendWelcomeEmail } from '@/services/email';
+import { sendWelcomeEmail } from "@/services/email";
 
 await sendWelcomeEmail(env, {
   to: user.email,
@@ -254,11 +265,13 @@ await sendWelcomeEmail(env, {
 ### Admin User Considerations
 
 **Email Verification Bypass**:
+
 - Admin users bypass email verification checks in tRPC middleware
 - Admins can access protected endpoints even if `emailVerified` is `false`
 - This allows first admin user (created via `ALLOW_FIRST_USER_ADMIN`) immediate access
 
 **Email Sending Behavior**:
+
 - Verification emails are still sent to admins if `requireEmailVerification` is enabled
 - Welcome emails follow normal logic: sent if verification not required OR user is verified
 - **Note**: If `requireEmailVerification` is enabled and admin hasn't verified email, welcome email is delayed until verification (even though admin can access app)
@@ -310,17 +323,20 @@ await sendWelcomeEmail(env, {
 6. **Welcome Email Sent** → If not already sent
 
 **Resend Verification Email**:
+
 - User can request new verification email via `auth.resendVerificationEmail`
 - Rate limited: 1 request per 5 minutes per user
 - Only available if `requireEmailVerification` is enabled and user is not already verified
 
 **Admin Users**:
+
 - Admin users bypass email verification requirement in middleware
 - Can access all protected endpoints without verifying email
 - Verification emails are still sent if `requireEmailVerification` is enabled
 - Welcome emails are sent immediately if `requireEmailVerification` is disabled OR if admin is already verified
 
-**Implementation**: 
+**Implementation**:
+
 - Email sending: `packages/api/src/routers/auth.ts:355`
 - Admin bypass: `packages/api/src/trpc/init.ts:68`
 
@@ -331,6 +347,7 @@ await sendWelcomeEmail(env, {
 React Email provides a development server for previewing email templates in the browser.
 
 **Start Preview Server**:
+
 ```bash
 # From project root
 pnpm run email:preview
@@ -341,12 +358,14 @@ pnpm run email:preview
 ```
 
 This starts a local preview server (typically at `http://localhost:3000`) where you can:
+
 - View all email templates in a browser
 - See how templates render with different props
 - Test responsive design
 - Preview in different email clients (via React Email's built-in previews)
 
 **Preview Server Features**:
+
 - Hot reload - changes to templates update automatically
 - Multiple template preview - see all templates side-by-side
 - Props editor - modify template props in real-time
@@ -356,6 +375,7 @@ This starts a local preview server (typically at `http://localhost:3000`) where 
 
 **Testing with Sample Data**:
 When previewing templates, you can test with different prop values:
+
 - **Verification Email**: Test with various usernames and verification URLs
 - **Password Reset**: Test with different reset URLs and usernames
 - **Welcome Email**: Test with different app URLs and usernames
@@ -411,17 +431,30 @@ export const MyEmail: React.FC<Readonly<MyEmailProps>> = ({
 export default MyEmail;
 
 // Styles
-const main = { /* ... */ };
-const container = { /* ... */ };
-const h1 = { /* ... */ };
-const text = { /* ... */ };
-const buttonContainer = { /* ... */ };
-const button = { /* ... */ };
+const main = {
+  /* ... */
+};
+const container = {
+  /* ... */
+};
+const h1 = {
+  /* ... */
+};
+const text = {
+  /* ... */
+};
+const buttonContainer = {
+  /* ... */
+};
+const button = {
+  /* ... */
+};
 ```
 
 ### Adding a New Email Type
 
 1. **Create Template** (`packages/api/src/services/email-templates/my-email.tsx`):
+
    ```tsx
    export const MyEmail: React.FC<MyEmailProps> = ({ ... }) => (
      // Template JSX
@@ -429,11 +462,13 @@ const button = { /* ... */ };
    ```
 
 2. **Export Template** (`packages/api/src/services/email-templates/index.ts`):
+
    ```typescript
    export { MyEmail } from "./my-email";
    ```
 
 3. **Add Type Definition** (`packages/api/src/services/email.ts`):
+
    ```typescript
    export interface MyEmailParams {
      to: string;
@@ -443,10 +478,11 @@ const button = { /* ... */ };
    ```
 
 4. **Add Sending Function** (`packages/api/src/services/email.ts`):
+
    ```typescript
    export async function sendMyEmail(
      env: Env,
-     params: MyEmailParams,
+     params: MyEmailParams
    ): Promise<SendEmailResult> {
      return sendEmail({
        env,
@@ -460,9 +496,10 @@ const button = { /* ... */ };
    ```
 
 5. **Use Function**:
+
    ```typescript
-   import { sendMyEmail } from '@/services/email';
-   
+   import { sendMyEmail } from "@/services/email";
+
    await sendMyEmail(env, {
      to: user.email,
      username: user.name,
@@ -498,11 +535,12 @@ Send email verification email.
 ```typescript
 function sendVerificationEmail(
   env: Env,
-  params: VerificationEmailParams,
-): Promise<SendEmailResult>
+  params: VerificationEmailParams
+): Promise<SendEmailResult>;
 ```
 
 **Parameters**:
+
 - `env`: Environment configuration
 - `params.to`: Recipient email address
 - `params.username`: User's display name
@@ -518,11 +556,12 @@ Send password reset email.
 ```typescript
 function sendPasswordResetEmail(
   env: Env,
-  params: PasswordResetEmailParams,
-): Promise<SendEmailResult>
+  params: PasswordResetEmailParams
+): Promise<SendEmailResult>;
 ```
 
 **Parameters**:
+
 - `env`: Environment configuration
 - `params.to`: Recipient email address
 - `params.username`: User's display name
@@ -538,11 +577,12 @@ Send welcome email to new user.
 ```typescript
 function sendWelcomeEmail(
   env: Env,
-  params: WelcomeEmailParams,
-): Promise<SendEmailResult>
+  params: WelcomeEmailParams
+): Promise<SendEmailResult>;
 ```
 
 **Parameters**:
+
 - `env`: Environment configuration
 - `params.to`: Recipient email address
 - `params.username`: User's display name
@@ -600,6 +640,7 @@ interface WelcomeEmailParams {
 **Symptoms**: No emails received, no errors in logs
 
 **Solutions**:
+
 1. **Verify API Key**: Check `RESEND_API_KEY` is set correctly
 2. **Verify Domain**: Ensure `EMAIL_FROM` matches verified domain in Resend
 3. **Check Resend Dashboard**: View API errors and delivery status
@@ -611,6 +652,7 @@ interface WelcomeEmailParams {
 **Symptoms**: Emails fail with domain verification errors
 
 **Solutions**:
+
 1. **Verify DNS Records**: Ensure all DNS records (DKIM, SPF, DMARC) are added correctly
 2. **Wait for Propagation**: DNS changes can take 24-48 hours
 3. **Use Resend Tool**: Use Resend's DNS verification tool to check record status
@@ -621,6 +663,7 @@ interface WelcomeEmailParams {
 **Symptoms**: Emails arrive but with significant delay
 
 **Solutions**:
+
 1. **Check Resend Dashboard**: View delivery status and logs
 2. **Verify Recipient Email**: Ensure email address is valid
 3. **Check Spam Filters**: Review spam/junk folders
@@ -646,6 +689,7 @@ This allows development without a Resend account, but emails won't actually be s
 **Symptoms**: Emails render incorrectly or buttons don't work
 
 **Solutions**:
+
 1. **Test in Email Clients**: Use tools like Litmus or Email on Acid
 2. **Check Inline Styles**: Ensure all styles are inline (not in `<style>` tags)
 3. **Verify Button Links**: Test that `href` attributes are correct
@@ -655,30 +699,34 @@ This allows development without a Resend account, but emails won't actually be s
 
 ### Key Files
 
-| File | Description |
-|------|-------------|
-| `packages/api/src/services/email.ts` | Core email service and sending functions |
-| `packages/api/src/services/email-templates/verification.tsx` | Email verification template |
-| `packages/api/src/services/email-templates/password-reset.tsx` | Password reset template |
-| `packages/api/src/services/email-templates/welcome.tsx` | Welcome email template |
-| `packages/api/src/services/email-templates/index.ts` | Template exports |
-| `packages/api/src/auth/better-auth.ts` | Better Auth email verification integration |
-| `packages/api/src/routers/auth.ts` | Auth router with email endpoints |
+| File                                                           | Description                                |
+| -------------------------------------------------------------- | ------------------------------------------ |
+| `packages/api/src/services/email.ts`                           | Core email service and sending functions   |
+| `packages/api/src/services/email-templates/verification.tsx`   | Email verification template                |
+| `packages/api/src/services/email-templates/password-reset.tsx` | Password reset template                    |
+| `packages/api/src/services/email-templates/welcome.tsx`        | Welcome email template                     |
+| `packages/api/src/services/email-templates/index.ts`           | Template exports                           |
+| `packages/api/src/auth/better-auth.ts`                         | Better Auth email verification integration |
+| `packages/api/src/routers/auth.ts`                             | Auth router with email endpoints           |
 
 ### Integration Points
 
 **Better Auth Email Verification**:
+
 - `packages/api/src/auth/better-auth.ts:178` - `emailVerification.sendVerificationEmail` callback
 - `packages/api/src/auth/better-auth.ts:345` - Manual verification email on sign-up
 
 **Password Reset**:
+
 - `packages/api/src/auth/better-auth.ts:92` - `sendResetPassword` callback
 - `packages/api/src/routers/auth.ts:552` - `requestPasswordReset` endpoint
 
 **Welcome Email**:
+
 - `packages/api/src/auth/better-auth.ts:358` - Welcome email after sign-up
 
 **Resend Verification Email**:
+
 - `packages/api/src/routers/auth.ts:355` - `resendVerificationEmail` endpoint
 
 ### Related Documentation
@@ -691,4 +739,3 @@ This allows development without a Resend account, but emails won't actually be s
 ---
 
 **Last Updated:** 2025-01-15
-

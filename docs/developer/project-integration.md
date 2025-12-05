@@ -104,26 +104,26 @@ packages/app/
 ### Client Configuration
 
 ```typescript
-import { createTRPCReact } from '@trpc/react-query'
-import { httpBatchLink } from '@trpc/client'
-import type { AppRouter } from '@tuvix/api'
+import { createTRPCReact } from "@trpc/react-query";
+import { httpBatchLink } from "@trpc/client";
+import type { AppRouter } from "@tuvix/api";
 
 // Create typed tRPC instance
-export const trpc = createTRPCReact<AppRouter>()
+export const trpc = createTRPCReact<AppRouter>();
 
 // Create client with configuration
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: import.meta.env.VITE_API_URL || 'http://localhost:3001/trpc',
+      url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
       // Better Auth handles authentication via HTTP-only cookies
       // No need to manually add Authorization headers
       headers() {
-        return {}
+        return {};
       },
     }),
   ],
-})
+});
 ```
 
 ### Key Features
@@ -146,13 +146,13 @@ export const trpcClient = trpc.createClient({
 4. **Type Exports**
 
 ```typescript
-import type { RouterInputs, RouterOutputs } from '@trpc/react-query'
+import type { RouterInputs, RouterOutputs } from "@trpc/react-query";
 
 // Input types for procedures
-export type ArticleListInput = RouterInputs<AppRouter>['articles']['list']
+export type ArticleListInput = RouterInputs<AppRouter>["articles"]["list"];
 
 // Output types for procedures
-export type ArticleListOutput = RouterOutputs<AppRouter>['articles']['list']
+export type ArticleListOutput = RouterOutputs<AppRouter>["articles"]["list"];
 ```
 
 ### Provider Setup
@@ -184,10 +184,7 @@ TuvixRSS achieves full type safety without code generation through TypeScript's 
 
 ```json
 {
-  "workspaces": [
-    "packages/api",
-    "packages/app"
-  ]
+  "workspaces": ["packages/api", "packages/app"]
 }
 ```
 
@@ -229,18 +226,18 @@ export const appRouter = router({
   auth: authRouter,
   articles: articlesRouter,
   // ...
-})
+});
 
-export type AppRouter = typeof appRouter
+export type AppRouter = typeof appRouter;
 ```
 
 2. **Frontend imports type:**
 
 ```typescript
 // packages/app/src/lib/api/trpc.ts
-import type { AppRouter } from '@tuvix/api'
+import type { AppRouter } from "@tuvix/api";
 
-export const trpc = createTRPCReact<AppRouter>()
+export const trpc = createTRPCReact<AppRouter>();
 ```
 
 3. **TypeScript resolves types at compile time:**
@@ -268,20 +265,21 @@ export function useRegister() {
     onSuccess: () => {
       // Better Auth automatically creates session via HTTP-only cookie
       // Redirect to dashboard
-    }
-  })
+    },
+  });
 }
 
 // Usage in component:
-const register = useRegister()
+const register = useRegister();
 register.mutate({
-  email: 'john@example.com',
-  password: 'secure123',
-  name: 'john' // Username
-})
+  email: "john@example.com",
+  password: "secure123",
+  name: "john", // Username
+});
 ```
 
 Backend flow:
+
 1. Better Auth validates input
 2. Hashes password with scrypt
 3. Creates user in database
@@ -296,19 +294,20 @@ export function useLogin() {
     onSuccess: () => {
       // Better Auth automatically creates session via HTTP-only cookie
       // Redirect to dashboard
-    }
-  })
+    },
+  });
 }
 
 // Usage:
-const login = useLogin()
+const login = useLogin();
 login.mutate({
-  username: 'john',
-  password: 'secure123'
-})
+  username: "john",
+  password: "secure123",
+});
 ```
 
 Backend flow:
+
 1. Find user by username
 2. Verify password with scrypt (Better Auth)
 3. Check if user banned
@@ -327,16 +326,16 @@ Better Auth manages sessions via HTTP-only cookies. No manual token handling nee
 
 ```typescript
 export async function createContext({ req, env }): Promise<Context> {
-  let user: AuthUser | null = null
+  let user: AuthUser | null = null;
 
   // Better Auth handles session extraction from HTTP-only cookies
-  const session = await auth.api.getSession({ headers: req.headers })
+  const session = await auth.api.getSession({ headers: req.headers });
   if (session?.user) {
     user = {
       userId: session.user.id as number,
       username: session.user.username || session.user.name || "",
-      role: (session.user.role || "user") as "user" | "admin"
-    }
+      role: (session.user.role || "user") as "user" | "admin",
+    };
   }
 
   return {
@@ -344,8 +343,8 @@ export async function createContext({ req, env }): Promise<Context> {
     user,
     env,
     headers: Object.fromEntries(req.headers),
-    req
-  }
+    req,
+  };
 }
 ```
 
@@ -355,43 +354,43 @@ export async function createContext({ req, env }): Promise<Context> {
 // Backend: packages/api/src/trpc/init.ts
 const isAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.user) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+    throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
   // Check if user exists and not banned
   const user = await ctx.db.query.user.findFirst({
-    where: eq(schema.user.id, ctx.user.userId)
-  })
+    where: eq(schema.user.id, ctx.user.userId),
+  });
 
   if (!user) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+    throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
   if (user.banned) {
     throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'Account is banned'
-    })
+      code: "FORBIDDEN",
+      message: "Account is banned",
+    });
   }
 
-  return next({ ctx: { ...ctx, user: ctx.user } })
-})
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
 
-export const protectedProcedure = t.procedure.use(isAuthed)
+export const protectedProcedure = t.procedure.use(isAuthed);
 ```
 
 ### 6. Logout
 
 ```typescript
 export function useLogout() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return authClient.signOut.useMutation({
     onSuccess: () => {
-      queryClient.clear()  // Clear all cached data
+      queryClient.clear(); // Clear all cached data
       // Redirect to login
-    }
-  })
+    },
+  });
 }
 ```
 
@@ -407,11 +406,11 @@ export function useArticles(filters: ArticleFilters) {
   return trpc.articles.list.useQuery({
     offset: filters.page * filters.limit,
     limit: filters.limit,
-    filter: filters.filter,  // "all" | "unread" | "read" | "saved"
+    filter: filters.filter, // "all" | "unread" | "read" | "saved"
     subscriptionId: filters.subscriptionId,
     categoryId: filters.categoryId,
     searchTerm: filters.searchTerm,
-  })
+  });
 }
 ```
 
@@ -454,14 +453,14 @@ isLoading: boolean
 
 ```typescript
 export function useMarkArticleRead() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return trpc.articles.markRead.useMutation({
     onSuccess: () => {
       // Invalidate articles cache to refetch
-      queryClient.invalidateQueries(['trpc', 'articles', 'list'])
-    }
-  })
+      queryClient.invalidateQueries(["trpc", "articles", "list"]);
+    },
+  });
 }
 ```
 
@@ -500,53 +499,50 @@ export function useInfiniteArticles(filters: ArticleFilters) {
     },
     {
       getNextPageParam: (lastPage, allPages) => {
-        if (lastPage.length < 50) return undefined
-        return allPages.length * 50  // Next offset
-      }
+        if (lastPage.length < 50) return undefined;
+        return allPages.length * 50; // Next offset
+      },
     }
-  )
+  );
 }
 
 // Usage:
 const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-  useInfiniteArticles({ filter: 'unread' })
+  useInfiniteArticles({ filter: "unread" });
 ```
 
 ### Optimistic Updates
 
 ```typescript
 export function useMarkArticleSaved() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return trpc.articles.markSaved.useMutation({
     onMutate: async ({ id, saved }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries(['trpc', 'articles', 'list'])
+      await queryClient.cancelQueries(["trpc", "articles", "list"]);
 
       // Snapshot current value
-      const previous = queryClient.getQueryData(['trpc', 'articles', 'list'])
+      const previous = queryClient.getQueryData(["trpc", "articles", "list"]);
 
       // Optimistically update
-      queryClient.setQueryData(['trpc', 'articles', 'list'], (old) =>
-        old.map(article =>
+      queryClient.setQueryData(["trpc", "articles", "list"], (old) =>
+        old.map((article) =>
           article.id === id ? { ...article, saved } : article
         )
-      )
+      );
 
-      return { previous }
+      return { previous };
     },
     onError: (err, variables, context) => {
       // Rollback on error
-      queryClient.setQueryData(
-        ['trpc', 'articles', 'list'],
-        context.previous
-      )
+      queryClient.setQueryData(["trpc", "articles", "list"], context.previous);
     },
     onSettled: () => {
       // Refetch after mutation
-      queryClient.invalidateQueries(['trpc', 'articles', 'list'])
-    }
-  })
+      queryClient.invalidateQueries(["trpc", "articles", "list"]);
+    },
+  });
 }
 ```
 
@@ -633,6 +629,7 @@ pnpm db:migrate
 ```
 
 **Output:**
+
 - `dist/express.js` - Bundled Express server
 - Type declarations in `dist/`
 
@@ -647,6 +644,7 @@ pnpm db:migrate
 ```
 
 **Output:**
+
 - `dist/` - Static files (HTML, JS, CSS)
 - Optimized and minified for production
 
@@ -714,6 +712,7 @@ pnpm wrangler pages deploy dist
 ```
 
 **Environment Variables (Cloudflare Dashboard):**
+
 - `VITE_API_URL=https://api.tuvix.dev/trpc`
 
 #### Option 3: Vercel (Serverless Functions + Static)
@@ -723,9 +722,7 @@ pnpm wrangler pages deploy dist
 ```json
 // vercel.json
 {
-  "rewrites": [
-    { "source": "/trpc/:path*", "destination": "/api/trpc" }
-  ]
+  "rewrites": [{ "source": "/trpc/:path*", "destination": "/api/trpc" }]
 }
 ```
 
@@ -780,10 +777,12 @@ VITE_API_URL=https://api.tuvix.dev/trpc
 ### Environment Variable Loading
 
 **API:**
+
 - Node.js: Uses `dotenv` package
 - Cloudflare: Configured in `wrangler.toml` or dashboard
 
 **App:**
+
 - Vite loads `.env` files automatically
 - Variables prefixed with `VITE_` are exposed to client
 - Build-time replacement (not runtime)
@@ -889,7 +888,9 @@ Content-Type: application/json
 [
   {
     "result": {
-      "data": [ /* articles */ ]
+      "data": [
+        /* articles */
+      ]
     }
   },
   {
@@ -909,9 +910,9 @@ Content-Type: application/json
 ```typescript
 // Backend: packages/api/src/routers/articles.ts
 throw new TRPCError({
-  code: 'BAD_REQUEST',
-  message: 'Article not found'
-})
+  code: "BAD_REQUEST",
+  message: "Article not found",
+});
 ```
 
 ### Frontend Error Handling
@@ -948,6 +949,7 @@ The TuvixRSS frontend and backend are integrated through:
 7. **Build Pipeline:** API first, then app
 
 This architecture provides:
+
 - Full type safety across the stack
 - Instant type updates between packages
 - Excellent developer experience with autocomplete

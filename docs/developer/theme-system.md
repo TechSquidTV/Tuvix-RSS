@@ -64,13 +64,13 @@ Every theme implements the `ThemeConfig` interface:
 
 ```typescript
 interface ThemeConfig {
-  id: string;                    // Unique identifier
-  name: string;                  // Display name
-  description?: string;          // Optional description
-  colors: ColorPalette;          // Color definitions
-  fonts: FontConfig;             // Font stacks
-  radius: BorderRadiusConfig;    // Border radius values
-  grain: GrainConfig;            // Grain overlay effect
+  id: string; // Unique identifier
+  name: string; // Display name
+  description?: string; // Optional description
+  colors: ColorPalette; // Color definitions
+  fonts: FontConfig; // Font stacks
+  radius: BorderRadiusConfig; // Border radius values
+  grain: GrainConfig; // Grain overlay effect
 }
 ```
 
@@ -129,6 +129,7 @@ Format: `oklch(lightness chroma hue)`
 **Example**: `oklch(0.5 0.2 250)` = medium blue
 
 **Benefits**:
+
 - Perceptually uniform color transitions
 - Better color manipulation
 - Wide gamut support
@@ -152,6 +153,7 @@ All theme values are applied as CSS variables on the `:root` element:
 ## Available Themes
 
 ### Light Theme
+
 - **Style**: Clean, bright, professional
 - **Colors**: High contrast grayscale with blue accents
 - **Radius**: 0.625rem (10px)
@@ -159,6 +161,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Default system theme, daytime viewing
 
 ### Dark Theme (Default)
+
 - **Style**: Low-light optimized
 - **Colors**: Dark backgrounds with light text
 - **Radius**: 0.625rem
@@ -166,6 +169,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Night viewing, reduced eye strain
 
 ### Nord Theme
+
 - **Style**: Arctic, north-bluish developer theme
 - **Colors**: Based on [Nord color palette](https://www.nordtheme.com)
 - **Palette**: Polar Night, Snow Storm, Frost, Aurora
@@ -174,6 +178,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Developer preference, cold aesthetic
 
 ### Material Theme
+
 - **Style**: Material Design 3 inspired
 - **Colors**: Tonal color system
 - **Features**: Pill-shaped buttons, no borders
@@ -182,6 +187,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Modern, elevated UI feel
 
 ### Minimal Theme
+
 - **Style**: Ultra-minimal, print-friendly
 - **Colors**: Pure grayscale, high contrast
 - **Features**: No borders, no radius, no grain
@@ -190,6 +196,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Distraction-free reading, printing
 
 ### Hacker News Theme
+
 - **Style**: Nostalgic, utilitarian
 - **Colors**: Classic HN orange (#ff6600) and beige
 - **Features**: Custom header styling
@@ -198,6 +205,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **Use Case**: Retro aesthetic, HN enthusiasts
 
 ### Windows 95 Theme
+
 - **Style**: Classic Windows 95 with 3D beveled UI
 - **Colors**: Classic Win95 gray (#c0c0c0) background with blue (#000080) accents
 - **Features**: 3D outset/inset borders, square corners, MS Sans Serif font
@@ -207,6 +215,7 @@ All theme values are applied as CSS variables on the `:root` element:
 - **3D Effects**: Buttons use outset borders (raised), inputs use inset borders (sunken), cards use outset borders (window chrome)
 
 ### System Theme
+
 - **Behavior**: Automatically follows OS dark/light mode preference
 - **Implementation**: Uses `prefers-color-scheme` media query
 - **Resolves To**: Light or Dark theme based on system
@@ -229,6 +238,7 @@ export function MyComponent() {
 ```
 
 Common class patterns:
+
 - `bg-background`, `text-foreground`
 - `bg-card`, `text-card-foreground`
 - `bg-primary`, `text-primary-foreground`
@@ -240,11 +250,13 @@ Common class patterns:
 ```tsx
 export function CustomComponent() {
   return (
-    <div style={{
-      backgroundColor: 'var(--background)',
-      color: 'var(--foreground)',
-      borderRadius: 'var(--radius)',
-    }}>
+    <div
+      style={{
+        backgroundColor: "var(--background)",
+        color: "var(--foreground)",
+        borderRadius: "var(--radius)",
+      }}
+    >
       Custom styled content
     </div>
   );
@@ -262,10 +274,12 @@ export function ThemeAwareComponent() {
   const themeConfig = getTheme(theme);
 
   return (
-    <div style={{
-      backgroundColor: themeConfig.colors.background,
-      borderRadius: themeConfig.radius.value,
-    }}>
+    <div
+      style={{
+        backgroundColor: themeConfig.colors.background,
+        borderRadius: themeConfig.radius.value,
+      }}
+    >
       Theme: {themeConfig.name}
     </div>
   );
@@ -281,10 +295,7 @@ export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <select
-      value={theme}
-      onChange={(e) => setTheme(e.target.value)}
-    >
+    <select value={theme} onChange={(e) => setTheme(e.target.value)}>
       <option value="light">Light</option>
       <option value="dark">Dark</option>
       <option value="nord">Nord</option>
@@ -301,6 +312,7 @@ export function ThemeSwitcher() {
 ### Theme Persistence
 
 Themes are automatically persisted to:
+
 1. **localStorage** (key: `vite-ui-theme`) - Immediate persistence
 2. **User settings API** - Synced to backend for cross-device support
 
@@ -407,7 +419,7 @@ export type ThemeId =
   | "material"
   | "minimal"
   | "hackernews"
-  | "mytheme"  // Add your theme ID
+  | "mytheme" // Add your theme ID
   | "system";
 ```
 
@@ -425,7 +437,7 @@ export const themes: Record<ThemeId, ThemeConfig> = {
   material: materialTheme,
   minimal: minimalTheme,
   hackernews: hackernewsTheme,
-  mytheme: myTheme,  // Add your theme
+  mytheme: myTheme, // Add your theme
   system: lightTheme,
 };
 ```
@@ -468,7 +480,7 @@ document.documentElement.classList.remove(
   "minimal",
   "hackernews",
   "win95",
-  "mytheme"  // Add your theme
+  "mytheme" // Add your theme
 );
 ```
 
@@ -605,6 +617,7 @@ radius: {
 ```
 
 Access in CSS:
+
 - `--radius`: Base radius
 - `--button-radius`: Button-specific radius
 - `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`: Calculated variants
@@ -618,6 +631,7 @@ const { theme, setTheme } = useTheme();
 ```
 
 **Returns:**
+
 - `theme`: Current theme ID (string)
 - `setTheme`: Function to change theme
 
@@ -683,6 +697,7 @@ const allThemes = getAllThemeMetadata();
 ### CSS Variables Reference
 
 #### Colors
+
 ```css
 var(--background)
 var(--foreground)
@@ -707,6 +722,7 @@ var(--logo-secondary)
 ```
 
 #### Layout
+
 ```css
 var(--radius)
 var(--radius-sm)
@@ -717,12 +733,14 @@ var(--button-radius)
 ```
 
 #### Typography
+
 ```css
 var(--font-sans)
 var(--font-mono)
 ```
 
 #### Effects
+
 ```css
 var(--grain-opacity)
 var(--grain-blend-mode)

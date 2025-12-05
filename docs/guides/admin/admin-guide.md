@@ -77,22 +77,24 @@ await client.admin.updateGlobalSettings.mutate({
 
 ### Settings Reference
 
-| Setting | Purpose | Default | Recommended Range |
-|---------|---------|---------|-------------------|
-| `maxLoginAttempts` | Failed logins before lockout | 5 | 3-10 (higher = less secure) |
-| `loginAttemptWindowMinutes` | Time window for counting | 15 min | 10-30 min |
-| `lockoutDurationMinutes` | Lockout duration | 30 min | 15-60 min |
-| `allowRegistration` | Allow new user signups | true | - |
-| `requireEmailVerification` | Require email verification | false | true (if email configured) |
-| `passwordResetTokenExpiryHours` | Reset token lifetime | 1 hour | 1-24 hours |
+| Setting                         | Purpose                      | Default | Recommended Range           |
+| ------------------------------- | ---------------------------- | ------- | --------------------------- |
+| `maxLoginAttempts`              | Failed logins before lockout | 5       | 3-10 (higher = less secure) |
+| `loginAttemptWindowMinutes`     | Time window for counting     | 15 min  | 10-30 min                   |
+| `lockoutDurationMinutes`        | Lockout duration             | 30 min  | 15-60 min                   |
+| `allowRegistration`             | Allow new user signups       | true    | -                           |
+| `requireEmailVerification`      | Require email verification   | false   | true (if email configured)  |
+| `passwordResetTokenExpiryHours` | Reset token lifetime         | 1 hour  | 1-24 hours                  |
 
 **Registration Control** (`allowRegistration`):
+
 - When disabled: Registration endpoint returns `FORBIDDEN` error
 - Better Auth's `before` hook also blocks sign-up attempts
 - Frontend shows "Registration is currently disabled" message
 - Existing users are not affected
 
 **Email Verification** (`requireEmailVerification`):
+
 - When enabled: New users must verify email before accessing protected endpoints
 - Verification email sent automatically on registration
 - Users can resend verification email (rate limited: 1 per 5 minutes)
@@ -129,11 +131,13 @@ TuvixRSS uses [Resend](https://resend.com) for transactional email delivery. Ema
 ### Admin-Specific Settings
 
 **Email Verification Control**:
+
 - Enable/disable via `requireEmailVerification` in global settings
 - When enabled: New users must verify email before accessing the app
 - When disabled: Accounts are immediately active after registration
 
 **Monitoring**:
+
 - Check Resend dashboard for delivery status and logs
 - Review security audit logs for email send attempts
 - Failed email sends are logged but don't block user actions
@@ -151,7 +155,7 @@ Plans define resource limits and rate limits for users.
 ```typescript
 const plans = await client.admin.listPlans.query();
 
-plans.forEach(plan => {
+plans.forEach((plan) => {
   console.log(`${plan.name} (${plan.id})`);
   console.log(`  Sources: ${plan.maxSources}`);
   console.log(`  API Rate: ${plan.apiRateLimitPerMinute}/min`);
@@ -203,11 +207,11 @@ await client.admin.deletePlan.mutate({
 
 ### Recommended Plan Structure
 
-| Plan | Sources | Categories | API/min | Price | Use Case |
-|------|---------|------------|---------|-------|----------|
-| **Free** | 25 | 10 | 60 | $0 | Personal use |
-| **Pro** | 100 | Unlimited | 180 | $9.99 | Power users |
-| **Enterprise** | 1000 | Unlimited | 600 | $49.99 | Organizations |
+| Plan           | Sources | Categories | API/min | Price  | Use Case      |
+| -------------- | ------- | ---------- | ------- | ------ | ------------- |
+| **Free**       | 25      | 10         | 60      | $0     | Personal use  |
+| **Pro**        | 100     | Unlimited  | 180     | $9.99  | Power users   |
+| **Enterprise** | 1000    | Unlimited  | 600     | $49.99 | Organizations |
 
 ---
 
@@ -425,6 +429,7 @@ LIMIT 100;
 ### Common Security Patterns
 
 **Brute Force Attack Detection**:
+
 ```sql
 -- Find IPs with multiple failed logins
 SELECT
@@ -441,6 +446,7 @@ ORDER BY attempts DESC;
 ```
 
 **Account Compromise Detection**:
+
 ```sql
 -- Users with password changes and multiple IPs
 SELECT
@@ -467,7 +473,7 @@ Banned: ${stats.bannedUsers}
 Users by Plan:
 ${Object.entries(stats.usersByPlan)
   .map(([plan, count]) => `  ${plan}: ${count}`)
-  .join('\n')}
+  .join("\n")}
 
 Resources:
   Sources: ${stats.totalSources}
@@ -509,6 +515,7 @@ Resources:
 ### Users Can't Login
 
 1. Check global rate limit settings:
+
    ```typescript
    const settings = await client.admin.getGlobalSettings.query();
    console.log("Login attempts allowed:", settings.maxLoginAttempts);
@@ -523,6 +530,7 @@ Resources:
 ### API Rate Limit Complaints
 
 1. Check user's effective limits:
+
    ```typescript
    const user = await client.admin.getUser.query({ userId: 123 });
    console.log("API limit:", user.limits.apiRateLimitPerMinute);
@@ -545,10 +553,12 @@ Rate limit settings are cached for 1 minute. If you change settings and they don
 See `packages/api/src/routers/admin.ts` for complete endpoint documentation.
 
 **Global Settings**:
+
 - `admin.getGlobalSettings` - View settings
 - `admin.updateGlobalSettings` - Update settings
 
 **Plan Management**:
+
 - `admin.listPlans` - List all plans
 - `admin.getPlan` - Get plan details
 - `admin.createPlan` - Create new plan
@@ -556,6 +566,7 @@ See `packages/api/src/routers/admin.ts` for complete endpoint documentation.
 - `admin.deletePlan` - Delete plan
 
 **User Management**:
+
 - `admin.listUsers` - List users (with filters)
 - `admin.getUser` - Get user details
 - `admin.changePlan` - Change user's plan
@@ -566,4 +577,5 @@ See `packages/api/src/routers/admin.ts` for complete endpoint documentation.
 - `admin.recalculateUsage` - Fix usage stats
 
 **Statistics**:
+
 - `admin.getStats` - Platform statistics

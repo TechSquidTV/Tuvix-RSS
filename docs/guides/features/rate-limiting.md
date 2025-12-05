@@ -65,10 +65,10 @@ The rate limiter uses Cloudflare Workers rate limit bindings for Cloudflare depl
 
 ```typescript
 interface RateLimitResult {
-  allowed: boolean;      // Whether request is allowed
-  limit: number;        // Maximum requests in window (user's plan limit)
-  remaining: number;    // Requests remaining (approximate)
-  resetAt: Date;        // When the limit resets
+  allowed: boolean; // Whether request is allowed
+  limit: number; // Maximum requests in window (user's plan limit)
+  remaining: number; // Requests remaining (approximate)
+  resetAt: Date; // When the limit resets
 }
 
 type RateLimitType = "api" | "publicFeed";
@@ -91,6 +91,7 @@ type RateLimitType = "api" | "publicFeed";
 5. **Allow or deny** → `success: true` = allowed, `success: false` = rate limit exceeded
 
 **Key Points**:
+
 - Each plan has its own binding with the plan's exact rate limit
 - Each user gets their own independent counter tracked by the binding
 - The binding enforces the plan's limit directly (no application-level enforcement needed)
@@ -171,6 +172,7 @@ wrangler deploy
 **Endpoints Protected**: All authenticated tRPC procedures
 
 **How It Works**:
+
 - Each authenticated API request checks the user's plan
 - Selects the appropriate plan-specific binding (FREE_API_RATE_LIMIT, PRO_API_RATE_LIMIT, or ENTERPRISE_API_RATE_LIMIT)
 - Uses `userId` as the key (bindings are plan-specific, so user ID alone is sufficient)
@@ -192,16 +194,19 @@ wrangler deploy
 | Custom | Admin-defined |
 
 **Key Features**:
+
 - Anonymous access allowed (RSS readers don't authenticate)
 - Rate limited by feed owner, not requester
 - Protects feed owner's resources
 - Access logging for analytics
 
 **Endpoints Protected**:
+
 - `GET /public/:username/:slug` (Express/Docker)
 - `GET /public/:username/:slug` (Cloudflare Workers)
 
 **How It Works**:
+
 - Each public feed request checks the feed owner's rate limit
 - Uses `FEED_RATE_LIMIT` binding with key `"publicFeed:ownerUserId"`
 - Feed owner's plan limit is enforced in application code
@@ -239,6 +244,7 @@ Admins can override plan limits for specific users:
 **Location**: Admin Dashboard → Rate Limits
 
 The rate limits monitor shows:
+
 - **Public Feed Access (24h)**: Total RSS feed requests in the last 24 hours
 - **Rate Limiting Status**: Whether rate limiting is enabled (Cloudflare) or disabled (Docker)
 - **Recent Public Feed Access**: Last 50 RSS feed requests with IP addresses and user agents
@@ -269,6 +275,7 @@ Users can view their rate limits:
 **Symptoms**: Requests are not being rate limited
 
 **Solutions**:
+
 1. **Check deployment type**: Rate limiting only works on Cloudflare Workers, not Docker Compose
 2. **Verify bindings**: Ensure all plan-specific bindings are configured in `wrangler.toml`:
    - `FREE_API_RATE_LIMIT` (namespace_id: 1003, limit: 60)
@@ -298,6 +305,7 @@ npx wrangler secret delete RATE_LIMIT_DEBUG
 ```
 
 Debug mode logs all rate limit checks with detailed information:
+
 - `plan`: User's plan ID (free, pro, enterprise)
 - `type`: Rate limit type (api or publicFeed)
 - `userId`: User ID
@@ -314,6 +322,7 @@ Debug mode logs all rate limit checks with detailed information:
 **Symptoms**: Users hitting rate limits too frequently
 
 **Solutions**:
+
 1. **Upgrade user's plan**: Move user to a higher plan (pro or enterprise) with higher rate limits
 2. **Adjust plan limits**: Edit plan limits in Admin Dashboard → Plans (affects all users on that plan)
 3. **Check for abuse**: Review rate limit monitor for unusual patterns
@@ -323,6 +332,7 @@ Debug mode logs all rate limit checks with detailed information:
 **Symptoms**: Users making excessive requests
 
 **Solutions**:
+
 1. **Decrease plan limits**: Edit plan limits in Admin Dashboard → Plans (affects all users on that plan)
 2. **Downgrade user's plan**: Move user to a lower plan (free or pro) with lower rate limits
 3. **Review plan tiers**: Consider adjusting default limits for all plans
@@ -368,10 +378,10 @@ Cloudflare Workers rate limit bindings provide:
 ```typescript
 interface RateLimit {
   limit(options: { key: string }): Promise<{
-    success: boolean;    // Whether the request was allowed
-    limit: number;      // Binding's limit (10000)
-    remaining: number;  // Requests remaining in binding's limit
-    reset: number;      // Unix timestamp when limit resets
+    success: boolean; // Whether the request was allowed
+    limit: number; // Binding's limit (10000)
+    remaining: number; // Requests remaining in binding's limit
+    reset: number; // Unix timestamp when limit resets
   }>;
 }
 ```
@@ -379,6 +389,7 @@ interface RateLimit {
 ### Key Format
 
 Keys are formatted as `"type:userId"`:
+
 - API requests: `"api:123"`
 - Public feed requests: `"publicFeed:456"`
 
@@ -393,4 +404,3 @@ Keys are formatted as `"type:userId"`:
 - `checkRateLimit()` always returns `allowed: true` for Docker Compose
 - No rate limit checking is performed
 - All requests are automatically allowed
-

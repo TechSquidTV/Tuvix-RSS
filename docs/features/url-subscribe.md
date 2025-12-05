@@ -56,10 +56,10 @@ https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fblog.example.co
 Create a browser bookmarklet for one-click subscriptions:
 
 ```javascript
-javascript:(function(){
-  const tuvixUrl = 'https://feed.tuvix.app/app/subscriptions';
+javascript: (function () {
+  const tuvixUrl = "https://feed.tuvix.app/app/subscriptions";
   const currentUrl = encodeURIComponent(window.location.href);
-  window.open(`${tuvixUrl}?subscribe=${currentUrl}`, '_blank');
+  window.open(`${tuvixUrl}?subscribe=${currentUrl}`, "_blank");
 })();
 ```
 
@@ -68,7 +68,9 @@ javascript:(function(){
 Add "Subscribe in Tuvix" buttons to your blog:
 
 ```html
-<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fyourblog.com%2Ffeed.xml">
+<a
+  href="https://feed.tuvix.app/app/subscriptions?subscribe=https%3A%2F%2Fyourblog.com%2Ffeed.xml"
+>
   Subscribe in Tuvix
 </a>
 ```
@@ -81,12 +83,16 @@ Use the URL format in browser extensions to detect feeds on pages and provide qu
 
 ```html
 <!-- Blog homepage -->
-<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https://blog.example.com/feed">
+<a
+  href="https://feed.tuvix.app/app/subscriptions?subscribe=https://blog.example.com/feed"
+>
   📰 Follow our blog in Tuvix
 </a>
 
 <!-- Documentation site -->
-<a href="https://feed.tuvix.app/app/subscriptions?subscribe=https://docs.example.com/changelog.xml">
+<a
+  href="https://feed.tuvix.app/app/subscriptions?subscribe=https://docs.example.com/changelog.xml"
+>
   🔔 Get changelog updates
 </a>
 ```
@@ -111,6 +117,7 @@ Users can share URLs directly to TuvixRSS from other apps on mobile devices.
 ```
 
 **Usage Examples**:
+
 - iOS: Long-press a link in Safari → Share → Select "TuvixRSS"
 - Android: Share from Chrome → Select "TuvixRSS"
 - From any app: Share menu → Select "TuvixRSS"
@@ -120,6 +127,7 @@ Users can share URLs directly to TuvixRSS from other apps on mobile devices.
 TuvixRSS registers custom protocol handlers for RSS and feed URLs.
 
 **Supported Protocols**:
+
 - `web+rss://` - Opens RSS feed URLs
 - `web+feed://` - Opens feed URLs
 
@@ -139,6 +147,7 @@ TuvixRSS registers custom protocol handlers for RSS and feed URLs.
 ```
 
 **Usage Example**:
+
 ```html
 <a href="web+rss://feeds.example.com/rss.xml">Subscribe with TuvixRSS</a>
 ```
@@ -165,24 +174,26 @@ Double-click OPML files to open them directly in TuvixRSS (requires PWA installa
 **Implementation**: `packages/app/src/routes/app/subscriptions.tsx:213-259`
 
 The File Handling API handler:
+
 1. Detects when OPML files are opened via file association
 2. Reads and parses the file content
 3. Opens the import preview dialog
 4. Allows user to review and confirm import
 
 **User Experience**:
+
 - Double-click an OPML file → Opens in TuvixRSS
 - Drag OPML file onto TuvixRSS icon → Opens in app
 - Right-click OPML → "Open with TuvixRSS"
 
 ### Browser Support
 
-| Feature | Chrome/Edge | Safari | Firefox |
-|---------|-------------|--------|---------|
-| URL Subscribe | ✅ | ✅ | ✅ |
-| Share Target | ✅ | ✅ (iOS 15.4+) | ❌ |
-| Protocol Handlers | ✅ | ✅ | ✅ |
-| File Handlers | ✅ (93+) | ❌ | ❌ |
+| Feature           | Chrome/Edge | Safari         | Firefox |
+| ----------------- | ----------- | -------------- | ------- |
+| URL Subscribe     | ✅          | ✅             | ✅      |
+| Share Target      | ✅          | ✅ (iOS 15.4+) | ❌      |
+| Protocol Handlers | ✅          | ✅             | ✅      |
+| File Handlers     | ✅ (93+)    | ❌             | ❌      |
 
 ## Future Enhancements
 

@@ -79,7 +79,7 @@ export default {
     if (now - settings.lastPruneAt > pruneInterval) {
       ctx.waitUntil(handleArticlePrune(env));
     }
-  }
+  },
 };
 ```
 
@@ -96,7 +96,8 @@ export function intervalMinutesToCron(minutes: number): string {
   }
 
   const hours = Math.floor(minutes / 60);
-  if (minutes === 1440) { // 24 hours
+  if (minutes === 1440) {
+    // 24 hours
     return "0 0 * * *"; // Daily at midnight
   }
 
@@ -105,6 +106,7 @@ export function intervalMinutesToCron(minutes: number): string {
 ```
 
 **Examples**:
+
 - 15 minutes → `*/15 * * * *`
 - 60 minutes → `*/60 * * * *`
 - 120 minutes → `0 */2 * * *`
@@ -120,12 +122,8 @@ export function intervalMinutesToCron(minutes: number): string {
 ```typescript
 export const globalSettings = sqliteTable("global_settings", {
   id: integer("id").primaryKey().default(1),
-  fetchIntervalMinutes: integer("fetch_interval_minutes")
-    .notNull()
-    .default(60), // Poll every 60 minutes
-  pruneDays: integer("prune_days")
-    .notNull()
-    .default(30), // Keep articles for 30 days
+  fetchIntervalMinutes: integer("fetch_interval_minutes").notNull().default(60), // Poll every 60 minutes
+  pruneDays: integer("prune_days").notNull().default(30), // Keep articles for 30 days
   lastRssFetchAt: integer("last_rss_fetch_at", { mode: "timestamp" }),
   lastPruneAt: integer("last_prune_at", { mode: "timestamp" }),
 });
@@ -133,12 +131,12 @@ export const globalSettings = sqliteTable("global_settings", {
 
 ### Configuration Options
 
-| Setting | Default | Min | Max | Description |
-|---------|---------|-----|-----|-------------|
-| `fetchIntervalMinutes` | 60 | 5 | 1440 | How often to poll all feeds (minutes) |
-| `pruneDays` | 30 | 0 | 365 | Age threshold for automatic article deletion |
-| `lastRssFetchAt` | null | - | - | Timestamp of last successful RSS fetch (Cloudflare only) |
-| `lastPruneAt` | null | - | - | Timestamp of last prune operation (Cloudflare only) |
+| Setting                | Default | Min | Max  | Description                                              |
+| ---------------------- | ------- | --- | ---- | -------------------------------------------------------- |
+| `fetchIntervalMinutes` | 60      | 5   | 1440 | How often to poll all feeds (minutes)                    |
+| `pruneDays`            | 30      | 0   | 365  | Age threshold for automatic article deletion             |
+| `lastRssFetchAt`       | null    | -   | -    | Timestamp of last successful RSS fetch (Cloudflare only) |
+| `lastPruneAt`          | null    | -   | -    | Timestamp of last prune operation (Cloudflare only)      |
 
 ### Updating Configuration
 
@@ -147,12 +145,12 @@ export const globalSettings = sqliteTable("global_settings", {
 ```typescript
 // Change poll interval to 30 minutes
 await trpc.admin.updateGlobalSettings.mutate({
-  fetchIntervalMinutes: 30
+  fetchIntervalMinutes: 30,
 });
 
 // Change retention to 90 days
 await trpc.admin.updateGlobalSettings.mutate({
-  pruneDays: 90
+  pruneDays: 90,
 });
 ```
 
@@ -174,7 +172,9 @@ export async function handleRSSFetch(env: Env) {
 
   const result = await fetchAllFeeds(env.DB);
 
-  console.log(`RSS fetch complete: ${result.successCount} succeeded, ${result.errorCount} failed`);
+  console.log(
+    `RSS fetch complete: ${result.successCount} succeeded, ${result.errorCount} failed`
+  );
 
   // Update last fetch timestamp (Cloudflare only)
   if (env.ENVIRONMENT === "cloudflare") {
@@ -184,6 +184,7 @@ export async function handleRSSFetch(env: Env) {
 ```
 
 **Triggered By**:
+
 - Node.js: `node-cron` schedule
 - Cloudflare: Workers `scheduled()` event
 
@@ -192,15 +193,14 @@ export async function handleRSSFetch(env: Env) {
 **File**: `packages/api/src/routers/articles.ts:707-733`
 
 ```typescript
-refresh: rateLimitedProcedure
-  .mutation(async ({ ctx }) => {
-    // Run in background (non-blocking)
-    void fetchAllFeeds(ctx.env.DB).then((result) => {
-      console.log(`Manual refresh: ${result.successCount} succeeded`);
-    });
-
-    return { success: true };
+refresh: rateLimitedProcedure.mutation(async ({ ctx }) => {
+  // Run in background (non-blocking)
+  void fetchAllFeeds(ctx.env.DB).then((result) => {
+    console.log(`Manual refresh: ${result.successCount} succeeded`);
   });
+
+  return { success: true };
+});
 ```
 
 **Triggered By**: User clicking "Refresh" button in UI
@@ -242,6 +242,7 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
 ```
 
 **Return Type**:
+
 ```typescript
 interface FetchResult {
   successCount: number;
@@ -252,6 +253,7 @@ interface FetchResult {
 ```
 
 **Characteristics**:
+
 - ✅ Sequential processing (one feed at a time)
 - ✅ Error isolation (failure doesn't stop other feeds)
 - ❌ No parallelization (could be slow for many feeds)
@@ -274,7 +276,8 @@ export async function fetchSingleFeed(
     signal: AbortSignal.timeout(30000), // 30s timeout
     headers: {
       "User-Agent": "TuvixRSS/1.0",
-      Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, application/json",
+      Accept:
+        "application/rss+xml, application/atom+xml, application/xml, text/xml, application/json",
     },
   });
 
@@ -323,6 +326,7 @@ export async function fetchSingleFeed(
    - Skips duplicates
 
 **Return Type**:
+
 ```typescript
 interface FeedResult {
   articlesAdded: number;
@@ -334,6 +338,7 @@ interface FeedResult {
 ### HTTP Request Details
 
 **Headers Sent**:
+
 ```http
 User-Agent: TuvixRSS/1.0
 Accept: application/rss+xml, application/atom+xml, application/xml, text/xml, application/json
@@ -342,6 +347,7 @@ Accept: application/rss+xml, application/atom+xml, application/xml, text/xml, ap
 **Timeout**: 30 seconds
 
 **Error Handling**:
+
 - Network timeouts
 - HTTP error status codes (404, 500, etc.)
 - Connection failures
@@ -361,6 +367,7 @@ async function parseFeed(content: string): Promise<ParsedFeed> {
 ```
 
 **Supported Formats**:
+
 - RSS 2.0
 - RSS 1.0 (RDF)
 - Atom 1.0
@@ -423,20 +430,21 @@ Extracts and normalizes article data from various feed formats.
 
 #### Extracted Fields
 
-| Field | Sources | Processing | Max Size |
-|-------|---------|------------|----------|
-| **title** | `title` | Plain text | - |
-| **link** | `link`, `url`, `links[0].href` | URL validation | - |
-| **content** | `content_html`, `content_text`, `content`, `content:encoded` | HTML stripped | 500 KB |
-| **description** | `description`, `summary`, `contentSnippet` | HTML stripped | 5 KB |
-| **author** | `authors[0]`, `author`, `creator`, `dc:creator` | Plain text | - |
-| **imageUrl** | `image`, `enclosures`, `media:thumbnail`, OG image | URL validation | - |
-| **publishedAt** | `pubDate`, `published`, `updated`, `date_published` | ISO 8601 → timestamp | - |
-| **guid** | See [Deduplication](#deduplication-strategy) | Unique identifier | - |
+| Field           | Sources                                                      | Processing           | Max Size |
+| --------------- | ------------------------------------------------------------ | -------------------- | -------- |
+| **title**       | `title`                                                      | Plain text           | -        |
+| **link**        | `link`, `url`, `links[0].href`                               | URL validation       | -        |
+| **content**     | `content_html`, `content_text`, `content`, `content:encoded` | HTML stripped        | 500 KB   |
+| **description** | `description`, `summary`, `contentSnippet`                   | HTML stripped        | 5 KB     |
+| **author**      | `authors[0]`, `author`, `creator`, `dc:creator`              | Plain text           | -        |
+| **imageUrl**    | `image`, `enclosures`, `media:thumbnail`, OG image           | URL validation       | -        |
+| **publishedAt** | `pubDate`, `published`, `updated`, `date_published`          | ISO 8601 → timestamp | -        |
+| **guid**        | See [Deduplication](#deduplication-strategy)                 | Unique identifier    | -        |
 
 #### Content Processing
 
 **HTML Stripping** (Security):
+
 ```typescript
 import { stripHtml } from "../utils/html";
 
@@ -446,18 +454,21 @@ const description = stripHtml(item.description || item.summary);
 ```
 
 **Truncation** (Performance):
+
 - Content: 500 KB maximum
 - Description: 5 KB maximum
 
 #### Image Extraction
 
 **Priority Order**:
+
 1. JSON Feed `image` field
 2. RSS `enclosure` tags (first image)
 3. Media RSS `media:thumbnail`
 4. OpenGraph image from article URL (fallback)
 
 **OpenGraph Fallback**:
+
 ```typescript
 async function extractOgImage(url: string): Promise<string | null> {
   try {
@@ -481,6 +492,7 @@ async function extractOgImage(url: string): Promise<string | null> {
 Articles are deduplicated using a GUID (Globally Unique Identifier) generated from feed data.
 
 **Priority Order**:
+
 1. RSS `<guid>` tag
 2. Atom `<id>` tag
 3. Feed item `<link>` (direct link)
@@ -533,6 +545,7 @@ export const articles = sqliteTable(
 ```
 
 **Behavior**:
+
 - Duplicate GUIDs from the same source are rejected by database
 - Different sources can have articles with same GUID
 - Prevents re-adding articles on subsequent polls
@@ -548,12 +561,14 @@ The system handles three categories of errors:
 **Location**: `packages/api/src/services/rss-fetcher.ts:112-114`
 
 **Handled Errors**:
+
 - Network timeouts (30s limit)
 - HTTP status codes (404, 500, etc.)
 - Connection failures (DNS, SSL/TLS)
 - Redirect loops
 
 **Behavior**:
+
 ```typescript
 if (!response.ok) {
   throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -567,12 +582,14 @@ Error is caught by `fetchAllFeeds()`, logged, and included in error array. Proce
 **Location**: `packages/api/src/services/rss-fetcher.ts:131-140`
 
 **Handled Cases**:
+
 - Malformed XML/JSON
 - Invalid feed structure
 - Unknown feed format
 - Encoding issues
 
 **Behavior**:
+
 ```typescript
 try {
   const { feed, format } = await parseFeed(content);
@@ -588,11 +605,13 @@ Error is caught by `fetchAllFeeds()` and included in results.
 **Location**: `packages/api/src/services/rss-fetcher.ts:234-267`
 
 **Handled Cases**:
+
 - Database constraint violations
 - Invalid article data
 - Disk space issues
 
 **Behavior**:
+
 ```typescript
 for (const item of items) {
   try {
@@ -611,11 +630,13 @@ Per-article error handling: failures don't stop processing remaining articles.
 **Important**: The system does **NOT** implement automatic retries.
 
 **Rationale**:
+
 - Simplicity and predictability
 - Avoids cascading failures
 - Relies on next scheduled poll
 
 **Mitigation**:
+
 - Short poll intervals (e.g., 15-30 minutes)
 - Failed feeds retried on next poll
 - Errors logged for monitoring
@@ -623,6 +644,7 @@ Per-article error handling: failures don't stop processing remaining articles.
 ### Error Logging
 
 **Console Output**:
+
 ```
 Starting scheduled RSS fetch
 Error fetching feed 123 (https://example.com/feed): HTTP 500: Internal Server Error
@@ -630,6 +652,7 @@ RSS fetch complete: 45 succeeded, 5 failed
 ```
 
 **Error Array** (returned from `fetchAllFeeds()`):
+
 ```typescript
 {
   successCount: 45,
@@ -658,12 +681,11 @@ The cron job fetches all feeds sequentially without throttling.
 **File**: `packages/api/src/routers/articles.ts:707-733`
 
 ```typescript
-refresh: rateLimitedProcedure
-  .mutation(async ({ ctx }) => {
-    // Rate limit enforced by middleware
-    void fetchAllFeeds(ctx.env.DB);
-    return { success: true };
-  });
+refresh: rateLimitedProcedure.mutation(async ({ ctx }) => {
+  // Rate limit enforced by middleware
+  void fetchAllFeeds(ctx.env.DB);
+  return { success: true };
+});
 ```
 
 ### Rate Limiter Service
@@ -673,19 +695,21 @@ refresh: rateLimitedProcedure
 **Strategy**: Cloudflare Workers rate limit bindings
 
 **Features**:
+
 - Per-minute windows
 - Distributed edge-based tracking
 - Automatic reset every minute
 
 **Storage**:
+
 - **Cloudflare Workers**: Rate limit bindings (`API_RATE_LIMIT`, `FEED_RATE_LIMIT`)
 - **Node.js**: Rate limiting disabled
 
 **Types**:
 
-| Type | Window | Limit (Free) | Limit (Pro) |
-|------|--------|--------------|-------------|
-| **API Calls** | 1 minute | 60 requests | 300 requests |
+| Type                   | Window   | Limit (Free) | Limit (Pro)   |
+| ---------------------- | -------- | ------------ | ------------- |
+| **API Calls**          | 1 minute | 60 requests  | 300 requests  |
 | **Public Feed Access** | 1 minute | ~17 requests | ~167 requests |
 
 **Note**: See [`docs/guides/features/rate-limiting.md`](../../guides/features/rate-limiting.md) for complete rate limiting documentation.
@@ -712,6 +736,7 @@ export async function checkApiRateLimit(
 Automatically deletes old articles based on configured retention period.
 
 **Schedule**:
+
 - **Node.js**: Daily at 2:00 AM
 - **Cloudflare Workers**: Checked on each cron trigger (runs if >24h since last prune)
 
@@ -759,10 +784,11 @@ export async function handleArticlePrune(env: Env) {
 
   for (let i = 0; i < articlesToDelete.length; i += batchSize) {
     const batch = articlesToDelete.slice(i, i + batchSize);
-    const ids = batch.map(a => a.id);
+    const ids = batch.map((a) => a.id);
 
-    await env.DB.delete(schema.articles)
-      .where(inArray(schema.articles.id, ids));
+    await env.DB.delete(schema.articles).where(
+      inArray(schema.articles.id, ids)
+    );
 
     deletedCount += batch.length;
   }
@@ -779,15 +805,18 @@ export async function handleArticlePrune(env: Env) {
 ### Prune Logic
 
 **Date Priority**:
+
 1. Use `publishedAt` if available (feed-provided date)
 2. Fallback to `createdAt` if `publishedAt` is null (insertion date)
 
 **Batching**:
+
 - Deletes in batches of 999 articles
 - Prevents hitting SQLite's 999 parameter limit
 - More efficient for large datasets
 
 **Cascade Deletes**:
+
 - Foreign key constraints automatically delete related `user_article_states`
 - No orphaned read/starred/archived states
 
@@ -811,16 +840,19 @@ admin.updateGlobalSettings({ pruneDays: 365 });
 **Current Approach**: Feeds are fetched one at a time in a for-loop.
 
 **Pros**:
+
 - Simple and predictable
 - Low memory footprint
 - Resource-friendly for servers
 - No concurrency issues
 
 **Cons**:
+
 - Slow for large numbers of feeds
 - 1000 feeds × 2s each = ~33 minutes per cycle
 
 **Potential Optimization**:
+
 ```typescript
 // Current (sequential)
 for (const source of sources) {
@@ -832,7 +864,7 @@ const batchSize = 10;
 for (let i = 0; i < sources.length; i += batchSize) {
   const batch = sources.slice(i, i + batchSize);
   await Promise.all(
-    batch.map(source => fetchSingleFeed(source.id, source.feedUrl, db))
+    batch.map((source) => fetchSingleFeed(source.id, source.feedUrl, db))
   );
 }
 ```
@@ -856,11 +888,13 @@ INSERT INTO articles (...) VALUES (...)
 ### Memory Usage
 
 **Low Memory Footprint**:
+
 - Processes feeds sequentially (one at a time)
 - No large in-memory queues
 - Articles inserted individually (no bulk buffering)
 
 **Typical Memory Profile**:
+
 - Base: ~50 MB (API server)
 - During fetch: +10-20 MB per feed (parsed content)
 - Peak: ~100 MB (when processing largest feed)
@@ -868,11 +902,13 @@ INSERT INTO articles (...) VALUES (...)
 ### Database Performance
 
 **Indexes**:
+
 - `articles(sourceId, guid)`: Fast duplicate checking
 - `articles(publishedAt)`: Fast date range queries for pruning
 - `articles(sourceId, publishedAt)`: Fast article list queries
 
 **Query Optimization**:
+
 - Prune uses batching to avoid large IN clauses
 - Article list queries use cursor-based pagination
 
@@ -891,14 +927,17 @@ export async function handleRSSFetch(env: Env): Promise<void>;
 ```
 
 **Parameters**:
+
 - `env`: Environment containing database connection
 
 **Side Effects**:
+
 - Updates `sources` table (lastFetched timestamps)
 - Inserts new articles into `articles` table
 - Updates `lastRssFetchAt` in global settings (Cloudflare only)
 
 **Called By**:
+
 - Node.js: `node-cron` scheduler
 - Cloudflare: Workers `scheduled()` event
 
@@ -913,14 +952,17 @@ export async function handleArticlePrune(env: Env): Promise<void>;
 ```
 
 **Parameters**:
+
 - `env`: Environment containing database connection
 
 **Side Effects**:
+
 - Deletes old articles from `articles` table
 - Cascades to delete related `user_article_states`
 - Updates `lastPruneAt` in global settings (Cloudflare only)
 
 **Called By**:
+
 - Node.js: `node-cron` scheduler (daily at 2:00 AM)
 - Cloudflare: Workers `scheduled()` event (when >24h elapsed)
 
@@ -937,6 +979,7 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult>;
 ```
 
 **Returns**:
+
 ```typescript
 interface FetchResult {
   successCount: number;
@@ -947,9 +990,12 @@ interface FetchResult {
 ```
 
 **Example**:
+
 ```typescript
 const result = await fetchAllFeeds(db);
-console.log(`${result.successCount}/${result.total} feeds fetched successfully`);
+console.log(
+  `${result.successCount}/${result.total} feeds fetched successfully`
+);
 
 if (result.errorCount > 0) {
   console.error("Failed feeds:", result.errors);
@@ -971,6 +1017,7 @@ export async function fetchSingleFeed(
 ```
 
 **Returns**:
+
 ```typescript
 interface FeedResult {
   articlesAdded: number;
@@ -980,10 +1027,12 @@ interface FeedResult {
 ```
 
 **Throws**:
+
 - HTTP errors (timeouts, 404, 500, etc.)
 - Parse errors (malformed XML/JSON)
 
 **Example**:
+
 ```typescript
 try {
   const result = await fetchSingleFeed(123, "https://example.com/feed", db);
@@ -1006,6 +1055,7 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings>;
 ```
 
 **Returns**:
+
 ```typescript
 interface GlobalSettings {
   id: number;
@@ -1028,6 +1078,7 @@ export async function updateGlobalSettings(
 ```
 
 **Example**:
+
 ```typescript
 await updateGlobalSettings(db, {
   fetchIntervalMinutes: 30,
@@ -1048,10 +1099,11 @@ export function intervalMinutesToCron(minutes: number): string;
 ```
 
 **Examples**:
+
 ```typescript
-intervalMinutesToCron(15);   // "*/15 * * * *"
-intervalMinutesToCron(60);   // "*/60 * * * *"
-intervalMinutesToCron(120);  // "0 */2 * * *"
+intervalMinutesToCron(15); // "*/15 * * * *"
+intervalMinutesToCron(60); // "*/60 * * * *"
+intervalMinutesToCron(120); // "0 */2 * * *"
 intervalMinutesToCron(1440); // "0 0 * * *"
 ```
 
@@ -1060,23 +1112,27 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### Feeds Not Updating
 
 **Symptoms**:
+
 - No new articles appear
 - `lastFetched` timestamp not updating
 
 **Diagnosis**:
 
 1. **Check if cron is running**:
+
    ```bash
    # Check logs for "Starting scheduled RSS fetch"
    docker logs tuvix-api | grep "RSS fetch"
    ```
 
 2. **Check fetch interval**:
+
    ```sql
    SELECT fetch_interval_minutes FROM global_settings WHERE id = 1;
    ```
 
 3. **Check for errors**:
+
    ```sql
    -- Check lastFetched timestamps
    SELECT id, title, feed_url, last_fetched
@@ -1090,6 +1146,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Common Causes**:
+
 - Cron scheduler not initialized
 - Fetch interval too long (increase frequency)
 - All feeds failing (network/DNS issues)
@@ -1098,12 +1155,14 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### High Error Rate
 
 **Symptoms**:
+
 - Many feeds failing in error array
 - Console shows multiple error messages
 
 **Diagnosis**:
 
 1. **Check error types**:
+
    ```typescript
    const result = await fetchAllFeeds(db);
    console.log(result.errors);
@@ -1111,6 +1170,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 2. **Test individual feed**:
+
    ```bash
    curl -I https://example.com/feed
    # Check HTTP status, redirects, timeouts
@@ -1123,6 +1183,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Common Causes**:
+
 - Dead feeds (404, 410 Gone)
 - Feeds moved (301/302 redirects not followed)
 - Malformed feed XML/JSON
@@ -1130,6 +1191,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 - IP rate limiting from feed servers
 
 **Solutions**:
+
 - Remove dead feeds
 - Update feed URLs after redirects
 - Contact feed owner about formatting issues
@@ -1139,17 +1201,20 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### Slow Polling
 
 **Symptoms**:
+
 - Fetch cycle takes very long
 - New articles delayed significantly
 
 **Diagnosis**:
 
 1. **Check feed count**:
+
    ```sql
    SELECT COUNT(*) FROM sources;
    ```
 
 2. **Estimate time**:
+
    ```
    Total time ≈ feed_count × 2s (avg)
    Example: 1000 feeds × 2s = ~33 minutes
@@ -1164,6 +1229,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Solutions**:
+
 - Reduce feed count (remove inactive feeds)
 - Increase poll interval (less frequent but more manageable)
 - Implement parallel fetching (code modification required)
@@ -1172,12 +1238,14 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### Duplicate Articles
 
 **Symptoms**:
+
 - Same article appears multiple times
 - Database unique constraint violations in logs
 
 **Diagnosis**:
 
 1. **Check for duplicates**:
+
    ```sql
    SELECT guid, COUNT(*) as count
    FROM articles
@@ -1194,11 +1262,13 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Common Causes**:
+
 - Feed doesn't provide stable GUIDs
 - Feed changes article URLs on updates
 - Feed uses timestamps in GUIDs
 
 **Solutions**:
+
 - Use title-based fallback GUID
 - Manually assign stable GUIDs
 - Contact feed owner about GUID stability
@@ -1206,12 +1276,14 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### Memory Issues
 
 **Symptoms**:
+
 - API server crashes during fetch
 - Out of memory errors
 
 **Diagnosis**:
 
 1. **Monitor memory usage**:
+
    ```bash
    docker stats tuvix-api
    ```
@@ -1223,6 +1295,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Solutions**:
+
 - Increase server memory
 - Implement streaming feed parser (code modification)
 - Fetch large feeds less frequently
@@ -1231,12 +1304,14 @@ intervalMinutesToCron(1440); // "0 0 * * *"
 ### Rate Limit Errors
 
 **Symptoms**:
+
 - Manual refresh blocked
 - "Rate limit exceeded" errors
 
 **Diagnosis**:
 
 1. **Check rate limit settings**:
+
    ```typescript
    const user = await db.query.users.findFirst({
      where: eq(schema.users.id, userId),
@@ -1251,6 +1326,7 @@ intervalMinutesToCron(1440); // "0 0 * * *"
    ```
 
 **Solutions**:
+
 - Wait for rate limit window to expire
 - Upgrade to Pro plan (higher limits)
 - Rely on automatic polling instead of manual refresh

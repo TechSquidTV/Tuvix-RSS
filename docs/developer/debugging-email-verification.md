@@ -35,6 +35,7 @@ EMAIL_FROM=noreply@yourdomain.com
 ### 3. Monitor Cloudflare Workers Logs
 
 **Real-time Logs:**
+
 ```bash
 # Using Wrangler CLI
 wrangler tail
@@ -44,6 +45,7 @@ wrangler tail
 ```
 
 **What to look for:**
+
 - `"Attempting to send verification email"` - Email attempt started
 - `"Failed to send verification email"` - Email sending failed
 - `"Verification email sent successfully"` - Email sent successfully
@@ -53,7 +55,7 @@ wrangler tail
 
 **In Sentry, look for:**
 
-1. **Logs Tab**: 
+1. **Logs Tab**:
    - Filter by `email.type:verification`
    - Look for log entries with `emailType: verification`
 
@@ -88,6 +90,7 @@ testEmail: publicProcedure.mutation(async ({ ctx }) => {
 The email verification callback runs in Better Auth's context. To verify it's being called:
 
 1. **Add explicit logging** at the start of the callback:
+
    ```typescript
    console.log("🔐 Better Auth sendVerificationEmail callback called", {
      userEmail: user.email,
@@ -138,18 +141,24 @@ debugEmailVerification: publicProcedure
   .mutation(async ({ ctx, input }) => {
     const { sendVerificationEmail } = await import("@/services/email");
     const { getGlobalSettings } = await import("@/services/global-settings");
-    
+
     const settings = await getGlobalSettings(ctx.db);
-    console.log("Email verification required:", settings.requireEmailVerification);
-    console.log("Email configured:", !!ctx.env.RESEND_API_KEY && !!ctx.env.EMAIL_FROM);
-    
+    console.log(
+      "Email verification required:",
+      settings.requireEmailVerification
+    );
+    console.log(
+      "Email configured:",
+      !!ctx.env.RESEND_API_KEY && !!ctx.env.EMAIL_FROM
+    );
+
     const result = await sendVerificationEmail(ctx.env, {
       to: input.email,
       username: "Debug User",
       verificationToken: "debug-token",
       verificationUrl: "https://example.com/verify?token=debug-token",
     });
-    
+
     return {
       success: result.success,
       error: result.error,
@@ -168,6 +177,7 @@ Email sending might be failing due to:
 - **Network Timeouts**: Resend API calls might be timing out
 
 Check Workers metrics in Cloudflare Dashboard for:
+
 - CPU time usage
 - Memory usage
 - Request duration
@@ -178,12 +188,14 @@ Check Workers metrics in Cloudflare Dashboard for:
 ### Issue: No errors in Sentry or logs
 
 **Possible causes:**
+
 1. Sentry DSN not configured (check `SENTRY_DSN` environment variable)
 2. Errors happening outside of Sentry's scope
 3. Email service returning success in dev mode without sending
 4. Errors being caught and swallowed
 
 **Solution:**
+
 - Check Cloudflare Workers logs (not just Sentry)
 - Verify `SENTRY_DSN` is set in Cloudflare Workers secrets
 - Check if `RESEND_API_KEY` and `EMAIL_FROM` are configured
@@ -192,11 +204,13 @@ Check Workers metrics in Cloudflare Dashboard for:
 ### Issue: 503 errors during registration
 
 **Possible causes:**
+
 1. Email sending is blocking the request
 2. Resend API is timing out
 3. Email template rendering is failing
 
 **Solution:**
+
 - The callback is now wrapped in try-catch to prevent breaking registration
 - Check if errors are being logged but registration still succeeds
 - Verify Resend API is accessible from Cloudflare Workers
@@ -204,11 +218,13 @@ Check Workers metrics in Cloudflare Dashboard for:
 ### Issue: Emails not sending but no errors
 
 **Possible causes:**
+
 1. Email service returning success without actually sending (dev mode)
 2. Resend API silently failing
 3. Email being sent but to wrong address
 
 **Solution:**
+
 - Verify `RESEND_API_KEY` and `EMAIL_FROM` are set in production
 - Check Resend dashboard for sent emails
 - Verify email address in database matches what's being sent
@@ -232,4 +248,3 @@ After deploying the updated code, monitor:
 4. Check Sentry Issues tab for captured exceptions
 5. Verify email configuration in production environment
 6. Test registration flow and monitor all logs simultaneously
-

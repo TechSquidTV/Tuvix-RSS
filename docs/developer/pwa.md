@@ -399,4 +399,3 @@ Target scores:
 - [Workbox Documentation](https://developer.chrome.com/docs/workbox/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/)
 - [Web App Manifest Spec](https://www.w3.org/TR/appmanifest/)
-

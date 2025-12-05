@@ -54,6 +54,7 @@ TuvixRSS uses **[Better Auth](https://www.better-auth.com/)** for authentication
 **Location**: `packages/api/src/auth/better-auth.ts`
 
 Better Auth is configured with:
+
 - **Drizzle Adapter**: Works with both SQLite and D1
 - **Username Plugin**: Enables username-based login
 - **Admin Plugin**: Provides role management and banning
@@ -63,6 +64,7 @@ Better Auth is configured with:
 ### Endpoints
 
 Better Auth automatically handles these endpoints at `/api/auth/*`:
+
 - `POST /api/auth/sign-up/email` - Register with email
 - `POST /api/auth/sign-in/username` - Login with username
 - `POST /api/auth/sign-in/email` - Login with email
@@ -77,7 +79,7 @@ Better Auth automatically handles these endpoints at `/api/auth/*`:
 **Location**: `packages/app/src/lib/auth-client.ts`
 
 ```typescript
-import { authClient } from '@/lib/auth-client';
+import { authClient } from "@/lib/auth-client";
 
 // Get session
 const { data: session } = authClient.useSession();
@@ -106,6 +108,7 @@ Better Auth uses HTTP-only cookies for session management, which is more secure 
 - **Cross-domain**: Supports cross-subdomain cookies
 
 **Session Check**: `packages/api/src/trpc/context.ts:50`
+
 ```typescript
 const session = await auth.api.getSession({ headers });
 if (session?.user) {
@@ -126,6 +129,7 @@ Better Auth uses **scrypt** for password hashing (OWASP-recommended when argon2i
 #### Password Requirements
 
 Better Auth default validation:
+
 - Minimum length: 8 characters
 - Maximum length: 128 characters
 
@@ -142,6 +146,7 @@ Better Auth's built-in rate limiting has been disabled in favor of our custom Cl
 3. **Security audit logging** - All authentication attempts are logged
 
 **Configuration**: `packages/api/src/auth/better-auth.ts:144`
+
 ```typescript
 rateLimit: {
   enabled: false, // Disabled - using custom rate limiting system instead
@@ -161,6 +166,7 @@ Custom API rate limiting (for tRPC endpoints) is still handled separately and ba
 All authentication events are logged to the `security_audit_log` table via Better Auth hooks.
 
 **Hooks**: `packages/api/src/auth/better-auth.ts:161`
+
 ```typescript
 hooks: {
   after: createAuthMiddleware(async (ctx) => {
@@ -178,6 +184,7 @@ hooks: {
 ```
 
 **Event Types**: `packages/api/src/auth/security.ts:14`
+
 - `login_success` / `login_failed`
 - `register`
 - `logout`
@@ -195,12 +202,14 @@ hooks: {
 TuvixRSS implements a 2-level role-based access control system:
 
 #### User Role
+
 - Default role for all registered users
 - Can access personal resources only
 - Subject to plan limits
 - Cannot access admin endpoints
 
 #### Admin Role
+
 - Full system access
 - Can manage all users and plans
 - Can view system statistics
@@ -211,6 +220,7 @@ TuvixRSS implements a 2-level role-based access control system:
 **First User Admin**: If `ALLOW_FIRST_USER_ADMIN` is enabled (default), the first registered user is automatically promoted to admin.
 
 **Role Check Middleware**: `packages/api/src/trpc/init.ts:155`
+
 ```typescript
 if (ctx.user.role !== "admin") {
   throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
@@ -258,6 +268,7 @@ if (ctx.user.role !== "admin") {
 Plans define the resource limits for users:
 
 **Plan Fields**:
+
 - `id`: Plan identifier (e.g., "free", "pro", "enterprise")
 - `name`: Display name
 - `maxSources`: Maximum RSS sources
@@ -269,6 +280,7 @@ Plans define the resource limits for users:
 - `features`: JSON string of plan features
 
 **Default Plans**:
+
 - Defined in `packages/api/src/config/plans.ts`
 - Seeded on database initialization
 
@@ -281,11 +293,13 @@ Admins can override plan limits for individual users via the `user_limits` table
 **Limit Resolution**: `packages/api/src/services/limits.ts`
 
 When checking user limits, the system:
+
 1. Checks for custom limits in `user_limits` table (for maxSources, maxPublicFeeds, maxCategories only)
 2. Falls back to plan defaults from `plans` table
 3. Returns the resolved limits
 
 **Note**: Rate limits (`apiRateLimitPerMinute`, `publicFeedRateLimitPerMinute`) cannot be customized per-user. They are enforced by plan-specific Cloudflare Workers bindings:
+
 - Free plan: `FREE_API_RATE_LIMIT` binding (60/min)
 - Pro plan: `PRO_API_RATE_LIMIT` binding (180/min)
 - Enterprise/admin plan: `ENTERPRISE_API_RATE_LIMIT` binding (600/min)
@@ -299,35 +313,38 @@ To change a user's rate limit, change their plan.
 Admins can ban/unban user accounts using Better Auth's Admin plugin:
 
 **Ban User**:
+
 ```typescript
 await adminRouter.banUser({
   userId: 123,
   banned: true,
-  reason: "Terms of service violation"
+  reason: "Terms of service violation",
 });
 ```
 
 **Effects of Banning**:
+
 - User cannot log in
 - Existing sessions are invalidated
 - All API requests return `403 Forbidden`
 - Ban check occurs in auth middleware
 
 **Middleware Check**: `packages/api/src/trpc/init.ts:56`
+
 ```typescript
 if (userRecord.banned) {
   throw new TRPCError({
     code: "FORBIDDEN",
-    message: "Account banned. Please contact support."
+    message: "Account banned. Please contact support.",
   });
 }
 ```
 
 **Unbanning**:
+
 - Set `banned: false` via admin endpoint
 - User can immediately log in again
 - All restrictions lifted
-
 
 ## API Endpoints
 
@@ -336,43 +353,56 @@ if (userRecord.banned) {
 Better Auth handles these endpoints automatically at `/api/auth/*`:
 
 #### Sign Up
+
 ```typescript
 POST /api/auth/sign-up/email
 Body: { email, password, name: username }
 ```
 
 #### Sign In
+
 ```typescript
 POST /api/auth/sign-in/username
 Body: { username, password }
 ```
 
 #### Sign Out
+
 ```typescript
-POST /api/auth/sign-out
+POST / api / auth / sign - out;
 ```
 
 #### Get Session
+
 ```typescript
-GET /api/auth/session
+GET / api / auth / session;
 ```
 
 #### Change Password
+
 ```typescript
-POST /api/auth/change-password
-Body: { currentPassword, newPassword }
+POST / api / auth / change - password;
+Body: {
+  (currentPassword, newPassword);
+}
 ```
 
 #### Request Password Reset
+
 ```typescript
-POST /api/auth/request-password-reset
-Body: { email, redirectTo }
+POST / api / auth / request - password - reset;
+Body: {
+  (email, redirectTo);
+}
 ```
 
 #### Reset Password
+
 ```typescript
-POST /api/auth/reset-password
-Body: { token, newPassword }
+POST / api / auth / reset - password;
+Body: {
+  (token, newPassword);
+}
 ```
 
 ### tRPC Endpoints
@@ -382,54 +412,66 @@ Body: { token, newPassword }
 These endpoints are kept for backward compatibility and use Better Auth internally:
 
 #### Register
+
 ```typescript
 auth.register({
   username: string,
   email: string,
-  password: string
-})
+  password: string,
+});
 ```
+
 Uses Better Auth's `signUpEmail` internally.
 
 #### Login
+
 ```typescript
 auth.login({
   username: string,
-  password: string
-})
+  password: string,
+});
 ```
+
 Uses Better Auth's `signInUsername` internally.
 
 #### Get Current User
+
 ```typescript
-auth.me()
+auth.me();
 ```
+
 Returns current authenticated user information from Better Auth session.
 
 #### Change Password
+
 ```typescript
 auth.changePassword({
   currentPassword: string,
-  newPassword: string
-})
+  newPassword: string,
+});
 ```
+
 Uses Better Auth's `changePassword` internally.
 
 #### Request Password Reset
+
 ```typescript
 auth.requestPasswordReset({
-  email: string
-})
+  email: string,
+});
 ```
+
 Uses Better Auth's `requestPasswordReset` internally.
 
 #### Reset Password
+
 ```typescript
 auth.resetPassword({
   token: string,
-  newPassword: string
-})
+  newPassword: string,
+});
 ```
+
 Uses Better Auth's `resetPassword` internally.
 
 ### Admin Endpoints
@@ -439,6 +481,7 @@ Uses Better Auth's `resetPassword` internally.
 #### User Management
 
 **List Users**: `packages/api/src/routers/admin.ts:74`
+
 ```typescript
 admin.listUsers({
   limit: number,
@@ -451,6 +494,7 @@ admin.listUsers({
 ```
 
 **Ban User**: `packages/api/src/routers/admin.ts:333`
+
 ```typescript
 admin.banUser({
   userId: number,
@@ -459,7 +503,6 @@ admin.banUser({
 })
 ```
 
-
 ## Database Schema
 
 ### Better Auth Tables
@@ -467,9 +510,11 @@ admin.banUser({
 Better Auth requires these tables (added via migration):
 
 #### user
+
 **Location**: `packages/api/src/db/schema.ts:25`
 
 Better Auth's user table:
+
 - `id`: Primary key
 - `name`: Display name
 - `email`: Email address (unique)
@@ -480,9 +525,11 @@ Better Auth's user table:
 - `createdAt`, `updatedAt`: Timestamps
 
 #### session
+
 **Location**: `packages/api/src/db/schema.ts:48`
 
 Session management:
+
 - `id`: Primary key
 - `token`: Session token (unique)
 - `userId`: References user.id
@@ -490,18 +537,22 @@ Session management:
 - `ipAddress`, `userAgent`: Client information
 
 #### account
+
 **Location**: `packages/api/src/db/schema.ts:66`
 
 Account providers (email/password, social, etc.):
+
 - `id`: Primary key
 - `userId`: References user.id
 - `providerId`: Provider type (e.g., "credential" for email/password)
 - `password`: Password hash (for credential provider)
 
 #### verification
+
 **Location**: `packages/api/src/db/schema.ts:92`
 
 Email verification and password reset tokens:
+
 - `id`: Primary key
 - `identifier`: Email address
 - `value`: Verification token
@@ -510,9 +561,11 @@ Email verification and password reset tokens:
 ### User Tables
 
 #### users
+
 **Location**: `packages/api/src/db/schema.ts:107`
 
 User table (synced with Better Auth's `user` table):
+
 - `id`: Primary key
 - `username`: Unique username
 - `email`: Unique email
@@ -539,26 +592,32 @@ TuvixRSS implements multiple layers of security:
 ### Specific Protections
 
 #### SQL Injection Prevention
+
 - All queries use Drizzle ORM with parameterized statements
 - No raw SQL with user input
 
 #### XSS Prevention
+
 - HTML stripped from user inputs where applicable
 - Output encoding in frontend
 
 #### CSRF Prevention
+
 - CORS configured to specific origins only
 - HTTP-only cookies (Better Auth)
 
 #### Timing Attack Prevention
+
 - Better Auth uses constant-time comparison
 - Password verification doesn't leak timing information
 
 #### Email Enumeration Prevention
+
 - Registration: Returns generic "username/email exists" error
 - Password reset: Always returns success regardless of email validity
 
 #### Brute Force Prevention
+
 - Custom rate limiting via Cloudflare Workers rate limit bindings
 - Configurable thresholds and durations
 - Per-endpoint rate limits
@@ -568,10 +627,12 @@ TuvixRSS implements multiple layers of security:
 ### Environment Variables
 
 **Required**:
+
 - `BETTER_AUTH_SECRET`: Secret key for Better Auth (32+ characters recommended)
 - `BETTER_AUTH_URL`: Base URL for Better Auth (uses `BASE_URL` if not set)
 
 **Optional**:
+
 - `NODE_ENV`: Environment ("development", "production")
 - `ALLOW_FIRST_USER_ADMIN`: Enable first user admin promotion (default: "true")
 - `DATABASE_PATH`: Path to SQLite database
@@ -582,6 +643,7 @@ TuvixRSS implements multiple layers of security:
 **Location**: `packages/api/src/auth/better-auth.ts`
 
 Key configuration options:
+
 - `database`: Drizzle adapter configuration
 - `secret`: Authentication secret
 - `baseURL`: Base URL for Better Auth
@@ -594,6 +656,7 @@ Key configuration options:
 ### Email Verification
 
 Email verification is controlled by `global_settings.requireEmailVerification`:
+
 - If enabled: New accounts must verify email before accessing the app
 - If disabled: Accounts are immediately active after registration
 - Admin users bypass email verification requirement
@@ -601,21 +664,25 @@ Email verification is controlled by `global_settings.requireEmailVerification`:
 **Configuration**: `packages/api/src/auth/better-auth.ts:177`
 
 **Verification Flow**:
+
 1. User registers → Verification email sent automatically (if `requireEmailVerification` is enabled)
 2. User clicks verification link → Email verified via Better Auth `/api/auth/verify-email` endpoint
 3. User can check verification status via `auth.checkVerificationStatus` endpoint
 4. User can resend verification email via `auth.resendVerificationEmail` endpoint (rate limited: 1 per 5 minutes)
 
 **Endpoints**:
+
 - `auth.checkVerificationStatus` - Check if verification is required and current status (accessible to unverified users)
 - `auth.resendVerificationEmail` - Resend verification email (accessible to unverified users, rate limited)
 
 **Route Protection**:
+
 - Unverified users are blocked from accessing protected endpoints (except verification endpoints)
 - App route guard redirects unverified users to `/verify-email` page
 - Middleware enforces verification check in `isAuthed` middleware (admins bypass)
 
 **Email System Integration**:
+
 - Verification emails use dedicated `VerificationEmail` template
 - Email sending handled by `sendVerificationEmail` function
 - See [Email System Guide](./email-system.md) for complete email system documentation
@@ -624,21 +691,22 @@ Email verification is controlled by `global_settings.requireEmailVerification`:
 
 ### Key Files
 
-| File | Description |
-|------|-------------|
-| `packages/api/src/auth/better-auth.ts` | Better Auth configuration |
-| `packages/api/src/auth/security.ts` | Audit logging utilities |
-| `packages/api/src/routers/auth.ts` | Authentication endpoints (tRPC) |
-| `packages/api/src/routers/admin.ts` | Admin endpoints |
-| `packages/api/src/trpc/init.ts` | tRPC middleware (auth, rate limit) |
-| `packages/api/src/trpc/context.ts` | Better Auth session extraction |
-| `packages/api/src/db/schema.ts` | Database schema definitions |
-| `packages/app/src/lib/auth-client.ts` | Better Auth React client |
-| `packages/app/src/lib/hooks/useAuth.ts` | React auth hooks |
+| File                                    | Description                        |
+| --------------------------------------- | ---------------------------------- |
+| `packages/api/src/auth/better-auth.ts`  | Better Auth configuration          |
+| `packages/api/src/auth/security.ts`     | Audit logging utilities            |
+| `packages/api/src/routers/auth.ts`      | Authentication endpoints (tRPC)    |
+| `packages/api/src/routers/admin.ts`     | Admin endpoints                    |
+| `packages/api/src/trpc/init.ts`         | tRPC middleware (auth, rate limit) |
+| `packages/api/src/trpc/context.ts`      | Better Auth session extraction     |
+| `packages/api/src/db/schema.ts`         | Database schema definitions        |
+| `packages/app/src/lib/auth-client.ts`   | Better Auth React client           |
+| `packages/app/src/lib/hooks/useAuth.ts` | React auth hooks                   |
 
 ### Middleware Chain
 
 **Authentication Flow**:
+
 1. Request arrives with session cookie
 2. `context.ts` extracts Better Auth session
 3. `isAuthed` middleware checks authentication and ban status
@@ -651,6 +719,7 @@ Email verification is controlled by `global_settings.requireEmailVerification`:
 ### Common Patterns
 
 **Check if user is authenticated**:
+
 ```typescript
 export const myProcedure = protectedProcedure
   .input(z.object({ ... }))
@@ -661,6 +730,7 @@ export const myProcedure = protectedProcedure
 ```
 
 **Check if user is admin**:
+
 ```typescript
 export const myAdminProcedure = adminProcedure
   .input(z.object({ ... }))
@@ -670,8 +740,9 @@ export const myAdminProcedure = adminProcedure
 ```
 
 **Frontend: Get current user**:
+
 ```typescript
-import { useCurrentUser } from '@/lib/hooks/useAuth';
+import { useCurrentUser } from "@/lib/hooks/useAuth";
 
 const { data: session } = useCurrentUser();
 if (session?.user) {

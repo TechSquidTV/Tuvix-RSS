@@ -41,6 +41,7 @@ This document outlines the security measures implemented in the TuvixRSS API and
 TuvixRSS implements comprehensive security measures across authentication, authorization, input validation, content security, and deployment configurations. This guide covers all security-related features and best practices for secure deployment.
 
 **Related Documentation:**
+
 - [Authentication Guide](./authentication.md) - Detailed authentication system documentation
 - [Rate Limiting Guide](./rate-limiting.md) - Complete rate limiting system guide
 
@@ -77,17 +78,20 @@ TuvixRSS uses [Resend](https://resend.com) for transactional email delivery, sup
 **For complete email system documentation, see [Email System Guide](./email-system.md).**
 
 **Quick Setup:**
+
 - Create Resend account and verify domain
 - Set `RESEND_API_KEY` and `EMAIL_FROM` environment variables
 - Email templates use React Email components
 - Development mode logs emails to console if API key is missing
 
 **Email Types:**
+
 - Email verification (when `requireEmailVerification` is enabled)
 - Password reset
 - Welcome emails
 
 See [Email System Guide](./email-system.md) for:
+
 - Complete setup instructions
 - Email flow documentation
 - Template development guide
@@ -97,6 +101,7 @@ See [Email System Guide](./email-system.md) for:
 ### Security Audit Logging
 
 All authentication events are logged with:
+
 - User ID (if available)
 - Action type (login, logout, password change, etc.)
 - IP address
@@ -127,13 +132,14 @@ TuvixRSS features **admin-configurable rate limiting** for API endpoints, stored
 
 These settings control custom rate limiting logic (separate from Better Auth's built-in limits):
 
-| Setting | Description | Default | Range |
-|---------|-------------|---------|-------|
-| `maxLoginAttempts` | Failed login attempts before lockout | 5 | 1-100 |
-| `loginAttemptWindowMinutes` | Time window for counting attempts | 15 minutes | 1-1440 |
-| `lockoutDurationMinutes` | How long user is locked out | 30 minutes | 1-10080 |
+| Setting                     | Description                          | Default    | Range   |
+| --------------------------- | ------------------------------------ | ---------- | ------- |
+| `maxLoginAttempts`          | Failed login attempts before lockout | 5          | 1-100   |
+| `loginAttemptWindowMinutes` | Time window for counting attempts    | 15 minutes | 1-1440  |
+| `lockoutDurationMinutes`    | How long user is locked out          | 30 minutes | 1-10080 |
 
 **Changing settings** (Admin only):
+
 ```typescript
 // Via tRPC
 await client.admin.updateGlobalSettings.mutate({
@@ -149,13 +155,14 @@ Settings are **cached for 1 minute** to avoid database overhead on every request
 
 Authenticated API requests are rate-limited based on the user's plan:
 
-| Plan | API Requests/Minute | Public Feed Requests/Hour |
-|------|---------------------|---------------------------|
-| Free | Configurable | Configurable |
-| Pro | Configurable | Configurable |
-| Enterprise | Configurable | Configurable |
+| Plan       | API Requests/Minute | Public Feed Requests/Hour |
+| ---------- | ------------------- | ------------------------- |
+| Free       | Configurable        | Configurable              |
+| Pro        | Configurable        | Configurable              |
+| Enterprise | Configurable        | Configurable              |
 
 **Managing plans** (Admin only):
+
 ```typescript
 // Create new plan
 await client.admin.createPlan.mutate({
@@ -199,6 +206,7 @@ await client.admin.setCustomLimits.mutate({
 ### Current Implementation (In-Memory)
 
 The API uses **in-memory rate limiting**, which works well for:
+
 - **Single-instance deployments** (Docker Compose)
 - **Development environments**
 - **Low to medium traffic applications**
@@ -216,6 +224,7 @@ If you scale horizontally (multiple API containers), each instance maintains its
 For Docker deployments, add Redis for distributed rate limiting:
 
 1. **Add Redis to docker-compose.yml**:
+
 ```yaml
 services:
   redis:
@@ -231,14 +240,16 @@ services:
 ```
 
 2. **Install Redis client**:
+
 ```bash
 pnpm add ioredis rate-limiter-flexible
 ```
 
 3. **Update rate limiter** (future implementation):
+
 ```typescript
-import Redis from 'ioredis';
-import { RateLimiterRedis } from 'rate-limiter-flexible';
+import Redis from "ioredis";
+import { RateLimiterRedis } from "rate-limiter-flexible";
 
 const redis = new Redis(process.env.REDIS_URL);
 const rateLimiter = new RateLimiterRedis({
@@ -253,43 +264,48 @@ const rateLimiter = new RateLimiterRedis({
 For Cloudflare deployments, use Cloudflare's built-in solutions:
 
 **A. Cloudflare Rate Limiting (Paid Feature)**
+
 - Configure via Cloudflare Dashboard
 - Per-endpoint rate limits
 - Automatic enforcement at the edge
 - No code changes needed
 
 **B. Durable Objects (Alternative)**
+
 ```typescript
 // Already configured in Env type
-env.RATE_LIMITER // Durable Objects namespace
+env.RATE_LIMITER; // Durable Objects namespace
 ```
 
 Durable Objects provide:
+
 - Strongly consistent state
 - Global coordination
 - Low latency
 - Automatic scaling
 
 **C. Rate Limit Bindings (Rate Limiting)**
+
 ```typescript
 // Already configured in Env type
-env.API_RATE_LIMIT // Rate limit binding
-env.FEED_RATE_LIMIT // Rate limit binding
+env.API_RATE_LIMIT; // Rate limit binding
+env.FEED_RATE_LIMIT; // Rate limit binding
 ```
 
 Use for:
+
 - API and public feed rate limiting
 - Distributed edge-based rate limiting
 - Lower cost than Durable Objects
 
 ### Recommended Deployment Strategy
 
-| Deployment Type | Recommended Solution | Reason |
-|----------------|---------------------|---------|
-| **Docker Compose (Single)** | In-memory (current) | Simple, no dependencies |
-| **Docker Compose (Multi)** | Redis | Distributed state |
-| **Cloudflare Workers** | Cloudflare Rate Limiting or Durable Objects | Native edge integration |
-| **Kubernetes** | Redis Cluster | Enterprise-grade scaling |
+| Deployment Type             | Recommended Solution                        | Reason                   |
+| --------------------------- | ------------------------------------------- | ------------------------ |
+| **Docker Compose (Single)** | In-memory (current)                         | Simple, no dependencies  |
+| **Docker Compose (Multi)**  | Redis                                       | Distributed state        |
+| **Cloudflare Workers**      | Cloudflare Rate Limiting or Durable Objects | Native edge integration  |
+| **Kubernetes**              | Redis Cluster                               | Enterprise-grade scaling |
 
 ## Input Validation
 
@@ -318,6 +334,7 @@ OPML_CONTENT: { min: 1, max: 10000000 } // 10MB
 ### Regex Pattern Validation
 
 User-provided regex patterns are validated before execution:
+
 - Maximum pattern length: 1000 characters
 - Pattern compilation tested before use
 - Consider adding ReDoS protection (safe-regex2) for production
@@ -327,14 +344,16 @@ User-provided regex patterns are validated before execution:
 ### HTML Sanitization
 
 **All article descriptions are sanitized before storage** to prevent XSS attacks while preserving safe formatting:
+
 - Removes dangerous HTML tags and attributes (script, iframe, onclick, etc.)
 - Preserves safe formatting tags (links, bold, italic, lists, headings, etc.)
-- Enforces secure link attributes (target="_blank", rel="noopener noreferrer")
+- Enforces secure link attributes (target="\_blank", rel="noopener noreferrer")
 - Only allows safe URL protocols (http, https, mailto)
 
 **Implementation**:
+
 ```typescript
-import { sanitizeHtml, truncateHtml } from '@/utils/text-sanitizer';
+import { sanitizeHtml, truncateHtml } from "@/utils/text-sanitizer";
 
 // Descriptions: Sanitized HTML (allows safe tags)
 const sanitizedDescription = sanitizeHtml(rawDescription);
@@ -342,6 +361,7 @@ const description = truncateHtml(sanitizedDescription, 5000);
 ```
 
 **Sanitization is enforced at the single entry point**:
+
 - Location: `packages/api/src/services/rss-fetcher.ts:689-693`
 - Library: `sanitize-html` with strict allowlist configuration
 - Allowed tags: Only inline elements (`a`, `strong`, `b`, `em`, `i`, `u`, `code`, `br`)
@@ -351,6 +371,7 @@ const description = truncateHtml(sanitizedDescription, 5000);
 - Rationale: Descriptions render inside `<p>` tags in the frontend, so only inline elements are valid HTML
 
 **Frontend rendering**:
+
 - The frontend uses `dangerouslySetInnerHTML` to render sanitized descriptions in two components:
   - `packages/app/src/components/app/article-item.tsx:238` (standard article view)
   - `packages/app/src/components/app/article-item-audio.tsx:252` (audio/podcast view)
@@ -391,6 +412,7 @@ CORS_ORIGIN=http://localhost:5173,https://example.com
 ```
 
 **Behavior**:
+
 - ✅ Credentials enabled
 - ✅ Origin validation on every request
 - ✅ Blocked origins logged
@@ -515,4 +537,3 @@ If you discover a security vulnerability, please email: [security contact - to b
 - [Cloudflare Rate Limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/)
 - [Password Storage Best Practices](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 - [Better Auth Documentation](https://www.better-auth.com/docs)
-

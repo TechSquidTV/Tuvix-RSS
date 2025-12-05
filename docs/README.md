@@ -30,6 +30,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Architecture & Integration
 
 #### [Project Integration](./project-integration.md)
+
 **Comprehensive guide to frontend-backend integration**
 
 - Monorepo structure and package organization
@@ -41,12 +42,14 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Environment configuration
 
 **Use this when:**
+
 - Setting up the development environment
 - Understanding how frontend and backend communicate
 - Debugging type issues between packages
 - Configuring deployment
 
 #### [tRPC API Architecture](./trpc-api-architecture.md)
+
 **Complete reference for the tRPC API**
 
 - Core configuration and middleware
@@ -57,6 +60,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Security features and patterns
 
 **Use this when:**
+
 - Implementing new API endpoints
 - Understanding middleware chains
 - Debugging authentication issues
@@ -65,6 +69,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Architecture Documentation
 
 #### [Polling and Article Updates](./architecture/polling-and-article-updates.md)
+
 **Comprehensive guide to RSS polling and article update system**
 
 - Scheduled polling system architecture
@@ -75,6 +80,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Deployment-specific implementations (Docker vs Cloudflare)
 
 **Use this when:**
+
 - Understanding how RSS feeds are polled
 - Debugging article update issues
 - Optimizing polling performance
@@ -82,6 +88,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Understanding article lifecycle
 
 #### [Usage Quotas and Time Periods](./architecture/usage-quotas-and-time-periods.md)
+
 **Usage tracking, quotas, and time period implementation**
 
 - Usage quota system architecture
@@ -91,6 +98,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Future billing cycle considerations
 
 **Use this when:**
+
 - Understanding usage tracking system
 - Implementing billing features
 - Configuring plan limits
@@ -99,6 +107,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Deployment
 
 #### [Deployment Guide](./deployment.md)
+
 **Complete deployment documentation**
 
 - Docker Compose deployment (development & production)
@@ -110,6 +119,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Troubleshooting
 
 **Use this when:**
+
 - Setting up a new deployment
 - Migrating between deployment targets
 - Configuring cron jobs
@@ -118,6 +128,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Developer Documentation
 
 #### [Progressive Web App (PWA)](./developer/pwa.md)
+
 **Comprehensive PWA implementation and configuration guide**
 
 - Service worker configuration and caching strategies
@@ -128,6 +139,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Code references and implementation details
 
 **Use this when:**
+
 - Configuring service worker caching
 - Customizing app manifest
 - Troubleshooting PWA installation issues
@@ -135,6 +147,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Understanding PWA technical implementation
 
 #### [Theme System](./developer/theme-system.md)
+
 **Comprehensive theme system implementation guide**
 
 - Theme architecture and core concepts
@@ -144,12 +157,14 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Best practices
 
 **Use this when:**
+
 - Creating new themes
 - Understanding theme architecture
 - Customizing theme behavior
 - Working with CSS variables and OKLCH colors
 
 #### [Animated Articles](./developer/animated-articles.md)
+
 **Animated article list implementation guide**
 
 - Component architecture and implementation
@@ -158,12 +173,14 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Code references and examples
 
 **Use this when:**
+
 - Implementing animation features
 - Understanding component architecture
 - Optimizing list performance
 - Customizing animation behavior
 
 #### [Authentication & User Management](./developer/authentication.md)
+
 **Comprehensive authentication system documentation**
 
 - JWT-based authentication implementation
@@ -177,12 +194,14 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Database schema
 
 **Use this when:**
+
 - Implementing authentication features
 - Understanding security measures
 - Configuring user plans and limits
 - Debugging auth issues
 
 #### [Rate Limiting](./developer/rate-limiting.md)
+
 **Complete rate limiting system guide**
 
 - Multi-layer rate limiting architecture
@@ -195,6 +214,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Troubleshooting and best practices
 
 **Use this when:**
+
 - Setting up rate limiting for new deployments
 - Understanding deployment differences
 - Configuring rate limits for plans
@@ -202,6 +222,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Implementing rate limit-aware clients
 
 #### [Public Feeds](./developer/public-feeds.md)
+
 **Comprehensive public feeds implementation guide**
 
 - Architecture and data flow
@@ -215,6 +236,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Security and best practices
 
 **Use this when:**
+
 - Understanding how public feeds work
 - Implementing feed creation UI
 - Configuring plan limits for feeds
@@ -223,6 +245,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Building RSS reader integrations
 
 #### [Offline Support](./developer/offline-support.md)
+
 **Network-aware React Query configuration and offline handling**
 
 - Network status detection and monitoring
@@ -234,6 +257,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Best practices for offline-aware queries
 
 **Use this when:**
+
 - Understanding offline behavior
 - Implementing network-aware queries
 - Configuring query retry logic
@@ -242,6 +266,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Handling network errors gracefully
 
 #### [Email System](./developer/email-system.md)
+
 **Complete transactional email system documentation**
 
 - Email service architecture and setup (Resend)
@@ -251,6 +276,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - API reference and troubleshooting
 
 **Use this when:**
+
 - Setting up Resend email service
 - Understanding email flows
 - Developing new email templates
@@ -258,6 +284,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Configuring email verification
 
 #### [Security](./developer/security.md)
+
 **Comprehensive security documentation and best practices**
 
 - Authentication and authorization (Better Auth, password security)
@@ -270,6 +297,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Email service overview (see [Email System Guide](./developer/email-system.md) for details)
 
 **Use this when:**
+
 - Understanding security measures
 - Configuring secure deployments
 - Reviewing security best practices
@@ -279,6 +307,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Admin & Operations
 
 #### [Admin Guide](./guides/admin/admin-guide.md)
+
 **Complete guide for administering a TuvixRSS instance**
 
 - Admin access and authentication
@@ -289,6 +318,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Security monitoring and audit logs
 
 **Use this when:**
+
 - Setting up admin access
 - Configuring global settings
 - Managing users and plans
@@ -298,6 +328,7 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Package Documentation
 
 #### [Tricorder Feed Discovery Library](../packages/tricorder/README.md)
+
 **Platform-agnostic RSS/Atom feed discovery library**
 
 - Zero-overhead optional telemetry via dependency injection
@@ -307,17 +338,18 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 - Comprehensive API reference and usage examples
 
 **Use this when:**
+
 - Implementing feed discovery in new projects
 - Building browser extensions for RSS discovery
 - Understanding the zero-overhead telemetry pattern
 - Adding custom discovery services (YouTube, Reddit, etc.)
-
 
 ## Documentation by Purpose
 
 ### Understanding the Project
 
 **Start here:**
+
 1. [Main README](../README.md) - Project overview
 2. [Project Integration](./project-integration.md) - How everything connects
 3. [tRPC API Architecture](./trpc-api-architecture.md) - API structure
@@ -325,10 +357,12 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Development Workflow
 
 **Setting up:**
+
 1. [Deployment Guide - Development](./deployment.md#development-process) - Local setup
 2. [Project Integration - Development Workflow](./project-integration.md#development-workflow) - Daily workflow
 
 **Implementing features:**
+
 1. [tRPC API Architecture](./trpc-api-architecture.md) - API patterns
 2. [Project Integration](./project-integration.md) - Frontend integration
 3. [Polling and Article Updates](./architecture/polling-and-article-updates.md) - RSS polling system
@@ -344,34 +378,35 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 ### Deployment
 
 **Production deployment:**
+
 1. [Deployment Guide](./deployment.md) - Complete deployment instructions
 2. [Project Integration - Environment Configuration](./project-integration.md#environment-configuration) - Config setup
 
 ## Document Status
 
-| Document | Type | Status | Last Updated |
-|----------|------|--------|--------------|
-| **Core Documentation** | | | |
-| Project Integration | Guide | ✅ Complete | 2025-01-13 |
-| tRPC API Architecture | Reference | ✅ Complete | 2025-01-13 |
-| Deployment Guide | Tutorial | ✅ Complete | 2025-01-13 |
-| **Architecture Documentation** | | | |
-| Polling and Article Updates | Reference | ✅ Complete | 2025-01-15 |
-| Usage Quotas and Time Periods | Reference | ✅ Complete | 2025-01-15 |
-| **Developer Documentation** | | | |
-| Animated Articles | Reference | ✅ Complete | 2025-01-15 |
-| Authentication | Reference | ✅ Complete | 2025-01-13 |
-| Offline Support | Reference | ✅ Complete | 2025-01-15 |
-| PWA | Reference | ✅ Complete | 2025-01-15 |
-| Public Feeds | Reference | ✅ Complete | 2025-01-15 |
-| Rate Limiting | Reference | ✅ Complete | 2025-01-15 |
-| Email System | Reference | ✅ Complete | 2025-01-15 |
-| Security | Reference | ✅ Complete | 2025-01-15 |
-| Theme System | Reference | ✅ Complete | 2025-01-15 |
-| **Admin & Operations** | | | |
-| Admin Guide | Guide | ✅ Complete | 2025-01-15 |
-| **Package Documentation** | | | |
-| Tricorder README | Guide | ✅ Complete | 2025-12-02 |
+| Document                       | Type      | Status      | Last Updated |
+| ------------------------------ | --------- | ----------- | ------------ |
+| **Core Documentation**         |           |             |              |
+| Project Integration            | Guide     | ✅ Complete | 2025-01-13   |
+| tRPC API Architecture          | Reference | ✅ Complete | 2025-01-13   |
+| Deployment Guide               | Tutorial  | ✅ Complete | 2025-01-13   |
+| **Architecture Documentation** |           |             |              |
+| Polling and Article Updates    | Reference | ✅ Complete | 2025-01-15   |
+| Usage Quotas and Time Periods  | Reference | ✅ Complete | 2025-01-15   |
+| **Developer Documentation**    |           |             |              |
+| Animated Articles              | Reference | ✅ Complete | 2025-01-15   |
+| Authentication                 | Reference | ✅ Complete | 2025-01-13   |
+| Offline Support                | Reference | ✅ Complete | 2025-01-15   |
+| PWA                            | Reference | ✅ Complete | 2025-01-15   |
+| Public Feeds                   | Reference | ✅ Complete | 2025-01-15   |
+| Rate Limiting                  | Reference | ✅ Complete | 2025-01-15   |
+| Email System                   | Reference | ✅ Complete | 2025-01-15   |
+| Security                       | Reference | ✅ Complete | 2025-01-15   |
+| Theme System                   | Reference | ✅ Complete | 2025-01-15   |
+| **Admin & Operations**         |           |             |              |
+| Admin Guide                    | Guide     | ✅ Complete | 2025-01-15   |
+| **Package Documentation**      |           |             |              |
+| Tricorder README               | Guide     | ✅ Complete | 2025-12-02   |
 
 ## Planning Documents
 

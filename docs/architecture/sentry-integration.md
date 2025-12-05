@@ -9,6 +9,7 @@ TuvixRSS uses a runtime-agnostic Sentry wrapper to provide error tracking and pe
 ### Problem Statement
 
 The codebase runs in two different environments:
+
 - **Cloudflare Workers**: Uses `@sentry/cloudflare`
 - **Node.js/Express**: Does not require Sentry (development/testing only)
 
@@ -54,10 +55,18 @@ The wrapper provides async functions that match Sentry's API:
 
 ```typescript
 export const Sentry = {
-  setUser: async (user) => { /* ... */ },
-  addBreadcrumb: async (breadcrumb) => { /* ... */ },
-  captureException: async (error, context) => { /* ... */ },
-  startSpan: async (options, callback) => { /* ... */ },
+  setUser: async (user) => {
+    /* ... */
+  },
+  addBreadcrumb: async (breadcrumb) => {
+    /* ... */
+  },
+  captureException: async (error, context) => {
+    /* ... */
+  },
+  startSpan: async (options, callback) => {
+    /* ... */
+  },
 };
 ```
 
@@ -121,6 +130,7 @@ export default Sentry.withSentry((env: Env) => {
 ```
 
 **Required Environment Variables:**
+
 - `SENTRY_DSN`: Your Sentry project DSN
 - `SENTRY_ENVIRONMENT`: Environment name (e.g., "production")
 - `SENTRY_RELEASE`: Optional release version
@@ -168,10 +178,11 @@ async (span) => {
   span.setAttribute("key", "value");
   span.setStatus({ code: 1 });
   /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-}
+};
 ```
 
 This is intentional because:
+
 - The `span` object type varies between runtimes
 - We use `any` for runtime abstraction
 - The API is stable and well-tested
@@ -194,19 +205,21 @@ await Sentry.captureException(error);
 If you see direct imports from `@sentry/cloudflare` or `@sentry/node`:
 
 1. Change the import:
+
    ```typescript
    // Before
    import * as Sentry from "@sentry/cloudflare";
-   
+
    // After
    import * as Sentry from "@/utils/sentry";
    ```
 
 2. Add `await` to all Sentry calls:
+
    ```typescript
    // Before
    Sentry.captureException(error);
-   
+
    // After
    await Sentry.captureException(error);
    ```
@@ -249,11 +262,13 @@ Sentry is automatically disabled in Node.js, so integration tests run without si
 ### Issue: Sentry not capturing errors
 
 **Causes**:
+
 1. `SENTRY_DSN` not set in Cloudflare Workers secrets
 2. Error thrown before Sentry wrapper is loaded
 3. Running in Node.js environment (Sentry is disabled)
 
-**Solution**: 
+**Solution**:
+
 - Verify `SENTRY_DSN` is configured in Cloudflare Workers
 - Check environment with `process.env.RUNTIME`
 
@@ -268,14 +283,17 @@ Sentry is automatically disabled in Node.js, so integration tests run without si
 ## Alternative Approaches Considered
 
 ### Dynamic imports at call sites
+
 - ❌ Too verbose, scattered logic
 - ❌ Difficult to maintain
 
 ### Separate service versions
+
 - ❌ Code duplication
 - ❌ Increased maintenance burden
 
 ### Try/catch everywhere
+
 - ❌ Error-prone
 - ❌ Unclear intent
 - ❌ Silent failures
@@ -404,6 +422,7 @@ if (SentryModule.trpcMiddleware) {
 ```
 
 This middleware:
+
 - Creates performance spans for each tRPC call
 - Attaches request input to error context
 - Improves distributed tracing across tRPC procedures
@@ -551,23 +570,27 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
     enableMetrics: true,
     enableLogs: true,
     debug: environment === "development",
-    beforeSendMetric: (metric) => { /* PII filtering */ },
-    beforeSendSpan: (span) => { /* Add global context */ },
+    beforeSendMetric: (metric) => {
+      /* PII filtering */
+    },
+    beforeSendSpan: (span) => {
+      /* Add global context */
+    },
   };
 }
 ```
 
 ### Configuration Options
 
-| Option | Value | Description |
-|--------|-------|-------------|
-| `dsn` | `env.SENTRY_DSN` | Project DSN (required) |
-| `environment` | `env.SENTRY_ENVIRONMENT` | Environment name (production, staging, etc.) |
-| `release` | `env.SENTRY_RELEASE` or `CF_VERSION_METADATA.id` | Release version for tracking |
-| `tracesSampleRate` | `0.1` | Sample 10% of transactions for performance monitoring |
-| `enableMetrics` | `true` | Enable Sentry Metrics (counters, gauges, distributions) |
-| `enableLogs` | `true` | Enable logs for better debugging |
-| `debug` | `environment === "development"` | Verbose logging in development |
+| Option             | Value                                            | Description                                             |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------- |
+| `dsn`              | `env.SENTRY_DSN`                                 | Project DSN (required)                                  |
+| `environment`      | `env.SENTRY_ENVIRONMENT`                         | Environment name (production, staging, etc.)            |
+| `release`          | `env.SENTRY_RELEASE` or `CF_VERSION_METADATA.id` | Release version for tracking                            |
+| `tracesSampleRate` | `0.1`                                            | Sample 10% of transactions for performance monitoring   |
+| `enableMetrics`    | `true`                                           | Enable Sentry Metrics (counters, gauges, distributions) |
+| `enableLogs`       | `true`                                           | Enable logs for better debugging                        |
+| `debug`            | `environment === "development"`                  | Verbose logging in development                          |
 
 ### Callbacks
 
@@ -588,7 +611,7 @@ beforeSendMetric: (metric: SentryMetric): SentryMetric | null => {
   }
 
   return metric;
-}
+};
 ```
 
 #### beforeSendSpan
@@ -609,7 +632,7 @@ beforeSendSpan: (span: SpanJSON): SpanJSON => {
   span.data["app.environment"] = environment;
 
   return span;
-}
+};
 ```
 
 ### Environment Variables
@@ -656,7 +679,7 @@ Node.js uses built-in HTTP integrations:
 Sentry.init({
   ...sentryConfig,
   integrations: [
-    Sentry.httpIntegration(),           // Track HTTP requests
+    Sentry.httpIntegration(), // Track HTTP requests
     Sentry.nativeNodeFetchIntegration(), // Track fetch() calls
   ],
 });
@@ -755,6 +778,7 @@ curl http://localhost:3001/debug-sentry
 ```
 
 This will:
+
 1. Capture a test error to Sentry
 2. Return the Sentry event ID
 3. Confirm runtime (nodejs or cloudflare)
@@ -768,6 +792,7 @@ wrangler tail
 ```
 
 Look for:
+
 - `❌ tRPC Error:` - tRPC errors (always logged)
 - Sentry event IDs - Confirms errors were captured
 
@@ -782,7 +807,3 @@ Look for:
 - Node.js entry: `packages/api/src/entries/node.ts`
 - tRPC initialization: `packages/api/src/trpc/init.ts`
 - Hono app: `packages/api/src/hono/app.ts`
-
-
-
-

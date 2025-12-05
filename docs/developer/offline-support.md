@@ -370,7 +370,7 @@ export const useFeed = (id: number) => {
     { id },
     {
       staleTime: 1000 * 60 * 30, // 30 minutes (rarely changes)
-    },
+    }
   );
 };
 ```
@@ -406,7 +406,7 @@ export const useCreateFeed = () => {
       // Warn if trying to mutate while offline
       if (!isOnline) {
         toast.error(
-          "You're offline. Changes will be saved when you reconnect.",
+          "You're offline. Changes will be saved when you reconnect."
         );
       }
     },
@@ -420,7 +420,7 @@ export const useCreateFeed = () => {
       toast.error(
         isNetworkError
           ? "Network error. Please check your connection."
-          : "Failed to add feed.",
+          : "Failed to add feed."
       );
     },
   });
@@ -444,8 +444,8 @@ export const useMarkAsRead = () => {
       // Optimistically update
       utils.articles.list.setData(undefined, (old) =>
         old?.map((article) =>
-          article.id === articleId ? { ...article, read: true } : article,
-        ),
+          article.id === articleId ? { ...article, read: true } : article
+        )
       );
 
       return { previous };
@@ -562,4 +562,3 @@ Potential improvements for even better offline support:
 - [MDN: Navigator.onLine](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine)
 - [MDN: Network Information API](https://developer.mozilla.org/en-US/docs/Web/API/Network_Information_API)
 - [Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
-

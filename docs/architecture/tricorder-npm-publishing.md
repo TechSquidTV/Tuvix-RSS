@@ -5,6 +5,7 @@ This document describes the NPM publishing setup for the `@tuvixrss/tricorder` p
 ## Overview
 
 The `@tuvixrss/tricorder` package is published independently to NPM to enable usage in:
+
 1. **TuvixRSS API** (this monorepo) - Uses `workspace:*` during development
 2. **Browser Extension** (separate repo) - Installs from NPM
 3. **Other projects** - Public package for RSS/Atom feed discovery
@@ -39,12 +40,14 @@ Versioning is **independent** from API/App versions. Tricorder can be on v2.0.0 
 As of npm v11.5.1, **trusted publishing with OpenID Connect (OIDC)** is the recommended approach. This eliminates the need for long-lived tokens and provides automatic provenance attestations.
 
 **Benefits:**
+
 - No token management required
 - Short-lived, workflow-specific credentials
 - Automatic provenance attestations
 - Enhanced security with cryptographic trust
 
 **Setup on npmjs.com:**
+
 1. Go to your package settings at https://www.npmjs.com/package/@tuvixrss/tricorder/access
 2. Navigate to "Publishing access" → "Trusted publishers"
 3. Click "Add trusted publisher"
@@ -61,11 +64,12 @@ The workflow must include these permissions at the **workflow level** (not job l
 
 ```yaml
 permissions:
-  id-token: write  # Required for OIDC trusted publishing
-  contents: read   # Required to read repository contents
+  id-token: write # Required for OIDC trusted publishing
+  contents: read # Required to read repository contents
 ```
 
 **Requirements:**
+
 - npm CLI v11.5.1 or later (automatically updated in workflow)
 - GitHub-hosted runners (self-hosted runners not yet supported)
 
@@ -95,19 +99,22 @@ Environment configured for deployment tracking:
 **Purpose**: Independent CI that only runs when tricorder changes.
 
 **Triggers**:
+
 - Pull requests affecting `packages/tricorder/**`
 - Pushes to `main`/`development` affecting tricorder
 - Manual dispatch
 
 **Path Filtering**:
+
 ```yaml
 paths:
-  - 'packages/tricorder/**'
-  - '.github/workflows/ci-tricorder.yml'
-  - '.github/actions/**'
+  - "packages/tricorder/**"
+  - ".github/workflows/ci-tricorder.yml"
+  - ".github/actions/**"
 ```
 
 **Jobs**:
+
 - Lint
 - Format Check
 - Type Check
@@ -115,6 +122,7 @@ paths:
 - Build
 
 **Benefits**:
+
 - **Fast**: Only runs when tricorder changes
 - **Isolated**: Doesn't run full monorepo CI
 - **Efficient**: Saves CI minutes, faster feedback
@@ -124,12 +132,14 @@ paths:
 **Purpose**: Automated NPM publishing with safety checks.
 
 **Triggers**:
+
 - Git tags matching `tricorder-v*.*.*` (e.g., `tricorder-v1.0.1`)
 - Manual workflow dispatch (with dry-run option)
 
 **Workflow Steps**:
 
 #### Verify Stage
+
 1. Lint code
 2. Check formatting
 3. Type check
@@ -138,6 +148,7 @@ paths:
 6. Verify package contents with `npm pack --dry-run`
 
 #### Publish Stage (if verify passes)
+
 1. Update npm to latest version (ensures v11.5.1+ for OIDC support)
 2. Validate version matches git tag
 3. Check if version already published (skip if yes)
@@ -146,6 +157,7 @@ paths:
 6. Output success with NPM link
 
 **Safety Features**:
+
 - ✅ OIDC trusted publishing (no long-lived tokens)
 - ✅ Automatic provenance attestations
 - ✅ Version validation (tag must match package.json)
@@ -217,12 +229,7 @@ git push origin main --tags
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "CHANGELOG.md",
-    "ARCHITECTURE.md"
-  ],
+  "files": ["dist", "README.md", "CHANGELOG.md", "ARCHITECTURE.md"],
   "scripts": {
     "prepublishOnly": "pnpm run build && pnpm run test && pnpm run type-check"
   }
@@ -232,6 +239,7 @@ git push origin main --tags
 ### What Gets Published
 
 Only these files are included in NPM package:
+
 - `dist/` - Compiled JavaScript and TypeScript declarations
 - `README.md` - Package documentation
 - `CHANGELOG.md` - Version history
@@ -254,11 +262,13 @@ Source files (`src/`) are **not** published - only built output.
 ```
 
 During development:
+
 - Uses local version via workspace protocol
 - Changes to tricorder instantly available in API
 - No need to publish for testing
 
 When publishing API:
+
 - `workspace:*` resolves to local version
 - Or can pin specific version: `"@tuvixrss/tricorder": "^1.0.0"`
 
@@ -278,7 +288,7 @@ npm install @tuvixrss/tricorder
 ```
 
 ```typescript
-import { discoverFeeds } from '@tuvixrss/tricorder';
+import { discoverFeeds } from "@tuvixrss/tricorder";
 
 // Zero telemetry, zero overhead
 const feeds = await discoverFeeds(url);
@@ -293,7 +303,7 @@ npm install @tuvixrss/tricorder
 ```
 
 ```typescript
-import { discoverFeeds, createDefaultRegistry } from '@tuvixrss/tricorder';
+import { discoverFeeds, createDefaultRegistry } from "@tuvixrss/tricorder";
 ```
 
 ## Monitoring and Maintenance
@@ -340,6 +350,7 @@ See `packages/tricorder/CHANGELOG.md` for detailed version history.
 
 **Cause**: Tests or checks failing.
 **Solution**: Run locally:
+
 ```bash
 cd packages/tricorder
 pnpm test
@@ -382,6 +393,7 @@ pnpm build
 ## Summary
 
 The tricorder package is set up for:
+
 - ✅ Independent versioning from main app
 - ✅ Automated NPM publishing via CI/CD
 - ✅ Path-filtered CI (only runs when tricorder changes)

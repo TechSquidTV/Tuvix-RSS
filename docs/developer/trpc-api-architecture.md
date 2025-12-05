@@ -16,6 +16,7 @@ This document provides comprehensive documentation of the TuvixRSS tRPC API arch
 ## Core Configuration
 
 ### Location
+
 `packages/api/src/trpc/`
 
 ### Key Files
@@ -50,11 +51,13 @@ Procedure Type Selection:
 ### Middleware Details
 
 #### 1. isAuthed Middleware
+
 **Location:** `packages/api/src/trpc/init.ts:39-86`
 
 **Purpose:** Ensures user is authenticated, not banned, and email verified (if required)
 
 **Checks:**
+
 - Better Auth session exists in context
 - User exists in database
 - User is not banned
@@ -63,50 +66,60 @@ Procedure Type Selection:
 - Narrows TypeScript type to guarantee non-null user
 
 **Error Codes:**
+
 - `UNAUTHORIZED` - No user in context or user not found
 - `FORBIDDEN` - User account is banned or email verification required
 
 #### 1a. isAuthedWithoutVerification Middleware
+
 **Location:** `packages/api/src/trpc/init.ts:90-128`
 
 **Purpose:** Ensures user is authenticated and not banned, but skips email verification check
 
 **Checks:**
+
 - Better Auth session exists in context
 - User exists in database
 - User is not banned
 - **Does NOT check email verification** (allows unverified users to access verification endpoints)
 
 **Error Codes:**
+
 - `UNAUTHORIZED` - No user in context or user not found
 - `FORBIDDEN` - User account is banned
 
 **Use Case:** Used by `protectedProcedureWithoutVerification` for endpoints that unverified users need to access (e.g., `checkVerificationStatus`, `resendVerificationEmail`)
 
 #### 2. isAdmin Middleware
+
 **Location:** `packages/api/src/trpc/init.ts:126-169`
 
 **Purpose:** Restricts access to admin-only operations
 
 **Checks:**
+
 - All `isAuthed` checks (inherits from protectedProcedure)
 - User role is "admin" from Better Auth session
 
 **Error Codes:**
+
 - `FORBIDDEN` - User is not an admin
 
 #### 3. withRateLimit Middleware
+
 **Location:** `packages/api/src/trpc/init.ts:178-207`
 
 **Purpose:** Enforces API rate limits per user
 
 **Features:**
+
 - Applies only to authenticated users
 - Checks API rate limit per minute (from user's plan)
 - Returns rate limit status in context
 - Throws error if limit exceeded
 
 **Error Response:**
+
 ```typescript
 {
   code: "TOO_MANY_REQUESTS",
@@ -115,23 +128,26 @@ Procedure Type Selection:
 ```
 
 #### 4. withLimitCheck Middleware
+
 **Location:** `packages/api/src/trpc/init.ts:81-116`
 
 **Purpose:** Factory function for resource-specific limit checking
 
 **Supported Resources:**
+
 - `sources` - RSS feed subscriptions
 - `publicFeeds` - Public RSS feeds
 - `categories` - Article categories
 
 **Context Addition:**
+
 ```typescript
 {
   limitCheck: {
-    resource: string
-    limit: number
-    current: number
-    canAdd: boolean
+    resource: string;
+    limit: number;
+    current: number;
+    canAdd: boolean;
   }
 }
 ```
@@ -178,6 +194,7 @@ createProtectedWithLimit(resource: "sources" | "publicFeeds" | "categories")
 ### Database Initialization
 
 The context automatically selects the appropriate database based on environment:
+
 - **Node.js/Docker:** SQLite via `packages/api/src/db/client.ts`
 - **Cloudflare Workers:** D1 Database via binding
 
@@ -191,9 +208,9 @@ The context automatically selects the appropriate database based on environment:
 
 ```typescript
 {
-  userId: number
-  username: string
-  role: "user" | "admin"
+  userId: number;
+  username: string;
+  role: "user" | "admin";
 }
 ```
 
@@ -205,21 +222,21 @@ The context automatically selects the appropriate database based on environment:
 
 ```typescript
 appRouter = {
-  auth,           // Authentication (register, login, password reset)
-  articles,       // Article retrieval and state management
-  subscriptions,  // RSS feed subscriptions
-  categories,     // Category/tag management
-  feeds,          // Public feed aggregation and management
-  userSettings,   // User preferences
-  admin,          // Admin operations
-  plans,          // Subscription plans
-}
+  auth, // Authentication (register, login, password reset)
+  articles, // Article retrieval and state management
+  subscriptions, // RSS feed subscriptions
+  categories, // Category/tag management
+  feeds, // Public feed aggregation and management
+  userSettings, // User preferences
+  admin, // Admin operations
+  plans, // Subscription plans
+};
 ```
 
 ### Type Export
 
 ```typescript
-export type AppRouter = typeof appRouter;  // For frontend type safety
+export type AppRouter = typeof appRouter; // For frontend type safety
 ```
 
 This type is imported by the frontend to achieve end-to-end type safety with zero code generation.
@@ -227,11 +244,13 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 ## API Routers
 
 ### Auth Router
+
 **Location:** `packages/api/src/routers/auth.ts`
 
 #### Public Procedures
 
 ##### `register`
+
 - **Purpose:** Create new user account (uses Better Auth internally)
 - **Input:** `{ username, email, password }`
 - **Features:**
@@ -245,6 +264,7 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 - **Error:** `FORBIDDEN` if registration is disabled
 
 ##### `login`
+
 - **Purpose:** Authenticate user (uses Better Auth internally)
 - **Input:** `{ username, password }`
 - **Features:**
@@ -255,6 +275,7 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 - **Returns:** `{ success: true }` (session managed via Better Auth cookies)
 
 ##### `requestPasswordReset`
+
 - **Purpose:** Initiate password reset flow
 - **Input:** `{ email }`
 - **Features:**
@@ -264,6 +285,7 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 - **Returns:** `{ success: true }`
 
 ##### `resetPassword`
+
 - **Purpose:** Complete password reset with token
 - **Input:** `{ token, newPassword }`
 - **Features:**
@@ -275,16 +297,19 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 #### Protected Procedures
 
 ##### `me`
+
 - **Purpose:** Get current authenticated user from Better Auth session
 - **Returns:** `{ id, username, email, role, plan, banned, emailVerified, ... }`
 
 ##### `checkVerificationStatus`
+
 - **Purpose:** Check if email verification is required and current verification status
 - **Procedure Type:** `protectedProcedureWithoutVerification` (accessible to unverified users)
 - **Returns:** `{ requiresVerification: boolean, emailVerified: boolean }`
 - **Use Case:** Allows unverified users to check their verification status
 
 ##### `resendVerificationEmail`
+
 - **Purpose:** Resend verification email to authenticated user
 - **Procedure Type:** `protectedProcedureWithoutVerification` (accessible to unverified users)
 - **Features:**
@@ -295,6 +320,7 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 - **Error:** `TOO_MANY_REQUESTS` if rate limit exceeded
 
 ##### `changePassword`
+
 - **Purpose:** Change password with current password verification
 - **Input:** `{ currentPassword, newPassword }`
 - **Returns:** `{ success: true }`
@@ -302,11 +328,13 @@ This type is imported by the frontend to achieve end-to-end type safety with zer
 ---
 
 ### Subscriptions Router
+
 **Location:** `packages/api/src/routers/subscriptions.ts`
 
 All procedures use `rateLimitedProcedure`.
 
 ##### `list`
+
 - **Purpose:** List user's RSS feed subscriptions
 - **Input:** `{ offset?, limit? }`
 - **Features:**
@@ -316,6 +344,7 @@ All procedures use `rateLimitedProcedure`.
 - **Returns:** Array of subscriptions with metadata
 
 ##### `add`
+
 - **Purpose:** Subscribe to RSS feed
 - **Input:** `{ url, categoryId? }`
 - **Features:**
@@ -326,26 +355,31 @@ All procedures use `rateLimitedProcedure`.
 - **Returns:** New subscription object
 
 ##### `remove`
+
 - **Purpose:** Unsubscribe from RSS feed
 - **Input:** `{ id }`
 - **Returns:** `{ success: true }`
 
 ##### `update`
+
 - **Purpose:** Update subscription settings
 - **Input:** `{ id, categoryId?, enabled? }`
 - **Returns:** Updated subscription object
 
 ##### `addFilter`
+
 - **Purpose:** Add content filter to subscription
 - **Input:** `{ subscriptionId, field, pattern, type: "include" | "exclude" }`
 - **Returns:** New filter object
 
 ##### `removeFilter`
+
 - **Purpose:** Remove content filter
 - **Input:** `{ id }`
 - **Returns:** `{ success: true }`
 
 ##### `importOpml`
+
 - **Purpose:** Import subscriptions from OPML file
 - **Input:** `{ opml: string }`
 - **Features:**
@@ -355,17 +389,20 @@ All procedures use `rateLimitedProcedure`.
 - **Returns:** `{ imported, skipped, errors }`
 
 ##### `exportOpml`
+
 - **Purpose:** Export subscriptions to OPML format
 - **Returns:** OPML XML string
 
 ---
 
 ### Articles Router
+
 **Location:** `packages/api/src/routers/articles.ts`
 
 All procedures use `rateLimitedProcedure`.
 
 ##### `list`
+
 - **Purpose:** Retrieve articles with filters
 - **Input:**
   ```typescript
@@ -388,22 +425,26 @@ All procedures use `rateLimitedProcedure`.
 - **Returns:** Array of articles with source metadata
 
 ##### `markRead`
+
 - **Purpose:** Mark article as read/unread
 - **Input:** `{ id, read: boolean }`
 - **Returns:** `{ success: true }`
 
 ##### `markSaved`
+
 - **Purpose:** Mark article as saved/unsaved
 - **Input:** `{ id, saved: boolean }`
 - **Returns:** `{ success: true }`
 
 ##### `batchMarkRead`
+
 - **Purpose:** Bulk mark articles as read
 - **Input:** `{ ids: number[] }`
 - **Features:** Batch processing with `executeBatch`
 - **Returns:** `{ success: true, count }`
 
 ##### `markAllRead`
+
 - **Purpose:** Mark all articles as read (with filters)
 - **Input:** `{ subscriptionId?, categoryId?, beforeDate? }`
 - **Returns:** `{ success: true, count }`
@@ -411,15 +452,18 @@ All procedures use `rateLimitedProcedure`.
 ---
 
 ### Categories Router
+
 **Location:** `packages/api/src/routers/categories.ts`
 
 All procedures use `rateLimitedProcedure`.
 
 ##### `list`
+
 - **Purpose:** List user's categories
 - **Returns:** Array of `{ id, name, color, ... }`
 
 ##### `create`
+
 - **Purpose:** Create new category
 - **Input:** `{ name, color? }`
 - **Features:**
@@ -429,11 +473,13 @@ All procedures use `rateLimitedProcedure`.
 - **Returns:** New category object
 
 ##### `update`
+
 - **Purpose:** Update category properties
 - **Input:** `{ id, name?, color? }`
 - **Returns:** Updated category object
 
 ##### `delete`
+
 - **Purpose:** Delete category
 - **Input:** `{ id }`
 - **Features:** Removes category from all subscriptions
@@ -442,23 +488,25 @@ All procedures use `rateLimitedProcedure`.
 ---
 
 ### Feeds Router
+
 **Location:** `packages/api/src/routers/feeds.ts`
 
 Mix of `rateLimitedProcedure` (authenticated) and `publicProcedure` (RSS generation).
 
 ##### `list` (protected)
+
 - **Purpose:** List user's public feeds
 - **Returns:** Array of public feed configurations
 
 ##### `create` (protected)
+
 - **Purpose:** Create public RSS feed
 - **Input:**
   ```typescript
   {
-    title, description
-    slug
-    categoryId?
-    isPublic: boolean
+    (title, description);
+    slug;
+    categoryId ? isPublic : boolean;
   }
   ```
 - **Features:**
@@ -468,16 +516,19 @@ Mix of `rateLimitedProcedure` (authenticated) and `publicProcedure` (RSS generat
 - **Returns:** New feed object
 
 ##### `update` (protected)
+
 - **Purpose:** Update feed settings
 - **Input:** `{ id, title?, description?, isPublic? }`
 - **Returns:** Updated feed object
 
 ##### `delete` (protected)
+
 - **Purpose:** Delete public feed
 - **Input:** `{ id }`
 - **Returns:** `{ success: true }`
 
 ##### `generate` (public)
+
 - **Purpose:** Generate RSS XML for public feed
 - **Input:** `{ username, slug }`
 - **Features:**
@@ -489,15 +540,18 @@ Mix of `rateLimitedProcedure` (authenticated) and `publicProcedure` (RSS generat
 ---
 
 ### User Settings Router
+
 **Location:** `packages/api/src/routers/userSettings.ts`
 
 All procedures use `rateLimitedProcedure`.
 
 ##### `get`
+
 - **Purpose:** Get user preferences
 - **Returns:** Settings object with defaults
 
 ##### `update`
+
 - **Purpose:** Update user settings
 - **Input:**
   ```typescript
@@ -518,11 +572,13 @@ All procedures use `rateLimitedProcedure`.
 ---
 
 ### Admin Router
+
 **Location:** `packages/api/src/routers/admin.ts`
 
 All procedures use `adminProcedure`.
 
 ##### `listUsers`
+
 - **Purpose:** List all users with filtering
 - **Input:**
   ```typescript
@@ -541,6 +597,7 @@ All procedures use `adminProcedure`.
 - **Returns:** Array of users with usage/limit stats
 
 ##### `getUser`
+
 - **Purpose:** Get detailed user information
 - **Input:** `{ userId }`
 - **Returns:**
@@ -555,64 +612,76 @@ All procedures use `adminProcedure`.
   ```
 
 ##### `updateUserPlan`
+
 - **Purpose:** Change user's subscription plan
 - **Input:** `{ userId, plan }`
 - **Returns:** Updated user object
 
 ##### `banUser`
+
 - **Purpose:** Ban or unban user account
 - **Input:** `{ userId, banned: boolean, reason?: string }`
 - **Returns:** Updated user object
 
 ##### `setUserLimit`
+
 - **Purpose:** Set custom limit for specific user
 - **Input:**
   ```typescript
   {
-    userId
-    limitType: "maxSources" | "maxPublicFeeds" | "maxCategories" | "apiRateLimitPerMinute"
-    limitValue: number
+    userId;
+    limitType: "maxSources" |
+      "maxPublicFeeds" |
+      "maxCategories" |
+      "apiRateLimitPerMinute";
+    limitValue: number;
   }
   ```
 - **Returns:** `{ success: true }`
 
 ##### `removeUserLimit`
+
 - **Purpose:** Remove custom limit (revert to plan default)
 - **Input:** `{ userId, limitType }`
 - **Returns:** `{ success: true }`
 
 ##### Rate Limiting
+
 - **Note:** Rate limit reset functionality has been removed
 - Rate limits automatically reset every minute via Cloudflare Workers bindings
 
 ---
 
 ### Plans Router
+
 **Location:** `packages/api/src/routers/plans.ts`
 
 ##### `list` (public)
+
 - **Purpose:** List all available subscription plans
 - **Returns:** Array of plan objects
 
 ##### `getById` (public)
+
 - **Purpose:** Get plan details by ID
 - **Input:** `{ id }`
 - **Returns:** Plan object or null
 
 **Plan Structure:**
+
 ```typescript
 {
-  id: string
-  name: string
-  maxSources: number
-  maxPublicFeeds: number
-  maxCategories: number | null
-  apiRateLimitPerMinute: number
-  publicFeedRateLimitPerMinute: number
-  priceCents: number
-  features: string | null
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  name: string;
+  maxSources: number;
+  maxPublicFeeds: number;
+  maxCategories: number | null;
+  apiRateLimitPerMinute: number;
+  publicFeedRateLimitPerMinute: number;
+  priceCents: number;
+  features: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -621,6 +690,7 @@ All procedures use `adminProcedure`.
 TuvixRSS supports two deployment targets with a single codebase.
 
 ### Express Adapter
+
 **Location:** `packages/api/src/adapters/express.ts`
 
 **Deployment:** Docker/Node.js servers
@@ -652,14 +722,17 @@ TuvixRSS supports two deployment targets with a single codebase.
 #### Initialization
 
 ```typescript
-app.use(cors({ origin, credentials: true }))
-app.use(express.json())
-app.use('/trpc', createExpressMiddleware({
-  router: appRouter,
-  createContext,
-  onError
-}))
-app.listen(PORT)
+app.use(cors({ origin, credentials: true }));
+app.use(express.json());
+app.use(
+  "/trpc",
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+    onError,
+  })
+);
+app.listen(PORT);
 ```
 
 #### Environment Variables
@@ -675,6 +748,7 @@ BETTER_AUTH_SECRET=your-secret-key
 ---
 
 ### Cloudflare Workers Adapter
+
 **Location:** `packages/api/src/adapters/cloudflare.ts`
 
 **Deployment:** Cloudflare Workers (edge runtime)
@@ -748,16 +822,16 @@ RESEND_API_KEY=your-resend-key  # Optional
 
 ### Adapter Comparison
 
-| Feature | Express | Cloudflare Workers |
-|---------|---------|-------------------|
-| Runtime | Node.js | V8 Isolate (Edge) |
-| Database | SQLite | D1 (SQLite) |
-| Rate Limiting | Disabled | Cloudflare Workers rate limit bindings |
-| Cron Jobs | Same process | Scheduled events |
-| File System | Yes | No |
-| Cold Start | N/A | ~0ms |
-| Scaling | Vertical | Automatic (global) |
-| Cost | Server-based | Pay-per-request |
+| Feature       | Express      | Cloudflare Workers                     |
+| ------------- | ------------ | -------------------------------------- |
+| Runtime       | Node.js      | V8 Isolate (Edge)                      |
+| Database      | SQLite       | D1 (SQLite)                            |
+| Rate Limiting | Disabled     | Cloudflare Workers rate limit bindings |
+| Cron Jobs     | Same process | Scheduled events                       |
+| File System   | Yes          | No                                     |
+| Cold Start    | N/A          | ~0ms                                   |
+| Scaling       | Vertical     | Automatic (global)                     |
+| Cost          | Server-based | Pay-per-request                        |
 
 ## Type Safety
 
@@ -768,11 +842,11 @@ RESEND_API_KEY=your-resend-key  # Optional
 #### Auto-generated from Drizzle ORM
 
 ```typescript
-selectUserSchema, insertUserSchema, updateUserSchema
-selectCategorySchema, insertCategorySchema, updateCategorySchema
-selectSubscriptionSchema, insertSubscriptionSchema, updateSubscriptionSchema
-selectArticleSchema, articleWithSourceSchema
-selectFeedSchema, insertFeedSchema, updateFeedSchema
+(selectUserSchema, insertUserSchema, updateUserSchema);
+(selectCategorySchema, insertCategorySchema, updateCategorySchema);
+(selectSubscriptionSchema, insertSubscriptionSchema, updateSubscriptionSchema);
+(selectArticleSchema, articleWithSourceSchema);
+(selectFeedSchema, insertFeedSchema, updateFeedSchema);
 // ... and more
 ```
 
@@ -781,27 +855,27 @@ selectFeedSchema, insertFeedSchema, updateFeedSchema
 ```typescript
 // Environment configuration
 type Env = {
-  BETTER_AUTH_SECRET: string
-  DATABASE_PATH?: string
-  NODE_ENV?: string
-  CORS_ORIGIN?: string
+  BETTER_AUTH_SECRET: string;
+  DATABASE_PATH?: string;
+  NODE_ENV?: string;
+  CORS_ORIGIN?: string;
 
   // Cloudflare bindings
-  DB?: D1Database
-  API_RATE_LIMIT?: RateLimit
-  FEED_RATE_LIMIT?: RateLimit
+  DB?: D1Database;
+  API_RATE_LIMIT?: RateLimit;
+  FEED_RATE_LIMIT?: RateLimit;
 
   // Optional services
-  RESEND_API_KEY?: string
-  BASE_URL?: string
-}
+  RESEND_API_KEY?: string;
+  BASE_URL?: string;
+};
 
 // Better Auth session user (extracted from session)
 type AuthUser = {
-  userId: number
-  username: string
-  role: "user" | "admin"
-}
+  userId: number;
+  username: string;
+  role: "user" | "admin";
+};
 ```
 
 ### Frontend Type Safety
@@ -810,12 +884,13 @@ The frontend achieves full end-to-end type safety by importing the `AppRouter` t
 
 ```typescript
 // In frontend: packages/app/src/lib/api/trpc.ts
-import type { AppRouter } from '@tuvix/api'
+import type { AppRouter } from "@tuvix/api";
 
-export const trpc = createTRPCReact<AppRouter>()
+export const trpc = createTRPCReact<AppRouter>();
 ```
 
 This provides:
+
 - TypeScript autocomplete for all procedures
 - Input validation via Zod schemas
 - Typed return values
@@ -906,14 +981,14 @@ packages/api/src/
 ### Protected with Rate Limiting
 
 ```typescript
-rateLimitedProcedure = protectedProcedure.use(withRateLimit)
+rateLimitedProcedure = protectedProcedure.use(withRateLimit);
 // Chain: isAuthed → withRateLimit
 ```
 
 ### Protected with Resource Limits
 
 ```typescript
-createProtectedWithLimit("sources")
+createProtectedWithLimit("sources");
 // = protectedProcedure.use(withLimitCheck("sources"))
 // Chain: isAuthed → withLimitCheck
 ```
@@ -921,7 +996,7 @@ createProtectedWithLimit("sources")
 ### Admin Only
 
 ```typescript
-adminProcedure
+adminProcedure;
 // Chain: isAdmin (includes isAuthed checks + role verification)
 ```
 

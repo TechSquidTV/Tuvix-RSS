@@ -5,6 +5,7 @@ This guide covers the animated article list feature that provides smooth, mobile
 ## Overview
 
 The animated articles feature enhances the user experience by:
+
 - Smoothly animating articles as they load initially
 - Animating new articles as they appear (like phone notifications)
 - Avoiding jarring full-page refreshes
@@ -34,12 +35,14 @@ The feature consists of:
 ### Animation Types
 
 #### Initial Load Animation
+
 - Articles slide up from bottom with stagger effect
 - Only first 20 articles are staggered for performance
 - Uses spring animation: `{ type: "spring", stiffness: 300, damping: 30 }`
 - Stagger delay: 0.05 seconds between items
 
 #### New Article Animation
+
 - Articles pop in at top with scale + fade
 - Uses spring animation for smooth feel
 - No stagger (new articles are typically few)
@@ -57,6 +60,7 @@ const newArticles = allArticles.filter(
 ```
 
 **Why IDs instead of dates?**
+
 - IDs are unique and reliable
 - No need to compare timestamps
 - Simpler and more performant
@@ -78,13 +82,10 @@ The animated list works inside `TabsContent` components which use ResizeObserver
 ```tsx
 import { AnimatedArticleList } from "@/components/app/animated-article-list";
 
-<AnimatedArticleList
-  articles={filteredArticles}
-  newArticleIds={newArticleIds}
->
+<AnimatedArticleList articles={filteredArticles} newArticleIds={newArticleIds}>
   {/* Infinite scroll trigger */}
   <div ref={ref}>Loading more...</div>
-</AnimatedArticleList>
+</AnimatedArticleList>;
 ```
 
 ### Props
@@ -106,11 +107,11 @@ useEffect(() => {
   const newArticles = allArticles.filter(
     (a) => !seenArticleIds.current.has(a.id)
   );
-  
+
   if (newArticles.length > 0) {
     setNewArticleIds(new Set(newArticles.map((a) => a.id)));
     newArticles.forEach((a) => seenArticleIds.current.add(a.id));
-    
+
     // Clear after animation completes
     setTimeout(() => setNewArticleIds(new Set()), 3000);
   }
@@ -139,6 +140,7 @@ const timeoutId = setTimeout(() => {
 ```
 
 **Rationale:**
+
 - Feed processing happens server-side and takes a few seconds
 - One refetch after delay is cleaner than polling
 - If articles don't appear, user can manually refresh
@@ -148,11 +150,13 @@ const timeoutId = setTimeout(() => {
 Manual refresh now uses `refetch()` instead of `invalidate()`:
 
 **Before:**
+
 ```typescript
 utils.articles.list.invalidate(); // Full reset
 ```
 
 **After:**
+
 ```typescript
 queryClient.refetchQueries({
   queryKey: [["trpc"], ["articles", "list"]],
@@ -160,6 +164,7 @@ queryClient.refetchQueries({
 ```
 
 This allows:
+
 - New articles to be detected and animated
 - Existing articles to stay in place
 - Smooth updates without full page refresh
@@ -178,6 +183,7 @@ Articles use React Query's infinite query pattern:
 ```
 
 The smart detection works with this structure by:
+
 - Flattening pages: `allArticles = data?.pages.flatMap(page => page.items)`
 - Comparing IDs across all pages
 - Animating only truly new articles
@@ -191,8 +197,8 @@ For infinite queries, tRPC uses this key structure:
   ["trpc"],
   ["articles", "list"],
   { input }, // filters, limit, offset
-  "infinite"
-]
+  "infinite",
+];
 ```
 
 When refetching, use:
@@ -208,16 +214,19 @@ This refetches all article list queries (with different filters).
 ## Performance Considerations
 
 ### Stagger Limits
+
 - Only first 20 articles are staggered on initial load
 - Prevents performance issues with large lists
 - Subsequent articles animate without stagger
 
 ### Animation Performance
+
 - Uses Motion's hardware-accelerated animations
 - `layout` prop enables smooth layout shifts
 - `AnimatePresence` handles exit animations efficiently
 
 ### Memory Management
+
 - `seenArticleIds` ref persists across renders (no re-initialization)
 - New article IDs cleared after 3 seconds
 - No memory leaks from timeouts (proper cleanup)
@@ -227,11 +236,13 @@ This refetches all article list queries (with different filters).
 ### Articles Not Animating
 
 **Check:**
+
 1. Are article IDs being tracked correctly?
 2. Is `newArticleIds` Set being passed to component?
 3. Are articles actually new (not in seenArticleIds)?
 
 **Debug:**
+
 ```typescript
 console.log("New articles:", newArticles);
 console.log("Seen IDs:", Array.from(seenArticleIds.current));
@@ -241,11 +252,13 @@ console.log("New IDs:", Array.from(newArticleIds));
 ### Tab Height Animation Broken
 
 **Check:**
+
 1. Is AnimatedArticleList a direct child of TabsContent?
 2. Are there extra wrapper divs?
 3. Do animations cause layout shifts?
 
 **Fix:**
+
 - Ensure no extra wrappers
 - Check that animations use `layout` prop
 - Verify ResizeObserver is still working
@@ -253,11 +266,13 @@ console.log("New IDs:", Array.from(newArticleIds));
 ### Refetch Not Working
 
 **Check:**
+
 1. Is query key correct?
 2. Are you using `refetchQueries` (not `invalidate`)?
 3. Is the query actually refetching?
 
 **Debug:**
+
 ```typescript
 queryClient.refetchQueries({
   queryKey: [["trpc"], ["articles", "list"]],
@@ -268,10 +283,12 @@ queryClient.refetchQueries({
 ### Initial Load Always Triggering
 
 **Check:**
+
 - Is `hasRenderedRef` being reset incorrectly?
 - Are articles array changing identity on each render?
 
 **Fix:**
+
 - Ensure ref persists across renders
 - Use stable article references
 
@@ -287,6 +304,7 @@ vi.mock("motion/react", () => ({
 ```
 
 **Test Coverage:**
+
 - Component rendering
 - Article ID tracking
 - New article detection
@@ -296,6 +314,7 @@ vi.mock("motion/react", () => ({
 ## Future Enhancements
 
 Potential improvements:
+
 - Optimistic updates for article state changes
 - More sophisticated merge logic for reordered articles
 - Configurable animation timings
@@ -307,4 +326,3 @@ Potential improvements:
 - [Motion Documentation](https://motion.dev/docs/react)
 - [React Query Infinite Queries](https://tanstack.com/query/latest/docs/react/guides/infinite-queries)
 - [tRPC React Query Integration](https://trpc.io/docs/react-query)
-

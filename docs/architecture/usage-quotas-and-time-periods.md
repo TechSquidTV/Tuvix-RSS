@@ -30,12 +30,14 @@ This document explains how TuvixRSS handles usage tracking, quotas, rate limitin
 Usage quotas are **persistent counters** that track resource consumption over the lifetime of the account. They do NOT reset monthly.
 
 **Tracked Resources** (in `usageStats` table):
+
 - `sourceCount` - Number of RSS feeds user is subscribed to
 - `publicFeedCount` - Number of public feeds/categories user has created
 - `categoryCount` - Number of private categories user has created
 - `articleCount` - Total number of articles in user's feeds (informational only)
 
 **Database Location**: `packages/api/src/db/schema.ts`
+
 ```sql
 CREATE TABLE usageStats (
   userId INTEGER PRIMARY KEY REFERENCES users(id),
@@ -52,6 +54,7 @@ CREATE TABLE usageStats (
 **Service**: `packages/api/src/services/limits.ts`
 
 **Operations**:
+
 ```typescript
 // When user subscribes to a feed
 incrementSourceCount(userId) → sourceCount++
@@ -73,11 +76,13 @@ decrementCategoryCount(userId) → categoryCount--
 ```
 
 **Enforcement**:
+
 - Before allowing a new subscription/feed/category, check if `currentCount < limit`
 - If limit reached, return error: `QuotaExceededError`
 - Limits come from user's plan or custom overrides
 
 **Recalculation**:
+
 - `recalculateUsage(userId)` - Recounts from scratch to fix inconsistencies
 - Manually triggered by admins or after bulk operations
 
@@ -103,13 +108,14 @@ CREATE TABLE plans (
 
 **Default Plans** (`packages/api/src/config/plans.ts`):
 
-| Plan | Max Sources | Max Public Feeds | Max Categories | API Rate/min | Feed Rate/min | Price |
-|------|-------------|------------------|----------------|--------------|--------------|-------|
-| Free | 25 | 2 | 10 | 60 | 2 | $0 |
-| Pro | 500 | 25 | 100 | 180 | 17 | $9.99/mo |
-| Enterprise | 10000 | 200 | ∞ | 600 | 167 | $49.99/mo |
+| Plan       | Max Sources | Max Public Feeds | Max Categories | API Rate/min | Feed Rate/min | Price     |
+| ---------- | ----------- | ---------------- | -------------- | ------------ | ------------- | --------- |
+| Free       | 25          | 2                | 10             | 60           | 2             | $0        |
+| Pro        | 500         | 25               | 100            | 180          | 17            | $9.99/mo  |
+| Enterprise | 10000       | 200              | ∞              | 600          | 167           | $49.99/mo |
 
 **Note**: Rate limits are enforced by plan-specific Cloudflare Workers bindings. Each plan has its own binding:
+
 - Free: `FREE_API_RATE_LIMIT` (60/min)
 - Pro: `PRO_API_RATE_LIMIT` (180/min)
 - Enterprise: `ENTERPRISE_API_RATE_LIMIT` (600/min)
@@ -137,6 +143,7 @@ CREATE TABLE userLimits (
 **Note**: Rate limits (`apiRateLimitPerMinute`, `publicFeedRateLimitPerMinute`) cannot be customized per-user. They are enforced by plan-specific Cloudflare Workers bindings. To change a user's rate limit, change their plan.
 
 **Admin Actions**:
+
 - `admin.setCustomLimits(userId, {...})` - Override specific limits
 - `admin.removeCustomLimits(userId)` - Revert to plan defaults
 
@@ -195,7 +202,7 @@ if (!allowed) {
   return {
     allowed: false,
     remaining: 0,
-    resetAt: new Date(result.reset * 1000) // Binding provides reset time
+    resetAt: new Date(result.reset * 1000), // Binding provides reset time
   };
 }
 
@@ -203,7 +210,7 @@ if (!allowed) {
 return {
   allowed: true,
   remaining: Math.max(0, limits.limit - bindingUsed),
-  resetAt: new Date(result.reset * 1000)
+  resetAt: new Date(result.reset * 1000),
 };
 ```
 
@@ -217,6 +224,7 @@ return {
 Rate limits reset automatically every minute (60 seconds) via Cloudflare Workers bindings. The binding tracks requests per key and automatically resets the counter at the end of each minute window.
 
 Example for API rate limit (60 requests/min):
+
 - Requests between 10:00:00-10:00:59 → counted together
 - At 10:01:00 → counter resets, new window begins
 - Requests between 10:01:00-10:01:59 → counted in new window
@@ -230,6 +238,7 @@ Example for API rate limit (60 requests/min):
 **TuvixRSS does NOT have monthly billing cycles.**
 
 **Missing Components**:
+
 - No `subscriptionDate` field in users table
 - No `nextBillingDate` or `currentPeriodEnd`
 - No `billingCycleStart` or `billingCycleEnd` in usage stats
@@ -346,6 +355,7 @@ CREATE TABLE usageHistory (
 #### Monthly Quota Reset Logic
 
 **Option 1: Hard Reset on Billing Cycle**
+
 ```typescript
 // On subscription renewal (webhook: invoice.payment_succeeded)
 async function resetMonthlyQuotas(userId: number) {
@@ -362,15 +372,19 @@ async function resetMonthlyQuotas(userId: number) {
   // Note: For TuvixRSS, sources/feeds are ongoing subscriptions,
   // so you likely DON'T want to reset these. They're cumulative.
   // You might add NEW metrics like:
-  await db.update(usageStats).set({
-    apiCallsThisMonth: 0,
-    articlesViewedThisMonth: 0,
-    publicFeedAccessesThisMonth: 0,
-  }).where(eq(usageStats.userId, userId));
+  await db
+    .update(usageStats)
+    .set({
+      apiCallsThisMonth: 0,
+      articlesViewedThisMonth: 0,
+      publicFeedAccessesThisMonth: 0,
+    })
+    .where(eq(usageStats.userId, userId));
 }
 ```
 
 **Option 2: Metered Billing (Usage-Based)**
+
 ```typescript
 // Track usage per billing cycle
 // At end of cycle, calculate overage charges
@@ -384,11 +398,11 @@ async function calculateOverageCharges(userId: number) {
   };
 
   const overageCharge =
-    overage.sources * 0.10 +  // $0.10 per extra source
-    overage.publicFeeds * 1.00;  // $1.00 per extra public feed
+    overage.sources * 0.1 + // $0.10 per extra source
+    overage.publicFeeds * 1.0; // $1.00 per extra public feed
 
   if (overageCharge > 0) {
-    await createInvoiceLineItem(userId, 'Overage Charges', overageCharge);
+    await createInvoiceLineItem(userId, "Overage Charges", overageCharge);
   }
 }
 ```
@@ -406,6 +420,7 @@ If implementing billing cycles, here are strategies for determining billing peri
 User's billing cycle starts on the day they subscribe and renews monthly on that date.
 
 **Example**:
+
 - User subscribes on January 15, 2025
 - Billing cycles:
   - Period 1: Jan 15 - Feb 15
@@ -413,26 +428,32 @@ User's billing cycle starts on the day they subscribe and renews monthly on that
   - Period 3: Mar 15 - Apr 15
 
 **Pros**:
+
 - Stripe's default behavior
 - Fair to users (full month from signup)
 - Spreads billing load evenly across calendar
 
 **Cons**:
+
 - Different users have different billing dates
 - More complex to report "monthly revenue"
 
 **Implementation**:
+
 ```typescript
 // On subscription creation
 const subscriptionStartDate = new Date();
 const currentPeriodEnd = new Date(subscriptionStartDate);
 currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
-await db.update(users).set({
-  subscriptionStatus: 'active',
-  currentPeriodStart: subscriptionStartDate,
-  currentPeriodEnd: currentPeriodEnd,
-}).where(eq(users.id, userId));
+await db
+  .update(users)
+  .set({
+    subscriptionStatus: "active",
+    currentPeriodStart: subscriptionStartDate,
+    currentPeriodEnd: currentPeriodEnd,
+  })
+  .where(eq(users.id, userId));
 ```
 
 ### Strategy 2: Calendar Month Billing
@@ -440,6 +461,7 @@ await db.update(users).set({
 All users' billing cycles align to calendar months (1st of month).
 
 **Example**:
+
 - User subscribes on January 15, 2025
 - First period: Jan 15 - Jan 31 (prorated)
 - Subsequent periods:
@@ -447,16 +469,19 @@ All users' billing cycles align to calendar months (1st of month).
   - Period 3: Mar 1 - Mar 31
 
 **Pros**:
+
 - Easier accounting and reporting
 - Simplifies "monthly active users" metrics
 - Easier to understand for users
 
 **Cons**:
+
 - Requires proration logic for mid-month signups
 - All renewals on same day (billing system load spike)
 - Less fair to users who join mid-month
 
 **Implementation**:
+
 ```typescript
 // On subscription creation
 const subscriptionStartDate = new Date();
@@ -466,7 +491,8 @@ const firstPeriodEnd = new Date(
   1
 );
 const daysInFirstPeriod = Math.ceil(
-  (firstPeriodEnd.getTime() - subscriptionStartDate.getTime()) / (1000 * 60 * 60 * 24)
+  (firstPeriodEnd.getTime() - subscriptionStartDate.getTime()) /
+    (1000 * 60 * 60 * 24)
 );
 const daysInMonth = new Date(
   subscriptionStartDate.getFullYear(),
@@ -476,14 +502,22 @@ const daysInMonth = new Date(
 const proratedAmount = (plan.priceCents * daysInFirstPeriod) / daysInMonth;
 
 // Charge prorated amount for first period
-await createInvoice(userId, proratedAmount, subscriptionStartDate, firstPeriodEnd);
+await createInvoice(
+  userId,
+  proratedAmount,
+  subscriptionStartDate,
+  firstPeriodEnd
+);
 
 // Set next billing to start of next month
-await db.update(users).set({
-  subscriptionStatus: 'active',
-  currentPeriodStart: subscriptionStartDate,
-  currentPeriodEnd: firstPeriodEnd,
-}).where(eq(users.id, userId));
+await db
+  .update(users)
+  .set({
+    subscriptionStatus: "active",
+    currentPeriodStart: subscriptionStartDate,
+    currentPeriodEnd: firstPeriodEnd,
+  })
+  .where(eq(users.id, userId));
 ```
 
 ### Strategy 3: Fixed Billing Day (e.g., 1st of every month)
@@ -493,6 +527,7 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 **Use Case**: Enterprise contracts often specify "Net 30" terms starting on 1st of month.
 
 **Implementation**: Same as Strategy 2, but:
+
 - Trial period extends until the 1st of next month
 - Proration only for first partial month
 - All subsequent bills on 1st
@@ -543,6 +578,7 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 **Goal**: Add payment processing without changing quota system.
 
 **Deliverables**:
+
 1. Add database fields: `subscriptionStatus`, `subscriptionId`, `customerId`, `currentPeriodStart`, `currentPeriodEnd`
 2. Integrate Stripe SDK
 3. Create payment service with webhook handlers
@@ -557,6 +593,7 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 **Goal**: Automate subscription management and handle payment failures.
 
 **Deliverables**:
+
 1. Implement subscription status state machine
 2. Add trial period support (14 days)
 3. Build dunning flow (retry failed payments, send emails)
@@ -571,6 +608,7 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 **Goal**: Track usage over time for insights and potential metered billing.
 
 **Deliverables**:
+
 1. Create `usageHistory` table
 2. Archive usage stats at end of each billing cycle
 3. Build usage trends dashboard for users
@@ -584,6 +622,7 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 **Goal**: Charge for overage or usage-based pricing.
 
 **Deliverables**:
+
 1. Add new usage metrics: `apiCallsThisMonth`, `articlesViewedThisMonth`
 2. Reset these metrics at start of billing cycle
 3. Calculate overage charges at end of cycle
@@ -599,12 +638,14 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 ### For Current System (No Billing)
 
 **Keep it simple**:
+
 - Persistent usage tracking is correct for TuvixRSS use case
 - Sources and feeds are ongoing subscriptions, not consumable resources
 - Rate limits with per-minute windows work well for abuse prevention
 - Manual plan changes are fine for MVP/beta
 
 **Improvements to consider**:
+
 1. Add "soft limits" with warnings at 80% and 90% usage
 2. Implement usage trend graphs on user settings page
 3. Add email notifications when approaching limits
@@ -613,30 +654,34 @@ Like Strategy 2, but ALWAYS bill on specific day (e.g., 1st).
 ### For Future Billing Implementation
 
 **Start with anniversary billing**:
+
 - Stripe handles it automatically
 - Fairest to users
 - Less complex than proration
 
 **DON'T reset source/feed quotas**:
+
 - These are cumulative resources, not consumables
 - Resetting would mean users lose their feeds each month (terrible UX)
 - Instead, keep persistent tracking
 
 **DO consider resetting transient metrics** (if added):
+
 - API call count per month
 - Public feed access count per month
 - Articles viewed per month
 - These make sense for usage-based soft limits or overage pricing
 
 **Billing cycle determination**:
+
 ```typescript
 // Store on subscription creation
-currentPeriodStart = new Date()  // When they subscribed
-currentPeriodEnd = addMonths(currentPeriodStart, 1)  // 30 days later
+currentPeriodStart = new Date(); // When they subscribed
+currentPeriodEnd = addMonths(currentPeriodStart, 1); // 30 days later
 
 // On renewal (Stripe webhook)
-currentPeriodStart = currentPeriodEnd  // Roll forward
-currentPeriodEnd = addMonths(currentPeriodStart, 1)
+currentPeriodStart = currentPeriodEnd; // Roll forward
+currentPeriodEnd = addMonths(currentPeriodStart, 1);
 ```
 
 ---
