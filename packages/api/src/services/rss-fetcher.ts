@@ -132,25 +132,23 @@ async function getStaleSources(
 }
 
 /**
- * Get total count of all sources
+ * Get total count of all sources using SQL COUNT aggregation
  */
 async function getTotalSourcesCount(db: Database): Promise<number> {
-  const result = await db.select().from(schema.sources);
-  return result.length;
+  return await db.$count(schema.sources);
 }
 
 /**
- * Get count of stale sources
+ * Get count of stale sources using SQL COUNT aggregation
  */
 async function getStaleSourcesCount(
   db: Database,
   staleThreshold: Date
 ): Promise<number> {
-  const result = await db
-    .select()
-    .from(schema.sources)
-    .where(buildStalenessWhereClause(staleThreshold));
-  return result.length;
+  return await db.$count(
+    schema.sources,
+    buildStalenessWhereClause(staleThreshold)
+  );
 }
 
 // =============================================================================
