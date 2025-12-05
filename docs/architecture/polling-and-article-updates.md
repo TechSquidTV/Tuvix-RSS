@@ -307,7 +307,7 @@ The system only fetches feeds that are "stale" (haven't been updated recently):
 ```typescript
 const STALENESS_DEFAULTS = {
   thresholdMinutes: 30, // Only fetch feeds older than 30 minutes
-  batchSize: 20,        // Process up to 20 stale feeds per cron run
+  batchSize: 20, // Process up to 20 stale feeds per cron run
 };
 ```
 
@@ -323,7 +323,11 @@ function buildStalenessWhereClause(staleThreshold: Date) {
 }
 
 // Get stale sources ordered by lastFetched (oldest first)
-async function getStaleSources(db: Database, staleThreshold: Date, limit: number) {
+async function getStaleSources(
+  db: Database,
+  staleThreshold: Date,
+  limit: number
+) {
   return await db
     .select()
     .from(schema.sources)
@@ -421,19 +425,20 @@ export async function fetchSingleFeed(
 ```typescript
 const FETCH_CONFIG = {
   userAgent: "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-  accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  accept:
+    "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
   timeoutMs: 30000,
 } as const;
 
 const PROCESSING_DELAYS = {
-  betweenFeeds: 500,   // 500ms between successful fetches
-  afterError: 1000,    // 1000ms after errors (backoff)
+  betweenFeeds: 500, // 500ms between successful fetches
+  afterError: 1000, // 1000ms after errors (backoff)
 } as const;
 
 const LIMITS = {
-  batchInsertChunkSize: 50,        // Max articles per batch insert
-  contentMaxBytes: 500000,         // 500 KB max content size
-  descriptionMaxChars: 5000,       // 5 KB max description
+  batchInsertChunkSize: 50, // Max articles per batch insert
+  contentMaxBytes: 500000, // 500 KB max content size
+  descriptionMaxChars: 5000, // 5 KB max description
 } as const;
 ```
 
@@ -480,6 +485,7 @@ export interface SingleFeedResult {
 **Observability**:
 
 All operations are wrapped in Sentry spans for performance tracking:
+
 - HTTP fetch timing
 - Parse duration
 - Database operations
@@ -594,7 +600,9 @@ async function storeArticles(
   for (const chunk of insertChunks) {
     if (supportsBatch(db)) {
       // Cloudflare D1: use batch API
-      await db.batch(chunk.map((data) => db.insert(schema.articles).values(data)));
+      await db.batch(
+        chunk.map((data) => db.insert(schema.articles).values(data))
+      );
     } else {
       // Better-sqlite3: insert sequentially
       for (const data of chunk) {
@@ -657,14 +665,29 @@ async function extractArticleData(
 }
 
 // Helper functions (each 10-91 lines):
-function extractArticleContent(item: AnyItem): string { /* ... */ }
-function extractArticleDescription(item: AnyItem, rawContent: string): string { /* ... */ }
-function extractArticleAuthor(item: AnyItem): string | undefined { /* ... */ }
-async function extractArticleImage(item: AnyItem, link: string, skipOgImageFetch: boolean): Promise<string | undefined> { /* ... */ }
-function extractArticleAudio(item: AnyItem): string | undefined { /* ... */ }
+function extractArticleContent(item: AnyItem): string {
+  /* ... */
+}
+function extractArticleDescription(item: AnyItem, rawContent: string): string {
+  /* ... */
+}
+function extractArticleAuthor(item: AnyItem): string | undefined {
+  /* ... */
+}
+async function extractArticleImage(
+  item: AnyItem,
+  link: string,
+  skipOgImageFetch: boolean
+): Promise<string | undefined> {
+  /* ... */
+}
+function extractArticleAudio(item: AnyItem): string | undefined {
+  /* ... */
+}
 ```
 
 This refactored architecture improves:
+
 - **Readability**: Each function has a single, clear purpose
 - **Testability**: Can test extraction logic in isolation
 - **Maintainability**: Easy to modify specific extraction without affecting others
@@ -1096,8 +1119,8 @@ const sources = await db
   .select()
   .from(schema.sources)
   .where(or(isNull(lastFetched), lt(lastFetched, staleThreshold)))
-  .orderBy(lastFetched)  // Oldest first
-  .limit(20);  // Process 20 per cron run
+  .orderBy(lastFetched) // Oldest first
+  .limit(20); // Process 20 per cron run
 ```
 
 **Benefits**:
@@ -1110,11 +1133,11 @@ const sources = await db
 **Scalability Examples**:
 
 | Total Feeds | Batch Size | Cron Interval | Full Rotation Time |
-|-------------|------------|---------------|-------------------|
-| 100         | 20         | 1 minute      | ~5 minutes        |
-| 1,000       | 20         | 1 minute      | ~50 minutes       |
-| 5,000       | 20         | 1 minute      | ~4 hours          |
-| 10,000      | 20         | 1 minute      | ~8 hours          |
+| ----------- | ---------- | ------------- | ------------------ |
+| 100         | 20         | 1 minute      | ~5 minutes         |
+| 1,000       | 20         | 1 minute      | ~50 minutes        |
+| 5,000       | 20         | 1 minute      | ~4 hours           |
+| 10,000      | 20         | 1 minute      | ~8 hours           |
 
 **Note**: Each feed is guaranteed to be checked within the rotation period. Fresh feeds (recently updated) are skipped until stale.
 
@@ -1256,8 +1279,8 @@ Fetches stale RSS sources using staleness-based filtering.
 export async function fetchAllFeeds(
   db: Database,
   options?: {
-    stalenessThresholdMinutes?: number;  // Default: 30
-    maxFeedsPerBatch?: number;           // Default: 20
+    stalenessThresholdMinutes?: number; // Default: 30
+    maxFeedsPerBatch?: number; // Default: 20
   }
 ): Promise<FetchResult>;
 ```

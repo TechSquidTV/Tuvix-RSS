@@ -34,8 +34,7 @@ import { extractCommentLink } from "./comment-link-extraction";
 
 /** HTTP configuration for feed fetching */
 const FETCH_CONFIG = {
-  userAgent:
-    "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+  userAgent: "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
   accept:
     "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
   timeoutMs: 30000, // 30 seconds
@@ -890,10 +889,7 @@ function extractArticleContent(item: AnyItem): string {
 /**
  * Extract article description from feed item
  */
-function extractArticleDescription(
-  item: AnyItem,
-  rawContent: string
-): string {
+function extractArticleDescription(item: AnyItem, rawContent: string): string {
   let rawDescription = "";
   if ("description" in item && typeof item.description === "string") {
     rawDescription = item.description;
@@ -966,14 +962,9 @@ function extractArticleDescription(
     sanitizedDescription = "";
   }
 
-  return truncateHtml(
-    sanitizedDescription,
-    LIMITS.descriptionMaxChars,
-    "...",
-    {
-      alreadySanitized: true,
-    }
-  );
+  return truncateHtml(sanitizedDescription, LIMITS.descriptionMaxChars, "...", {
+    alreadySanitized: true,
+  });
 }
 
 /**
