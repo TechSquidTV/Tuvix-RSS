@@ -55,7 +55,7 @@ describe("Cron Handlers", () => {
     it("should successfully fetch all RSS feeds", async () => {
       const { fetchAllFeeds } = await import("@/services/rss-fetcher");
       vi.mocked(fetchAllFeeds).mockResolvedValue({
-        total: 5,
+        processedCount: 5,
         successCount: 4,
         errorCount: 1,
         errors: [
@@ -76,7 +76,7 @@ describe("Cron Handlers", () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       const { fetchAllFeeds } = await import("@/services/rss-fetcher");
       vi.mocked(fetchAllFeeds).mockResolvedValue({
-        total: 3,
+        processedCount: 3,
         successCount: 3,
         errorCount: 0,
         errors: [],
@@ -88,7 +88,7 @@ describe("Cron Handlers", () => {
         "🔄 Starting scheduled RSS fetch..."
       );
       expect(consoleSpy).toHaveBeenCalledWith("✅ RSS fetch completed:", {
-        total: 3,
+        processed: 3,
         success: 3,
         errors: 0,
       });
