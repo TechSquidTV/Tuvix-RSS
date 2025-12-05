@@ -103,6 +103,58 @@ type AnyItem =
   | Json.Item<string>;
 
 // =============================================================================
+// Query Helpers
+// =============================================================================
+
+/**
+ * Build WHERE clause for staleness filtering
+ */
+function buildStalenessWhereClause(staleThreshold: Date) {
+  return or(
+    isNull(schema.sources.lastFetched), // Never fetched
+    lt(schema.sources.lastFetched, staleThreshold) // Older than threshold
+  );
+}
+
+/**
+ * Get stale sources that need fetching
+ */
+async function getStaleSources(
+  db: Database,
+  staleThreshold: Date,
+  limit: number
+) {
+  return await db
+    .select()
+    .from(schema.sources)
+    .where(buildStalenessWhereClause(staleThreshold))
+    .orderBy(schema.sources.lastFetched)
+    .limit(limit);
+}
+
+/**
+ * Get total count of all sources
+ */
+async function getTotalSourcesCount(db: Database): Promise<number> {
+  const result = await db.select().from(schema.sources);
+  return result.length;
+}
+
+/**
+ * Get count of stale sources
+ */
+async function getStaleSourcesCount(
+  db: Database,
+  staleThreshold: Date
+): Promise<number> {
+  const result = await db
+    .select()
+    .from(schema.sources)
+    .where(buildStalenessWhereClause(staleThreshold));
+  return result.length;
+}
+
+// =============================================================================
 // Public API
 // =============================================================================
 
@@ -142,34 +194,15 @@ export async function fetchAllFeeds(
       // Ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time
       // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
-      const sources = await db
-        .select()
-        .from(schema.sources)
-        .where(
-          or(
-            isNull(schema.sources.lastFetched), // Never fetched
-            lt(schema.sources.lastFetched, staleThreshold) // Older than threshold
-          )
-        )
-        .orderBy(schema.sources.lastFetched)
-        .limit(maxFeedsPerBatch);
+      const sources = await getStaleSources(
+        db,
+        staleThreshold,
+        maxFeedsPerBatch
+      );
 
-      // Get total count for metrics
-      // Note: Drizzle ORM type inference requires .select() with no args
-      const totalCountResult = await db.select().from(schema.sources);
-      const totalSources = totalCountResult.length;
-
-      // Get total stale feeds for metrics
-      const totalStaleResult = await db
-        .select()
-        .from(schema.sources)
-        .where(
-          or(
-            isNull(schema.sources.lastFetched),
-            lt(schema.sources.lastFetched, staleThreshold)
-          )
-        );
-      const totalStaleFeeds = totalStaleResult.length;
+      // Get metrics for monitoring
+      const totalSources = await getTotalSourcesCount(db);
+      const totalStaleFeeds = await getStaleSourcesCount(db, staleThreshold);
 
       let successCount = 0;
       let errorCount = 0;
@@ -599,10 +632,10 @@ async function storeArticles(
       span.setAttribute("items_found", items.length);
 
       let articlesSkipped = 0;
-      const sampleGuids: string[] = [];
+      const guidSamplesForLogging: string[] = [];
 
       // Step 1: Extract GUIDs from all items
-      const itemsWithGuids: Array<{ item: AnyItem; guid: string }> = [];
+      const validItems: Array<{ item: AnyItem; guid: string }> = [];
 
       for (const item of items) {
         const guid = extractGuid(item, sourceId);
@@ -614,14 +647,14 @@ async function storeArticles(
         }
 
         // Log first 5 GUIDs as breadcrumbs
-        if (sampleGuids.length < 5) {
-          sampleGuids.push(guid);
+        if (guidSamplesForLogging.length < 5) {
+          guidSamplesForLogging.push(guid);
         }
 
-        itemsWithGuids.push({ item, guid });
+        validItems.push({ item, guid });
       }
 
-      if (itemsWithGuids.length === 0) {
+      if (validItems.length === 0) {
         span.setAttribute("articles_added", 0);
         span.setAttribute("articles_skipped", articlesSkipped);
         span.setStatus({ code: 1, message: "No valid items" });
@@ -630,26 +663,26 @@ async function storeArticles(
 
       // Step 2: Batch check which articles already exist
       // Split into chunks to respect D1 parameter limits
-      const allGuids = itemsWithGuids.map((x) => x.guid);
+      const allGuids = validItems.map((x) => x.guid);
       const guidChunks = chunkArray(allGuids, D1_MAX_PARAMETERS - 1);
-      const existingGuidsSet = new Set<string>();
+      const existingGuids = new Set<string>();
 
       for (const chunk of guidChunks) {
-        const existing = await db
+        const existingArticles = await db
           .select()
           .from(schema.articles)
           .where(inArray(schema.articles.guid, chunk));
 
-        for (const row of existing) {
-          existingGuidsSet.add(row.guid);
+        for (const article of existingArticles) {
+          existingGuids.add(article.guid);
         }
       }
 
       // Step 3: Filter out existing articles and extract data for new ones
-      const newArticlesData: Array<typeof schema.articles.$inferInsert> = [];
+      const newArticles: Array<typeof schema.articles.$inferInsert> = [];
 
-      for (const { item, guid } of itemsWithGuids) {
-        if (existingGuidsSet.has(guid)) {
+      for (const { item, guid } of validItems) {
+        if (existingGuids.has(guid)) {
           articlesSkipped++;
           continue;
         }
@@ -662,7 +695,7 @@ async function storeArticles(
             guid,
             true
           );
-          newArticlesData.push(articleData);
+          newArticles.push(articleData);
         } catch (error) {
           console.error("Failed to extract article data:", error);
           await Sentry.captureException(error, {
@@ -683,10 +716,10 @@ async function storeArticles(
       // Step 4: Batch insert all new articles
       let articlesAdded = 0;
 
-      if (newArticlesData.length > 0) {
+      if (newArticles.length > 0) {
         // Split into chunks for batch insert (D1 batch API supports multiple statements)
         const insertChunks = chunkArray(
-          newArticlesData,
+          newArticles,
           LIMITS.batchInsertChunkSize
         );
 
@@ -739,7 +772,7 @@ async function storeArticles(
         }
       }
 
-      if (sampleGuids.length > 0) {
+      if (guidSamplesForLogging.length > 0) {
         await Sentry.addBreadcrumb({
           category: "feed.store",
           message: `Processed ${items.length} items from feed`,
@@ -748,7 +781,7 @@ async function storeArticles(
             source_id: sourceId,
             articles_added: articlesAdded,
             articles_skipped: articlesSkipped,
-            sample_guids: sampleGuids,
+            sample_guids: guidSamplesForLogging,
           },
         });
       }
@@ -817,68 +850,9 @@ function extractGuid(item: AnyItem, sourceId: number): string | null {
 }
 
 /**
- * Extract published date from feed item
- * Note: feedsmith returns dates as strings, not Date objects
+ * Extract article content from feed item
  */
-function extractPublishedDate(item: AnyItem): Date | null {
-  // Try different date fields (all are strings from feedsmith parser)
-  const dateFields = [
-    "pubDate",
-    "published",
-    "updated",
-    "date_published",
-    "date_modified",
-  ] as const;
-
-  for (const field of dateFields) {
-    if (field in item) {
-      const value = (item as Record<string, unknown>)[field];
-      if (typeof value === "string") {
-        try {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            return date;
-          }
-        } catch {
-          // Invalid date, try next field
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Extract article data from feed item
- */
-async function extractArticleData(
-  item: AnyItem,
-  sourceId: number,
-  guid: string,
-  skipOgImageFetch = false
-): Promise<typeof schema.articles.$inferInsert> {
-  // Title
-  const title = ("title" in item && item.title) || "Untitled";
-
-  // Link - handle both RSS/JSON Feed (string) and Atom (links array)
-  let link = "";
-  if ("link" in item && typeof item.link === "string") {
-    link = item.link;
-  } else if ("url" in item && typeof item.url === "string") {
-    // JSON Feed uses 'url'
-    link = item.url;
-  } else if (
-    "links" in item &&
-    Array.isArray(item.links) &&
-    item.links[0]?.href
-  ) {
-    // Atom uses links array
-    link = item.links[0].href;
-  }
-
-  // Content (try different fields)
-  // SECURITY: Strip HTML to prevent XSS and store only plain text
+function extractArticleContent(item: AnyItem): string {
   let rawContent = "";
 
   // JSON Feed
@@ -910,10 +884,16 @@ async function extractArticleData(
   }
 
   // Strip HTML from content and truncate to prevent bloat
-  const content = truncateText(stripHtml(rawContent), LIMITS.contentMaxBytes);
+  return truncateText(stripHtml(rawContent), LIMITS.contentMaxBytes);
+}
 
-  // Description (separate from content)
-  // SECURITY: Sanitize HTML to allow safe tags (links, formatting) while preventing XSS
+/**
+ * Extract article description from feed item
+ */
+function extractArticleDescription(
+  item: AnyItem,
+  rawContent: string
+): string {
   let rawDescription = "";
   if ("description" in item && typeof item.description === "string") {
     rawDescription = item.description;
@@ -930,7 +910,6 @@ async function extractArticleData(
   }
 
   // Sanitize HTML first (allow safe tags like links), then truncate safely
-  // Pass alreadySanitized flag to avoid double-sanitization
   let sanitizedDescription = sanitizeHtml(rawDescription);
 
   // Clean up feed-specific patterns
@@ -941,7 +920,6 @@ async function extractArticleData(
   );
 
   // Remove "submitted by /u/username" text and links (Reddit)
-  // Handle both with and without spaces around username
   sanitizedDescription = sanitizedDescription.replace(
     /submitted by\s*<a[^>]*>\s*\/u\/[^<]+\s*<\/a>\s*/gi,
     ""
@@ -957,7 +935,7 @@ async function extractArticleData(
     ""
   );
 
-  // Remove [link] and [comments] links (Reddit - we have proper buttons)
+  // Remove [link] and [comments] links (Reddit)
   sanitizedDescription = sanitizedDescription.replace(
     /<a[^>]*>\[link\]<\/a>\s*/gi,
     ""
@@ -968,16 +946,12 @@ async function extractArticleData(
   );
 
   // Remove standalone "Comments" link (Hacker News)
-  // Note: Anchors (^ and $) are intentional - only remove when entire description
-  // is just a "Comments" link. Preserve "Comments" within actual content.
   sanitizedDescription = sanitizedDescription.replace(
     /^<a[^>]*>Comments<\/a>$/gi,
     ""
   );
 
   // Clean up extra whitespace and line breaks
-  // Note: Intentionally collapses multiple breaks to improve readability.
-  // Reddit/HN feeds often have excessive spacing that clutters the UI.
   sanitizedDescription = sanitizedDescription
     .replace(/(<br\s*\/?\s*>\s*){2,}/gi, "<br>") // Collapse multiple <br> tags
     .replace(/<br\s*\/?\s*>\s*$/gi, "") // Remove trailing <br>
@@ -992,7 +966,7 @@ async function extractArticleData(
     sanitizedDescription = "";
   }
 
-  const description = truncateHtml(
+  return truncateHtml(
     sanitizedDescription,
     LIMITS.descriptionMaxChars,
     "...",
@@ -1000,27 +974,27 @@ async function extractArticleData(
       alreadySanitized: true,
     }
   );
+}
 
-  // Author
-  let author: string | undefined = undefined;
-
+/**
+ * Extract article author from feed item
+ */
+function extractArticleAuthor(item: AnyItem): string | undefined {
   // RSS string author or Atom/JSON Feed author object
   if ("authors" in item && Array.isArray(item.authors) && item.authors[0]) {
     const firstAuthor = item.authors[0];
-    author =
-      typeof firstAuthor === "string"
-        ? firstAuthor
-        : firstAuthor.name || undefined;
+    return typeof firstAuthor === "string"
+      ? firstAuthor
+      : firstAuthor.name || undefined;
   } else if ("author" in item) {
     const itemAuthor = (item as Record<string, unknown>).author;
-    author =
-      typeof itemAuthor === "string"
-        ? itemAuthor
-        : (itemAuthor as { name?: string })?.name || undefined;
+    return typeof itemAuthor === "string"
+      ? itemAuthor
+      : (itemAuthor as { name?: string })?.name || undefined;
   } else if ("creator" in item) {
     const creator = (item as Record<string, unknown>).creator;
     if (typeof creator === "string") {
-      author = creator;
+      return creator;
     }
   }
   // Dublin Core creator
@@ -1029,11 +1003,21 @@ async function extractArticleData(
       | { creator?: string | string[] }
       | undefined;
     if (dc?.creator) {
-      author = Array.isArray(dc.creator) ? dc.creator[0] : dc.creator;
+      return Array.isArray(dc.creator) ? dc.creator[0] : dc.creator;
     }
   }
 
-  // Image URL
+  return undefined;
+}
+
+/**
+ * Extract article image URL from feed item
+ */
+async function extractArticleImage(
+  item: AnyItem,
+  link: string,
+  skipOgImageFetch: boolean
+): Promise<string | undefined> {
   let imageUrl: string | undefined = undefined;
 
   // Priority 1: iTunes image (podcasts)
@@ -1079,7 +1063,7 @@ async function extractArticleData(
   }
 
   // Final fallback: OpenGraph image from article URL
-  // Skip during cron job to reduce HTTP requests and stay within worker limits
+  // Skip during cron job to reduce HTTP requests
   if (!imageUrl && link && !skipOgImageFetch) {
     await Sentry.startSpan(
       {
@@ -1119,21 +1103,94 @@ async function extractArticleData(
     );
   }
 
-  // Audio URL from enclosures (for podcasts)
-  let audioUrl: string | undefined = undefined;
+  return imageUrl;
+}
+
+/**
+ * Extract audio URL from feed item (for podcasts)
+ */
+function extractArticleAudio(item: AnyItem): string | undefined {
   if ("enclosures" in item && Array.isArray(item.enclosures)) {
     const audioEnclosure = item.enclosures.find((enc) =>
       enc.type?.startsWith("audio/")
     );
     if (audioEnclosure?.url) {
-      audioUrl = audioEnclosure.url;
+      return audioEnclosure.url;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extract published date from feed item
+ * Note: feedsmith returns dates as strings, not Date objects
+ */
+function extractPublishedDate(item: AnyItem): Date | null {
+  // Try different date fields (all are strings from feedsmith parser)
+  const dateFields = [
+    "pubDate",
+    "published",
+    "updated",
+    "date_published",
+    "date_modified",
+  ] as const;
+
+  for (const field of dateFields) {
+    if (field in item) {
+      const value = (item as Record<string, unknown>)[field];
+      if (typeof value === "string") {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        } catch {
+          // Invalid date, try next field
+        }
+      }
     }
   }
 
-  // Published date
-  const publishedAt = extractPublishedDate(item);
+  return null;
+}
 
-  // Comment link
+/**
+ * Extract article data from feed item
+ *
+ * Orchestrates extraction of all article fields by delegating to focused helper functions.
+ */
+async function extractArticleData(
+  item: AnyItem,
+  sourceId: number,
+  guid: string,
+  skipOgImageFetch = false
+): Promise<typeof schema.articles.$inferInsert> {
+  // Title
+  const title = ("title" in item && item.title) || "Untitled";
+
+  // Link - handle both RSS/JSON Feed (string) and Atom (links array)
+  let link = "";
+  if ("link" in item && typeof item.link === "string") {
+    link = item.link;
+  } else if ("url" in item && typeof item.url === "string") {
+    // JSON Feed uses 'url'
+    link = item.url;
+  } else if (
+    "links" in item &&
+    Array.isArray(item.links) &&
+    item.links[0]?.href
+  ) {
+    // Atom uses links array
+    link = item.links[0].href;
+  }
+
+  // Extract article fields using focused helpers
+  const content = extractArticleContent(item);
+  const description = extractArticleDescription(item, content);
+  const author = extractArticleAuthor(item);
+  const imageUrl = await extractArticleImage(item, link, skipOgImageFetch);
+  const audioUrl = extractArticleAudio(item);
+  const publishedAt = extractPublishedDate(item);
   const commentLink = extractCommentLink(item);
 
   return {
