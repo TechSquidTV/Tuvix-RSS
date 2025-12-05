@@ -369,40 +369,34 @@ Body: { username, password }
 #### Sign Out
 
 ```typescript
-POST / api / auth / sign - out;
+POST /api/auth/sign-out
 ```
 
 #### Get Session
 
 ```typescript
-GET / api / auth / session;
+GET /api/auth/session
 ```
 
 #### Change Password
 
 ```typescript
-POST / api / auth / change - password;
-Body: {
-  (currentPassword, newPassword);
-}
+POST /api/auth/change-password
+Body: { currentPassword, newPassword }
 ```
 
 #### Request Password Reset
 
 ```typescript
-POST / api / auth / request - password - reset;
-Body: {
-  (email, redirectTo);
-}
+POST /api/auth/request-password-reset
+Body: { email, redirectTo }
 ```
 
 #### Reset Password
 
 ```typescript
-POST / api / auth / reset - password;
-Body: {
-  (token, newPassword);
-}
+POST /api/auth/reset-password
+Body: { token, newPassword }
 ```
 
 ### tRPC Endpoints
