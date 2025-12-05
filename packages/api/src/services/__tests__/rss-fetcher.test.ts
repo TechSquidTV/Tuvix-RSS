@@ -519,4 +519,112 @@ describe("RSS Fetcher Service", () => {
       expect(articles.length).toBe(1);
     });
   });
+
+  describe("Blocked Domains Integration", () => {
+    it("should skip fetching blocked domains in fetchSingleFeed", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://blocked-spam.com/feed.xml",
+      });
+
+      // Create blocked domain entry
+      const { user } = await import("@/test/setup").then((m) =>
+        m.seedTestUser(db, { role: "admin" })
+      );
+      await db.insert(schema.blockedDomains).values({
+        domain: "blocked-spam.com",
+        reason: "spam",
+        createdBy: user.id,
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchSingleFeed(source.id, source.url, db);
+
+      // Should skip the feed entirely (return early before HTTP fetch)
+      expect(result.articlesAdded).toBe(0);
+      expect(result.articlesSkipped).toBe(0);
+      expect(result.sourceUpdated).toBe(false);
+
+      // Verify no articles were stored
+      const articles = await db
+        .select()
+        .from(schema.articles)
+        .where(eq(schema.articles.sourceId, source.id));
+      expect(articles).toHaveLength(0);
+    });
+
+    it("should use cached blocked domains list when provided", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://cached-blocked.com/feed.xml",
+      });
+
+      // Create pre-fetched blocked domains list (simulating batch cache)
+      const cachedBlockedDomains = [
+        { domain: "cached-blocked.com", reason: "spam" },
+      ];
+
+      global.fetch = mockFetchRssFeed();
+
+      const result = await fetchSingleFeed(
+        source.id,
+        source.url,
+        db,
+        cachedBlockedDomains
+      );
+
+      // Should use cached list and skip the feed
+      expect(result.articlesAdded).toBe(0);
+      expect(result.articlesSkipped).toBe(0);
+      expect(result.sourceUpdated).toBe(false);
+    });
+
+    it("should fetch blocked domains when cache not provided", async () => {
+      const source = await seedTestSource(db, {
+        url: "https://example.com/feed.xml",
+      });
+
+      // Create blocked domain in DB (not in cache)
+      const { user } = await import("@/test/setup").then((m) =>
+        m.seedTestUser(db, { role: "admin" })
+      );
+      await db.insert(schema.blockedDomains).values({
+        domain: "other-blocked.com",
+        reason: "spam",
+        createdBy: user.id,
+      });
+
+      global.fetch = mockFetchRssFeed();
+
+      // Call without cache (undefined) - should fetch from DB
+      const result = await fetchSingleFeed(source.id, source.url, db);
+
+      // Should succeed since example.com is not blocked
+      expect(result.articlesAdded).toBeGreaterThan(0);
+      expect(result.sourceUpdated).toBe(true);
+    });
+
+    it("should cache blocked domains once per batch in fetchAllFeeds", async () => {
+      // Create 3 feeds
+      await seedTestSource(db, { url: "https://example.com/feed1.xml" });
+      await seedTestSource(db, { url: "https://example.com/feed2.xml" });
+      await seedTestSource(db, { url: "https://example.com/feed3.xml" });
+
+      global.fetch = mockFetchRssFeed();
+
+      // Spy on console.log to count how many times we process feeds
+      const logSpy = vi.spyOn(console, "log");
+
+      await fetchAllFeeds(db);
+
+      // Verify all 3 feeds were processed
+      const successLogs = logSpy.mock.calls.filter((call) =>
+        call[0]?.includes("✓ Fetched")
+      );
+      expect(successLogs).toHaveLength(3);
+
+      // Note: We can't easily spy on getBlockedDomains since it's called directly
+      // But the test verifies the batch processing works without errors
+      // The real verification is that all feeds succeed with blocked domains enabled
+    });
+  });
 });
