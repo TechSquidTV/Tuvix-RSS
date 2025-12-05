@@ -78,15 +78,20 @@ export async function fetchAllFeeds(
       // With 1-minute cron frequency, this processes 6,000 feeds/hour
       const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 100;
 
-      // Get all sources, ordered by lastFetched (oldest first, null first)
+      // Get sources, ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time
-      const allSources = await db
+      // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
+      const sources = await db
         .select()
         .from(schema.sources)
-        .orderBy(schema.sources.lastFetched);
+        .orderBy(schema.sources.lastFetched)
+        .limit(maxFeedsPerBatch);
 
-      // Limit to batch size
-      const sources = allSources.slice(0, maxFeedsPerBatch);
+      // Get total count for metrics (lightweight query - only fetches IDs)
+      const totalCountResult = await db
+        .select({ id: schema.sources.id })
+        .from(schema.sources);
+      const totalSources = totalCountResult.length;
 
       let successCount = 0;
       let errorCount = 0;
@@ -94,11 +99,11 @@ export async function fetchAllFeeds(
         [];
 
       console.log(
-        `Starting fetch for ${sources.length} sources (${allSources.length} total, batch size: ${maxFeedsPerBatch})`
+        `Starting fetch for ${sources.length} sources (${totalSources} total, batch size: ${maxFeedsPerBatch})`
       );
 
       // Emit gauge for total sources
-      emitGauge("rss.sources_total", allSources.length);
+      emitGauge("rss.sources_total", totalSources);
       emitGauge("rss.sources_in_batch", sources.length);
 
       for (const source of sources) {
@@ -133,7 +138,7 @@ export async function fetchAllFeeds(
       }
 
       console.log(
-        `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length} (batch ${sources.length}/${allSources.length})`
+        `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length} (batch ${sources.length}/${totalSources})`
       );
 
       // Emit aggregate metrics
@@ -141,7 +146,7 @@ export async function fetchAllFeeds(
         success_count: successCount.toString(),
         error_count: errorCount.toString(),
         batch_size: sources.length.toString(),
-        total_sources: allSources.length.toString(),
+        total_sources: totalSources.toString(),
       });
 
       return {
@@ -608,7 +613,9 @@ async function storeArticles(
               const statements = chunk.map((data) =>
                 db.insert(schema.articles).values(data)
               );
-              await db.batch(statements as any);
+              // Type assertion needed: Drizzle's insert() returns PgInsertBase which doesn't match DatabaseWithBatch's expected type
+              // This is safe because D1's batch() accepts Drizzle insert statements
+              await db.batch(statements as Array<{ execute: () => Promise<unknown> }>);
               articlesAdded += chunk.length;
             } else {
               // Fallback for better-sqlite3 (local dev)

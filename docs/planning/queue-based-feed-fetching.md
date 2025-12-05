@@ -5,6 +5,7 @@
 This document outlines the implementation plan for migrating TuvixRSS from a cron-based feed fetching system to a queue-based architecture using Cloudflare Queues. The design must support **both Cloudflare Workers and Docker Compose deployments** through runtime abstraction.
 
 **Key Goals:**
+
 - Scale from 2,000 to 50,000+ feeds
 - Maintain <5-minute update frequency
 - Support both Cloudflare and Docker environments
@@ -18,6 +19,7 @@ This document outlines the implementation plan for migrating TuvixRSS from a cro
 ### Existing System (Phase 1 - Optimized Cron)
 
 **Cloudflare Workers:**
+
 ```
 Cron Trigger (*/1 * * * *)
     ↓
@@ -31,6 +33,7 @@ Update articles in batches
 ```
 
 **Docker/Node.js:**
+
 ```
 node-cron (based on global_settings.fetchIntervalMinutes)
     ↓
@@ -40,6 +43,7 @@ handleRSSFetch()
 ```
 
 **Limitations:**
+
 - Sequential processing (can't parallelize beyond batch size)
 - Cron frequency caps throughput (100 feeds/min max)
 - No retry logic for individual feed failures
@@ -88,6 +92,7 @@ handleRSSFetch()
 **Update frequency**: 10-20 minutes
 
 **Changes Made:**
+
 - Increased batch size from 20 → 100 feeds
 - Changed cron from 5 minutes → 1 minute (Cloudflare)
 - Docker uses `global_settings.fetchIntervalMinutes` (configurable)
@@ -205,13 +210,15 @@ const allSources = await db
 ```
 
 **Benefits:**
+
 - Self-regulating: only fetches stale feeds
 - Scales to 10,000 feeds without infrastructure changes
 - Prioritizes active/frequently-updated feeds
 
 **Drawbacks:**
+
 - Still sequential processing (500ms delay between feeds)
-- Limited to cron frequency * batch size throughput
+- Limited to cron frequency \* batch size throughput
 
 ---
 
@@ -237,10 +244,12 @@ export interface QueueMessage<T = unknown> {
 }
 
 export interface QueueBatch<T = unknown> {
-  messages: Array<QueueMessage<T> & {
-    ack: () => void;
-    retry: (options?: { delaySeconds?: number }) => void;
-  }>;
+  messages: Array<
+    QueueMessage<T> & {
+      ack: () => void;
+      retry: (options?: { delaySeconds?: number }) => void;
+    }
+  >;
 }
 
 export interface QueueAdapter {
@@ -282,9 +291,7 @@ export class CloudflareQueueAdapter implements QueueAdapter {
     const chunks = chunkArray(messages, 100);
 
     for (const chunk of chunks) {
-      await this.queue.sendBatch(
-        chunk.map(body => ({ body }))
-      );
+      await this.queue.sendBatch(chunk.map((body) => ({ body })));
     }
   }
 
@@ -323,7 +330,7 @@ export class BullMQAdapter implements QueueAdapter {
   }
 
   async sendBatch<T>(messages: T[]): Promise<void> {
-    const jobs = messages.map(body => ({
+    const jobs = messages.map((body) => ({
       name: "feed-fetch",
       data: body,
     }));
@@ -373,7 +380,7 @@ export class BullMQAdapter implements QueueAdapter {
     buffer: Array<QueueMessage<T>>
   ): Promise<void> {
     const batch: QueueBatch<T> = {
-      messages: buffer.splice(0).map(msg => ({
+      messages: buffer.splice(0).map((msg) => ({
         ...msg,
         ack: () => {
           // BullMQ auto-acks on successful completion
@@ -430,7 +437,7 @@ export class InMemoryQueueAdapter implements QueueAdapter {
       const batchMessages = this.messages.splice(0, 100);
 
       const batch: QueueBatch<T> = {
-        messages: batchMessages.map(msg => ({
+        messages: batchMessages.map((msg) => ({
           ...msg,
           body: msg.body as T,
           ack: () => {
@@ -528,7 +535,7 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 
     // Enqueue feeds for processing
     await queue.sendBatch(
-      staleFeeds.map(feed => ({
+      staleFeeds.map((feed) => ({
         sourceId: feed.id,
         url: feed.url,
         priority: calculatePriority(feed),
@@ -579,10 +586,7 @@ export interface FeedMessage {
 }
 
 export default {
-  async queue(
-    batch: MessageBatch<FeedMessage>,
-    env: Env
-  ): Promise<void> {
+  async queue(batch: MessageBatch<FeedMessage>, env: Env): Promise<void> {
     console.log(`🔄 Processing ${batch.messages.length} feeds from queue...`);
 
     const db = createDatabase(env);
@@ -624,8 +628,8 @@ export default {
       })
     );
 
-    const successCount = results.filter(r => r.status === "fulfilled").length;
-    const errorCount = results.filter(r => r.status === "rejected").length;
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    const errorCount = results.filter((r) => r.status === "rejected").length;
 
     console.log(
       `✅ Processed ${batch.messages.length} feeds: ${successCount} success, ${errorCount} errors`
@@ -636,7 +640,7 @@ export default {
       error_count: errorCount.toString(),
       batch_size: batch.messages.length.toString(),
     });
-  }
+  },
 };
 ```
 
@@ -765,6 +769,7 @@ volumes:
 ### Step 1: Develop Queue Abstraction (Week 1)
 
 **Tasks:**
+
 1. Create queue adapter interfaces (`packages/api/src/queue/types.ts`)
 2. Implement Cloudflare adapter (`adapters/cloudflare.ts`)
 3. Implement BullMQ adapter (`adapters/bullmq.ts`)
@@ -773,6 +778,7 @@ volumes:
 6. Write unit tests for all adapters
 
 **Testing:**
+
 - Test Cloudflare adapter with `wrangler dev` + queue bindings
 - Test BullMQ adapter with local Redis
 - Test in-memory adapter with Jest
@@ -780,12 +786,14 @@ volumes:
 ### Step 2: Implement Scheduler Changes (Week 1)
 
 **Tasks:**
+
 1. Update `fetchAllFeeds()` with staleness filter
 2. Modify `_handleRSSFetch()` to enqueue feeds
 3. Add priority calculation
 4. Update metrics/logging
 
 **Testing:**
+
 - Run locally with in-memory queue
 - Verify feeds are enqueued correctly
 - Check staleness filtering works
@@ -793,6 +801,7 @@ volumes:
 ### Step 3: Implement Queue Consumer (Week 2)
 
 **Tasks:**
+
 1. Create feed consumer (`queue/consumers/feed-consumer.ts`)
 2. Add Cloudflare entry point export
 3. Create Node.js consumer entry point
@@ -800,6 +809,7 @@ volumes:
 5. Integrate with Sentry for monitoring
 
 **Testing:**
+
 - Deploy to Cloudflare staging environment
 - Test with local Docker + Redis
 - Verify parallel processing works
@@ -808,6 +818,7 @@ volumes:
 ### Step 4: Deploy and Monitor (Week 2)
 
 **Tasks:**
+
 1. Deploy to Cloudflare production
 2. Update Docker Compose configuration
 3. Monitor queue depth and throughput
@@ -815,6 +826,7 @@ volumes:
 5. Set up Sentry alerts for queue errors
 
 **Success Metrics:**
+
 - All 50,000 feeds processed in <5 minutes
 - <1% retry rate
 - <0.1% dead-letter queue rate
@@ -827,11 +839,13 @@ volumes:
 ### If Queue Implementation Fails
 
 **Immediate Rollback:**
+
 1. Revert cron handler to call `fetchAllFeeds()` directly
 2. Keep queue code in codebase but unused
 3. Monitor for stability
 
 **Fallback to Phase 2:**
+
 ```typescript
 // packages/api/src/cron/handlers.ts
 async function _handleRSSFetch(env: Env): Promise<void> {
@@ -850,6 +864,7 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 ### Graceful Degradation
 
 **Queue Unavailable Handling:**
+
 ```typescript
 async function _handleRSSFetch(env: Env): Promise<void> {
   const db = createDatabase(env);
@@ -876,18 +891,20 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 ### Cloudflare Queues Pricing
 
 **Base Cost:**
+
 - Workers Paid plan: $5/month (required)
 - Queues: $0.40/million operations (after 1M free)
 
 **Cost Projections:**
 
-| Feeds | Fetches/Day | Queue Ops/Day | Queue Ops/Month | Cost/Month |
-|-------|-------------|---------------|-----------------|------------|
-| 2,000 | 96,000 | 192K | 5.76M | $1.90 |
-| 10,000 | 480,000 | 960K | 28.8M | $11.12 |
-| 50,000 | 2,400,000 | 4.8M | 144M | $57.20 |
+| Feeds  | Fetches/Day | Queue Ops/Day | Queue Ops/Month | Cost/Month |
+| ------ | ----------- | ------------- | --------------- | ---------- |
+| 2,000  | 96,000      | 192K          | 5.76M           | $1.90      |
+| 10,000 | 480,000     | 960K          | 28.8M           | $11.12     |
+| 50,000 | 2,400,000   | 4.8M          | 144M            | $57.20     |
 
 **Calculation:**
+
 - 2 operations per feed (1 enqueue + 1 dequeue)
 - Fetches per day: (feeds × 24 hours × 60 min) / 30 min refresh = feeds × 48
 - First 1M operations free per month
@@ -895,10 +912,12 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 ### Docker/BullMQ Pricing
 
 **Infrastructure:**
+
 - Redis: $0 (self-hosted) OR $10-20/month (managed)
 - CPU/Memory: Included in existing server costs
 
 **Total Cost:**
+
 - Self-hosted Redis: $0/month (use existing Docker host)
 - Managed Redis (e.g., Redis Cloud): $10-20/month
 
@@ -908,23 +927,23 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 
 ### Target Metrics
 
-| Metric | Phase 1 (Cron) | Phase 2 (Smart Cron) | Phase 3 (Queue) |
-|--------|----------------|----------------------|-----------------|
-| Max feeds | 2,000 | 5,000 | 50,000+ |
-| Update frequency | 10-20 min | 15-30 min | <5 min |
-| Throughput | 6K feeds/hr | 10K feeds/hr | 600K feeds/hr |
-| Parallelization | None (sequential) | None | 100x (batch size) |
-| Retry logic | None | None | Automatic (100 retries) |
-| Fault tolerance | All-or-nothing | All-or-nothing | Per-feed |
+| Metric           | Phase 1 (Cron)    | Phase 2 (Smart Cron) | Phase 3 (Queue)         |
+| ---------------- | ----------------- | -------------------- | ----------------------- |
+| Max feeds        | 2,000             | 5,000                | 50,000+                 |
+| Update frequency | 10-20 min         | 15-30 min            | <5 min                  |
+| Throughput       | 6K feeds/hr       | 10K feeds/hr         | 600K feeds/hr           |
+| Parallelization  | None (sequential) | None                 | 100x (batch size)       |
+| Retry logic      | None              | None                 | Automatic (100 retries) |
+| Fault tolerance  | All-or-nothing    | All-or-nothing       | Per-feed                |
 
 ### Cloudflare Workers Limits
 
-| Resource | Limit | Usage (Queue) | Headroom |
-|----------|-------|---------------|----------|
-| CPU time | 30s (paid) | ~15s (100 feeds) | ✅ 50% |
-| Memory | 128 MB | ~30 MB | ✅ 75% |
-| Subrequests | 1,000 | ~105 (100 feeds + 5 DB) | ✅ 90% |
-| Queue throughput | 5,000 msg/sec | ~300 msg/sec (peak) | ✅ 94% |
+| Resource         | Limit         | Usage (Queue)           | Headroom |
+| ---------------- | ------------- | ----------------------- | -------- |
+| CPU time         | 30s (paid)    | ~15s (100 feeds)        | ✅ 50%   |
+| Memory           | 128 MB        | ~30 MB                  | ✅ 75%   |
+| Subrequests      | 1,000         | ~105 (100 feeds + 5 DB) | ✅ 90%   |
+| Queue throughput | 5,000 msg/sec | ~300 msg/sec (peak)     | ✅ 94%   |
 
 ---
 
@@ -933,22 +952,26 @@ async function _handleRSSFetch(env: Env): Promise<void> {
 ### Key Metrics to Track
 
 **Scheduler Metrics:**
+
 - `rss.feeds_enqueued` - Number of feeds enqueued per run
 - `rss.scheduler_run` - Scheduler execution count and status
 - `rss.staleness_threshold` - Age of oldest feed processed
 
 **Queue Metrics:**
+
 - `queue.depth` - Number of pending messages (gauge)
 - `queue.throughput` - Messages processed per second
 - `queue.retry_rate` - Percentage of messages retried
 - `queue.dlq_size` - Dead-letter queue size (should be near 0)
 
 **Consumer Metrics:**
+
 - `queue.feed_processed` - Individual feed processing results
 - `queue.batch_processed` - Batch processing summary
 - `queue.processing_time` - Time to process each batch
 
 **Sentry Alerts:**
+
 1. DLQ size > 10 messages (feeds failing repeatedly)
 2. Queue depth > 10,000 messages (backlog building up)
 3. Retry rate > 10% (widespread fetching issues)
@@ -971,7 +994,7 @@ describe("Queue Adapters", () => {
 
       const processed: any[] = [];
       await adapter.processBatch(async (batch) => {
-        processed.push(...batch.messages.map(m => m.body));
+        processed.push(...batch.messages.map((m) => m.body));
       });
 
       expect(processed).toHaveLength(1);
@@ -1039,7 +1062,7 @@ async function loadTest() {
     // Simulate processing
     await Promise.all(
       batch.messages.map(async (msg) => {
-        await new Promise(resolve => setTimeout(resolve, 10)); // 10ms per feed
+        await new Promise((resolve) => setTimeout(resolve, 10)); // 10ms per feed
         msg.ack();
       })
     );
@@ -1089,17 +1112,21 @@ Queue consumers should respect external API rate limits:
 class RateLimiter {
   private requests: Map<string, number[]> = new Map();
 
-  async throttle(domain: string, maxRequests: number, windowMs: number): Promise<void> {
+  async throttle(
+    domain: string,
+    maxRequests: number,
+    windowMs: number
+  ): Promise<void> {
     const now = Date.now();
     const requests = this.requests.get(domain) || [];
 
     // Remove old requests outside window
-    const recent = requests.filter(time => now - time < windowMs);
+    const recent = requests.filter((time) => now - time < windowMs);
 
     if (recent.length >= maxRequests) {
       const oldestRequest = recent[0];
       const waitTime = windowMs - (now - oldestRequest);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
 
     recent.push(now);
