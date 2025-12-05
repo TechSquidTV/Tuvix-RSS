@@ -29,19 +29,64 @@ import { extractItunesImage } from "@/utils/feed-utils";
 import { extractCommentLink } from "./comment-link-extraction";
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** HTTP configuration for feed fetching */
+const FETCH_CONFIG = {
+  userAgent:
+    "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+  accept:
+    "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  timeoutMs: 30000, // 30 seconds
+} as const;
+
+/** Delays between feed processing to prevent rate limiting */
+const PROCESSING_DELAYS = {
+  betweenFeeds: 500, // 500ms between successful fetches
+  afterError: 1000, // 1s after errors to back off
+} as const;
+
+/** Limits for content processing and batching */
+const LIMITS = {
+  batchInsertChunkSize: 50, // Articles per batch insert
+  contentMaxBytes: 500000, // 500KB max for article content
+  descriptionMaxChars: 5000, // Max chars for article description
+} as const;
+
+/** Default configuration for staleness-based filtering */
+const STALENESS_DEFAULTS = {
+  thresholdMinutes: 30, // Process feeds older than 30 minutes
+  batchSize: 20, // Feeds per batch (optimized for D1 query limits)
+} as const;
+
+// =============================================================================
 // Types
 // =============================================================================
 
+/**
+ * Result from fetchAllFeeds batch operation
+ */
 export interface FetchResult {
+  /** Number of feeds successfully fetched and processed */
   successCount: number;
+  /** Number of feeds that failed to fetch or process */
   errorCount: number;
-  total: number;
+  /** Total number of feeds processed in this batch (successCount + errorCount) */
+  processedCount: number;
+  /** Detailed error information for failed feeds */
   errors: Array<{ sourceId: number; url: string; error: string }>;
 }
 
+/**
+ * Result from fetchSingleFeed operation
+ */
 export interface FetchSingleResult {
+  /** Number of new articles added to database */
   articlesAdded: number;
+  /** Number of articles skipped (already exist or invalid) */
   articlesSkipped: number;
+  /** Whether source metadata was updated */
   sourceUpdated: boolean;
 }
 
@@ -80,13 +125,15 @@ export async function fetchAllFeeds(
       // Default to 20 feeds per batch to stay under D1 query limits per invocation
       // With 1-minute cron frequency, this processes 1,200 feeds/hour
       // Lower batch size prevents "Too many API requests by single worker invocation" errors
-      const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 20;
+      const maxFeedsPerBatch =
+        options?.maxFeedsPerBatch ?? STALENESS_DEFAULTS.batchSize;
 
       // Default to 30-minute staleness threshold (Phase 2: Staleness-based filtering)
       // Only process feeds that haven't been fetched in the last N minutes
       // This prevents wasting resources on recently-fetched feeds
       const stalenessThresholdMinutes =
-        options?.stalenessThresholdMinutes ?? 30;
+        options?.stalenessThresholdMinutes ??
+        STALENESS_DEFAULTS.thresholdMinutes;
       const staleThreshold = new Date(
         Date.now() - stalenessThresholdMinutes * 60 * 1000
       );
@@ -149,7 +196,9 @@ export async function fetchAllFeeds(
           // Add small delay between feeds to avoid rate limiting
           // This helps prevent HTTP 429 errors from external APIs
           if (sources.length > 1) {
-            await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+            await new Promise((resolve) =>
+              setTimeout(resolve, PROCESSING_DELAYS.betweenFeeds)
+            );
           }
         } catch (error) {
           errorCount++;
@@ -164,7 +213,9 @@ export async function fetchAllFeeds(
 
           // Add longer delay after errors to back off from rate limits
           if (sources.length > 1) {
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay after error
+            await new Promise((resolve) =>
+              setTimeout(resolve, PROCESSING_DELAYS.afterError)
+            );
           }
         }
       }
@@ -184,7 +235,7 @@ export async function fetchAllFeeds(
       return {
         successCount,
         errorCount,
-        total: sources.length,
+        processedCount: sources.length,
         errors,
       };
     },
@@ -287,12 +338,10 @@ export async function fetchSingleFeed(
         // 1. Fetch feed with timeout
         const response = await fetch(feedUrl, {
           headers: {
-            "User-Agent":
-              "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-            Accept:
-              "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+            "User-Agent": FETCH_CONFIG.userAgent,
+            Accept: FETCH_CONFIG.accept,
           },
-          signal: AbortSignal.timeout(30000), // 30s timeout
+          signal: AbortSignal.timeout(FETCH_CONFIG.timeoutMs),
         });
 
         span.setAttribute("http_status", response.status);
@@ -445,7 +494,7 @@ async function updateSourceMetadata(
 
   // Extract metadata (handle different feed formats)
   if ("title" in feed && feed.title) {
-    updates.title = typeof feed.title === "string" ? feed.title : feed.title;
+    updates.title = feed.title;
   }
 
   if ("description" in feed && feed.description) {
@@ -636,7 +685,10 @@ async function storeArticles(
 
       if (newArticlesData.length > 0) {
         // Split into chunks for batch insert (D1 batch API supports multiple statements)
-        const insertChunks = chunkArray(newArticlesData, 50); // Conservative chunk size
+        const insertChunks = chunkArray(
+          newArticlesData,
+          LIMITS.batchInsertChunkSize
+        );
 
         for (const chunk of insertChunks) {
           try {
@@ -858,7 +910,7 @@ async function extractArticleData(
   }
 
   // Strip HTML from content and truncate to prevent bloat
-  const content = truncateText(stripHtml(rawContent), 500000); // 500KB max
+  const content = truncateText(stripHtml(rawContent), LIMITS.contentMaxBytes);
 
   // Description (separate from content)
   // SECURITY: Sanitize HTML to allow safe tags (links, formatting) while preventing XSS
@@ -940,9 +992,14 @@ async function extractArticleData(
     sanitizedDescription = "";
   }
 
-  const description = truncateHtml(sanitizedDescription, 5000, "...", {
-    alreadySanitized: true,
-  });
+  const description = truncateHtml(
+    sanitizedDescription,
+    LIMITS.descriptionMaxChars,
+    "...",
+    {
+      alreadySanitized: true,
+    }
+  );
 
   // Author
   let author: string | undefined = undefined;
@@ -1100,12 +1157,10 @@ async function extractArticleData(
 export async function fetchAndParseFeed(feedUrl: string): Promise<AnyFeed> {
   const response = await fetch(feedUrl, {
     headers: {
-      "User-Agent":
-        "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
-      Accept:
-        "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+      "User-Agent": FETCH_CONFIG.userAgent,
+      Accept: FETCH_CONFIG.accept,
     },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(FETCH_CONFIG.timeoutMs),
   });
 
   if (!response.ok) {

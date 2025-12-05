@@ -196,7 +196,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(2);
+      expect(result.processedCount).toBe(2);
       expect(result.successCount).toBe(2);
       expect(result.errorCount).toBe(0);
       expect(result.errors).toHaveLength(0);
@@ -232,7 +232,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(2);
+      expect(result.processedCount).toBe(2);
       expect(result.successCount).toBe(1);
       expect(result.errorCount).toBe(1);
       expect(result.errors).toHaveLength(1);
@@ -258,7 +258,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(0);
+      expect(result.processedCount).toBe(0);
       expect(result.successCount).toBe(0);
       expect(result.errorCount).toBe(0);
       expect(result.errors).toHaveLength(0);
@@ -297,7 +297,7 @@ describe("RSS Fetcher Service", () => {
 
       const result = await fetchAllFeeds(db);
 
-      expect(result.total).toBe(3);
+      expect(result.processedCount).toBe(3);
       expect(result.successCount).toBe(2);
       expect(result.errorCount).toBe(1);
     });
@@ -330,7 +330,7 @@ describe("RSS Fetcher Service", () => {
       const result = await fetchAllFeeds(db);
 
       // Should only fetch the old feed (1 hour old), not the recent one (5 min old)
-      expect(result.total).toBe(1); // Only 1 feed was stale and processed
+      expect(result.processedCount).toBe(1); // Only 1 feed was stale and processed
       expect(result.successCount).toBe(1); // Only old feed processed
       expect(result.errorCount).toBe(0);
     });
@@ -359,7 +359,7 @@ describe("RSS Fetcher Service", () => {
       // Fetch with 0-minute threshold (all feeds are stale)
       const result = await fetchAllFeeds(db, { stalenessThresholdMinutes: 0 });
 
-      expect(result.total).toBe(2);
+      expect(result.processedCount).toBe(2);
       expect(result.successCount).toBe(2); // Both feeds processed
       expect(result.errorCount).toBe(0);
     });
@@ -374,7 +374,7 @@ describe("RSS Fetcher Service", () => {
       const result = await fetchAllFeeds(db);
 
       // Null lastFetched should always be considered stale
-      expect(result.total).toBe(1);
+      expect(result.processedCount).toBe(1);
       expect(result.successCount).toBe(1);
     });
 
@@ -406,7 +406,7 @@ describe("RSS Fetcher Service", () => {
         stalenessThresholdMinutes: 15,
       });
 
-      expect(result.total).toBe(1); // Only 1 feed was stale and processed
+      expect(result.processedCount).toBe(1); // Only 1 feed was stale and processed
       expect(result.successCount).toBe(1); // Only feed2 (20 min old)
     });
   });
