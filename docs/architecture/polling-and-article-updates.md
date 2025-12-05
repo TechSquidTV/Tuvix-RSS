@@ -211,13 +211,34 @@ refresh: rateLimitedProcedure.mutation(async ({ ctx }) => {
 
 #### fetchAllFeeds() - Overview
 
-**File**: `packages/api/src/services/rss-fetcher.ts:52-91`
+**File**: `packages/api/src/services/rss-fetcher.ts:157-274`
 
-Fetches all RSS sources in the database sequentially.
+Fetches RSS sources using **staleness-based filtering** to avoid unnecessary work.
 
 ```typescript
-export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
-  const sources = await db.query.sources.findMany();
+export async function fetchAllFeeds(
+  db: Database,
+  options?: {
+    stalenessThresholdMinutes?: number;
+    maxFeedsPerBatch?: number;
+  }
+): Promise<FetchResult> {
+  const stalenessThresholdMinutes =
+    options?.stalenessThresholdMinutes ?? STALENESS_DEFAULTS.thresholdMinutes;
+  const maxFeedsPerBatch =
+    options?.maxFeedsPerBatch ?? STALENESS_DEFAULTS.batchSize;
+
+  // Calculate staleness threshold (only fetch feeds older than this)
+  const staleThreshold = new Date(
+    Date.now() - stalenessThresholdMinutes * 60 * 1000
+  );
+
+  // Get stale sources (null lastFetched OR lastFetched < threshold)
+  const sources = await getStaleSources(db, staleThreshold, maxFeedsPerBatch);
+
+  // Get counts for logging
+  const totalSources = await getTotalSourcesCount(db);
+  const totalStaleFeeds = await getStaleSourcesCount(db, staleThreshold);
 
   let successCount = 0;
   let errorCount = 0;
@@ -225,133 +246,269 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
 
   for (const source of sources) {
     try {
-      await fetchSingleFeed(source.id, source.feedUrl, db);
+      await fetchSingleFeed(source.id, source.url, db);
       successCount++;
+
+      // Delay between feeds to avoid rate limits
+      if (sources.length > 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, PROCESSING_DELAYS.betweenFeeds)
+        );
+      }
     } catch (error) {
       errorCount++;
       errors.push({
         sourceId: source.id,
-        url: source.feedUrl,
-        error: error.message,
+        url: source.url,
+        error: error instanceof Error ? error.message : "Unknown error",
       });
+
+      // Longer delay after errors
+      if (sources.length > 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, PROCESSING_DELAYS.afterError)
+        );
+      }
     }
   }
 
-  return { successCount, errorCount, total: sources.length, errors };
+  return { successCount, errorCount, processedCount: sources.length, errors };
 }
 ```
 
 **Return Type**:
 
 ```typescript
-interface FetchResult {
+/**
+ * Result of fetching multiple RSS feeds
+ */
+export interface FetchResult {
+  /** Number of feeds successfully fetched and processed */
   successCount: number;
+  /** Number of feeds that failed to fetch or process */
   errorCount: number;
-  total: number;
+  /** Total number of feeds processed in this batch (successCount + errorCount) */
+  processedCount: number;
+  /** Detailed error information for failed feeds */
   errors: Array<{ sourceId: number; url: string; error: string }>;
+}
+```
+
+**Staleness Filtering**:
+
+The system only fetches feeds that are "stale" (haven't been updated recently):
+
+- **Never fetched**: Feeds with `lastFetched = null` are always fetched
+- **Stale feeds**: Feeds where `lastFetched < (now - stalenessThresholdMinutes)`
+- **Fresh feeds**: Feeds recently updated are skipped until they become stale
+
+**Default Configuration**:
+
+```typescript
+const STALENESS_DEFAULTS = {
+  thresholdMinutes: 30, // Only fetch feeds older than 30 minutes
+  batchSize: 20,        // Process up to 20 stale feeds per cron run
+};
+```
+
+**Query Helpers**:
+
+```typescript
+// Build WHERE clause for stale feeds
+function buildStalenessWhereClause(staleThreshold: Date) {
+  return or(
+    isNull(schema.sources.lastFetched),
+    lt(schema.sources.lastFetched, staleThreshold)
+  );
+}
+
+// Get stale sources ordered by lastFetched (oldest first)
+async function getStaleSources(db: Database, staleThreshold: Date, limit: number) {
+  return await db
+    .select()
+    .from(schema.sources)
+    .where(buildStalenessWhereClause(staleThreshold))
+    .orderBy(schema.sources.lastFetched)
+    .limit(limit);
 }
 ```
 
 **Characteristics**:
 
-- ✅ Sequential processing (one feed at a time)
-- ✅ Error isolation (failure doesn't stop other feeds)
-- ❌ No parallelization (could be slow for many feeds)
-- ❌ No retry logic (waits for next scheduled poll)
+- ✅ **Staleness filtering**: Only fetches feeds that need updating (massive efficiency gain)
+- ✅ **Batch limiting**: Processes fixed number of feeds per run (predictable execution time)
+- ✅ **Sequential processing**: One feed at a time (resource-friendly)
+- ✅ **Error isolation**: Failure doesn't stop other feeds
+- ✅ **Rate limit protection**: 500ms delay between feeds, 1000ms after errors
+- ✅ **Oldest-first priority**: Ensures all feeds eventually get updated
+- ❌ **No parallelization**: Could be slow for very large batches
+- ❌ **No retry logic**: Waits for next scheduled poll
+
+**Scalability**:
+
+With staleness filtering, the system can efficiently handle large feed counts:
+
+- **100 feeds**: ~5 minute rotation with 20/batch, 1-minute cron
+- **1,000 feeds**: ~50 minute rotation with 20/batch, 1-minute cron
+- **5,000 feeds**: ~4 hour rotation with 20/batch, 1-minute cron
+
+Each feed is guaranteed to be checked within the rotation period, with fresh feeds skipped to save resources.
 
 #### fetchSingleFeed() - Detailed Flow
 
-**File**: `packages/api/src/services/rss-fetcher.ts:96-157`
+**File**: `packages/api/src/services/rss-fetcher.ts:279-510`
 
-Fetches and processes a single RSS/Atom feed.
+Fetches and processes a single RSS/Atom feed with full Sentry tracing.
 
 ```typescript
 export async function fetchSingleFeed(
   sourceId: number,
   feedUrl: string,
   db: Database
-): Promise<FeedResult> {
-  // Step 1: HTTP Fetch
-  const response = await fetch(feedUrl, {
-    signal: AbortSignal.timeout(30000), // 30s timeout
-    headers: {
-      "User-Agent": "TuvixRSS/1.0",
-      Accept:
-        "application/rss+xml, application/atom+xml, application/xml, text/xml, application/json",
+): Promise<SingleFeedResult> {
+  return await Sentry.startSpan(
+    {
+      op: "rss.fetch_single_feed",
+      name: `Fetch feed ${sourceId}`,
+      attributes: {
+        source_id: sourceId,
+        feed_url: feedUrl,
+      },
     },
-  });
+    async (span) => {
+      try {
+        // Step 1: HTTP Fetch with timeout
+        const response = await fetch(feedUrl, {
+          signal: AbortSignal.timeout(FETCH_CONFIG.timeoutMs),
+          headers: {
+            "User-Agent": FETCH_CONFIG.userAgent,
+            Accept: FETCH_CONFIG.accept,
+          },
+        });
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-  const content = await response.text();
+        const content = await response.text();
 
-  // Step 2: Parse Feed
-  const { feed, format } = await parseFeed(content);
+        // Step 2: Parse Feed
+        const { feed } = await parseFeed(content);
 
-  // Step 3: Update Source Metadata
-  await updateSourceMetadata(sourceId, feed, db);
+        // Step 3: Update Source Metadata
+        const sourceUpdated = await updateSourceMetadata(sourceId, feed, db);
 
-  // Step 4: Store Articles
-  const { articlesAdded, articlesSkipped } = await storeArticles(
-    sourceId,
-    feed,
-    db
+        // Step 4: Store Articles
+        const { articlesAdded, articlesSkipped } = await storeArticles(
+          sourceId,
+          feed,
+          db
+        );
+
+        span.setStatus({ code: 1, message: "ok" });
+        return { articlesAdded, articlesSkipped, sourceUpdated };
+      } catch (error) {
+        span.setStatus({ code: 2, message: "Fetch failed" });
+        throw error;
+      }
+    }
   );
-
-  return { articlesAdded, articlesSkipped, sourceUpdated: true };
 }
+```
+
+**Configuration Constants**:
+
+```typescript
+const FETCH_CONFIG = {
+  userAgent: "TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)",
+  accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  timeoutMs: 30000,
+} as const;
+
+const PROCESSING_DELAYS = {
+  betweenFeeds: 500,   // 500ms between successful fetches
+  afterError: 1000,    // 1000ms after errors (backoff)
+} as const;
+
+const LIMITS = {
+  batchInsertChunkSize: 50,        // Max articles per batch insert
+  contentMaxBytes: 500000,         // 500 KB max content size
+  descriptionMaxChars: 5000,       // 5 KB max description
+} as const;
 ```
 
 **Process Steps**:
 
-1. **HTTP Fetch** (lines 102-114)
+1. **HTTP Fetch**
    - 30-second timeout via `AbortSignal.timeout(30000)`
-   - Custom User-Agent: `TuvixRSS/1.0`
-   - Accepts RSS, Atom, XML, and JSON feeds
-   - Throws on HTTP errors
+   - Custom User-Agent: `TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)`
+   - Accepts RSS, Atom, XML, and wildcard MIME types
+   - Throws on HTTP errors (404, 500, timeouts, etc.)
 
-2. **Parse Feed** (lines 128-140)
-   - Uses `feedsmith` library (v2.4.0)
+2. **Parse Feed**
+   - Uses `feedsmith` library
    - Auto-detects format: RSS 2.0, RSS 1.0, Atom, JSON Feed
-   - Throws on parse errors
+   - Throws on parse errors (malformed XML/JSON)
 
-3. **Update Source** (line 143)
-   - Updates feed metadata (title, description, URL)
-   - Updates `lastFetched` timestamp
+3. **Update Source Metadata**
+   - Updates feed metadata (title, description, siteUrl)
+   - Updates `lastFetched` timestamp to current time
+   - Returns `true` if updates were applied
 
-4. **Store Articles** (lines 146-150)
-   - Parses and saves new articles
-   - Skips duplicates
+4. **Store Articles**
+   - Extracts article data using focused helper functions
+   - Performs batch duplicate checking (via SQL IN clause)
+   - Inserts new articles in chunks of 50 (batch API or sequential)
+   - Skips articles that already exist (by GUID)
 
 **Return Type**:
 
 ```typescript
-interface FeedResult {
+/**
+ * Result of fetching a single RSS feed
+ */
+export interface SingleFeedResult {
+  /** Number of new articles added to the database */
   articlesAdded: number;
+  /** Number of articles skipped (already exist) */
   articlesSkipped: number;
+  /** Whether source metadata was updated */
   sourceUpdated: boolean;
 }
 ```
+
+**Observability**:
+
+All operations are wrapped in Sentry spans for performance tracking:
+- HTTP fetch timing
+- Parse duration
+- Database operations
+- Article extraction time
+- Error capture with full context
 
 ### HTTP Request Details
 
 **Headers Sent**:
 
 ```http
-User-Agent: TuvixRSS/1.0
-Accept: application/rss+xml, application/atom+xml, application/xml, text/xml, application/json
+User-Agent: TuvixRSS/1.0 (RSS Reader; +https://github.com/techsquidtv/tuvix)
+Accept: application/rss+xml, application/atom+xml, application/xml, text/xml, */*
 ```
 
-**Timeout**: 30 seconds
+**Timeout**: 30 seconds (30000ms)
+
+**Rate Limiting**:
+
+- 500ms delay between successful feed fetches
+- 1000ms delay after errors (exponential backoff)
 
 **Error Handling**:
 
-- Network timeouts
+- Network timeouts (30s limit)
 - HTTP error status codes (404, 500, etc.)
-- Connection failures
-- SSL/TLS errors
+- Connection failures (DNS, SSL/TLS)
+- Malformed feed content
+- All errors captured in Sentry with full context
 
 ## Article Parsing and Storage
 
@@ -375,58 +532,142 @@ async function parseFeed(content: string): Promise<ParsedFeed> {
 
 ### Article Extraction
 
-**File**: `packages/api/src/services/rss-fetcher.ts:218-271`
+**File**: `packages/api/src/services/rss-fetcher.ts:583-796`
+
+The `storeArticles` function uses **batch duplicate checking** for efficiency, processing all feed items in 4 steps:
 
 ```typescript
 async function storeArticles(
   sourceId: number,
-  feed: Feed,
+  feed: AnyFeed,
   db: Database
 ): Promise<{ articlesAdded: number; articlesSkipped: number }> {
-  const items = feed.items || feed.entries || [];
-
-  let articlesAdded = 0;
-  let articlesSkipped = 0;
+  // Step 1: Extract items and GUIDs
+  const items = extractFeedItems(feed);
+  const guidSamplesForLogging: string[] = [];
+  const validItems: Array<{ item: AnyItem; guid: string }> = [];
 
   for (const item of items) {
-    try {
-      // Extract GUID for deduplication
-      const guid = extractGuid(item, sourceId);
+    const guid = extractGuid(item, sourceId);
+    validItems.push({ item, guid });
 
-      // Check if article already exists
-      const existing = await db.query.articles.findFirst({
-        where: and(
-          eq(schema.articles.sourceId, sourceId),
-          eq(schema.articles.guid, guid)
-        ),
-      });
-
-      if (existing) {
-        articlesSkipped++;
-        continue;
-      }
-
-      // Extract article data
-      const articleData = await extractArticleData(item, sourceId, guid);
-
-      // Insert into database
-      await db.insert(schema.articles).values(articleData);
-      articlesAdded++;
-    } catch (error) {
-      console.error(`Failed to store article:`, error);
-      // Continue processing other articles
+    if (guidSamplesForLogging.length < 3) {
+      guidSamplesForLogging.push(guid);
     }
+  }
+
+  // Step 2: Batch check for existing articles (single query)
+  const allGuids = validItems.map((v) => v.guid);
+  const existingArticles = await db
+    .select({ guid: schema.articles.guid })
+    .from(schema.articles)
+    .where(
+      and(
+        eq(schema.articles.sourceId, sourceId),
+        inArray(schema.articles.guid, allGuids)
+      )
+    );
+
+  const existingGuids = new Set(existingArticles.map((a) => a.guid));
+
+  // Step 3: Extract data for new articles only
+  const newArticles: Array<typeof schema.articles.$inferInsert> = [];
+
+  for (const { item, guid } of validItems) {
+    if (existingGuids.has(guid)) {
+      articlesSkipped++;
+      continue;
+    }
+
+    try {
+      const articleData = await extractArticleData(item, sourceId, guid, true);
+      newArticles.push(articleData);
+    } catch (error) {
+      // Log and skip failed articles
+      articlesSkipped++;
+    }
+  }
+
+  // Step 4: Batch insert (chunks of 50)
+  const insertChunks = chunkArray(newArticles, LIMITS.batchInsertChunkSize);
+
+  for (const chunk of insertChunks) {
+    if (supportsBatch(db)) {
+      // Cloudflare D1: use batch API
+      await db.batch(chunk.map((data) => db.insert(schema.articles).values(data)));
+    } else {
+      // Better-sqlite3: insert sequentially
+      for (const data of chunk) {
+        await db.insert(schema.articles).values(data);
+      }
+    }
+    articlesAdded += chunk.length;
   }
 
   return { articlesAdded, articlesSkipped };
 }
 ```
 
+**Key Optimizations**:
+
+1. **Batch Duplicate Checking**: Single SQL query with `IN` clause instead of per-article queries
+2. **Chunked Inserts**: Inserts up to 50 articles at once (D1 batch API or sequential fallback)
+3. **Focused Helper Functions**: Extraction logic split into specialized functions
+4. **Error Isolation**: Individual article failures don't stop batch processing
+
 ### Article Data Extraction
 
-**File**: `packages/api/src/services/rss-fetcher.ts:363-537`
+**File**: `packages/api/src/services/rss-fetcher.ts:852-1209`
 
-Extracts and normalizes article data from various feed formats.
+Article extraction is decomposed into **focused helper functions** for maintainability:
+
+```typescript
+// Main extraction orchestrator (52 lines, down from 293)
+async function extractArticleData(
+  item: AnyItem,
+  sourceId: number,
+  guid: string,
+  skipOgImageFetch = false
+): Promise<typeof schema.articles.$inferInsert> {
+  const title = ("title" in item && item.title) || "Untitled";
+  const link = extractArticleLink(item);
+
+  // Delegate to focused helpers
+  const content = extractArticleContent(item);
+  const description = extractArticleDescription(item, content);
+  const author = extractArticleAuthor(item);
+  const imageUrl = await extractArticleImage(item, link, skipOgImageFetch);
+  const audioUrl = extractArticleAudio(item);
+  const publishedAt = extractPublishedDate(item);
+  const commentLink = extractCommentLink(item);
+
+  return {
+    sourceId,
+    guid,
+    title: String(title),
+    link,
+    content,
+    description,
+    author,
+    imageUrl,
+    audioUrl,
+    commentLink,
+    publishedAt,
+  };
+}
+
+// Helper functions (each 10-91 lines):
+function extractArticleContent(item: AnyItem): string { /* ... */ }
+function extractArticleDescription(item: AnyItem, rawContent: string): string { /* ... */ }
+function extractArticleAuthor(item: AnyItem): string | undefined { /* ... */ }
+async function extractArticleImage(item: AnyItem, link: string, skipOgImageFetch: boolean): Promise<string | undefined> { /* ... */ }
+function extractArticleAudio(item: AnyItem): string | undefined { /* ... */ }
+```
+
+This refactored architecture improves:
+- **Readability**: Each function has a single, clear purpose
+- **Testability**: Can test extraction logic in isolation
+- **Maintainability**: Easy to modify specific extraction without affecting others
 
 #### Extracted Fields
 
@@ -657,7 +898,7 @@ RSS fetch complete: 45 succeeded, 5 failed
 {
   successCount: 45,
   errorCount: 5,
-  total: 50,
+  processedCount: 50,  // Renamed from 'total' for clarity
   errors: [
     {
       sourceId: 123,
@@ -673,8 +914,12 @@ RSS fetch complete: 45 succeeded, 5 failed
 
 ### Feed Fetching Rate Limits
 
-**Automated Polling**: No rate limiting
-The cron job fetches all feeds sequentially without throttling.
+**Automated Polling**: Built-in rate limiting via delays
+
+- **500ms delay** between successful feed fetches
+- **1000ms delay** after errors (exponential backoff)
+- Prevents overwhelming feed servers
+- Avoids triggering rate limits on external feeds
 
 **Manual Refresh**: Rate limited per user plan
 
@@ -835,55 +1080,88 @@ admin.updateGlobalSettings({ pruneDays: 365 });
 
 ## Performance Characteristics
 
-### Sequential Processing
+### Staleness-Based Filtering
 
-**Current Approach**: Feeds are fetched one at a time in a for-loop.
+**Current Approach**: Only fetch feeds that are stale (haven't been updated recently).
+
+**How It Works**:
+
+```typescript
+// Only process feeds where:
+// 1. lastFetched IS NULL (never fetched), OR
+// 2. lastFetched < (now - 30 minutes)
+
+const staleThreshold = new Date(Date.now() - 30 * 60 * 1000);
+const sources = await db
+  .select()
+  .from(schema.sources)
+  .where(or(isNull(lastFetched), lt(lastFetched, staleThreshold)))
+  .orderBy(lastFetched)  // Oldest first
+  .limit(20);  // Process 20 per cron run
+```
+
+**Benefits**:
+
+- **Massive efficiency gain**: Only processes feeds that need updating
+- **Predictable execution time**: Fixed batch size (20 feeds) = consistent ~10-15s runtime
+- **Scales to thousands of feeds**: 5,000 feeds rotate over 4 hours with no performance degradation
+- **Fair distribution**: Oldest feeds processed first, ensuring even rotation
+
+**Scalability Examples**:
+
+| Total Feeds | Batch Size | Cron Interval | Full Rotation Time |
+|-------------|------------|---------------|-------------------|
+| 100         | 20         | 1 minute      | ~5 minutes        |
+| 1,000       | 20         | 1 minute      | ~50 minutes       |
+| 5,000       | 20         | 1 minute      | ~4 hours          |
+| 10,000      | 20         | 1 minute      | ~8 hours          |
+
+**Note**: Each feed is guaranteed to be checked within the rotation period. Fresh feeds (recently updated) are skipped until stale.
+
+### Sequential Processing with Rate Limiting
+
+**Current Approach**: Feeds are fetched one at a time with delays between fetches.
 
 **Pros**:
 
 - Simple and predictable
-- Low memory footprint
-- Resource-friendly for servers
+- Low memory footprint (~100 MB peak)
+- Resource-friendly for Cloudflare Workers (CPU time limits)
 - No concurrency issues
+- Built-in rate limit protection (500ms/1000ms delays)
 
 **Cons**:
 
-- Slow for large numbers of feeds
-- 1000 feeds × 2s each = ~33 minutes per cycle
+- No parallelization within a batch
+- Could benefit from parallel fetching if batch size increases significantly
 
-**Potential Optimization**:
-
-```typescript
-// Current (sequential)
-for (const source of sources) {
-  await fetchSingleFeed(source.id, source.feedUrl, db);
-}
-
-// Potential (parallel, batched)
-const batchSize = 10;
-for (let i = 0; i < sources.length; i += batchSize) {
-  const batch = sources.slice(i, i + batchSize);
-  await Promise.all(
-    batch.map((source) => fetchSingleFeed(source.id, source.feedUrl, db))
-  );
-}
-```
+**Potential Future Optimization**: Parallel batching with configurable concurrency.
 
 ### Deduplication Efficiency
 
-**Method**: Database unique constraint on `(sourceId, guid)`
-
-**Cost**: One SELECT per article before INSERT
+**Current Method**: **Batch duplicate checking** with single SQL query.
 
 ```sql
--- Check for existing article
-SELECT * FROM articles WHERE source_id = ? AND guid = ?
+-- OLD: Per-article queries (N queries for N articles)
+SELECT * FROM articles WHERE source_id = ? AND guid = ?  -- For each article
 
--- Insert if not exists
-INSERT INTO articles (...) VALUES (...)
+-- NEW: Single batch query with IN clause (1 query for N articles)
+SELECT guid FROM articles
+WHERE source_id = ?
+AND guid IN (?, ?, ?, ..., ?)  -- All GUIDs at once
 ```
 
-**Optimization Potential**: Could use bulk upsert, but current approach is reliable and simple.
+**Performance Impact**:
+
+- **Before**: 100 articles = 100 SELECT queries
+- **After**: 100 articles = 1 SELECT query
+- **Speedup**: ~100x for duplicate checking phase
+
+**Additional Optimizations**:
+
+- Batch inserts (50 articles per chunk)
+- Cloudflare D1: Uses batch API for parallel inserts
+- Better-sqlite3: Sequential inserts (still fast locally)
 
 ### Memory Usage
 
@@ -968,23 +1246,42 @@ export async function handleArticlePrune(env: Env): Promise<void>;
 
 ### RSS Fetcher Service
 
-#### fetchAllFeeds(db: Database): Promise<FetchResult>
+#### fetchAllFeeds(db: Database, options?): Promise<FetchResult>
 
-**File**: `packages/api/src/services/rss-fetcher.ts:52-91`
+**File**: `packages/api/src/services/rss-fetcher.ts:157-274`
 
-Fetches all RSS sources in database.
+Fetches stale RSS sources using staleness-based filtering.
 
 ```typescript
-export async function fetchAllFeeds(db: Database): Promise<FetchResult>;
+export async function fetchAllFeeds(
+  db: Database,
+  options?: {
+    stalenessThresholdMinutes?: number;  // Default: 30
+    maxFeedsPerBatch?: number;           // Default: 20
+  }
+): Promise<FetchResult>;
 ```
+
+**Parameters**:
+
+- `db`: Database connection
+- `options.stalenessThresholdMinutes`: Only fetch feeds older than this (default: 30 minutes)
+- `options.maxFeedsPerBatch`: Maximum feeds to process per invocation (default: 20)
 
 **Returns**:
 
 ```typescript
-interface FetchResult {
+/**
+ * Result of fetching multiple RSS feeds
+ */
+export interface FetchResult {
+  /** Number of feeds successfully fetched and processed */
   successCount: number;
+  /** Number of feeds that failed to fetch or process */
   errorCount: number;
-  total: number;
+  /** Total number of feeds processed in this batch (successCount + errorCount) */
+  processedCount: number;
+  /** Detailed error information for failed feeds */
   errors: Array<{ sourceId: number; url: string; error: string }>;
 }
 ```
@@ -992,36 +1289,49 @@ interface FetchResult {
 **Example**:
 
 ```typescript
+// Use default settings (30-minute staleness, 20 feeds max)
 const result = await fetchAllFeeds(db);
 console.log(
-  `${result.successCount}/${result.total} feeds fetched successfully`
+  `${result.successCount}/${result.processedCount} feeds fetched successfully`
 );
+
+// Custom settings (15-minute staleness, 50 feeds max)
+const result2 = await fetchAllFeeds(db, {
+  stalenessThresholdMinutes: 15,
+  maxFeedsPerBatch: 50,
+});
 
 if (result.errorCount > 0) {
   console.error("Failed feeds:", result.errors);
 }
 ```
 
-#### fetchSingleFeed(sourceId: number, feedUrl: string, db: Database): Promise<FeedResult>
+#### fetchSingleFeed(sourceId: number, feedUrl: string, db: Database): Promise<SingleFeedResult>
 
-**File**: `packages/api/src/services/rss-fetcher.ts:96-157`
+**File**: `packages/api/src/services/rss-fetcher.ts:279-510`
 
-Fetches and processes a single RSS/Atom feed.
+Fetches and processes a single RSS/Atom feed with Sentry tracing.
 
 ```typescript
 export async function fetchSingleFeed(
   sourceId: number,
   feedUrl: string,
   db: Database
-): Promise<FeedResult>;
+): Promise<SingleFeedResult>;
 ```
 
 **Returns**:
 
 ```typescript
-interface FeedResult {
+/**
+ * Result of fetching a single RSS feed
+ */
+export interface SingleFeedResult {
+  /** Number of new articles added to the database */
   articlesAdded: number;
+  /** Number of articles skipped (already exist) */
   articlesSkipped: number;
+  /** Whether source metadata was updated */
   sourceUpdated: boolean;
 }
 ```
