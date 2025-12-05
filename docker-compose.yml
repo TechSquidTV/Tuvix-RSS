@@ -11,7 +11,7 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - DATABASE_PATH=/app/data/tuvix.db
+      - DATABASE_PATH=${DATABASE_PATH:-/app/data/tuvix.db}
       - PORT=3001
       - NODE_ENV=production
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change-me-in-production}
