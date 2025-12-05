@@ -368,33 +368,33 @@ Body: { username, password }
 
 #### Sign Out
 
-```typescript
+```http
 POST /api/auth/sign-out
 ```
 
 #### Get Session
 
-```typescript
+```http
 GET /api/auth/session
 ```
 
 #### Change Password
 
-```typescript
+```http
 POST /api/auth/change-password
 Body: { currentPassword, newPassword }
 ```
 
 #### Request Password Reset
 
-```typescript
+```http
 POST /api/auth/request-password-reset
 Body: { email, redirectTo }
 ```
 
 #### Reset Password
 
-```typescript
+```http
 POST /api/auth/reset-password
 Body: { token, newPassword }
 ```
