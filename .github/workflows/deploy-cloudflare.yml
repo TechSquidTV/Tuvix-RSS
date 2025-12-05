@@ -97,7 +97,7 @@ jobs:
         run: |
           RELEASE_VERSION="${{ steps.release-version.outputs.version }}"
           cd packages/api
-          echo "$RELEASE_VERSION" | npx wrangler secret put SENTRY_RELEASE --name "${{ steps.worker-name.outputs.name }}"
+          echo "$RELEASE_VERSION" | pnpm exec wrangler secret put SENTRY_RELEASE --name "${{ steps.worker-name.outputs.name }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -110,7 +110,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: deploy
-          wranglerVersion: "3"
+          packageManager: pnpm
 
       - name: Output API deployment URL
         if: success()
@@ -160,7 +160,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/api
           command: d1 migrations apply tuvix --remote
-          wranglerVersion: "3"
+          packageManager: pnpm
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
 
@@ -266,7 +266,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy packages/app/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          wranglerVersion: "3"
+          packageManager: pnpm
 
       - name: Output App deployment URL
         if: success()
