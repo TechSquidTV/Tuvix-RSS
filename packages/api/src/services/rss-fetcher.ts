@@ -87,9 +87,10 @@ export async function fetchAllFeeds(
         .orderBy(schema.sources.lastFetched)
         .limit(maxFeedsPerBatch);
 
-      // Get total count for metrics (lightweight query - only fetches IDs)
+      // Get total count for metrics
+      // Note: Drizzle ORM type inference requires .select() with no args
       const totalCountResult = await db
-        .select({ id: schema.sources.id })
+        .select()
         .from(schema.sources);
       const totalSources = totalCountResult.length;
 
@@ -198,9 +199,9 @@ export async function fetchSingleFeed(
 
               let hasEnterpriseUser = false;
               for (const chunk of chunks) {
-                // Only select plan field to reduce data transfer
+                // Select all fields - inArray requires this for type inference
                 const users = await db
-                  .select({ plan: schema.user.plan })
+                  .select()
                   .from(schema.user)
                   .where(inArray(schema.user.id, chunk));
 
@@ -555,7 +556,7 @@ async function storeArticles(
 
       for (const chunk of guidChunks) {
         const existing = await db
-          .select({ guid: schema.articles.guid })
+          .select()
           .from(schema.articles)
           .where(inArray(schema.articles.guid, chunk));
 
