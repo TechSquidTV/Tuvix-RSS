@@ -215,9 +215,35 @@ export async function fetchAllFeeds(
       emitGauge("rss.sources_stale", totalStaleFeeds);
       emitGauge("rss.sources_in_batch", sources.length);
 
+      // Fetch blocked domains once per batch (not per feed)
+      // This reduces 20 redundant queries per batch to just 1
+      let blockedDomainsList: Awaited<ReturnType<typeof getBlockedDomains>> = [];
+      try {
+        blockedDomainsList = await getBlockedDomains(db);
+      } catch (error) {
+        // Safe migration: If table doesn't exist yet, continue with empty list
+        if (
+          error instanceof Error &&
+          (error.message.includes("no such table") ||
+            error.message.includes("does not exist"))
+        ) {
+          console.warn(
+            "blocked_domains table not found - continuing without domain blocking (migrations may not have run yet)"
+          );
+        } else {
+          // Log other errors but continue (fail open for safety)
+          console.error("Error fetching blocked domains:", error);
+        }
+      }
+
       for (const source of sources) {
         try {
-          const result = await fetchSingleFeed(source.id, source.url, db);
+          const result = await fetchSingleFeed(
+            source.id,
+            source.url,
+            db,
+            blockedDomainsList
+          );
           console.log(
             `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
           );
@@ -275,11 +301,14 @@ export async function fetchAllFeeds(
 
 /**
  * Fetch a single feed and store new articles
+ *
+ * @param blockedDomainsList - Optional pre-fetched list of blocked domains (avoids redundant queries in batch processing)
  */
 export async function fetchSingleFeed(
   sourceId: number,
   feedUrl: string,
-  db: Database
+  db: Database,
+  blockedDomainsList?: Awaited<ReturnType<typeof getBlockedDomains>>
 ): Promise<FetchSingleResult> {
   return await Sentry.startSpan(
     {
@@ -325,9 +354,31 @@ export async function fetchSingleFeed(
 
               // If no enterprise users, check if domain is blocked
               if (!hasEnterpriseUser) {
-                const blockedDomainsList = await getBlockedDomains(db);
-                const blockedDomains = blockedDomainsList.map((b) => b.domain);
+                // Use cached list if provided (batch processing), otherwise fetch
+                let domainsToCheck = blockedDomainsList;
+                if (!domainsToCheck) {
+                  try {
+                    domainsToCheck = await getBlockedDomains(db);
+                  } catch (error) {
+                    // Safe migration: If table doesn't exist yet, use empty list
+                    if (
+                      error instanceof Error &&
+                      (error.message.includes("no such table") ||
+                        error.message.includes("does not exist"))
+                    ) {
+                      console.warn(
+                        "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
+                      );
+                      domainsToCheck = [];
+                    } else {
+                      // Log other errors but continue (fail open for safety)
+                      console.error("Error fetching blocked domains:", error);
+                      domainsToCheck = [];
+                    }
+                  }
+                }
 
+                const blockedDomains = domainsToCheck.map((b) => b.domain);
                 if (isDomainBlocked(domain, blockedDomains)) {
                   console.log(`Skipping blocked domain: ${domain}`);
                   span.setAttribute("domain_blocked", true);
@@ -341,19 +392,19 @@ export async function fetchSingleFeed(
               }
             }
           } catch (error) {
-            // Safe migration: If table doesn't exist yet, continue with fetch
-            // This allows code to deploy before migrations without errors
+            // Catch subscription/user plan lookup errors
+            // Safe migration: If tables don't exist yet, continue with fetch
             if (
               error instanceof Error &&
               (error.message.includes("no such table") ||
                 error.message.includes("does not exist"))
             ) {
               console.warn(
-                "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
+                "Subscription tables not found - continuing with fetch (migrations may not have run yet)"
               );
             } else {
               // Log other errors but continue (fail open for safety)
-              console.error("Error checking blocked domains:", error);
+              console.error("Error checking subscriptions:", error);
             }
           }
         }
