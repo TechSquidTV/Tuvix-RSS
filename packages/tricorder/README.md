@@ -21,33 +21,31 @@ pnpm add @tuvixrss/tricorder
 ### Browser Extension (Zero Telemetry)
 
 ```typescript
-import { discoverFeeds } from '@tuvixrss/tricorder';
+import { discoverFeeds } from "@tuvixrss/tricorder";
 
 // No telemetry = zero overhead
-const feeds = await discoverFeeds('https://example.com');
+const feeds = await discoverFeeds("https://example.com");
 console.log(`Found ${feeds.length} feeds`);
 ```
 
 ### API Server (With Sentry)
 
 ```typescript
-import { createDefaultRegistry, TelemetryAdapter } from '@tuvixrss/tricorder';
-import * as Sentry from '@sentry/node';
+import { createDefaultRegistry, TelemetryAdapter } from "@tuvixrss/tricorder";
+import * as Sentry from "@sentry/node";
 
 // Create Sentry adapter
 const sentryAdapter: TelemetryAdapter = {
-  startSpan: (options, callback) =>
-    Sentry.startSpan({ ...options }, callback),
+  startSpan: (options, callback) => Sentry.startSpan({ ...options }, callback),
   addBreadcrumb: (breadcrumb) => Sentry.addBreadcrumb(breadcrumb),
-  captureException: (error, context) =>
-    Sentry.captureException(error, context),
+  captureException: (error, context) => Sentry.captureException(error, context),
 };
 
 // Create registry with telemetry
 const registry = createDefaultRegistry({ telemetry: sentryAdapter });
 
 // Full Sentry tracing
-const feeds = await registry.discover('https://podcasts.apple.com/...');
+const feeds = await registry.discover("https://podcasts.apple.com/...");
 ```
 
 ### Custom Discovery Service
@@ -58,13 +56,13 @@ import {
   DiscoveryContext,
   DiscoveredFeed,
   createDefaultRegistry,
-} from '@tuvixrss/tricorder';
+} from "@tuvixrss/tricorder";
 
 class YouTubeDiscoveryService implements DiscoveryService {
   readonly priority = 20; // Run before standard discovery
 
   canHandle(url: string): boolean {
-    return url.includes('youtube.com');
+    return url.includes("youtube.com");
   }
 
   async discover(
@@ -114,10 +112,10 @@ const feeds = await registry.discover(url);
 
 ```typescript
 interface DiscoveredFeed {
-  url: string;           // Feed URL
-  title: string;         // Feed title
-  type: 'rss' | 'atom' | 'rdf' | 'json';
-  description?: string;  // Feed description (optional)
+  url: string; // Feed URL
+  title: string; // Feed title
+  type: "rss" | "atom" | "rdf" | "json";
+  description?: string; // Feed description (optional)
 }
 ```
 
@@ -168,16 +166,16 @@ pnpm run type-check
 ### Error Handling
 
 ```typescript
-import { discoverFeeds, NoFeedsFoundError } from '@tuvixrss/tricorder';
+import { discoverFeeds, NoFeedsFoundError } from "@tuvixrss/tricorder";
 
 try {
-  const feeds = await discoverFeeds('https://example.com');
+  const feeds = await discoverFeeds("https://example.com");
   console.log(`Found ${feeds.length} feeds`);
 } catch (error) {
   if (error instanceof NoFeedsFoundError) {
-    console.log('No feeds found on this website');
+    console.log("No feeds found on this website");
   } else {
-    console.error('Discovery failed:', error);
+    console.error("Discovery failed:", error);
   }
 }
 ```
@@ -185,8 +183,11 @@ try {
 ### Using Individual Services
 
 ```typescript
-import { StandardDiscoveryService, DiscoveryRegistry } from '@tuvixrss/tricorder';
-import { createFeedValidator } from '@tuvixrss/tricorder';
+import {
+  StandardDiscoveryService,
+  DiscoveryRegistry,
+} from "@tuvixrss/tricorder";
+import { createFeedValidator } from "@tuvixrss/tricorder";
 
 // Create registry with only standard discovery
 const registry = new DiscoveryRegistry();
@@ -200,13 +201,13 @@ const context = {
 };
 
 // Run discovery
-const feeds = await registry.discover('https://example.com');
+const feeds = await registry.discover("https://example.com");
 ```
 
 ### Custom Telemetry Adapter
 
 ```typescript
-import { TelemetryAdapter } from '@tuvixrss/tricorder';
+import { TelemetryAdapter } from "@tuvixrss/tricorder";
 
 // Custom console-based telemetry
 const consoleAdapter: TelemetryAdapter = {
@@ -231,11 +232,11 @@ const consoleAdapter: TelemetryAdapter = {
 
 ```typescript
 // In your Chrome extension's background script or content script
-import { discoverFeeds } from '@tuvixrss/tricorder';
+import { discoverFeeds } from "@tuvixrss/tricorder";
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'discoverFeeds') {
+  if (request.action === "discoverFeeds") {
     discoverFeeds(request.url)
       .then((feeds) => {
         sendResponse({ success: true, feeds });
@@ -259,18 +260,18 @@ import {
   isSubdomainOf,
   normalizeFeedUrl,
   stripHtml,
-} from '@tuvixrss/tricorder';
+} from "@tuvixrss/tricorder";
 
 // Check domain relationships
-isSubdomainOf('podcasts.apple.com', 'apple.com'); // true
-isSubdomainOf('example.com', 'apple.com'); // false
+isSubdomainOf("podcasts.apple.com", "apple.com"); // true
+isSubdomainOf("example.com", "apple.com"); // false
 
 // Normalize URLs for deduplication
-normalizeFeedUrl('https://Example.com/feed/?utm_source=twitter');
+normalizeFeedUrl("https://Example.com/feed/?utm_source=twitter");
 // Returns: "https://example.com/feed"
 
 // Strip HTML from text
-stripHtml('<p>Hello <strong>world</strong>!</p>');
+stripHtml("<p>Hello <strong>world</strong>!</p>");
 // Returns: "Hello world!"
 ```
 
@@ -295,6 +296,7 @@ All formats are normalized to a consistent `DiscoveredFeed` interface.
 4. Validates feed availability
 
 **Supported URLs**:
+
 - `https://podcasts.apple.com/us/podcast/name/id123`
 - `https://itunes.apple.com/us/podcast/name/id123`
 
@@ -355,16 +357,15 @@ If discovery returns `NoFeedsFoundError`:
 In browser contexts, you may encounter CORS errors:
 
 **Solution for Chrome Extensions**:
+
 ```json
 {
-  "permissions": [
-    "https://*/*",
-    "http://*/*"
-  ]
+  "permissions": ["https://*/*", "http://*/*"]
 }
 ```
 
 **Solution for Web Apps**:
+
 - Use a CORS proxy
 - Perform discovery server-side
 - Request from same origin only
@@ -401,7 +402,7 @@ export class RedditDiscoveryService implements DiscoveryService {
   readonly priority = 30;
 
   canHandle(url: string): boolean {
-    return url.includes('reddit.com/r/');
+    return url.includes("reddit.com/r/");
   }
 
   async discover(

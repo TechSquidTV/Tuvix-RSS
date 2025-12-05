@@ -7,11 +7,13 @@ This directory contains authentication and security utilities for TuvixRSS. The 
 ## Better Auth Integration
 
 The project uses [Better Auth](https://www.better-auth.com/) for authentication. See:
+
 - `better-auth.ts` - Better Auth configuration
 - `/api/auth/*` - Better Auth endpoints (handled automatically)
 - Frontend: `packages/app/src/lib/auth-client.ts` - Better Auth React client
 
 ### Better Auth Features
+
 - Email/password authentication
 - Username-based login (via Username plugin)
 - Admin role management (via Admin plugin)
@@ -23,20 +25,25 @@ The project uses [Better Auth](https://www.better-auth.com/) for authentication.
 ## Modules
 
 ### 🔐 `password.ts`
+
 Minimal password hashing utilities for admin initialization and tests only.
 
 **Note**: Better Auth handles password hashing for regular authentication flows. This module is only used for:
+
 - Admin user initialization (`services/admin-init.ts`)
 - Test database seeding (`test/setup.ts`)
 
 **Functions**:
+
 - `hashPassword(password, saltRounds?)` - Hash a password
 - `verifyPassword(password, hash)` - Verify a password
 
 ### 📋 `security.ts`
+
 Security audit logging and utilities.
 
 **Features**:
+
 - Comprehensive audit logging
 - IP address and user agent extraction
 
@@ -48,7 +55,6 @@ The following modules have been removed as Better Auth handles these features:
 
 - **`jwt.ts`** - Removed. Better Auth uses HTTP-only cookies for sessions.
 - **`rate-limit.ts`** - Removed. Better Auth rate limiting is disabled; we use custom Cloudflare Workers rate limit bindings instead.
-
 
 ## Configuration
 
@@ -63,6 +69,7 @@ BETTER_AUTH_URL=http://localhost:5173  # Uses BASE_URL if not set
 ### Better Auth Configuration
 
 See `better-auth.ts` for configuration:
+
 - Database adapter (Drizzle)
 - Username plugin
 - Admin plugin
@@ -72,6 +79,7 @@ See `better-auth.ts` for configuration:
 ## Database Schema
 
 Better Auth requires these tables (added via migration):
+
 - `user` - Better Auth user table
 - `session` - Session management
 - `account` - Account providers (email/password, social, etc.)
@@ -82,10 +90,11 @@ Better Auth uses the `user` table as the single source of truth for user data.
 ## Testing
 
 For tests that need password hashing:
-```typescript
-import { hashPassword } from '@/auth/password';
 
-const hash = await hashPassword('TestPass123!');
+```typescript
+import { hashPassword } from "@/auth/password";
+
+const hash = await hashPassword("TestPass123!");
 ```
 
 ## Further Reading

@@ -3,15 +3,15 @@ name: Docker Build & Test
 on:
   pull_request:
     paths:
-      - 'packages/api/**'
-      - 'packages/app/**'
-      - 'packages/tricorder/**'
-      - 'docker-compose.yml'
-      - 'docker-compose.test.yml'
-      - '**/Dockerfile'
-      - '.dockerignore'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
+      - "packages/api/**"
+      - "packages/app/**"
+      - "packages/tricorder/**"
+      - "docker-compose.yml"
+      - "docker-compose.test.yml"
+      - "**/Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "pnpm-lock.yaml"
   push:
     branches:
       - main

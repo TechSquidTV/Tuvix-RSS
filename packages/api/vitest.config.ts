@@ -5,13 +5,13 @@ export default defineConfig({
   test: {
     // Test environment
     environment: "node",
-    
+
     // Disable watch mode by default (use --watch flag to enable)
     watch: false,
-    
+
     // Global test setup
     globals: true,
-    
+
     // Coverage configuration
     coverage: {
       provider: "v8",
@@ -43,15 +43,15 @@ export default defineConfig({
         statements: 0,
       },
     },
-    
+
     // Include/exclude patterns
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", "dist", "drizzle"],
-    
+
     // Test timeout
     testTimeout: 10000,
   },
-  
+
   // Path resolution - match tsconfig.json
   resolve: {
     alias: {
@@ -69,4 +69,3 @@ export default defineConfig({
     },
   },
 });
-

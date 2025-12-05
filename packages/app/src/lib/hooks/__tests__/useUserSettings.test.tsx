@@ -19,9 +19,8 @@ vi.mock("sonner", () => ({
 }));
 
 // Import the hooks after mocks are set up
-const { useUserSettings, useUpdateUserSettings, useUserUsage } = await import(
-  "../useUserSettings"
-);
+const { useUserSettings, useUpdateUserSettings, useUserUsage } =
+  await import("../useUserSettings");
 
 describe("useUserSettings", () => {
   beforeEach(() => {

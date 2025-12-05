@@ -23,7 +23,7 @@ import {
   isDomainBlocked,
   getBlockedDomains,
 } from "@/utils/domain-checker";
-import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
+import { chunkArray, D1_MAX_PARAMETERS, supportsBatch } from "@/db/utils";
 import { emitCounter, emitGauge, withTiming } from "@/utils/metrics";
 import { extractItunesImage } from "@/utils/feed-utils";
 import { extractCommentLink } from "./comment-link-extraction";
@@ -63,22 +63,47 @@ type AnyItem =
 
 /**
  * Fetch all feeds from the database and update articles
+ *
+ * Implements batching to process a limited number of feeds per execution
+ * to stay within Cloudflare Workers' CPU time and API request limits.
  */
-export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
+export async function fetchAllFeeds(
+  db: Database,
+  options?: { maxFeedsPerBatch?: number }
+): Promise<FetchResult> {
   return await withTiming(
     "rss.fetch_all_duration",
     async () => {
-      const sources = await db.select().from(schema.sources);
+      // Default to 100 feeds per batch - optimized for faster rotation
+      // With 1-minute cron frequency, this processes 6,000 feeds/hour
+      const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 100;
+
+      // Get sources, ordered by lastFetched (oldest first, null first)
+      // This ensures we rotate through all feeds over time
+      // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
+      const sources = await db
+        .select()
+        .from(schema.sources)
+        .orderBy(schema.sources.lastFetched)
+        .limit(maxFeedsPerBatch);
+
+      // Get total count for metrics
+      // Note: Drizzle ORM type inference requires .select() with no args
+      const totalCountResult = await db.select().from(schema.sources);
+      const totalSources = totalCountResult.length;
 
       let successCount = 0;
       let errorCount = 0;
       const errors: Array<{ sourceId: number; url: string; error: string }> =
         [];
 
-      console.log(`Starting fetch for ${sources.length} sources`);
+      console.log(
+        `Starting fetch for ${sources.length} sources (${totalSources} total, batch size: ${maxFeedsPerBatch})`
+      );
 
       // Emit gauge for total sources
-      emitGauge("rss.sources_total", sources.length);
+      emitGauge("rss.sources_total", totalSources);
+      emitGauge("rss.sources_in_batch", sources.length);
 
       for (const source of sources) {
         try {
@@ -87,6 +112,12 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
             `✓ Fetched ${source.url}: ${result.articlesAdded} new, ${result.articlesSkipped} skipped`
           );
           successCount++;
+
+          // Add small delay between feeds to avoid rate limiting
+          // This helps prevent HTTP 429 errors from external APIs
+          if (sources.length > 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+          }
         } catch (error) {
           errorCount++;
           const errorMessage =
@@ -97,17 +128,24 @@ export async function fetchAllFeeds(db: Database): Promise<FetchResult> {
             error: errorMessage,
           });
           console.error(`✗ Failed to fetch ${source.url}:`, errorMessage);
+
+          // Add longer delay after errors to back off from rate limits
+          if (sources.length > 1) {
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay after error
+          }
         }
       }
 
       console.log(
-        `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length}`
+        `Fetch complete: ${successCount} succeeded, ${errorCount} failed out of ${sources.length} (batch ${sources.length}/${totalSources})`
       );
 
       // Emit aggregate metrics
       emitCounter("rss.batch_completed", 1, {
         success_count: successCount.toString(),
         error_count: errorCount.toString(),
+        batch_size: sources.length.toString(),
+        total_sources: totalSources.toString(),
       });
 
       return {
@@ -159,6 +197,7 @@ export async function fetchSingleFeed(
 
               let hasEnterpriseUser = false;
               for (const chunk of chunks) {
+                // Select all fields - inArray requires this for type inference
                 const users = await db
                   .select()
                   .from(schema.user)
@@ -477,61 +516,141 @@ async function storeArticles(
 
       span.setAttribute("items_found", items.length);
 
-      let articlesAdded = 0;
       let articlesSkipped = 0;
       const sampleGuids: string[] = [];
 
+      // Step 1: Extract GUIDs from all items
+      const itemsWithGuids: Array<{ item: AnyItem; guid: string }> = [];
+
       for (const item of items) {
+        const guid = extractGuid(item, sourceId);
+
+        if (!guid) {
+          console.warn("Skipping item without guid:", item.title || "Untitled");
+          articlesSkipped++;
+          continue;
+        }
+
+        // Log first 5 GUIDs as breadcrumbs
+        if (sampleGuids.length < 5) {
+          sampleGuids.push(guid);
+        }
+
+        itemsWithGuids.push({ item, guid });
+      }
+
+      if (itemsWithGuids.length === 0) {
+        span.setAttribute("articles_added", 0);
+        span.setAttribute("articles_skipped", articlesSkipped);
+        span.setStatus({ code: 1, message: "No valid items" });
+        return { articlesAdded: 0, articlesSkipped };
+      }
+
+      // Step 2: Batch check which articles already exist
+      // Split into chunks to respect D1 parameter limits
+      const allGuids = itemsWithGuids.map((x) => x.guid);
+      const guidChunks = chunkArray(allGuids, D1_MAX_PARAMETERS - 1);
+      const existingGuidsSet = new Set<string>();
+
+      for (const chunk of guidChunks) {
+        const existing = await db
+          .select()
+          .from(schema.articles)
+          .where(inArray(schema.articles.guid, chunk));
+
+        for (const row of existing) {
+          existingGuidsSet.add(row.guid);
+        }
+      }
+
+      // Step 3: Filter out existing articles and extract data for new ones
+      const newArticlesData: Array<typeof schema.articles.$inferInsert> = [];
+
+      for (const { item, guid } of itemsWithGuids) {
+        if (existingGuidsSet.has(guid)) {
+          articlesSkipped++;
+          continue;
+        }
+
         try {
-          // Generate GUID (required for deduplication)
-          const guid = extractGuid(item, sourceId);
-
-          if (!guid) {
-            console.warn(
-              "Skipping item without guid:",
-              item.title || "Untitled"
-            );
-            articlesSkipped++;
-            continue;
-          }
-
-          // Log first 5 GUIDs as breadcrumbs
-          if (sampleGuids.length < 5) {
-            sampleGuids.push(guid);
-          }
-
-          // Check if article already exists
-          const existing = await db
-            .select()
-            .from(schema.articles)
-            .where(eq(schema.articles.guid, guid))
-            .limit(1)
-            .then((rows) => rows[0]);
-
-          if (existing) {
-            articlesSkipped++;
-            continue;
-          }
-
-          // Extract article data
-          const articleData = await extractArticleData(item, sourceId, guid);
-
-          // Insert article
-          await db.insert(schema.articles).values(articleData);
-          articlesAdded++;
+          // Extract article data (skip OG image fetching during cron to save HTTP requests)
+          const articleData = await extractArticleData(
+            item,
+            sourceId,
+            guid,
+            true
+          );
+          newArticlesData.push(articleData);
         } catch (error) {
-          console.error("Failed to store article:", error);
+          console.error("Failed to extract article data:", error);
           await Sentry.captureException(error, {
             level: "warning",
             tags: {
-              operation: "store_article",
+              operation: "extract_article_data",
               source_id: sourceId.toString(),
             },
             extra: {
               item_title: "title" in item ? item.title : "Unknown",
             },
           });
+          articlesSkipped++;
           // Continue with next article
+        }
+      }
+
+      // Step 4: Batch insert all new articles
+      let articlesAdded = 0;
+
+      if (newArticlesData.length > 0) {
+        // Split into chunks for batch insert (D1 batch API supports multiple statements)
+        const insertChunks = chunkArray(newArticlesData, 50); // Conservative chunk size
+
+        for (const chunk of insertChunks) {
+          try {
+            // Use batch API if available (Cloudflare D1), otherwise insert sequentially
+            if (supportsBatch(db)) {
+              const statements = chunk.map((data) =>
+                db.insert(schema.articles).values(data)
+              );
+              // Type assertion needed: Drizzle's insert() returns PgInsertBase which doesn't match DatabaseWithBatch's expected type
+              // This is safe because D1's batch() accepts Drizzle insert statements
+              await db.batch(
+                statements as Array<{ execute: () => Promise<unknown> }>
+              );
+              articlesAdded += chunk.length;
+            } else {
+              // Fallback for better-sqlite3 (local dev)
+              for (const data of chunk) {
+                await db.insert(schema.articles).values(data);
+                articlesAdded++;
+              }
+            }
+          } catch (error) {
+            console.error("Failed to batch insert articles:", error);
+            await Sentry.captureException(error, {
+              level: "warning",
+              tags: {
+                operation: "batch_insert_articles",
+                source_id: sourceId.toString(),
+              },
+              extra: {
+                chunk_size: chunk.length,
+              },
+            });
+            // Try inserting one by one as fallback
+            for (const data of chunk) {
+              try {
+                await db.insert(schema.articles).values(data);
+                articlesAdded++;
+              } catch (insertError) {
+                console.error(
+                  "Failed to insert individual article:",
+                  insertError
+                );
+                articlesSkipped++;
+              }
+            }
+          }
         }
       }
 
@@ -651,7 +770,8 @@ function extractPublishedDate(item: AnyItem): Date | null {
 async function extractArticleData(
   item: AnyItem,
   sourceId: number,
-  guid: string
+  guid: string,
+  skipOgImageFetch = false
 ): Promise<typeof schema.articles.$inferInsert> {
   // Title
   const title = ("title" in item && item.title) || "Untitled";
@@ -869,7 +989,8 @@ async function extractArticleData(
   }
 
   // Final fallback: OpenGraph image from article URL
-  if (!imageUrl && link) {
+  // Skip during cron job to reduce HTTP requests and stay within worker limits
+  if (!imageUrl && link && !skipOgImageFetch) {
     await Sentry.startSpan(
       {
         op: "http.client",

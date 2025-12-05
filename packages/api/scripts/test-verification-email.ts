@@ -21,7 +21,9 @@ async function main() {
 
   if (!email) {
     console.error("❌ Error: Please provide an email address");
-    console.error("Usage: pnpm exec tsx scripts/test-verification-email.ts <email>");
+    console.error(
+      "Usage: pnpm exec tsx scripts/test-verification-email.ts <email>"
+    );
     process.exit(1);
   }
 

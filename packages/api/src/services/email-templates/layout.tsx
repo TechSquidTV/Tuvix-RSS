@@ -118,4 +118,3 @@ export const EmailLayout: React.FC<Readonly<EmailLayoutProps>> = ({
 };
 
 export default EmailLayout;
-

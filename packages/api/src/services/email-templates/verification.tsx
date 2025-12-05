@@ -1,9 +1,4 @@
-import {
-  Button,
-  Heading,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Button, Heading, Section, Text } from "@react-email/components";
 import * as React from "react";
 import { EmailLayout } from "./layout";
 
@@ -12,9 +7,10 @@ interface VerificationEmailProps {
   verificationUrl: string;
 }
 
-export const VerificationEmail: React.FC<
-  Readonly<VerificationEmailProps>
-> = ({ username, verificationUrl }) => {
+export const VerificationEmail: React.FC<Readonly<VerificationEmailProps>> = ({
+  username,
+  verificationUrl,
+}) => {
   // Extract base URL from verification URL for logo
   let appUrl = "http://localhost:5173";
   try {
@@ -25,10 +21,7 @@ export const VerificationEmail: React.FC<
   }
 
   return (
-    <EmailLayout
-      preview="Verify your TuvixRSS email address"
-      appUrl={appUrl}
-    >
+    <EmailLayout preview="Verify your TuvixRSS email address" appUrl={appUrl}>
       <Section className="mt-4">
         <Heading className="mx-0 mb-8 mt-2 p-0 text-lg font-normal">
           Verify Your Email Address
@@ -53,12 +46,12 @@ export const VerificationEmail: React.FC<
 
       <Section className="mt-4">
         <Text className="text-[14px] leading-6 text-muted">
-          This link will expire in 1 hour. If you didn&apos;t create an
-          account, you can safely ignore this email.
+          This link will expire in 1 hour. If you didn&apos;t create an account,
+          you can safely ignore this email.
         </Text>
         <Text className="text-[14px] leading-6 text-muted">
-          If the button doesn&apos;t work, copy and paste this link into
-          your browser:
+          If the button doesn&apos;t work, copy and paste this link into your
+          browser:
         </Text>
         <Text className="text-[14px] leading-6 text-[#0066cc] break-all">
           {verificationUrl}
@@ -69,4 +62,3 @@ export const VerificationEmail: React.FC<
 };
 
 export default VerificationEmail;
-

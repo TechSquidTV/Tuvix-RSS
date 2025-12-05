@@ -1,18 +1,18 @@
-name: 'Setup Node.js and pnpm'
-description: 'Sets up Node.js and pnpm with caching'
+name: "Setup Node.js and pnpm"
+description: "Sets up Node.js and pnpm with caching"
 
 inputs:
   node-version:
-    description: 'Node.js version'
+    description: "Node.js version"
     required: false
-    default: '20'
+    default: "20"
   pnpm-version:
-    description: 'pnpm version'
+    description: "pnpm version"
     required: false
-    default: '10.19.0'
+    default: "10.19.0"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
@@ -23,9 +23,8 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'pnpm'
+        cache: "pnpm"
 
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
-
