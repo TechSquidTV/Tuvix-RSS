@@ -10,7 +10,7 @@ import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
 import type { Database } from "../db/client";
 import * as schema from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or, isNull, lt } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
 import {
   sanitizeHtml,
@@ -69,7 +69,10 @@ type AnyItem =
  */
 export async function fetchAllFeeds(
   db: Database,
-  options?: { maxFeedsPerBatch?: number }
+  options?: {
+    maxFeedsPerBatch?: number;
+    stalenessThresholdMinutes?: number;
+  }
 ): Promise<FetchResult> {
   return await withTiming(
     "rss.fetch_all_duration",
@@ -79,12 +82,28 @@ export async function fetchAllFeeds(
       // Lower batch size prevents "Too many API requests by single worker invocation" errors
       const maxFeedsPerBatch = options?.maxFeedsPerBatch ?? 20;
 
-      // Get sources, ordered by lastFetched (oldest first, null first)
+      // Default to 30-minute staleness threshold (Phase 2: Staleness-based filtering)
+      // Only process feeds that haven't been fetched in the last N minutes
+      // This prevents wasting resources on recently-fetched feeds
+      const stalenessThresholdMinutes =
+        options?.stalenessThresholdMinutes ?? 30;
+      const staleThreshold = new Date(
+        Date.now() - stalenessThresholdMinutes * 60 * 1000
+      );
+
+      // Get sources that are "stale" (not fetched recently)
+      // Ordered by lastFetched (oldest first, null first)
       // This ensures we rotate through all feeds over time
       // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
       const sources = await db
         .select()
         .from(schema.sources)
+        .where(
+          or(
+            isNull(schema.sources.lastFetched), // Never fetched
+            lt(schema.sources.lastFetched, staleThreshold) // Older than threshold
+          )
+        )
         .orderBy(schema.sources.lastFetched)
         .limit(maxFeedsPerBatch);
 
@@ -93,17 +112,30 @@ export async function fetchAllFeeds(
       const totalCountResult = await db.select().from(schema.sources);
       const totalSources = totalCountResult.length;
 
+      // Get total stale feeds for metrics
+      const totalStaleResult = await db
+        .select()
+        .from(schema.sources)
+        .where(
+          or(
+            isNull(schema.sources.lastFetched),
+            lt(schema.sources.lastFetched, staleThreshold)
+          )
+        );
+      const totalStaleFeeds = totalStaleResult.length;
+
       let successCount = 0;
       let errorCount = 0;
       const errors: Array<{ sourceId: number; url: string; error: string }> =
         [];
 
       console.log(
-        `Starting fetch for ${sources.length} sources (${totalSources} total, batch size: ${maxFeedsPerBatch})`
+        `Starting fetch for ${sources.length} sources (${totalStaleFeeds} stale feeds, ${totalSources} total, batch size: ${maxFeedsPerBatch}, staleness threshold: ${stalenessThresholdMinutes}min)`
       );
 
       // Emit gauge for total sources
       emitGauge("rss.sources_total", totalSources);
+      emitGauge("rss.sources_stale", totalStaleFeeds);
       emitGauge("rss.sources_in_batch", sources.length);
 
       for (const source of sources) {
