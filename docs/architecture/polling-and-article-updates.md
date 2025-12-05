@@ -781,11 +781,13 @@ if (domain) {
 ```
 
 **Benefits**:
+
 - Saves bandwidth (no HTTP request to blocked sites)
 - Prevents storage of unwanted content
 - Reduces D1 query usage
 
 **Trade-offs**:
+
 - Affects all users equally (no per-user bypass at fetch level)
 - Blocked feeds won't appear in any user's feed, regardless of plan
 
@@ -877,6 +879,7 @@ for (const source of sources) {
 ```
 
 **Query Savings**:
+
 - Before optimization: 20 queries per batch (once per feed)
 - After optimization: 1 query per batch
 - **Savings**: 95% reduction (19 queries saved per batch)
@@ -886,12 +889,14 @@ for (const source of sources) {
 Currently, all users are affected equally by blocked domains at fetch-time. Enterprise bypass is planned for implementation at the **delivery-time** (query filtering) level:
 
 **Planned Approach**:
+
 - Fetch all feeds (including blocked domains)
 - Store blocked status with articles
 - Filter at query time based on user plan
 - Enterprise users can opt-in to see blocked content
 
 **Trade-offs**:
+
 - Pro: Enterprise flexibility
 - Con: Wastes resources fetching blocked content
 - Con: Requires additional storage and query filtering

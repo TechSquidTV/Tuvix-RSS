@@ -217,7 +217,8 @@ export async function fetchAllFeeds(
 
       // Fetch blocked domains once per batch (not per feed)
       // This reduces 20 redundant queries per batch to just 1
-      let blockedDomainsList: Awaited<ReturnType<typeof getBlockedDomains>> = [];
+      let blockedDomainsList: Awaited<ReturnType<typeof getBlockedDomains>> =
+        [];
       try {
         blockedDomainsList = await getBlockedDomains(db);
       } catch (error) {
