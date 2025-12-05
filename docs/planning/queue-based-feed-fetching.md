@@ -222,12 +222,14 @@ Tests added for:
 #### Query Optimization Summary (PR #81)
 
 **Before Optimizations:**
+
 - Count queries: Loading all rows into memory to get count (~2 queries)
 - Blocked domains: 20 redundant `getBlockedDomains()` calls per batch
 - Subscription/user plan lookups: 40+ queries for enterprise bypass logic
 - **Total**: ~62+ queries per batch just for overhead
 
 **After Optimizations:**
+
 - Count queries: SQL `COUNT(*)` aggregation via `db.$count()` (~2 queries, O(1) memory)
 - Blocked domains: 1 cached query per batch (passed to each feed)
 - Enterprise bypass: Removed from fetch-time (will be at delivery-time)
@@ -1216,6 +1218,7 @@ await rateLimiter.throttle(domain, 60, 60000); // 60 req/min
 **Short-term (Complete): Phase 2 Refinements**
 
 ✅ Phase 2 is complete and merged in PR #81. Key achievements:
+
 - Staleness-based filtering implemented
 - Blocked domains caching optimization
 - Count query optimization with `db.$count()`
