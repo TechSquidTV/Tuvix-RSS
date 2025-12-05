@@ -217,25 +217,7 @@ export async function fetchAllFeeds(
 
       // Fetch blocked domains once per batch (not per feed)
       // This reduces 20 redundant queries per batch to just 1
-      let blockedDomainsList: Awaited<ReturnType<typeof getBlockedDomains>> =
-        [];
-      try {
-        blockedDomainsList = await getBlockedDomains(db);
-      } catch (error) {
-        // Safe migration: If table doesn't exist yet, continue with empty list
-        if (
-          error instanceof Error &&
-          (error.message.includes("no such table") ||
-            error.message.includes("does not exist"))
-        ) {
-          console.warn(
-            "blocked_domains table not found - continuing without domain blocking (migrations may not have run yet)"
-          );
-        } else {
-          // Log other errors but continue (fail open for safety)
-          console.error("Error fetching blocked domains:", error);
-        }
-      }
+      const blockedDomainsList = await getBlockedDomains(db);
 
       for (const source of sources) {
         try {
@@ -330,28 +312,8 @@ export async function fetchSingleFeed(
         const domain = extractDomain(feedUrl);
         if (domain) {
           // Use cached list if provided (batch processing), otherwise fetch
-          let domainsToCheck = blockedDomainsList;
-          if (!domainsToCheck) {
-            try {
-              domainsToCheck = await getBlockedDomains(db);
-            } catch (error) {
-              // Safe migration: If table doesn't exist yet, use empty list
-              if (
-                error instanceof Error &&
-                (error.message.includes("no such table") ||
-                  error.message.includes("does not exist"))
-              ) {
-                console.warn(
-                  "blocked_domains table not found - continuing with fetch (migrations may not have run yet)"
-                );
-                domainsToCheck = [];
-              } else {
-                // Log other errors but continue (fail open for safety)
-                console.error("Error fetching blocked domains:", error);
-                domainsToCheck = [];
-              }
-            }
-          }
+          const domainsToCheck =
+            blockedDomainsList ?? (await getBlockedDomains(db));
 
           const blockedDomains = domainsToCheck.map((b) => b.domain);
           if (isDomainBlocked(domain, blockedDomains)) {

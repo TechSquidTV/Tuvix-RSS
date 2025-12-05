@@ -252,7 +252,7 @@ describe("getBlockedDomains", () => {
     });
   });
 
-  it("should handle missing table gracefully (safe migration)", async () => {
+  it("should throw error when table does not exist", async () => {
     // Create a mock database that throws "no such table" error
     const mockDb = {
       select: () => ({
@@ -262,8 +262,9 @@ describe("getBlockedDomains", () => {
       }),
     } as any;
 
-    const result = await getBlockedDomains(mockDb);
-    expect(result).toEqual([]);
+    await expect(getBlockedDomains(mockDb)).rejects.toThrow(
+      "no such table: blocked_domains"
+    );
   });
 
   it("should re-throw non-table errors", async () => {

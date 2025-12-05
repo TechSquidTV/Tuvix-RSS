@@ -162,35 +162,16 @@ export function getBlockedDomainReason(
 /**
  * Get all blocked domains from database
  *
- * Safe migration: Returns empty array if table doesn't exist yet (migrations run after deployment).
- * This allows code to deploy before migrations without errors.
- *
  * @param db - Database instance
  * @returns Array of blocked domain objects with domain and reason
+ * @throws Error if blocked_domains table does not exist or query fails
  */
 export async function getBlockedDomains(
   db: Database
 ): Promise<Array<{ domain: string; reason: string | null }>> {
-  try {
-    const blocked = await db.select().from(schema.blockedDomains);
-    return blocked.map((b) => ({
-      domain: b.domain,
-      reason: b.reason,
-    }));
-  } catch (error) {
-    // Safe migration: If table doesn't exist yet, return empty array
-    // This allows code to deploy before migrations without errors
-    if (
-      error instanceof Error &&
-      (error.message.includes("no such table") ||
-        error.message.includes("does not exist"))
-    ) {
-      console.warn(
-        "blocked_domains table not found - migrations may not have run yet. Returning empty blocked domains list."
-      );
-      return [];
-    }
-    // Re-throw other errors
-    throw error;
-  }
+  const blocked = await db.select().from(schema.blockedDomains);
+  return blocked.map((b) => ({
+    domain: b.domain,
+    reason: b.reason,
+  }));
 }
