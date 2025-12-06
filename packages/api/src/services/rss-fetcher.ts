@@ -187,19 +187,23 @@ export async function fetchAllFeeds(
         Date.now() - stalenessThresholdMinutes * 60 * 1000
       );
 
-      // Get sources that are "stale" (not fetched recently)
-      // Ordered by lastFetched (oldest first, null first)
-      // This ensures we rotate through all feeds over time
-      // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
-      const sources = await getStaleSources(
-        db,
-        staleThreshold,
-        maxFeedsPerBatch
-      );
-
-      // Get metrics for monitoring
-      const totalSources = await getTotalSourcesCount(db);
-      const totalStaleFeeds = await getStaleSourcesCount(db, staleThreshold);
+      // Execute all independent database queries in parallel to reduce latency
+      // This prevents consecutive DB queries issue and reduces total query time
+      // from ~270ms * 4 = ~1080ms down to ~270ms (time of slowest query)
+      const [sources, totalSources, totalStaleFeeds, blockedDomainsList] =
+        await Promise.all([
+          // Get sources that are "stale" (not fetched recently)
+          // Ordered by lastFetched (oldest first, null first)
+          // This ensures we rotate through all feeds over time
+          // IMPORTANT: Use .limit() server-side to avoid loading all feeds into memory
+          getStaleSources(db, staleThreshold, maxFeedsPerBatch),
+          // Get metrics for monitoring
+          getTotalSourcesCount(db),
+          getStaleSourcesCount(db, staleThreshold),
+          // Fetch blocked domains once per batch (not per feed)
+          // This reduces 20 redundant queries per batch to just 1
+          getBlockedDomains(db),
+        ]);
 
       let successCount = 0;
       let errorCount = 0;
@@ -214,10 +218,6 @@ export async function fetchAllFeeds(
       emitGauge("rss.sources_total", totalSources);
       emitGauge("rss.sources_stale", totalStaleFeeds);
       emitGauge("rss.sources_in_batch", sources.length);
-
-      // Fetch blocked domains once per batch (not per feed)
-      // This reduces 20 redundant queries per batch to just 1
-      const blockedDomainsList = await getBlockedDomains(db);
 
       for (const source of sources) {
         try {
