@@ -117,10 +117,10 @@ describe("Admin Metrics Utilities", () => {
       vi.useRealTimers();
     });
 
-    it("should return date 1 day ago for days=1", () => {
+    it("should return date 1 day ago at midnight UTC for days=1", () => {
       const result = calculateStartDate(1);
 
-      expect(result.toISOString().split("T")[0]).toBe("2024-01-19");
+      expect(result.toISOString()).toBe("2024-01-19T00:00:00.000Z");
     });
 
     it("should throw error for days=0", () => {
@@ -147,15 +147,19 @@ describe("Admin Metrics Utilities", () => {
     it("should handle large day values", () => {
       const result = calculateStartDate(365);
 
-      expect(result.toISOString().split("T")[0]).toBe("2023-01-20");
+      expect(result.toISOString()).toBe("2023-01-20T00:00:00.000Z");
     });
 
-    it("should handle fractional days", () => {
-      // 1.5 days = 36 hours
+    it("should handle fractional days and snap to midnight", () => {
+      // 1.5 days = 36 hours, but should snap to midnight
       const result = calculateStartDate(1.5);
 
-      // Should be valid date approximately 1.5 days ago
+      // Should be valid date at midnight, approximately 1.5 days ago
       expect(result instanceof Date).toBe(true);
+      expect(result.getUTCHours()).toBe(0);
+      expect(result.getUTCMinutes()).toBe(0);
+      expect(result.getUTCSeconds()).toBe(0);
+      expect(result.getUTCMilliseconds()).toBe(0);
       expect(result.getTime()).toBeLessThan(Date.now());
     });
   });
