@@ -36,6 +36,8 @@ export function ApiUsageChart({ data }: ApiUsageChartProps) {
         : item.endpoint,
   }));
 
+  const hasData = displayData.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -43,32 +45,38 @@ export function ApiUsageChart({ data }: ApiUsageChartProps) {
         <CardDescription>Top endpoints by request count</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <BarChart
-            accessibilityLayer
-            data={displayData}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="endpoint"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              angle={-45}
-              textAnchor="end"
-              height={80}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-          </BarChart>
-        </ChartContainer>
+        {hasData ? (
+          <ChartContainer config={chartConfig}>
+            <BarChart
+              accessibilityLayer
+              data={displayData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="endpoint"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel />}
+              />
+              <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <div className="flex h-[350px] items-center justify-center text-sm text-muted-foreground">
+            No data available for this time period
+          </div>
+        )}
       </CardContent>
     </Card>
   );
