@@ -1283,7 +1283,7 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+      const startDate = calculateStartDate(input.days);
 
       // Get articles where either publishedAt or createdAt is within range
       // Use or() to check both publishedAt and createdAt separately
@@ -1452,7 +1452,7 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const startDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+      const startDate = calculateStartDate(input.days);
 
       const logs = await ctx.db
         .select()
