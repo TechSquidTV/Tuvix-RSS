@@ -56,7 +56,7 @@ export function aggregateByDay<T>(
  * Calculate the start date for a time range
  *
  * @param days - Number of days to go back (must be a positive integer >= 1)
- * @returns Start date
+ * @returns Start date at midnight UTC
  * @throws Error if days is not a positive finite number
  */
 export function calculateStartDate(days: number): Date {
@@ -65,5 +65,8 @@ export function calculateStartDate(days: number): Date {
       "calculateStartDate: 'days' must be a positive number (>= 1)"
     );
   }
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  // Set to start of day (midnight UTC) to ensure consistent date boundaries
+  date.setUTCHours(0, 0, 0, 0);
+  return date;
 }

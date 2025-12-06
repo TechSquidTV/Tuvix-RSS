@@ -37,24 +37,30 @@ function AdminDashboard() {
   const { data: rateLimitStats } = trpc.admin.getRateLimitStats.useQuery();
 
   // Analytics queries
-  const { data: userGrowth } = trpc.admin.getUserGrowth.useQuery({
-    days: timeRange,
-  });
-  const { data: articleActivity } = trpc.admin.getArticleActivity.useQuery({
-    days: timeRange,
-  });
-  const { data: publicFeedAccess } = trpc.admin.getPublicFeedAccess.useQuery({
-    days: timeRange,
-  });
-  const { data: apiUsage } = trpc.admin.getApiUsage.useQuery({
-    days: timeRange,
-  });
-  const { data: securityEvents } = trpc.admin.getSecurityEvents.useQuery({
-    days: timeRange,
-  });
-  const { data: articlesRead } = trpc.admin.getArticlesRead.useQuery({
-    days: timeRange,
-  });
+  const { data: userGrowth, isLoading: isLoadingUserGrowth } =
+    trpc.admin.getUserGrowth.useQuery({
+      days: timeRange,
+    });
+  const { data: articleActivity, isLoading: isLoadingArticleActivity } =
+    trpc.admin.getArticleActivity.useQuery({
+      days: timeRange,
+    });
+  const { data: publicFeedAccess, isLoading: isLoadingPublicFeedAccess } =
+    trpc.admin.getPublicFeedAccess.useQuery({
+      days: timeRange,
+    });
+  const { data: apiUsage, isLoading: isLoadingApiUsage } =
+    trpc.admin.getApiUsage.useQuery({
+      days: timeRange,
+    });
+  const { data: securityEvents, isLoading: isLoadingSecurityEvents } =
+    trpc.admin.getSecurityEvents.useQuery({
+      days: timeRange,
+    });
+  const { data: articlesRead, isLoading: isLoadingArticlesRead } =
+    trpc.admin.getArticlesRead.useQuery({
+      days: timeRange,
+    });
 
   if (isLoading) {
     return (
@@ -230,20 +236,24 @@ function AdminDashboard() {
 
       {/* Analytics Charts */}
       <div className="grid gap-4 md:grid-cols-2">
-        {userGrowth?.data && <UserGrowthChart data={userGrowth.data} />}
-        {articleActivity?.data && (
+        {!isLoadingUserGrowth && userGrowth?.data && (
+          <UserGrowthChart data={userGrowth.data} />
+        )}
+        {!isLoadingArticleActivity && articleActivity?.data && (
           <ArticleActivityChart data={articleActivity.data} />
         )}
-        {publicFeedAccess?.data && (
+        {!isLoadingPublicFeedAccess && publicFeedAccess?.data && (
           <PublicFeedAccessChart data={publicFeedAccess.data} />
         )}
-        {apiUsage?.byEndpoint && apiUsage.byEndpoint.length > 0 && (
+        {!isLoadingApiUsage && apiUsage?.byEndpoint && (
           <ApiUsageChart data={apiUsage.byEndpoint} />
         )}
-        {securityEvents?.data && (
+        {!isLoadingSecurityEvents && securityEvents?.data && (
           <SecurityEventsChart data={securityEvents.data} />
         )}
-        {articlesRead?.data && <ArticlesReadChart data={articlesRead.data} />}
+        {!isLoadingArticlesRead && articlesRead?.data && (
+          <ArticlesReadChart data={articlesRead.data} />
+        )}
       </div>
     </div>
   );
