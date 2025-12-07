@@ -52,6 +52,7 @@ const AdminUserSchema = z.object({
   banned: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  lastSeenAt: z.date().nullable(),
   usage: z.object({
     sourceCount: z.number(),
     publicFeedCount: z.number(),
@@ -181,6 +182,7 @@ export const adminRouter = router({
             banned: user.banned || false,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
+            lastSeenAt: user.lastSeenAt,
             usage: usage
               ? {
                   sourceCount: usage.sourceCount,
@@ -276,6 +278,7 @@ export const adminRouter = router({
         banned: user.banned || false,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastSeenAt: user.lastSeenAt,
         usage: {
           sourceCount: usage.sourceCount,
           publicFeedCount: usage.publicFeedCount,
