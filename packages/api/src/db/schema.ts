@@ -38,6 +38,7 @@ export const user = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .$onUpdate(() => new Date())
       .notNull(),
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
     username: text("username").unique(),
     displayUsername: text("display_username"),
     role: text("role"),
@@ -49,6 +50,7 @@ export const user = sqliteTable(
   (table) => [
     index("idx_user_plan").on(table.plan),
     index("idx_user_created_at").on(table.createdAt),
+    index("idx_user_last_seen_at").on(table.lastSeenAt),
   ]
 );
 
