@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { formatDistanceToNow, getRelativeTime } from "../date";
+import {
+  formatDistanceToNow,
+  getRelativeTime,
+  getLastSeenStatusColor,
+} from "../date";
 
 describe("Date Utilities", () => {
   describe("getRelativeTime", () => {
@@ -117,6 +121,76 @@ describe("Date Utilities", () => {
       const date = new Date("2024-01-01T12:00:00Z");
       const result = formatDistanceToNow(date, { addSuffix: true });
       expect(result).toContain("week");
+    });
+  });
+
+  describe("getLastSeenStatusColor", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-01-15T12:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should return muted color for null date", () => {
+      expect(getLastSeenStatusColor(null)).toBe("text-muted-foreground");
+    });
+
+    it("should return green for dates less than 1 hour ago", () => {
+      const date = new Date("2024-01-15T11:30:00Z"); // 30 minutes ago
+      expect(getLastSeenStatusColor(date)).toBe("text-green-600");
+    });
+
+    it("should return green for dates less than 24 hours ago", () => {
+      const date = new Date("2024-01-14T13:00:00Z"); // 23 hours ago
+      expect(getLastSeenStatusColor(date)).toBe("text-green-600");
+    });
+
+    it("should return green for dates exactly 23.99 hours ago", () => {
+      const date = new Date("2024-01-14T12:01:00Z"); // 23 hours 59 minutes ago
+      expect(getLastSeenStatusColor(date)).toBe("text-green-600");
+    });
+
+    it("should return yellow for dates exactly 24 hours ago", () => {
+      const date = new Date("2024-01-14T12:00:00Z"); // Exactly 24 hours ago
+      expect(getLastSeenStatusColor(date)).toBe("text-yellow-600");
+    });
+
+    it("should return yellow for dates 2 days ago", () => {
+      const date = new Date("2024-01-13T12:00:00Z"); // 48 hours ago
+      expect(getLastSeenStatusColor(date)).toBe("text-yellow-600");
+    });
+
+    it("should return yellow for dates 6 days ago", () => {
+      const date = new Date("2024-01-09T12:00:00Z"); // 6 days ago
+      expect(getLastSeenStatusColor(date)).toBe("text-yellow-600");
+    });
+
+    it("should return yellow for dates just under 7 days ago", () => {
+      const date = new Date("2024-01-08T12:01:00Z"); // 6 days 23 hours 59 minutes ago
+      expect(getLastSeenStatusColor(date)).toBe("text-yellow-600");
+    });
+
+    it("should return muted for dates exactly 7 days ago", () => {
+      const date = new Date("2024-01-08T12:00:00Z"); // Exactly 7 days ago
+      expect(getLastSeenStatusColor(date)).toBe("text-muted-foreground");
+    });
+
+    it("should return muted for dates more than 7 days ago", () => {
+      const date = new Date("2024-01-01T12:00:00Z"); // 14 days ago
+      expect(getLastSeenStatusColor(date)).toBe("text-muted-foreground");
+    });
+
+    it("should return muted for dates months ago", () => {
+      const date = new Date("2023-12-15T12:00:00Z"); // 31 days ago
+      expect(getLastSeenStatusColor(date)).toBe("text-muted-foreground");
+    });
+
+    it("should return muted for very old dates", () => {
+      const date = new Date("2023-01-15T12:00:00Z"); // 1 year ago
+      expect(getLastSeenStatusColor(date)).toBe("text-muted-foreground");
     });
   });
 });

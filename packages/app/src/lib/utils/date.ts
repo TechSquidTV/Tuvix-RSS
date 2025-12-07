@@ -70,3 +70,26 @@ export function getRelativeTime(dateString?: string | Date | null): string {
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
   return date.toLocaleDateString();
 }
+
+/**
+ * Get color class based on how recent the last seen date is
+ * - Green: < 24 hours ago
+ * - Yellow: < 7 days ago
+ * - Gray: > 7 days ago or never
+ */
+export function getLastSeenStatusColor(date: Date | null): string {
+  if (!date) return "text-muted-foreground";
+
+  const now = new Date();
+  const diffInMs = now.getTime() - new Date(date).getTime();
+  const diffInHours = diffInMs / (1000 * 60 * 60);
+  const diffInDays = diffInHours / 24;
+
+  if (diffInHours < 24) {
+    return "text-green-600";
+  } else if (diffInDays < 7) {
+    return "text-yellow-600";
+  } else {
+    return "text-muted-foreground";
+  }
+}
