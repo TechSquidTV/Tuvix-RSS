@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { trpc } from "@/lib/api/trpc";
 import { useState, useMemo, useCallback } from "react";
+import type { PaginationState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import {
   Card,
@@ -58,14 +59,18 @@ function AdminUsers() {
     maxPublicFeeds: "",
     maxCategories: "",
   });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
 
   const {
     data: users,
     isLoading,
     refetch,
   } = trpc.admin.listUsers.useQuery({
-    limit: 100,
-    offset: 0,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
   });
 
   type UserItem = NonNullable<typeof users>["items"][number];
@@ -257,7 +262,13 @@ function AdminUsers() {
           <CardDescription>{users?.total || 0} total users</CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable columns={columns} data={users?.items || []} />
+          <DataTable
+            columns={columns}
+            data={users?.items || []}
+            pageCount={Math.ceil((users?.total || 0) / pagination.pageSize)}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+          />
         </CardContent>
       </Card>
 

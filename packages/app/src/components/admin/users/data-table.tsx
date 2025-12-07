@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
+  PaginationState,
   SortingState,
   VisibilityState,
   flexRender,
@@ -27,11 +28,17 @@ import { DataTableToolbar } from "./data-table-toolbar";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  pageCount?: number;
+  pagination?: PaginationState;
+  onPaginationChange?: (pagination: PaginationState) => void;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  pageCount,
+  pagination: controlledPagination,
+  onPaginationChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -40,24 +47,37 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [internalPagination, setInternalPagination] =
+    React.useState<PaginationState>({
+      pageIndex: 0,
+      pageSize: 25,
+    });
+
+  // Use controlled pagination if provided, otherwise use internal state
+  const pagination = controlledPagination ?? internalPagination;
+  const setPagination = onPaginationChange ?? setInternalPagination;
 
   const table = useReactTable({
     data,
     columns,
+    pageCount,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualPagination: !!pageCount,
   });
 
   return (
