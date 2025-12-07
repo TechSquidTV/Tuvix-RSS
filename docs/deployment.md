@@ -1236,7 +1236,7 @@ TuvixRSS uses GitHub Actions for automated CI/CD with a trunk-based workflow.
 ### Branch Flow
 
 ```
-feature branch → PR → main → [Auto Deploy to Staging] → Manual Promotion → [Deploy to Production]
+feature branch → PR → main → [Manual Deploy to Production]
 ```
 
 ### Workflows
@@ -1255,31 +1255,7 @@ feature branch → PR → main → [Auto Deploy to Staging] → Manual Promotion
 
 **Purpose:** Ensure code quality before merging to main.
 
-#### 2. Deploy to Cloudflare Workers (Staging) (`deploy-dev.yml`)
-
-**Triggers:**
-
-- Pushes to `main` branch (automatic)
-- Manual workflow dispatch
-
-**Process:**
-
-1. Checks out `main` branch (or specified branch)
-2. Runs type checks and tests for API
-3. Builds API
-4. Creates `wrangler.toml` from `wrangler.example.toml` and substitutes `D1_DATABASE_ID`
-5. Deploys API to Cloudflare Workers (staging environment with `-dev` suffix)
-6. Runs database migrations (after successful API deployment)
-7. Runs type checks and tests for App
-8. Builds App (with `VITE_API_URL` from development environment secrets)
-9. Deploys App to Cloudflare Pages (staging environment)
-10. Outputs deployment summary with URLs and commit SHA
-
-**Purpose:** Automated staging environment deployment on pushes to `main` branch.
-
-**Environment:** Uses `development` GitHub environment (separate secrets from production)
-
-#### 3. Deploy to Cloudflare Workers (Production) (`deploy-cloudflare.yml`)
+#### 2. Deploy to Cloudflare Workers (`deploy-cloudflare.yml`)
 
 **Triggers:**
 
@@ -1305,11 +1281,8 @@ feature branch → PR → main → [Auto Deploy to Staging] → Manual Promotion
 
 ### GitHub Environments
 
-TuvixRSS uses GitHub Environments to separate development and production secrets:
+TuvixRSS uses GitHub Environments for production deployment:
 
-- **`development`** - Used by `deploy-dev.yml` workflow (staging environment)
-  - Deploys on pushes to `main` branch
-  - Uses staging-specific Cloudflare resources (Worker with `-dev` suffix, Pages project, optionally separate D1 database)
 - **`production`** - Used by `deploy-cloudflare.yml` workflow
   - Deploys on published releases
   - Uses production Cloudflare resources
@@ -1317,15 +1290,12 @@ TuvixRSS uses GitHub Environments to separate development and production secrets
 **Setting up Environments:**
 
 1. Go to **Settings → Environments**
-2. Create `development` environment (if it doesn't exist)
-3. Create `production` environment (if it doesn't exist)
-4. Add environment-specific secrets to each environment
+2. Create `production` environment (if it doesn't exist)
+3. Add production secrets to the environment
 
 ### Required GitHub Secrets
 
-Secrets are configured per environment. Configure these in **Settings → Environments** → Select environment → **Secrets**:
-
-#### Production Environment Secrets
+Configure these in **Settings → Environments → production → Secrets**:
 
 | Secret                          | Required | Description                                                                                                  |
 | ------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
@@ -1338,24 +1308,6 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 | `VITE_SENTRY_DSN`               | No       | Frontend Sentry DSN (for error tracking) - Get from Sentry project settings                                  |
 | `VITE_SENTRY_ENVIRONMENT`       | No       | Frontend Sentry environment (e.g., `production`, `staging`)                                                  |
 | `VITE_APP_VERSION`              | No       | App version (e.g., git commit SHA or version tag) - used for Sentry release tracking and UI display          |
-
-#### Development Environment Secrets
-
-| Secret                          | Required | Description                                                                                     |
-| ------------------------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`          | Yes      | Cloudflare API token with Workers, Pages, and D1 permissions (can be same as production)        |
-| `CLOUDFLARE_ACCOUNT_ID`         | Yes      | Your Cloudflare account ID (same as production)                                                 |
-| `D1_DATABASE_ID`                | Yes      | Your D1 database ID (can be same as production or separate dev database)                        |
-| `CLOUDFLARE_PAGES_PROJECT_NAME` | Yes      | Cloudflare Pages project name (dev environment, e.g., `tuvix-app-dev`)                          |
-| `VITE_API_URL`                  | Yes      | API URL for frontend builds (dev Worker URL, e.g., `https://tuvix-api-dev.workers.dev/trpc`)    |
-| `CLOUDFLARE_WORKER_NAME_DEV`    | No       | Dev Worker name override (e.g., `tuvix-api-dev`). If not set, uses default from `wrangler.toml` |
-| `SENTRY_DSN`                    | No       | Backend Sentry DSN (optional, for dev error tracking)                                           |
-
-**Note:**
-
-- If `CLOUDFLARE_WORKER_NAME_DEV` is set, the workflow will temporarily override the worker name in `wrangler.toml` during deployment
-- For dev deployments, **recommended** to use separate Cloudflare resources (Worker name, Pages project, optionally separate D1 database) to avoid conflicts with production
-- If not using `CLOUDFLARE_WORKER_NAME_DEV`, the default worker name from `wrangler.toml` will be used (same as production)
 
 **Getting Cloudflare Credentials:**
 
@@ -1374,70 +1326,6 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 5. **Worker Name:** Automatically read from `packages/api/wrangler.toml` → `name` field (no secret needed)
 
 ### Deployment Process
-
-#### Development Environment Deployment
-
-**Automatic Deployment:**
-
-- Pushing to `development` branch automatically triggers `deploy-dev.yml`
-- Deploys to dev Cloudflare resources (separate Worker/Pages project)
-- Uses git commit SHA as release version
-- Runs all tests and type checks before deployment
-
-**Manual Deployment:**
-
-1. Go to **Actions → Deploy to Cloudflare Workers (Dev)**
-2. Click **"Run workflow"**
-3. Select branch (default: `development`)
-4. Click **"Run workflow"**
-
-**Setting up Dev Resources:**
-
-1. **Create GitHub Development Environment:**
-   - Go to **Settings → Environments**
-   - Click **"New environment"**
-   - Name: `development`
-   - Click **"Configure environment"**
-   - Add all required secrets (see Development Environment Secrets above)
-
-2. **Create Dev Worker** (recommended - separate from production):
-
-   ```bash
-   # The workflow will automatically use a separate worker name if CLOUDFLARE_WORKER_NAME_DEV is set
-   # No need to modify wrangler.toml - just set the secret
-
-   # In GitHub → Settings → Environments → development → Secrets:
-   # Add: CLOUDFLARE_WORKER_NAME_DEV = "tuvix-api-dev"
-   ```
-
-   **Note:** If you don't set `CLOUDFLARE_WORKER_NAME_DEV`, dev deployments will use the same Worker as production (deploys will overwrite each other).
-
-3. **Create Dev Pages Project:**
-
-   ```bash
-   npx wrangler pages project create tuvix-app-dev
-   # Add as CLOUDFLARE_PAGES_PROJECT_NAME secret in development environment
-   ```
-
-4. **Create Dev D1 Database** (optional - can use same database):
-
-   ```bash
-   npx wrangler d1 create tuvix-dev
-   # Copy database_id and add as D1_DATABASE_ID secret in development environment
-   # Or use the same D1_DATABASE_ID as production (shared database)
-   ```
-
-5. **Set Dev Worker Secrets** (after first deployment):
-   ```bash
-   # Set secrets for the dev worker (same as production setup)
-   cd packages/api
-   npx wrangler secret put BETTER_AUTH_SECRET --name tuvix-api-dev
-   npx wrangler secret put CORS_ORIGIN --name tuvix-api-dev
-   npx wrangler secret put BASE_URL --name tuvix-api-dev
-   # ... etc (use --name flag to target dev worker)
-   ```
-
-#### Production Environment Deployment
 
 **Important:**
 
@@ -1481,8 +1369,6 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 
 ### Workflow Features
 
-#### Production Workflow (`deploy-cloudflare.yml`)
-
 - ✅ **Sequential Deployment:** API deploys first, then App (ensures API is ready)
 - ✅ **Wrangler Config Creation:** Creates `wrangler.toml` from `wrangler.example.toml` with substituted values
 - ✅ **Validation:** Type checks and tests run before deployment
@@ -1493,20 +1379,6 @@ Secrets are configured per environment. Configure these in **Settings → Enviro
 - ✅ **Release Tag Checkout:** Ensures correct code version is deployed
 - ✅ **Deployment URLs:** Displayed in workflow summary
 - ✅ **Automatic Sentry Release Tracking:** Release version automatically passed to Sentry for both backend and frontend
-
-#### Development Workflow (`deploy-dev.yml`)
-
-- ✅ **Automatic Deployment:** Triggers on pushes to `development` branch
-- ✅ **Sequential Deployment:** API deploys first, then App (ensures API is ready)
-- ✅ **Wrangler Config Creation:** Creates `wrangler.toml` from `wrangler.example.toml` with substituted values
-- ✅ **Validation:** Type checks and tests run before deployment
-- ✅ **Database Migrations:** Automatically run after successful API deployment
-- ✅ **Concurrency Control:** Cancels in-progress runs (allows rapid iteration)
-- ✅ **Caching:** Optimized dependency caching
-- ✅ **Environment Protection:** Uses `development` GitHub environment (separate secrets)
-- ✅ **Worker Name Override:** Supports separate dev Worker via `-dev` suffix
-- ✅ **Commit-based Versioning:** Uses git commit SHA as release version
-- ✅ **Deployment URLs:** Displayed in workflow summary with commit SHA
 
 ### Sentry Error Tracking Setup
 
