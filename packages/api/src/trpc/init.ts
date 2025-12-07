@@ -131,6 +131,28 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     }
   }
 
+  // Update lastSeenAt (throttled to once every 5 minutes)
+  // Fire-and-forget update to avoid blocking the request
+  const now = new Date();
+  const lastSeen = userRecord.lastSeenAt;
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+  // Only update if lastSeenAt is null or older than 5 minutes
+  if (!lastSeen || new Date(lastSeen) < fiveMinutesAgo) {
+    // Fire-and-forget update (don't await)
+    ctx.db
+      .update(schema.user)
+      .set({ lastSeenAt: now })
+      .where(eq(schema.user.id, ctx.user.userId))
+      .then(() => {
+        // Update successful (no-op)
+      })
+      .catch((error) => {
+        // Log error but don't fail the request
+        console.error("Failed to update lastSeenAt:", error);
+      });
+  }
+
   return next({
     ctx: {
       ...ctx,
