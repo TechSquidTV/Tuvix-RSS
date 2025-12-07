@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { trpc } from "@/lib/api/trpc";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -164,27 +164,33 @@ function AdminUsers() {
     }
   };
 
-  const handleRecalculateUsage = (userId: number) => {
-    recalculateUsageMutation.mutate({ userId });
-  };
+  const handleRecalculateUsage = useCallback(
+    (userId: number) => {
+      recalculateUsageMutation.mutate({ userId });
+    },
+    [recalculateUsageMutation],
+  );
 
-  const openCustomLimitsDialog = (userId: number) => {
-    const user = users?.items.find((u: UserItem) => u.id === userId);
-    if (user?.customLimits) {
-      setCustomLimits({
-        maxSources: user.customLimits.maxSources?.toString() || "",
-        maxPublicFeeds: user.customLimits.maxPublicFeeds?.toString() || "",
-        maxCategories: user.customLimits.maxCategories?.toString() || "",
-      });
-    } else {
-      setCustomLimits({
-        maxSources: "",
-        maxPublicFeeds: "",
-        maxCategories: "",
-      });
-    }
-    setCustomLimitsUserId(userId);
-  };
+  const openCustomLimitsDialog = useCallback(
+    (userId: number) => {
+      const user = users?.items.find((u: UserItem) => u.id === userId);
+      if (user?.customLimits) {
+        setCustomLimits({
+          maxSources: user.customLimits.maxSources?.toString() || "",
+          maxPublicFeeds: user.customLimits.maxPublicFeeds?.toString() || "",
+          maxCategories: user.customLimits.maxCategories?.toString() || "",
+        });
+      } else {
+        setCustomLimits({
+          maxSources: "",
+          maxPublicFeeds: "",
+          maxCategories: "",
+        });
+      }
+      setCustomLimitsUserId(userId);
+    },
+    [users?.items],
+  );
 
   const columns = useMemo(
     () =>

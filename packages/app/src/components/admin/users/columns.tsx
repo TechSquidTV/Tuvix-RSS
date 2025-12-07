@@ -19,6 +19,7 @@ import {
   Settings,
 } from "lucide-react";
 import { DataTableColumnHeader } from "./data-table-column-header";
+import { getRelativeTime, getLastSeenStatusColor } from "@/lib/utils/date";
 
 export type AdminUser = {
   id: number;
@@ -30,6 +31,7 @@ export type AdminUser = {
   banned: boolean;
   createdAt: Date;
   updatedAt: Date;
+  lastSeenAt: Date | null;
   usage: {
     sourceCount: number;
     publicFeedCount: number;
@@ -185,13 +187,35 @@ export const createColumns = (
   {
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created At" />
+      <DataTableColumnHeader column={column} title="Join Date" />
     ),
     cell: ({ row }) => {
       const date = row.getValue("createdAt") as Date;
       return <div>{new Date(date).toLocaleDateString()}</div>;
     },
     enableSorting: true,
+  },
+  {
+    accessorKey: "lastSeenAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Last Seen" />
+    ),
+    cell: ({ row }) => {
+      const date = row.getValue("lastSeenAt") as Date | null;
+      const relativeTime = getRelativeTime(date);
+      const colorClass = getLastSeenStatusColor(date);
+      return <div className={colorClass}>{relativeTime}</div>;
+    },
+    enableSorting: true,
+    sortingFn: (rowA, rowB) => {
+      const a = rowA.getValue("lastSeenAt") as Date | null;
+      const b = rowB.getValue("lastSeenAt") as Date | null;
+      // Sort nulls last
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return new Date(a).getTime() - new Date(b).getTime();
+    },
   },
   {
     id: "actions",
