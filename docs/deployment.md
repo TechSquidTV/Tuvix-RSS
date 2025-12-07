@@ -625,7 +625,7 @@ npx wrangler secret put SENTRY_DSN
 # Enter: https://xxx@xxx.ingest.sentry.io/xxx
 
 npx wrangler secret put SENTRY_ENVIRONMENT
-# Enter: production (or staging, development, etc.)
+# Enter: production
 
 # Optional: Release tracking (git commit SHA or version)
 npx wrangler secret put SENTRY_RELEASE
@@ -1306,7 +1306,7 @@ Configure these in **Settings → Environments → production → Secrets**:
 | `VITE_API_URL`                  | Yes      | API URL for frontend builds (e.g., `https://api.example.com/trpc` or `https://your-worker.workers.dev/trpc`) |
 | `SENTRY_DSN`                    | No       | Backend Sentry DSN (for automatic release tracking)                                                          |
 | `VITE_SENTRY_DSN`               | No       | Frontend Sentry DSN (for error tracking) - Get from Sentry project settings                                  |
-| `VITE_SENTRY_ENVIRONMENT`       | No       | Frontend Sentry environment (e.g., `production`, `staging`)                                                  |
+| `VITE_SENTRY_ENVIRONMENT`       | No       | Frontend Sentry environment (e.g., `production`)                                                             |
 | `VITE_APP_VERSION`              | No       | App version (e.g., git commit SHA or version tag) - used for Sentry release tracking and UI display          |
 
 **Getting Cloudflare Credentials:**
@@ -1408,7 +1408,7 @@ Configure these in **Settings → Environments → production → Secrets**:
 
    # Required: Environment name
    npx wrangler secret put SENTRY_ENVIRONMENT
-   # Enter: production (or staging, development, etc.)
+   # Enter: production
 
    # Optional: Release tracking (automatically set during deployment)
    # The deployment workflow automatically sets SENTRY_RELEASE from the release tag
