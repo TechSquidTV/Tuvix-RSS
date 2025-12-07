@@ -21,29 +21,36 @@ import { sql } from "drizzle-orm";
 // ============================================================================
 // These tables are required by Better Auth library
 
-export const user = sqliteTable("user", {
-  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
-  image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .$onUpdate(() => new Date())
-    .notNull(),
-  username: text("username").unique(),
-  displayUsername: text("display_username"),
-  role: text("role"),
-  plan: text("plan").default("free"), // User plan (Better Auth additionalFields)
-  banned: integer("banned", { mode: "boolean" }).default(false),
-  banReason: text("ban_reason"),
-  banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
-});
+export const user = sqliteTable(
+  "user",
+  {
+    id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: integer("email_verified", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    image: text("image"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    role: text("role"),
+    plan: text("plan").default("free"), // User plan (Better Auth additionalFields)
+    banned: integer("banned", { mode: "boolean" }).default(false),
+    banReason: text("ban_reason"),
+    banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("idx_user_plan").on(table.plan),
+    index("idx_user_created_at").on(table.createdAt),
+  ]
+);
 
 export const session = sqliteTable("session", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
@@ -136,6 +143,7 @@ export const sources = sqliteTable(
   (table) => [
     index("idx_sources_url").on(table.url),
     index("idx_sources_icon_url").on(table.iconUrl),
+    index("idx_sources_last_fetched").on(table.lastFetched),
   ]
 );
 
@@ -295,6 +303,7 @@ export const categories = sqliteTable(
   },
   (table) => [
     index("idx_categories_user_id").on(table.userId),
+    index("idx_categories_name").on(table.name),
     uniqueIndex("idx_categories_user_id_name_normalized").on(
       table.userId,
       sql`LOWER(${table.name})`
@@ -350,6 +359,7 @@ export const feeds = sqliteTable(
   (table) => [
     index("idx_feeds_user_id").on(table.userId),
     index("idx_feeds_slug").on(table.slug),
+    index("idx_feeds_created_at").on(table.createdAt),
     unique().on(table.userId, table.slug),
   ]
 );
@@ -569,18 +579,22 @@ export const userLimits = sqliteTable("user_limits", {
 // USAGE STATS
 // ============================================================================
 
-export const usageStats = sqliteTable("usage_stats", {
-  userId: integer("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  sourceCount: integer("source_count").notNull().default(0),
-  publicFeedCount: integer("public_feed_count").notNull().default(0),
-  categoryCount: integer("category_count").notNull().default(0),
-  articleCount: integer("article_count").notNull().default(0),
-  lastUpdated: integer("last_updated", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const usageStats = sqliteTable(
+  "usage_stats",
+  {
+    userId: integer("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sourceCount: integer("source_count").notNull().default(0),
+    publicFeedCount: integer("public_feed_count").notNull().default(0),
+    categoryCount: integer("category_count").notNull().default(0),
+    articleCount: integer("article_count").notNull().default(0),
+    lastUpdated: integer("last_updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [index("idx_usage_stats_user_id").on(table.userId)]
+);
 
 // ============================================================================
 // PUBLIC FEED ACCESS LOG
