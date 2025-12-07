@@ -70,8 +70,9 @@ const workerHandler = {
 
     try {
       // Import dependencies
-      const { handleRSSFetch, handleArticlePrune } =
-        await import("../cron/handlers");
+      const { handleRSSFetch, handleArticlePrune } = await import(
+        "../cron/handlers"
+      );
       const { getGlobalSettings } = await import("../services/global-settings");
       const { createDatabase } = await import("../db/client");
       const { eq } = await import("drizzle-orm");

@@ -182,10 +182,7 @@ export const subscriptions = sqliteTable(
     index("idx_subscriptions_source_id").on(table.sourceId),
     // Composite indexes for common query patterns
     index("idx_subscriptions_user_source").on(table.userId, table.sourceId),
-    index("idx_subscriptions_user_created").on(
-      table.userId,
-      table.createdAt
-    ),
+    index("idx_subscriptions_user_created").on(table.userId, table.createdAt),
   ]
 );
 
@@ -590,22 +587,18 @@ export const userLimits = sqliteTable("user_limits", {
 // USAGE STATS
 // ============================================================================
 
-export const usageStats = sqliteTable(
-  "usage_stats",
-  {
-    userId: integer("user_id")
-      .primaryKey()
-      .references(() => user.id, { onDelete: "cascade" }),
-    sourceCount: integer("source_count").notNull().default(0),
-    publicFeedCount: integer("public_feed_count").notNull().default(0),
-    categoryCount: integer("category_count").notNull().default(0),
-    articleCount: integer("article_count").notNull().default(0),
-    lastUpdated: integer("last_updated", { mode: "timestamp" })
-      .notNull()
-      .$defaultFn(() => new Date()),
-  },
-  (table) => [index("idx_usage_stats_user_id").on(table.userId)]
-);
+export const usageStats = sqliteTable("usage_stats", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  sourceCount: integer("source_count").notNull().default(0),
+  publicFeedCount: integer("public_feed_count").notNull().default(0),
+  categoryCount: integer("category_count").notNull().default(0),
+  articleCount: integer("article_count").notNull().default(0),
+  lastUpdated: integer("last_updated", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
 
 // ============================================================================
 // PUBLIC FEED ACCESS LOG
