@@ -57,6 +57,13 @@
       "when": 1765084556050,
       "tag": "0007_tan_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1765085259234,
+      "tag": "0008_large_warbird",
+      "breakpoints": true
     }
   ]
 }

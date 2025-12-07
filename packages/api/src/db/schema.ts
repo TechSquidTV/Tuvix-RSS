@@ -180,6 +180,12 @@ export const subscriptions = sqliteTable(
   (table) => [
     index("idx_subscriptions_user_id").on(table.userId),
     index("idx_subscriptions_source_id").on(table.sourceId),
+    // Composite indexes for common query patterns
+    index("idx_subscriptions_user_source").on(table.userId, table.sourceId),
+    index("idx_subscriptions_user_created").on(
+      table.userId,
+      table.createdAt
+    ),
   ]
 );
 
@@ -243,6 +249,11 @@ export const articles = sqliteTable(
     index("idx_articles_published_at").on(table.publishedAt),
     index("idx_articles_guid").on(table.guid),
     index("idx_articles_audio_url").on(table.audioUrl),
+    // Composite index for feed generation (source + chronological order)
+    index("idx_articles_source_published").on(
+      table.sourceId,
+      table.publishedAt
+    ),
     unique().on(table.sourceId, table.guid),
   ]
 );
