@@ -212,7 +212,7 @@ return withTiming('feeds.getUserFeeds', async () => {
 ```typescript
 return Sentry.startSpan({ name: "rss.fetch", op: "http.fetch" }, async () => {
   const feed = await fetchFeed(url);
-  await Sentry.startSpan({ name: "rss.parse" }, async () => {
+  return await Sentry.startSpan({ name: "rss.parse" }, async () => {
     return parseFeed(feed);
   });
 });
