@@ -136,9 +136,9 @@ export const createColumns = (
       );
     },
     filterFn: (row, id, value) => {
-      if (value === "all") return true;
       const banned = row.getValue(id) as boolean;
-      return value === "banned" ? banned : !banned;
+      const status = banned ? "banned" : "active";
+      return value.includes(status);
     },
     enableSorting: true,
   },
