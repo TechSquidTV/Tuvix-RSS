@@ -150,7 +150,7 @@ export const adminRouter = router({
       const sortFn = sortOrder === "asc" ? asc : desc;
 
       // Map sortBy field names to database columns
-      const sortColumn = {
+      const sortColumnMap = {
         username: schema.user.username,
         email: schema.user.email,
         role: schema.user.role,
@@ -159,7 +159,26 @@ export const adminRouter = router({
         emailVerified: schema.user.emailVerified,
         createdAt: schema.user.createdAt,
         lastSeenAt: schema.user.lastSeenAt,
-      }[sortField];
+      } as const;
+      const sortColumn =
+        sortColumnMap[sortField as keyof typeof sortColumnMap] ??
+        schema.user.createdAt;
+
+      // Build ORDER BY clause - handle NULL-last sorting for lastSeenAt
+      let orderByClause: SQL<unknown>;
+      if (sortField === "lastSeenAt") {
+        // Sort NULLs last for lastSeenAt (users who have never logged in)
+        // SQLite doesn't support NULLS LAST, so we use CASE to sort nulls as max value
+        if (sortOrder === "asc") {
+          // ASC: real dates ascending, then nulls at end
+          orderByClause = sql`CASE WHEN ${sortColumn} IS NULL THEN 1 ELSE 0 END, ${sortColumn} ASC`;
+        } else {
+          // DESC: real dates descending, then nulls at end
+          orderByClause = sql`CASE WHEN ${sortColumn} IS NULL THEN 1 ELSE 0 END, ${sortColumn} DESC`;
+        }
+      } else {
+        orderByClause = sortFn(sortColumn);
+      }
 
       // Get users (fetch one extra for pagination)
       const users = await withQueryMetrics(
@@ -169,7 +188,7 @@ export const adminRouter = router({
             .select()
             .from(schema.user)
             .where(whereClause)
-            .orderBy(sortFn(sortColumn))
+            .orderBy(orderByClause)
             .limit(input.limit + 1)
             .offset(input.offset),
         {
