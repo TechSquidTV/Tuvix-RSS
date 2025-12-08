@@ -11,6 +11,7 @@ import {
   eq,
   sql,
   desc,
+  asc,
   and,
   gte,
   or,
@@ -92,6 +93,19 @@ export const adminRouter = router({
         banned: z.boolean().optional(),
         emailVerified: z.boolean().optional(), // Filter by email verification status
         search: z.string().optional(), // Search by username or email
+        sortBy: z
+          .enum([
+            "username",
+            "email",
+            "role",
+            "plan",
+            "banned",
+            "emailVerified",
+            "createdAt",
+            "lastSeenAt",
+          ])
+          .optional(),
+        sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
       })
     )
     .output(createPaginatedSchema(AdminUserSchema))
@@ -116,6 +130,23 @@ export const adminRouter = router({
         );
       }
 
+      // Determine sort field and order
+      const sortField = input.sortBy || "createdAt";
+      const sortOrder = input.sortOrder || "desc";
+      const sortFn = sortOrder === "asc" ? asc : desc;
+
+      // Map sortBy field names to database columns
+      const sortColumn = {
+        username: schema.user.username,
+        email: schema.user.email,
+        role: schema.user.role,
+        plan: schema.user.plan,
+        banned: schema.user.banned,
+        emailVerified: schema.user.emailVerified,
+        createdAt: schema.user.createdAt,
+        lastSeenAt: schema.user.lastSeenAt,
+      }[sortField];
+
       // Get users (fetch one extra for pagination)
       const users = await withQueryMetrics(
         "admin.listUsers",
@@ -124,7 +155,7 @@ export const adminRouter = router({
             .select()
             .from(schema.user)
             .where(conditions.length > 0 ? and(...conditions) : undefined)
-            .orderBy(desc(schema.user.createdAt))
+            .orderBy(sortFn(sortColumn))
             .limit(input.limit + 1)
             .offset(input.offset),
         {
@@ -135,11 +166,14 @@ export const adminRouter = router({
           "db.has_banned_filter": input.banned !== undefined,
           "db.has_email_verified_filter": input.emailVerified !== undefined,
           "db.has_search": !!input.search,
+          "db.sort_by": sortField,
+          "db.sort_order": sortOrder,
         }
       );
 
       // Bulk fetch usage stats and custom limits for all users
-      const userIds = users.slice(0, input.limit).map((u) => u.id);
+      // Note: Don't slice here - we need to keep the extra item for pagination detection
+      const userIds = users.map((u) => u.id);
 
       const usageRecords = await ctx.db
         .select()
@@ -162,8 +196,9 @@ export const adminRouter = router({
       );
 
       // Build results with usage and limits
+      // Note: Process ALL users (including the +1 extra) so createPaginatedResponse can detect hasMore
       const allResults = await Promise.all(
-        users.slice(0, input.limit).map(async (user) => {
+        users.map(async (user) => {
           const usage = usageMap.get(user.id);
           const customLimits = customLimitsMap.get(user.id);
           const limits = await getUserLimits(ctx.db, user.id);

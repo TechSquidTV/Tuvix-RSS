@@ -30,7 +30,15 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   pageCount?: number;
   pagination?: PaginationState;
-  onPaginationChange?: (pagination: PaginationState) => void;
+  onPaginationChange?: (
+    updaterOrValue:
+      | PaginationState
+      | ((old: PaginationState) => PaginationState),
+  ) => void;
+  sorting?: SortingState;
+  onSortingChange?: (
+    updaterOrValue: SortingState | ((old: SortingState) => SortingState),
+  ) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -39,8 +47,12 @@ export function DataTable<TData, TValue>({
   pageCount,
   pagination: controlledPagination,
   onPaginationChange,
+  sorting: controlledSorting,
+  onSortingChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>(
+    [],
+  );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
@@ -50,12 +62,16 @@ export function DataTable<TData, TValue>({
   const [internalPagination, setInternalPagination] =
     React.useState<PaginationState>({
       pageIndex: 0,
-      pageSize: 25,
+      pageSize: 20,
     });
 
-  // Use controlled pagination if provided, otherwise use internal state
+  // Use controlled state if provided, otherwise use internal state
   const pagination = controlledPagination ?? internalPagination;
   const setPagination = onPaginationChange ?? setInternalPagination;
+  const sorting = controlledSorting ?? internalSorting;
+  const setSorting = onSortingChange ?? setInternalSorting;
+
+  const isServerSidePagination = !!pageCount;
 
   const table = useReactTable({
     data,
@@ -74,10 +90,18 @@ export function DataTable<TData, TValue>({
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    manualPagination: !!pageCount,
+    // Only use client-side models when NOT using server-side pagination
+    ...(isServerSidePagination
+      ? {
+          manualPagination: true,
+          manualSorting: true,
+          manualFiltering: true,
+        }
+      : {
+          getFilteredRowModel: getFilteredRowModel(),
+          getPaginationRowModel: getPaginationRowModel(),
+          getSortedRowModel: getSortedRowModel(),
+        }),
   });
 
   return (

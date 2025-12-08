@@ -61,8 +61,11 @@ function AdminUsers() {
   });
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: 20,
   });
+  const [sorting, setSorting] = useState<
+    { id: string; desc: boolean }[] | undefined
+  >(undefined);
 
   const {
     data: users,
@@ -71,6 +74,17 @@ function AdminUsers() {
   } = trpc.admin.listUsers.useQuery({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
+    sortBy: sorting?.[0]?.id as
+      | "username"
+      | "email"
+      | "role"
+      | "plan"
+      | "banned"
+      | "emailVerified"
+      | "createdAt"
+      | "lastSeenAt"
+      | undefined,
+    sortOrder: sorting?.[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 
   type UserItem = NonNullable<typeof users>["items"][number];
@@ -268,6 +282,8 @@ function AdminUsers() {
             pageCount={Math.ceil((users?.total || 0) / pagination.pageSize)}
             pagination={pagination}
             onPaginationChange={setPagination}
+            sorting={sorting}
+            onSortingChange={setSorting}
           />
         </CardContent>
       </Card>
