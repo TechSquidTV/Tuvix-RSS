@@ -10,6 +10,7 @@ import * as schema from "@/db/schema";
 import { checkLimit, getUserLimits } from "@/services/limits";
 import { checkApiRateLimit } from "@/services/rate-limiter";
 import { getGlobalSettings } from "@/services/global-settings";
+import * as Sentry from "@/utils/sentry";
 import type { Context } from "./context";
 
 // Initialize tRPC with context
@@ -138,18 +139,29 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
   // Only update if lastSeenAt is null or older than 5 minutes
-  if (!lastSeen || new Date(lastSeen) < fiveMinutesAgo) {
+  if (!lastSeen || lastSeen < fiveMinutesAgo) {
+    // Capture userId for error logging (TypeScript safety)
+    const userId = ctx.user.userId;
+
     // Fire-and-forget update (don't await)
+    // Note: Race condition is acceptable here - worst case multiple rapid requests
+    // update lastSeenAt simultaneously, but all will set roughly the same timestamp
     ctx.db
       .update(schema.user)
       .set({ lastSeenAt: now })
-      .where(eq(schema.user.id, ctx.user.userId))
-      .then(() => {
-        // Update successful (no-op)
-      })
+      .where(eq(schema.user.id, userId))
       .catch((error) => {
-        // Log error but don't fail the request
-        console.error("Failed to update lastSeenAt:", error);
+        // Log error to Sentry but don't fail the request
+        Sentry.captureException(error, {
+          level: "warning",
+          tags: {
+            context: "isAuthed_middleware",
+            operation: "update_lastSeenAt",
+          },
+          extra: {
+            userId,
+          },
+        });
       });
   }
 
