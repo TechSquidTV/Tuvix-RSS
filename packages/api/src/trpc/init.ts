@@ -6,14 +6,17 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
+import superjson from "superjson";
 import * as schema from "@/db/schema";
 import { checkLimit, getUserLimits } from "@/services/limits";
 import { checkApiRateLimit } from "@/services/rate-limiter";
 import { getGlobalSettings } from "@/services/global-settings";
+import * as Sentry from "@/utils/sentry";
 import type { Context } from "./context";
 
 // Initialize tRPC with context
 const t = initTRPC.context<Context>().create({
+  transformer: superjson,
   errorFormatter({ shape, error, ctx }) {
     // Log all errors to console for debugging
     console.error("❌ tRPC Error:", {
@@ -129,6 +132,47 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
           "Email verification required. Please check your email for a verification link.",
       });
     }
+  }
+
+  // Update lastSeenAt (throttled to once every 5 minutes)
+  // Fire-and-forget update to avoid blocking the request
+  const now = new Date();
+  const lastSeen = userRecord.lastSeenAt;
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+  // Only update if lastSeenAt is null or older than 5 minutes
+  if (!lastSeen || lastSeen < fiveMinutesAgo) {
+    // Capture userId for error logging (TypeScript safety)
+    const userId = ctx.user.userId;
+
+    // Fire-and-forget update (don't await)
+    // Note: Race condition is acceptable here - worst case multiple rapid requests
+    // update lastSeenAt simultaneously, but all will set roughly the same timestamp
+    ctx.db
+      .update(schema.user)
+      .set({ lastSeenAt: now })
+      .where(eq(schema.user.id, userId))
+      .then(() => {
+        // Query executed successfully - no action needed
+      })
+      .catch((error) => {
+        // Log error to Sentry but don't fail the request
+        // Using 'info' level since this is fire-and-forget user activity tracking
+        // Sentry.captureException returns a promise, but we don't await it
+        // Add .catch() to prevent unhandled rejection warnings
+        Sentry.captureException(error, {
+          level: "info",
+          tags: {
+            context: "isAuthed_middleware",
+            operation: "update_lastSeenAt",
+          },
+          extra: {
+            userId,
+          },
+        }).catch(() => {
+          // Silently ignore Sentry logging failures - this is best-effort tracking
+        });
+      });
   }
 
   return next({

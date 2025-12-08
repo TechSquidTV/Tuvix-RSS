@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { trpc } from "@/lib/api/trpc";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
+import type { PaginationState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import {
   Card,
@@ -9,25 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/animate-ui/components/radix/dropdown-menu";
 import {
   ResponsiveAlertDialog,
   ResponsiveAlertDialogAction,
@@ -54,24 +38,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  MoreHorizontal,
-  Search,
-  UserX,
-  UserCheck,
-  Trash2,
-  RefreshCw,
-  CreditCard,
-  Settings,
-} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable } from "@/components/admin/users/data-table";
+import { createColumns } from "@/components/admin/users/columns";
 
 export const Route = createFileRoute("/app/admin/users")({
   component: AdminUsers,
 });
 
 function AdminUsers() {
-  const [search, setSearch] = useState("");
   const [banUserId, setBanUserId] = useState<number | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [changePlanUserId, setChangePlanUserId] = useState<number | null>(null);
@@ -84,15 +59,62 @@ function AdminUsers() {
     maxPublicFeeds: "",
     maxCategories: "",
   });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  });
+  const [sorting, setSorting] = useState<
+    { id: string; desc: boolean }[] | undefined
+  >(undefined);
+
+  // Wrap setSorting to reset pagination when sorting changes
+  const handleSortingChange = useCallback(
+    (
+      updaterOrValue:
+        | { id: string; desc: boolean }[]
+        | undefined
+        | ((
+            old: { id: string; desc: boolean }[] | undefined,
+          ) => { id: string; desc: boolean }[] | undefined),
+    ) => {
+      setSorting(updaterOrValue);
+      // Reset to first page when sorting changes
+      setPagination((prev) => ({
+        ...prev,
+        pageIndex: 0,
+      }));
+    },
+    [],
+  );
+
+  // Type-safe sorting field mapping - ensures only valid sort fields are passed to API
+  const VALID_SORT_FIELDS = [
+    "username",
+    "email",
+    "role",
+    "plan",
+    "banned",
+    "emailVerified",
+    "createdAt",
+    "lastSeenAt",
+  ] as const;
+  type ValidSortField = (typeof VALID_SORT_FIELDS)[number];
+
+  const sortField = sorting?.[0]?.id;
+  const validatedSortBy: ValidSortField | undefined =
+    sortField && VALID_SORT_FIELDS.includes(sortField as ValidSortField)
+      ? (sortField as ValidSortField)
+      : undefined;
 
   const {
     data: users,
     isLoading,
     refetch,
   } = trpc.admin.listUsers.useQuery({
-    limit: 50,
-    offset: 0,
-    search: search || undefined,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    sortBy: validatedSortBy,
+    sortOrder: sorting?.[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 
   type UserItem = NonNullable<typeof users>["items"][number];
@@ -140,8 +162,6 @@ function AdminUsers() {
         maxSources: "",
         maxPublicFeeds: "",
         maxCategories: "",
-        apiRateLimitPerMinute: "",
-        publicFeedRateLimitPerMinute: "",
       });
     },
     onError: (error: Error) => {
@@ -189,32 +209,52 @@ function AdminUsers() {
         maxCategories: customLimits.maxCategories
           ? parseInt(customLimits.maxCategories)
           : null,
-        // Rate limits are not customizable - they come from plan-specific bindings
       });
     }
   };
 
-  const handleRecalculateUsage = (userId: number) => {
-    recalculateUsageMutation.mutate({ userId });
-  };
+  const handleRecalculateUsage = useCallback(
+    (userId: number) => {
+      recalculateUsageMutation.mutate({ userId });
+    },
+    [recalculateUsageMutation],
+  );
 
-  const openCustomLimitsDialog = (userId: number) => {
-    const user = users?.items.find((u: UserItem) => u.id === userId);
-    if (user?.customLimits) {
-      setCustomLimits({
-        maxSources: user.customLimits.maxSources?.toString() || "",
-        maxPublicFeeds: user.customLimits.maxPublicFeeds?.toString() || "",
-        maxCategories: user.customLimits.maxCategories?.toString() || "",
-      });
-    } else {
-      setCustomLimits({
-        maxSources: "",
-        maxPublicFeeds: "",
-        maxCategories: "",
-      });
-    }
-    setCustomLimitsUserId(userId);
-  };
+  const openCustomLimitsDialog = useCallback(
+    (userId: number) => {
+      const user = users?.items.find((u: UserItem) => u.id === userId);
+      if (user?.customLimits) {
+        setCustomLimits({
+          maxSources: user.customLimits.maxSources?.toString() || "",
+          maxPublicFeeds: user.customLimits.maxPublicFeeds?.toString() || "",
+          maxCategories: user.customLimits.maxCategories?.toString() || "",
+        });
+      } else {
+        setCustomLimits({
+          maxSources: "",
+          maxPublicFeeds: "",
+          maxCategories: "",
+        });
+      }
+      setCustomLimitsUserId(userId);
+    },
+    [users?.items],
+  );
+
+  const columns = useMemo(
+    () =>
+      createColumns({
+        onBan: (userId: number) => setBanUserId(userId),
+        onDelete: (userId: number) => setDeleteUserId(userId),
+        onChangePlan: (userId: number, currentPlan: string) => {
+          setChangePlanUserId(userId);
+          setSelectedPlan(currentPlan);
+        },
+        onCustomLimits: (userId: number) => openCustomLimitsDialog(userId),
+        onRecalculateUsage: (userId: number) => handleRecalculateUsage(userId),
+      }),
+    [handleRecalculateUsage, openCustomLimitsDialog],
+  );
 
   const userToBan = users?.items.find((u: UserItem) => u.id === banUserId);
   const userToDelete = users?.items.find(
@@ -266,146 +306,16 @@ function AdminUsers() {
           <CardDescription>{users?.total || 0} total users</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by username or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users?.items.map((user: UserItem) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{user.username}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {user.email}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          user.role === "admin" ? "default" : "secondary"
-                        }
-                      >
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {user.plan}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {user.banned ? (
-                        <Badge variant="destructive">Banned</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-green-600">
-                          Active
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>
-                          {user.usage.sourceCount} / {user.limits.maxSources}{" "}
-                          sources
-                        </div>
-                        <div className="text-muted-foreground">
-                          {user.usage.publicFeedCount} /{" "}
-                          {user.limits.maxPublicFeeds} feeds
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setChangePlanUserId(user.id);
-                              setSelectedPlan(user.plan);
-                            }}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Change Plan
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openCustomLimitsDialog(user.id)}
-                          >
-                            <Settings className="mr-2 h-4 w-4" />
-                            Custom Limits
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleRecalculateUsage(user.id)}
-                          >
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Recalculate Usage
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setBanUserId(user.id)}
-                          >
-                            {user.banned ? (
-                              <>
-                                <UserCheck className="mr-2 h-4 w-4" />
-                                Unban
-                              </>
-                            ) : (
-                              <>
-                                <UserX className="mr-2 h-4 w-4" />
-                                Ban
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteUserId(user.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {users?.items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
-                      <p className="text-muted-foreground">No users found</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={users?.items || []}
+            pageCount={Math.ceil((users?.total || 0) / pagination.pageSize)}
+            totalCount={users?.total}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+          />
         </CardContent>
       </Card>
 

@@ -61,6 +61,7 @@
     "react-email": "^5.0.5",
     "resend": "^6.5.2",
     "sanitize-html": "^2.17.0",
+    "superjson": "^2.2.6",
     "zod": "^4.1.12"
   },
   "devDependencies": {

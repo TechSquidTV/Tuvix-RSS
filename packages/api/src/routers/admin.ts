@@ -11,6 +11,7 @@ import {
   eq,
   sql,
   desc,
+  asc,
   and,
   gte,
   or,
@@ -52,6 +53,7 @@ const AdminUserSchema = z.object({
   banned: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  lastSeenAt: z.date().nullable(),
   usage: z.object({
     sourceCount: z.number(),
     publicFeedCount: z.number(),
@@ -91,6 +93,19 @@ export const adminRouter = router({
         banned: z.boolean().optional(),
         emailVerified: z.boolean().optional(), // Filter by email verification status
         search: z.string().optional(), // Search by username or email
+        sortBy: z
+          .enum([
+            "username",
+            "email",
+            "role",
+            "plan",
+            "banned",
+            "emailVerified",
+            "createdAt",
+            "lastSeenAt",
+          ])
+          .optional(),
+        sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
       })
     )
     .output(createPaginatedSchema(AdminUserSchema))
@@ -115,6 +130,56 @@ export const adminRouter = router({
         );
       }
 
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
+
+      // Get total count (separate query for accurate pagination)
+      // Note: For optimal performance with large datasets, a COUNT query would be better,
+      // but Drizzle's type system makes it difficult with conditional WHERE clauses.
+      // Since admin dashboards are low-traffic and user tables are typically small (<10k users),
+      // fetching all matching rows for counting is acceptable.
+      const allMatchingUsers = await ctx.db
+        .select()
+        .from(schema.user)
+        .where(whereClause);
+      const totalCount = allMatchingUsers.length;
+
+      // Determine sort field and order
+      const sortField = input.sortBy || "createdAt";
+      const sortOrder = input.sortOrder || "desc";
+      const sortFn = sortOrder === "asc" ? asc : desc;
+
+      // Map sortBy field names to database columns
+      const sortColumnMap = {
+        username: schema.user.username,
+        email: schema.user.email,
+        role: schema.user.role,
+        plan: schema.user.plan,
+        banned: schema.user.banned,
+        emailVerified: schema.user.emailVerified,
+        createdAt: schema.user.createdAt,
+        lastSeenAt: schema.user.lastSeenAt,
+      } as const;
+      const sortColumn =
+        sortColumnMap[sortField as keyof typeof sortColumnMap] ??
+        schema.user.createdAt;
+
+      // Build ORDER BY clause - handle NULL-last sorting for lastSeenAt
+      let orderByClause: SQL<unknown>;
+      if (sortField === "lastSeenAt") {
+        // Sort NULLs last for lastSeenAt (users who have never logged in)
+        // SQLite doesn't support NULLS LAST, so we use CASE to sort nulls as max value
+        if (sortOrder === "asc") {
+          // ASC: real dates ascending, then nulls at end
+          orderByClause = sql`CASE WHEN ${sortColumn} IS NULL THEN 1 ELSE 0 END, ${sortColumn} ASC`;
+        } else {
+          // DESC: real dates descending, then nulls at end
+          orderByClause = sql`CASE WHEN ${sortColumn} IS NULL THEN 1 ELSE 0 END, ${sortColumn} DESC`;
+        }
+      } else {
+        orderByClause = sortFn(sortColumn);
+      }
+
       // Get users (fetch one extra for pagination)
       const users = await withQueryMetrics(
         "admin.listUsers",
@@ -122,8 +187,8 @@ export const adminRouter = router({
           ctx.db
             .select()
             .from(schema.user)
-            .where(conditions.length > 0 ? and(...conditions) : undefined)
-            .orderBy(desc(schema.user.createdAt))
+            .where(whereClause)
+            .orderBy(orderByClause)
             .limit(input.limit + 1)
             .offset(input.offset),
         {
@@ -134,25 +199,41 @@ export const adminRouter = router({
           "db.has_banned_filter": input.banned !== undefined,
           "db.has_email_verified_filter": input.emailVerified !== undefined,
           "db.has_search": !!input.search,
+          "db.sort_by": sortField,
+          "db.sort_order": sortOrder,
         }
       );
 
-      // Bulk fetch usage stats and custom limits for all users
-      const userIds = users.slice(0, input.limit).map((u) => u.id);
+      // Check if there are more results for pagination
+      const hasMore = users.length > input.limit;
 
-      const usageRecords = await ctx.db
-        .select()
-        .from(schema.usageStats)
-        .where(
-          sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-        );
+      // Slice to actual requested items (don't process the extra pagination-detection item)
+      const requestedUsers = users.slice(0, input.limit);
 
-      const customLimitsRecords = await ctx.db
-        .select()
-        .from(schema.userLimits)
-        .where(
-          sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-        );
+      // Bulk fetch usage stats and custom limits for requested users only
+      const userIds = requestedUsers.map((u) => u.id);
+
+      // Guard against empty userIds to avoid invalid SQL "IN ()" syntax
+      // This can happen when navigating beyond available pages
+      const usageRecords =
+        userIds.length > 0
+          ? await ctx.db
+              .select()
+              .from(schema.usageStats)
+              .where(
+                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
+          : [];
+
+      const customLimitsRecords =
+        userIds.length > 0
+          ? await ctx.db
+              .select()
+              .from(schema.userLimits)
+              .where(
+                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
+          : [];
 
       // Create maps for quick lookup
       const usageMap = new Map(usageRecords.map((u) => [u.userId, u]));
@@ -160,9 +241,9 @@ export const adminRouter = router({
         customLimitsRecords.map((l) => [l.userId, l])
       );
 
-      // Build results with usage and limits
+      // Build results with usage and limits for requested users only
       const allResults = await Promise.all(
-        users.slice(0, input.limit).map(async (user) => {
+        requestedUsers.map(async (user) => {
           const usage = usageMap.get(user.id);
           const customLimits = customLimitsMap.get(user.id);
           const limits = await getUserLimits(ctx.db, user.id);
@@ -181,6 +262,7 @@ export const adminRouter = router({
             banned: user.banned || false,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
+            lastSeenAt: user.lastSeenAt,
             usage: usage
               ? {
                   sourceCount: usage.sourceCount,
@@ -218,7 +300,12 @@ export const adminRouter = router({
         })
       );
 
-      return createPaginatedResponse(allResults, input.limit, input.offset);
+      // Return paginated response with accurate total count
+      return {
+        items: allResults,
+        total: totalCount,
+        hasMore,
+      };
     }),
 
   /**
@@ -276,6 +363,7 @@ export const adminRouter = router({
         banned: user.banned || false,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastSeenAt: user.lastSeenAt,
         usage: {
           sourceCount: usage.sourceCount,
           publicFeedCount: usage.publicFeedCount,
