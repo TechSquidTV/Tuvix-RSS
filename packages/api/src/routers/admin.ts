@@ -130,6 +130,20 @@ export const adminRouter = router({
         );
       }
 
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
+
+      // Get total count (separate query for accurate pagination)
+      // Note: For optimal performance with large datasets, a COUNT query would be better,
+      // but Drizzle's type system makes it difficult with conditional WHERE clauses.
+      // Since admin dashboards are low-traffic and user tables are typically small (<10k users),
+      // fetching all matching rows for counting is acceptable.
+      const allMatchingUsers = await ctx.db
+        .select()
+        .from(schema.user)
+        .where(whereClause);
+      const totalCount = allMatchingUsers.length;
+
       // Determine sort field and order
       const sortField = input.sortBy || "createdAt";
       const sortOrder = input.sortOrder || "desc";
@@ -154,7 +168,7 @@ export const adminRouter = router({
           ctx.db
             .select()
             .from(schema.user)
-            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .where(whereClause)
             .orderBy(sortFn(sortColumn))
             .limit(input.limit + 1)
             .offset(input.offset),
@@ -259,11 +273,10 @@ export const adminRouter = router({
         })
       );
 
-      // Return paginated response with manually calculated hasMore
-      // (we already sliced to avoid processing the extra user)
+      // Return paginated response with accurate total count
       return {
         items: allResults,
-        total: input.offset + allResults.length + (hasMore ? 1 : 0),
+        total: totalCount,
         hasMore,
       };
     }),
