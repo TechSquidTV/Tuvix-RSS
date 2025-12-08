@@ -222,7 +222,7 @@ export const createColumns = (
       if (!a && !b) return 0;
       if (!a) return 1;
       if (!b) return -1;
-      return new Date(a).getTime() - new Date(b).getTime();
+      return a.getTime() - b.getTime();
     },
   },
   {

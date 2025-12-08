@@ -171,9 +171,14 @@ export const adminRouter = router({
         }
       );
 
-      // Bulk fetch usage stats and custom limits for all users
-      // Note: Don't slice here - we need to keep the extra item for pagination detection
-      const userIds = users.map((u) => u.id);
+      // Check if there are more results for pagination
+      const hasMore = users.length > input.limit;
+
+      // Slice to actual requested items (don't process the extra pagination-detection item)
+      const requestedUsers = users.slice(0, input.limit);
+
+      // Bulk fetch usage stats and custom limits for requested users only
+      const userIds = requestedUsers.map((u) => u.id);
 
       const usageRecords = await ctx.db
         .select()
@@ -195,10 +200,9 @@ export const adminRouter = router({
         customLimitsRecords.map((l) => [l.userId, l])
       );
 
-      // Build results with usage and limits
-      // Note: Process ALL users (including the +1 extra) so createPaginatedResponse can detect hasMore
+      // Build results with usage and limits for requested users only
       const allResults = await Promise.all(
-        users.map(async (user) => {
+        requestedUsers.map(async (user) => {
           const usage = usageMap.get(user.id);
           const customLimits = customLimitsMap.get(user.id);
           const limits = await getUserLimits(ctx.db, user.id);
@@ -255,7 +259,13 @@ export const adminRouter = router({
         })
       );
 
-      return createPaginatedResponse(allResults, input.limit, input.offset);
+      // Return paginated response with manually calculated hasMore
+      // (we already sliced to avoid processing the extra user)
+      return {
+        items: allResults,
+        total: input.offset + allResults.length + (hasMore ? 1 : 0),
+        hasMore,
+      };
     }),
 
   /**

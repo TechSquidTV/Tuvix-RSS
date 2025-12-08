@@ -67,6 +67,25 @@ function AdminUsers() {
     { id: string; desc: boolean }[] | undefined
   >(undefined);
 
+  // Type-safe sorting field mapping - ensures only valid sort fields are passed to API
+  const VALID_SORT_FIELDS = [
+    "username",
+    "email",
+    "role",
+    "plan",
+    "banned",
+    "emailVerified",
+    "createdAt",
+    "lastSeenAt",
+  ] as const;
+  type ValidSortField = (typeof VALID_SORT_FIELDS)[number];
+
+  const sortField = sorting?.[0]?.id;
+  const validatedSortBy: ValidSortField | undefined =
+    sortField && VALID_SORT_FIELDS.includes(sortField as ValidSortField)
+      ? (sortField as ValidSortField)
+      : undefined;
+
   const {
     data: users,
     isLoading,
@@ -74,16 +93,7 @@ function AdminUsers() {
   } = trpc.admin.listUsers.useQuery({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    sortBy: sorting?.[0]?.id as
-      | "username"
-      | "email"
-      | "role"
-      | "plan"
-      | "banned"
-      | "emailVerified"
-      | "createdAt"
-      | "lastSeenAt"
-      | undefined,
+    sortBy: validatedSortBy,
     sortOrder: sorting?.[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 

@@ -81,7 +81,7 @@ export function getLastSeenStatusColor(date: Date | null): string {
   if (!date) return "text-muted-foreground";
 
   const now = new Date();
-  const diffInMs = now.getTime() - new Date(date).getTime();
+  const diffInMs = now.getTime() - date.getTime();
   const diffInHours = diffInMs / (1000 * 60 * 60);
   const diffInDays = diffInHours / 24;
 
