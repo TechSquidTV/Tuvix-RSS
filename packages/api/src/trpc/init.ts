@@ -152,8 +152,11 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
       .where(eq(schema.user.id, userId))
       .catch((error) => {
         // Log error to Sentry but don't fail the request
+        // Using 'info' level since this is fire-and-forget user activity tracking
+        // Sentry.captureException returns a promise, but we don't await it
+        // Add .catch() to prevent unhandled rejection warnings
         Sentry.captureException(error, {
-          level: "warning",
+          level: "info",
           tags: {
             context: "isAuthed_middleware",
             operation: "update_lastSeenAt",
@@ -161,6 +164,8 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
           extra: {
             userId,
           },
+        }).catch(() => {
+          // Silently ignore Sentry logging failures - this is best-effort tracking
         });
       });
   }
