@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { trpc } from "../api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useRefreshFeeds, type InfiniteArticlesData } from "./useArticles";
+import type { InfiniteArticlesData } from "./useArticles";
 import * as Sentry from "@sentry/react";
 
 // Categories
@@ -115,7 +115,6 @@ const SLOW_FETCH_THRESHOLD = 5; // Show warning after 5th attempt (10s)
  */
 export const useCreateSubscriptionWithRefetch = () => {
   const createSubscription = useCreateSubscription();
-  const refreshFeeds = useRefreshFeeds();
   const queryClient = useQueryClient();
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const attemptsRef = useRef(0); // Use ref to avoid closure issues
@@ -194,8 +193,8 @@ export const useCreateSubscriptionWithRefetch = () => {
         }
       }
 
-      // Trigger server-side feed refresh
-      refreshFeeds.mutate();
+      // Note: Backend now fetches articles immediately when creating subscription
+      // No need to trigger a separate refresh here
 
       // Start smart polling (state already set above)
       // Recursive polling function to ensure serial execution
