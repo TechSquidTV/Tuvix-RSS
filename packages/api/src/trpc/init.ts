@@ -152,6 +152,9 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
       .update(schema.user)
       .set({ lastSeenAt: now })
       .where(eq(schema.user.id, userId))
+      .then(() => {
+        // Query executed successfully - no action needed
+      })
       .catch((error) => {
         // Log error to Sentry but don't fail the request
         // Using 'info' level since this is fire-and-forget user activity tracking
