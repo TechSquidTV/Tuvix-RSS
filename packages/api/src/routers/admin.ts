@@ -213,19 +213,27 @@ export const adminRouter = router({
       // Bulk fetch usage stats and custom limits for requested users only
       const userIds = requestedUsers.map((u) => u.id);
 
-      const usageRecords = await ctx.db
-        .select()
-        .from(schema.usageStats)
-        .where(
-          sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-        );
+      // Guard against empty userIds to avoid invalid SQL "IN ()" syntax
+      // This can happen when navigating beyond available pages
+      const usageRecords =
+        userIds.length > 0
+          ? await ctx.db
+              .select()
+              .from(schema.usageStats)
+              .where(
+                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
+          : [];
 
-      const customLimitsRecords = await ctx.db
-        .select()
-        .from(schema.userLimits)
-        .where(
-          sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-        );
+      const customLimitsRecords =
+        userIds.length > 0
+          ? await ctx.db
+              .select()
+              .from(schema.userLimits)
+              .where(
+                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
+          : [];
 
       // Create maps for quick lookup
       const usageMap = new Map(usageRecords.map((u) => [u.userId, u]));
