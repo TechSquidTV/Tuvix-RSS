@@ -310,6 +310,7 @@ function AdminUsers() {
             columns={columns}
             data={users?.items || []}
             pageCount={Math.ceil((users?.total || 0) / pagination.pageSize)}
+            totalCount={users?.total}
             pagination={pagination}
             onPaginationChange={setPagination}
             sorting={sorting}

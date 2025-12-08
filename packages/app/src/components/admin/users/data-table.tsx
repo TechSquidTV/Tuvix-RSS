@@ -29,6 +29,7 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   pageCount?: number;
+  totalCount?: number;
   pagination?: PaginationState;
   onPaginationChange?: (
     updaterOrValue:
@@ -45,6 +46,7 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   pageCount,
+  totalCount,
   pagination: controlledPagination,
   onPaginationChange,
   sorting: controlledSorting,
@@ -157,7 +159,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} totalCount={totalCount} />
     </div>
   );
 }
