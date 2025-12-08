@@ -6,6 +6,7 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
+import superjson from "superjson";
 import * as schema from "@/db/schema";
 import { checkLimit, getUserLimits } from "@/services/limits";
 import { checkApiRateLimit } from "@/services/rate-limiter";
@@ -15,6 +16,7 @@ import type { Context } from "./context";
 
 // Initialize tRPC with context
 const t = initTRPC.context<Context>().create({
+  transformer: superjson,
   errorFormatter({ shape, error, ctx }) {
     // Log all errors to console for debugging
     console.error("❌ tRPC Error:", {
