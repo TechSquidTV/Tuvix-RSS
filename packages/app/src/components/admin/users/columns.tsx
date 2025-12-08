@@ -81,6 +81,14 @@ export const createColumns = (
         </div>
       );
     },
+    filterFn: (row, id, value) => {
+      const user = row.original;
+      const searchValue = String(value).toLowerCase();
+      return (
+        user.username.toLowerCase().includes(searchValue) ||
+        user.email.toLowerCase().includes(searchValue)
+      );
+    },
     enableSorting: true,
     enableHiding: false,
   },
@@ -178,9 +186,9 @@ export const createColumns = (
       );
     },
     filterFn: (row, id, value) => {
-      if (value === "all") return true;
       const verified = row.getValue(id) as boolean;
-      return value === "verified" ? verified : !verified;
+      const status = verified ? "verified" : "unverified";
+      return value.includes(status);
     },
     enableSorting: true,
   },
