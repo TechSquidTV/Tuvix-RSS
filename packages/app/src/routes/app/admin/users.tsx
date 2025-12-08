@@ -67,6 +67,26 @@ function AdminUsers() {
     { id: string; desc: boolean }[] | undefined
   >(undefined);
 
+  // Wrap setSorting to reset pagination when sorting changes
+  const handleSortingChange = useCallback(
+    (
+      updaterOrValue:
+        | { id: string; desc: boolean }[]
+        | undefined
+        | ((
+            old: { id: string; desc: boolean }[] | undefined,
+          ) => { id: string; desc: boolean }[] | undefined),
+    ) => {
+      setSorting(updaterOrValue);
+      // Reset to first page when sorting changes
+      setPagination((prev) => ({
+        ...prev,
+        pageIndex: 0,
+      }));
+    },
+    [],
+  );
+
   // Type-safe sorting field mapping - ensures only valid sort fields are passed to API
   const VALID_SORT_FIELDS = [
     "username",
@@ -293,7 +313,7 @@ function AdminUsers() {
             pagination={pagination}
             onPaginationChange={setPagination}
             sorting={sorting}
-            onSortingChange={setSorting}
+            onSortingChange={handleSortingChange}
           />
         </CardContent>
       </Card>
