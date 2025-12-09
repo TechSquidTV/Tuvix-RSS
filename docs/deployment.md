@@ -190,6 +190,7 @@ If enabled, the **first person to register** becomes admin. This is convenient f
 **Timing consideration:** If your deployment is publicly accessible, ensure you register first before others discover the instance. For internet-exposed production deployments, Option 1 (bootstrap) is more deterministic.
 
 **Recommended for:**
+
 - Local development/testing
 - Private networks or VPN-only access
 - Deployments where you control registration access
@@ -1103,18 +1104,18 @@ curl -X POST https://api.example.com/_admin/init
 
 #### Docker-Only Variables
 
-| Variable                 | Required | Default         | Description                                                            |
-| ------------------------ | -------- | --------------- | ---------------------------------------------------------------------- |
-| `DATABASE_PATH`          | No       | ./data/tuvix.db | Path to SQLite database                                                |
-| `PORT`                   | No       | 3001            | API server port                                                        |
-| `BASE_URL`               | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)   |
-| `ADMIN_USERNAME`         | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD) - **Recommended for production** |
-| `ADMIN_EMAIL`            | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD) - **Recommended for production** |
-| `ADMIN_PASSWORD`         | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL) - **Recommended for production** |
-| `ALLOW_FIRST_USER_ADMIN` | No       | false           | Enable first user auto-promotion to admin. Convenient for dev/testing. For public production deployments, bootstrap (ADMIN_* vars) is more deterministic. |
-| `RESEND_API_KEY`         | No       | -               | Resend API key for email service                                       |
-| `EMAIL_FROM`             | No       | -               | Email sender address (must match verified domain in Resend)            |
-| `COOKIE_DOMAIN`          | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")          |
+| Variable                 | Required | Default         | Description                                                                                                                                                 |
+| ------------------------ | -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_PATH`          | No       | ./data/tuvix.db | Path to SQLite database                                                                                                                                     |
+| `PORT`                   | No       | 3001            | API server port                                                                                                                                             |
+| `BASE_URL`               | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)                                                                                        |
+| `ADMIN_USERNAME`         | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD) - **Recommended for production**                                                     |
+| `ADMIN_EMAIL`            | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD) - **Recommended for production**                                                     |
+| `ADMIN_PASSWORD`         | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL) - **Recommended for production**                                                     |
+| `ALLOW_FIRST_USER_ADMIN` | No       | false           | Enable first user auto-promotion to admin. Convenient for dev/testing. For public production deployments, bootstrap (ADMIN\_\* vars) is more deterministic. |
+| `RESEND_API_KEY`         | No       | -               | Resend API key for email service                                                                                                                            |
+| `EMAIL_FROM`             | No       | -               | Email sender address (must match verified domain in Resend)                                                                                                 |
+| `COOKIE_DOMAIN`          | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")                                                                                               |
 
 #### Cloudflare-Only Variables
 

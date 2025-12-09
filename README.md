@@ -81,6 +81,7 @@ Tuvix uses a **trunk-based development** workflow:
 ### Configuration
 
 **Required:**
+
 - `BETTER_AUTH_SECRET` - Generate with: `openssl rand -base64 32`
 - `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` - Your admin credentials
 
