@@ -623,9 +623,10 @@ cd packages/api
 npx wrangler secret put BETTER_AUTH_SECRET
 # Generate with: openssl rand -base64 32
 
-# First user auto-promotion to admin (REQUIRED for first deployment)
+# First user auto-promotion to admin (optional - enabled by default if not set)
+# Only set this secret if you want to explicitly control the behavior
 npx wrangler secret put ALLOW_FIRST_USER_ADMIN
-# Enter: true
+# Enter: true (to enable, default) or false (to disable)
 
 # CORS origin (frontend URL) - Set BEFORE deploying API
 npx wrangler secret put CORS_ORIGIN
@@ -719,7 +720,7 @@ See [GitHub Issue #969](https://github.com/better-auth/better-auth/issues/969) f
 **Prerequisites:**
 
 1. ✅ Cloudflare Workers Paid plan active ($5/month)
-2. ✅ `ALLOW_FIRST_USER_ADMIN` secret set to `"true"` (Step 3)
+2. ✅ `ALLOW_FIRST_USER_ADMIN` enabled (enabled by default, or set secret to `"true"` in Step 3)
 3. ✅ Email service configured (optional but recommended)
 4. ✅ CPU limits configured in `wrangler.toml` (already set to 30 seconds)
 
@@ -1123,7 +1124,7 @@ curl -X POST https://api.example.com/_admin/init
 | Secret                   | Required | Description                                                                                                  |
 | ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------ |
 | `BETTER_AUTH_SECRET`     | Yes      | Secret for Better Auth session management (min 32 chars)                                                     |
-| `ALLOW_FIRST_USER_ADMIN` | Yes      | Enable first user auto-promotion to admin (set to `"true"`)                                                  |
+| `ALLOW_FIRST_USER_ADMIN` | No       | Enable first user auto-promotion to admin (defaults to enabled, set to `"false"` to disable)                 |
 | `CORS_ORIGIN`            | Yes      | Allowed CORS origins (comma-separated)                                                                       |
 | `BASE_URL`               | Yes      | Base URL for Better Auth (production API URL, NOT localhost). Used for callback URLs and session management. |
 | `RESEND_API_KEY`         | No       | Resend API key for email service (see [Email System Guide](developer/email-system.md))                       |
