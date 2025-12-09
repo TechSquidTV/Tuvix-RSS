@@ -16,6 +16,15 @@ services:
       - NODE_ENV=production
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change-me-in-production}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - BASE_URL=${BASE_URL:-http://localhost:5173}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
+      - ALLOW_FIRST_USER_ADMIN=${ALLOW_FIRST_USER_ADMIN:-true}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
       - SENTRY_DSN=${SENTRY_DSN:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-development}
       - SENTRY_RELEASE=${SENTRY_RELEASE:-}
