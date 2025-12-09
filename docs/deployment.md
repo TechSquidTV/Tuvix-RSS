@@ -1093,18 +1093,18 @@ curl -X POST https://api.example.com/_admin/init
 
 #### Docker-Only Variables
 
-| Variable                  | Required | Default         | Description                                                                              |
-| ------------------------- | -------- | --------------- | ---------------------------------------------------------------------------------------- |
-| `DATABASE_PATH`           | No       | ./data/tuvix.db | Path to SQLite database                                                                  |
-| `PORT`                    | No       | 3001            | API server port                                                                          |
-| `BASE_URL`                | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)                     |
-| `ALLOW_FIRST_USER_ADMIN`  | No       | true            | Enable first user auto-promotion to admin (set to "false" to disable)                    |
-| `ADMIN_USERNAME`          | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD)                   |
-| `ADMIN_EMAIL`             | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD)                   |
-| `ADMIN_PASSWORD`          | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL)                   |
-| `RESEND_API_KEY`          | No       | -               | Resend API key for email service                                                         |
-| `EMAIL_FROM`              | No       | -               | Email sender address (must match verified domain in Resend)                              |
-| `COOKIE_DOMAIN`           | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")                            |
+| Variable                 | Required | Default         | Description                                                            |
+| ------------------------ | -------- | --------------- | ---------------------------------------------------------------------- |
+| `DATABASE_PATH`          | No       | ./data/tuvix.db | Path to SQLite database                                                |
+| `PORT`                   | No       | 3001            | API server port                                                        |
+| `BASE_URL`               | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)   |
+| `ALLOW_FIRST_USER_ADMIN` | No       | true            | Enable first user auto-promotion to admin (set to "false" to disable)  |
+| `ADMIN_USERNAME`         | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD) |
+| `ADMIN_EMAIL`            | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD) |
+| `ADMIN_PASSWORD`         | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL) |
+| `RESEND_API_KEY`         | No       | -               | Resend API key for email service                                       |
+| `EMAIL_FROM`             | No       | -               | Email sender address (must match verified domain in Resend)            |
+| `COOKIE_DOMAIN`          | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")          |
 
 #### Cloudflare-Only Variables
 
