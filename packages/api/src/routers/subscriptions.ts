@@ -661,6 +661,43 @@ export const subscriptionsRouter = router({
       // Step 7: Update usage stats (increment source count)
       await incrementSourceCount(ctx.db, userId);
 
+      // Step 7.5: Immediately fetch articles for the new subscription
+      // This provides instant feedback to the user instead of waiting for batch processing
+      try {
+        const { fetchSingleFeed } = await import("@/services/rss-fetcher");
+        await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
+
+        await Sentry.addBreadcrumb({
+          category: "subscription",
+          message: `Successfully fetched articles for new subscription`,
+          level: "info",
+          data: {
+            source_id: sourceId,
+            url: normalizedFeedUrl,
+          },
+        });
+      } catch (fetchError) {
+        // Log error but don't fail the subscription creation
+        // Articles will be fetched on the next scheduled run
+        console.error(
+          "[create] Failed to fetch articles for new subscription:",
+          fetchError
+        );
+
+        await Sentry.captureException(fetchError, {
+          level: "warning",
+          tags: {
+            operation: "subscription_immediate_fetch",
+            domain: domain || "unknown",
+          },
+          extra: {
+            source_id: sourceId,
+            url: normalizedFeedUrl,
+            user_id: userId,
+          },
+        });
+      }
+
       // Step 8: Link existing categories
       if (input.categoryIds && input.categoryIds.length > 0) {
         const categoryLinks = input.categoryIds.map((categoryId) => ({
