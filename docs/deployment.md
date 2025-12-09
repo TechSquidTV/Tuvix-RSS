@@ -168,16 +168,7 @@ BASE_URL=http://localhost:5173  # Frontend URL for Better Auth callbacks
 
 TuvixRSS supports two methods for creating an admin user:
 
-**Option 1: First User Auto-Promotion (Recommended)**
-Set `ALLOW_FIRST_USER_ADMIN=true` (default) to automatically make the first registered user an admin:
-
-```env
-ALLOW_FIRST_USER_ADMIN=true
-```
-
-After starting the containers, simply navigate to the signup page and register. The first user will automatically become an admin.
-
-**Option 2: Admin Bootstrap on Startup**
+**Option 1: Admin Bootstrap on Startup (RECOMMENDED - Secure)**
 Provide admin credentials to create an admin user automatically when the container starts:
 
 ```env
@@ -187,6 +178,21 @@ ADMIN_PASSWORD=your-secure-password-here
 ```
 
 **Note:** All three `ADMIN_*` variables must be set for bootstrap to work. If an admin already exists, these will be ignored.
+
+**Option 2: First User Auto-Promotion**
+
+```env
+ALLOW_FIRST_USER_ADMIN=true
+```
+
+If enabled, the **first person to register** becomes admin. This is convenient for quick setup.
+
+**Timing consideration:** If your deployment is publicly accessible, ensure you register first before others discover the instance. For internet-exposed production deployments, Option 1 (bootstrap) is more deterministic.
+
+**Recommended for:**
+- Local development/testing
+- Private networks or VPN-only access
+- Deployments where you control registration access
 
 #### 2. Build and Run
 
@@ -275,11 +281,14 @@ PORT=3001
 NODE_ENV=production
 BASE_URL=https://feed.example.com  # Frontend URL for Better Auth callbacks
 
-# Admin Setup (choose one option - see Development Setup section for details)
-ALLOW_FIRST_USER_ADMIN=true  # Option 1: First user becomes admin (recommended)
-# ADMIN_USERNAME=admin         # Option 2: Bootstrap admin on startup
-# ADMIN_EMAIL=admin@example.com
-# ADMIN_PASSWORD=<secure-password>
+# Admin Setup (choose one option)
+# Option 1: Bootstrap admin on startup (recommended for production)
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<secure-password>
+
+# Option 2: First user auto-promotion (convenient for dev/testing)
+# ALLOW_FIRST_USER_ADMIN=true
 
 # Optional: Email service (for verification emails, password resets)
 # RESEND_API_KEY=re_xxxxxxxxx
@@ -1099,10 +1108,10 @@ curl -X POST https://api.example.com/_admin/init
 | `DATABASE_PATH`          | No       | ./data/tuvix.db | Path to SQLite database                                                |
 | `PORT`                   | No       | 3001            | API server port                                                        |
 | `BASE_URL`               | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)   |
-| `ALLOW_FIRST_USER_ADMIN` | No       | true            | Enable first user auto-promotion to admin (set to "false" to disable)  |
-| `ADMIN_USERNAME`         | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD) |
-| `ADMIN_EMAIL`            | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD) |
-| `ADMIN_PASSWORD`         | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL) |
+| `ADMIN_USERNAME`         | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD) - **Recommended for production** |
+| `ADMIN_EMAIL`            | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD) - **Recommended for production** |
+| `ADMIN_PASSWORD`         | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL) - **Recommended for production** |
+| `ALLOW_FIRST_USER_ADMIN` | No       | false           | Enable first user auto-promotion to admin. Convenient for dev/testing. For public production deployments, bootstrap (ADMIN_* vars) is more deterministic. |
 | `RESEND_API_KEY`         | No       | -               | Resend API key for email service                                       |
 | `EMAIL_FROM`             | No       | -               | Email sender address (must match verified domain in Resend)            |
 | `COOKIE_DOMAIN`          | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")          |
