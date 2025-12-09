@@ -161,7 +161,32 @@ CORS_ORIGIN=http://localhost:5173
 DATABASE_PATH=/app/data/tuvix.db
 PORT=3001
 NODE_ENV=production
+BASE_URL=http://localhost:5173  # Frontend URL for Better Auth callbacks
 ```
+
+**Admin User Setup:**
+
+TuvixRSS supports two methods for creating an admin user:
+
+**Option 1: First User Auto-Promotion (Recommended)**
+Set `ALLOW_FIRST_USER_ADMIN=true` (default) to automatically make the first registered user an admin:
+
+```env
+ALLOW_FIRST_USER_ADMIN=true
+```
+
+After starting the containers, simply navigate to the signup page and register. The first user will automatically become an admin.
+
+**Option 2: Admin Bootstrap on Startup**
+Provide admin credentials to create an admin user automatically when the container starts:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+**Note:** All three `ADMIN_*` variables must be set for bootstrap to work. If an admin already exists, these will be ignored.
 
 #### 2. Build and Run
 
@@ -248,6 +273,17 @@ CORS_ORIGIN=https://feed.example.com  # Frontend URL (or multiple origins comma-
 DATABASE_PATH=/app/data/tuvix.db
 PORT=3001
 NODE_ENV=production
+BASE_URL=https://feed.example.com  # Frontend URL for Better Auth callbacks
+
+# Admin Setup (choose one option - see Development Setup section for details)
+ALLOW_FIRST_USER_ADMIN=true  # Option 1: First user becomes admin (recommended)
+# ADMIN_USERNAME=admin         # Option 2: Bootstrap admin on startup
+# ADMIN_EMAIL=admin@example.com
+# ADMIN_PASSWORD=<secure-password>
+
+# Optional: Email service (for verification emails, password resets)
+# RESEND_API_KEY=re_xxxxxxxxx
+# EMAIL_FROM=noreply@yourdomain.com
 
 # Optional: Customize fetch behavior
 FETCH_INTERVAL_MINUTES=60  # How often to fetch RSS feeds
@@ -1057,10 +1093,18 @@ curl -X POST https://api.example.com/_admin/init
 
 #### Docker-Only Variables
 
-| Variable        | Required | Default         | Description             |
-| --------------- | -------- | --------------- | ----------------------- |
-| `DATABASE_PATH` | No       | ./data/tuvix.db | Path to SQLite database |
-| `PORT`          | No       | 3001            | API server port         |
+| Variable                  | Required | Default         | Description                                                                              |
+| ------------------------- | -------- | --------------- | ---------------------------------------------------------------------------------------- |
+| `DATABASE_PATH`           | No       | ./data/tuvix.db | Path to SQLite database                                                                  |
+| `PORT`                    | No       | 3001            | API server port                                                                          |
+| `BASE_URL`                | No       | -               | Frontend URL for Better Auth callbacks (e.g., http://localhost:5173)                     |
+| `ALLOW_FIRST_USER_ADMIN`  | No       | true            | Enable first user auto-promotion to admin (set to "false" to disable)                    |
+| `ADMIN_USERNAME`          | No       | -               | Admin username for bootstrap (requires ADMIN_EMAIL and ADMIN_PASSWORD)                   |
+| `ADMIN_EMAIL`             | No       | -               | Admin email for bootstrap (requires ADMIN_USERNAME and ADMIN_PASSWORD)                   |
+| `ADMIN_PASSWORD`          | No       | -               | Admin password for bootstrap (requires ADMIN_USERNAME and ADMIN_EMAIL)                   |
+| `RESEND_API_KEY`          | No       | -               | Resend API key for email service                                                         |
+| `EMAIL_FROM`              | No       | -               | Email sender address (must match verified domain in Resend)                              |
+| `COOKIE_DOMAIN`           | No       | -               | Root domain for cross-subdomain cookies (e.g., "example.com")                            |
 
 #### Cloudflare-Only Variables
 
