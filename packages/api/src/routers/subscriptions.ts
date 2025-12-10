@@ -969,8 +969,9 @@ export const subscriptionsRouter = router({
         FeedValidationError,
         FeedDiscoveryError,
       } = await import("@tuvixrss/tricorder");
-      const { sentryTelemetryAdapter } =
-        await import("@/adapters/sentry-telemetry");
+      const { sentryTelemetryAdapter } = await import(
+        "@/adapters/sentry-telemetry"
+      );
 
       // Use the extensible discovery system with Sentry telemetry
       let discoveredFeeds;
