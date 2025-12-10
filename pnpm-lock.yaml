@@ -34,8 +34,8 @@ importers:
         specifier: ^1.19.6
         version: 1.19.6(hono@4.10.6)
       '@hono/trpc-server':
-        specifier: ^0.4.0
-        version: 0.4.0(@trpc/server@11.7.2(typescript@5.9.3))(hono@4.10.6)
+        specifier: ^0.4.1
+        version: 0.4.1(@trpc/server@11.7.2(typescript@5.9.3))(hono@4.10.6)
       '@react-email/components':
         specifier: ^1.0.1
         version: 1.0.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1319,12 +1319,12 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/trpc-server@0.4.0':
-    resolution: {integrity: sha512-LGlJfCmNIGMwcknZEIYdujVMs9OkNVazhpOhaz3kTWOXvNL660VOHpvvktosCiJrajyBY1RtIJKQ+IKaQvNuSg==}
+  '@hono/trpc-server@0.4.1':
+    resolution: {integrity: sha512-5D4gA+MpJxUzqCEDgZMlhxz1G8BkoneR+N+bD7Kt28LPJ0jAhXp1GA3ucpV6KxMBBLvFXIAFAfzdBeRmz12Pkw==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       '@trpc/server': ^10.10.0 || >11.0.0-rc
-      hono: '>=4.*'
+      hono: '>=4.0.0'
 
   '@hookform/resolvers@5.2.2':
     resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
@@ -8857,7 +8857,7 @@ snapshots:
     dependencies:
       hono: 4.10.6
 
-  '@hono/trpc-server@0.4.0(@trpc/server@11.7.2(typescript@5.9.3))(hono@4.10.6)':
+  '@hono/trpc-server@0.4.1(@trpc/server@11.7.2(typescript@5.9.3))(hono@4.10.6)':
     dependencies:
       '@trpc/server': 11.7.2(typescript@5.9.3)
       hono: 4.10.6
