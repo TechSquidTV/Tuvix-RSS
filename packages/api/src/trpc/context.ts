@@ -12,6 +12,17 @@ import { createDatabase } from "../db/client";
 import { createAuth } from "../auth/better-auth";
 import type { Env, AuthUser } from "../types";
 import type { BetterAuthUser } from "../types/better-auth";
+import type { UserLimits } from "../services/limits";
+import type * as schema from "../db/schema";
+
+/**
+ * Request-scoped cache to prevent N+1 queries
+ * Stores user data and limits fetched during middleware execution
+ */
+export interface RequestCache {
+  userRecord?: typeof schema.user.$inferSelect;
+  userLimits?: UserLimits;
+}
 
 /**
  * Create context for each request
@@ -89,12 +100,16 @@ export const createContext = async (
     });
   }
 
+  // Initialize request-scoped cache to prevent N+1 queries
+  const cache: RequestCache = {};
+
   return {
     db,
     user,
     env,
     headers,
     req,
+    cache,
   };
 };
 
