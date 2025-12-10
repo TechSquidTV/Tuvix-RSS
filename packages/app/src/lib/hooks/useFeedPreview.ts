@@ -1,4 +1,4 @@
-import { trpc } from "../api/trpc";
+import { trpc } from "@/lib/api/trpc";
 
 export interface CategorySuggestion {
   name: string;

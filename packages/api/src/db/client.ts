@@ -12,7 +12,7 @@ import Database from "better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
 import * as schema from "./schema";
-import type { Env } from "../types";
+import type { Env } from "@/types";
 
 export function createDatabase(env: Env) {
   const runtime = env.RUNTIME || "nodejs";

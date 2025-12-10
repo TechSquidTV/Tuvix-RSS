@@ -40,6 +40,9 @@
       "@/auth/*": ["auth/*"],
       "@/cron/*": ["cron/*"],
       "@/config/*": ["config/*"],
+      "@/hono/*": ["hono/*"],
+      "@/entries/*": ["entries/*"],
+      "@/cli/*": ["cli/*"],
       "@/types": ["types"],
       "@/types/*": ["types/*"],
       "@/test/*": ["test/*"]

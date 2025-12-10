@@ -8,8 +8,8 @@
 import * as Sentry from "@/utils/sentry";
 import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
-import type { Database } from "../db/client";
-import * as schema from "../db/schema";
+import type { Database } from "@/db/client";
+import * as schema from "@/db/schema";
 import { and, eq, inArray, or, isNull, lt } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
 import {

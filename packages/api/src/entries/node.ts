@@ -3,13 +3,13 @@ process.env.RUNTIME = "nodejs";
 
 import * as Sentry from "@sentry/node";
 import { serve } from "@hono/node-server";
-import { createHonoApp } from "../hono/app";
-import { runMigrationsIfNeeded } from "../db/migrate-local";
-import { initCronJobs } from "../cron/scheduler";
-import { initializeAdmin } from "../services/admin-init";
-import { createDatabase } from "../db/client";
-import { getSentryConfig } from "../config/sentry";
-import type { Env } from "../types";
+import { createHonoApp } from "@/hono/app";
+import { runMigrationsIfNeeded } from "@/db/migrate-local";
+import { initCronJobs } from "@/cron/scheduler";
+import { initializeAdmin } from "@/services/admin-init";
+import { createDatabase } from "@/db/client";
+import { getSentryConfig } from "@/config/sentry";
+import type { Env } from "@/types";
 
 // Load environment
 const env: Env = {

@@ -1,6 +1,6 @@
 // tRPC Hooks for Articles
 import { toast } from "sonner";
-import { trpc } from "../api/trpc";
+import { trpc } from "@/lib/api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Type for paginated article structure in React Query cache
