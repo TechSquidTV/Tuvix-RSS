@@ -168,6 +168,7 @@ export function createHonoApp(config: HonoAppConfig) {
     const env = c.get("env");
 
     return trpcServer({
+      endpoint: '/trpc',
       router: appRouter,
       createContext: (_opts, honoContext) => {
         return createContext({
