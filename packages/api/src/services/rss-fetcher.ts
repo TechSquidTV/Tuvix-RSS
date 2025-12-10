@@ -10,7 +10,7 @@ import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
 import type { Database } from "../db/client";
 import * as schema from "../db/schema";
-import { eq, inArray, or, isNull, lt } from "drizzle-orm";
+import { and, eq, inArray, or, isNull, lt } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
 import {
   sanitizeHtml,
@@ -638,7 +638,12 @@ async function storeArticles(
         const existingArticles = await db
           .select()
           .from(schema.articles)
-          .where(inArray(schema.articles.guid, chunk));
+          .where(
+            and(
+              eq(schema.articles.sourceId, sourceId),
+              inArray(schema.articles.guid, chunk)
+            )
+          );
 
         for (const article of existingArticles) {
           existingGuids.add(article.guid);
