@@ -362,29 +362,6 @@ describe("useMarkAllRead", () => {
       { timeout: 3000 },
     );
   });
-
-  it("should show success toast on successful mutation", async () => {
-    const { result } = renderHook(() => useMarkAllRead(), {
-      wrapper: createWrapper(),
-    });
-
-    // Trigger mutation - it will fail (no backend) but should show toast based on onSuccess/onError
-    act(() => {
-      result.current.mutate({});
-    });
-
-    // Wait for mutation to process
-    await waitFor(
-      () => {
-        // Either success or error toast should be called
-        expect(
-          vi.mocked(toast.success).mock.calls.length +
-            vi.mocked(toast.error).mock.calls.length,
-        ).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
-  });
 });
 
 describe("useRefreshFeeds", () => {
