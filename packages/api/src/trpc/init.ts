@@ -92,8 +92,17 @@ export const publicProcedure = sentryMiddleware
   ? t.procedure.use(sentryMiddleware)
   : t.procedure;
 
-// Auth middleware - ensures user is authenticated and not banned
-const isAuthed = t.middleware(async ({ ctx, next }) => {
+/**
+ * Helper function to get cached user record
+ * Checks cache first to avoid N+1 queries in batch requests
+ * If not cached, fetches from database and stores in cache
+ *
+ * @param ctx tRPC context (must have valid user with userId)
+ * @returns User record from cache or database
+ * @throws TRPCError if user not authenticated or not found in database
+ */
+async function getCachedUserRecord(ctx: Context) {
+  // Ensure user context exists
   if (!ctx.user) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
@@ -101,10 +110,23 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     });
   }
 
+  // Ensure cache exists (defensive programming for test contexts)
+  if (!ctx.cache) {
+    ctx.cache = {};
+  }
+
   // Check cache first to avoid N+1 queries in batch requests
   let userRecord = ctx.cache.userRecord;
 
   if (!userRecord) {
+    // User ID should always be present when ctx.user exists
+    if (!ctx.user.userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User ID not available",
+      });
+    }
+
     // Cache miss - fetch from database and store in cache
     const [fetchedUser] = await ctx.db
       .select()
@@ -123,6 +145,21 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     userRecord = fetchedUser;
     ctx.cache.userRecord = userRecord;
   }
+
+  return userRecord;
+}
+
+// Auth middleware - ensures user is authenticated and not banned
+const isAuthed = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required",
+    });
+  }
+
+  // Get user record (from cache or database)
+  const userRecord = await getCachedUserRecord(ctx);
 
   if (userRecord.banned) {
     throw new TRPCError({
@@ -202,28 +239,8 @@ const isAuthedWithoutVerification = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check cache first to avoid N+1 queries in batch requests
-  let userRecord = ctx.cache.userRecord;
-
-  if (!userRecord) {
-    // Cache miss - fetch from database and store in cache
-    const [fetchedUser] = await ctx.db
-      .select()
-      .from(schema.user)
-      .where(eq(schema.user.id, ctx.user.userId))
-      .limit(1);
-
-    if (!fetchedUser) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "User not found",
-      });
-    }
-
-    // Store in cache for subsequent middleware/procedures in this request
-    userRecord = fetchedUser;
-    ctx.cache.userRecord = userRecord;
-  }
+  // Get user record (from cache or database)
+  const userRecord = await getCachedUserRecord(ctx);
 
   if (userRecord.banned) {
     throw new TRPCError({
@@ -312,28 +329,8 @@ const isAdmin = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check cache first to avoid N+1 queries in batch requests
-  let userRecord = ctx.cache.userRecord;
-
-  if (!userRecord) {
-    // Cache miss - fetch from database and store in cache
-    const [fetchedUser] = await ctx.db
-      .select()
-      .from(schema.user)
-      .where(eq(schema.user.id, ctx.user.userId))
-      .limit(1);
-
-    if (!fetchedUser) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "User not found",
-      });
-    }
-
-    // Store in cache for subsequent middleware/procedures in this request
-    userRecord = fetchedUser;
-    ctx.cache.userRecord = userRecord;
-  }
+  // Get user record (from cache or database)
+  const userRecord = await getCachedUserRecord(ctx);
 
   if (userRecord.banned) {
     throw new TRPCError({
@@ -379,7 +376,6 @@ const withRateLimit = t.middleware(async ({ ctx, next }) => {
 
   // Check cache first to avoid N+1 queries in batch requests
   let limits = ctx.cache.userLimits;
-  let userRecord = ctx.cache.userRecord;
 
   if (!limits) {
     // Cache miss - fetch user limits and store in cache
@@ -387,24 +383,8 @@ const withRateLimit = t.middleware(async ({ ctx, next }) => {
     ctx.cache.userLimits = limits;
   }
 
-  if (!userRecord) {
-    // Cache miss - fetch user record and store in cache
-    const [fetchedUser] = await ctx.db
-      .select()
-      .from(schema.user)
-      .where(eq(schema.user.id, ctx.user.userId))
-      .limit(1);
-
-    if (!fetchedUser) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "User not found",
-      });
-    }
-
-    userRecord = fetchedUser;
-    ctx.cache.userRecord = userRecord;
-  }
+  // Get user record (from cache or database)
+  const userRecord = await getCachedUserRecord(ctx);
 
   const planId = userRecord.plan || "free";
 
