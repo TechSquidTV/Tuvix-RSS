@@ -121,11 +121,30 @@ describe("RSS Fetcher Service", () => {
         );
       });
 
-      await fetchSingleFeed(source1.id, source1.url, db);
-      await fetchSingleFeed(source2.id, source2.url, db);
+      // Fetch from both sources
+      const result1 = await fetchSingleFeed(source1.id, source1.url, db);
+      const result2 = await fetchSingleFeed(source2.id, source2.url, db);
 
+      // Both inserts should succeed
+      expect(result1.articlesAdded).toBe(1);
+      expect(result2.articlesAdded).toBe(1);
+
+      // Verify both articles exist with correct sourceId values
       const articles = await db.select().from(schema.articles);
-      expect(articles).toHaveLength(2); // Both should be inserted
+      expect(articles).toHaveLength(2);
+      expect(articles[0].sourceId).toBe(source1.id);
+      expect(articles[1].sourceId).toBe(source2.id);
+      expect(articles[0].guid).toBe("shared-guid-123");
+      expect(articles[1].guid).toBe("shared-guid-123");
+
+      // Verify duplicate GUID in same source is still deduplicated
+      const result3 = await fetchSingleFeed(source1.id, source1.url, db);
+      expect(result3.articlesAdded).toBe(0);
+      expect(result3.articlesSkipped).toBe(1);
+
+      // Final check: still only 2 articles total
+      const finalArticles = await db.select().from(schema.articles);
+      expect(finalArticles).toHaveLength(2);
     });
 
     it("should update source lastFetched timestamp", async () => {
