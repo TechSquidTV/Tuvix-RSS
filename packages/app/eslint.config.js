@@ -3,6 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
@@ -27,6 +28,7 @@ export default defineConfig([
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "no-relative-import-paths": noRelativeImportPaths,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -46,6 +48,11 @@ export default defineConfig([
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
+      // Enforce tsconfig path aliases, disallow ../ imports but allow same folder ./
+      "no-relative-import-paths/no-relative-import-paths": [
+        "error",
+        { allowSameFolder: true, rootDir: "src", prefix: "@" },
+      ],
     },
   },
   // Suppress warnings in generated API client

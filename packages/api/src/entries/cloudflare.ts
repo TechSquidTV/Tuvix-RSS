@@ -5,10 +5,10 @@
  */
 
 import * as Sentry from "@sentry/cloudflare";
-import { createHonoApp } from "../hono/app";
-import { getSentryConfig } from "../config/sentry";
-import type { Env } from "../types";
-import { emitCounter } from "../utils/metrics";
+import { createHonoApp } from "@/hono/app";
+import { getSentryConfig } from "@/config/sentry";
+import type { Env } from "@/types";
+import { emitCounter } from "@/utils/metrics";
 
 // Create the Hono app with Cloudflare-specific Sentry
 const createWorkerHandler = (env: Env) => {

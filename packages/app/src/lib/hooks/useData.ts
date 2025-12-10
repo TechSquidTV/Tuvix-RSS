@@ -1,6 +1,6 @@
 // tRPC Hooks for Categories, Subscriptions, Feeds
 import { toast } from "sonner";
-import { trpc } from "../api/trpc";
+import { trpc } from "@/lib/api/trpc";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { InfiniteArticlesData } from "./useArticles";

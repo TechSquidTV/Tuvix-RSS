@@ -1,6 +1,7 @@
 import eslintPluginDrizzle from "eslint-plugin-drizzle";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
@@ -22,6 +23,7 @@ export default [
     plugins: {
       "@typescript-eslint": typescriptEslint,
       drizzle: eslintPluginDrizzle,
+      "no-relative-import-paths": noRelativeImportPaths,
     },
     rules: {
       ...eslintPluginDrizzle.configs.recommended.rules,
@@ -36,6 +38,11 @@ export default [
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-return": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
+      // Enforce tsconfig path aliases, disallow ../ imports but allow same folder ./
+      "no-relative-import-paths/no-relative-import-paths": [
+        "error",
+        { allowSameFolder: true, rootDir: "src", prefix: "@" },
+      ],
     },
   },
   {

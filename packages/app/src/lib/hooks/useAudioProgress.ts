@@ -1,4 +1,4 @@
-import { trpc } from "../api/trpc";
+import { trpc } from "@/lib/api/trpc";
 import { useCallback, useEffect, useRef } from "react";
 import { useAudio } from "@/contexts/audio-context";
 import * as Sentry from "@sentry/react";

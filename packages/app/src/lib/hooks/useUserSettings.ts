@@ -1,6 +1,6 @@
 // tRPC Hooks for User Settings
 import { toast } from "sonner";
-import { trpc, type RouterOutputs } from "../api/trpc";
+import { trpc, type RouterOutputs } from "@/lib/api/trpc";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 
 // User Settings type (matching backend model)
