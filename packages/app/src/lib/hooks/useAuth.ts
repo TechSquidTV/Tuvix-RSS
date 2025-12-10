@@ -157,28 +157,40 @@ export const useLogin = () => {
       // For non-email inputs, try username login first
       // Username plugin adds this method at runtime
       // TypeScript doesn't know about username method, but it exists at runtime
-      try {
-        const signInWithUsername = (
-          authClient.signIn as typeof authClient.signIn & {
-            username?: (input: {
-              username: string;
-              password: string;
-            }) => Promise<unknown>;
-          }
-        ).username;
-        if (signInWithUsername) {
+      const signInWithUsername = (
+        authClient.signIn as typeof authClient.signIn & {
+          username?: (input: {
+            username: string;
+            password: string;
+          }) => Promise<unknown>;
+        }
+      ).username;
+
+      if (signInWithUsername) {
+        // Username method exists, try it
+        try {
           const result = (await signInWithUsername(input)) as AuthResult;
           // Check if the response indicates an error
           if (result && !result.error) {
             return result;
           }
+          // If result has an error, throw it so we don't fall back to email
+          throw new Error(
+            result.error?.message || "Invalid username or password",
+          );
+        } catch (error) {
+          // Re-throw authentication errors from username login
+          // Don't fall back to email for wrong credentials
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : "Invalid username or password",
+          );
         }
-      } catch {
-        // Username login failed or method doesn't exist, continue to email fallback
       }
 
-      // Fallback to email login (input might be an email that doesn't contain @)
-      // This handles edge cases where email format might be unusual
+      // Only fall back to email if username method doesn't exist
+      // This handles the case where the app is misconfigured or username plugin isn't loaded
       try {
         const emailResult = (await authClient.signIn.email({
           email: input.username, // Treat username field as email
