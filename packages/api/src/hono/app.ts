@@ -193,9 +193,8 @@ export function createHonoApp(config: HonoAppConfig) {
     const { appRouter } = await import("../trpc/router");
     const { createContext } = await import("../trpc/context");
     const { getUserLimits } = await import("../services/limits");
-    const { checkPublicFeedRateLimit } = await import(
-      "../services/rate-limiter"
-    );
+    const { checkPublicFeedRateLimit } =
+      await import("../services/rate-limiter");
     const schema = await import("../db/schema");
     const { sql, eq, and } = await import("drizzle-orm");
 
