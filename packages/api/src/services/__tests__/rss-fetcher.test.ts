@@ -89,6 +89,64 @@ describe("RSS Fetcher Service", () => {
       expect(result2.articlesSkipped).toBe(result1.articlesAdded);
     });
 
+    it("should allow same GUID across different sources", async () => {
+      const source1 = await seedTestSource(db, {
+        url: "https://example.com/feed1.xml",
+      });
+      const source2 = await seedTestSource(db, {
+        url: "https://example.com/feed2.xml",
+      });
+
+      // Mock feeds with same GUID
+      global.fetch = vi.fn().mockImplementation(() => {
+        const feed = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <description>Test</description>
+    <item>
+      <title>Article</title>
+      <link>https://example.com/article</link>
+      <guid>shared-guid-123</guid>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+        return Promise.resolve(
+          new Response(feed, {
+            status: 200,
+            headers: { "Content-Type": "application/rss+xml" },
+          })
+        );
+      });
+
+      // Fetch from both sources
+      const result1 = await fetchSingleFeed(source1.id, source1.url, db);
+      const result2 = await fetchSingleFeed(source2.id, source2.url, db);
+
+      // Both inserts should succeed
+      expect(result1.articlesAdded).toBe(1);
+      expect(result2.articlesAdded).toBe(1);
+
+      // Verify both articles exist with correct sourceId values
+      const articles = await db.select().from(schema.articles);
+      expect(articles).toHaveLength(2);
+      expect(articles[0].sourceId).toBe(source1.id);
+      expect(articles[1].sourceId).toBe(source2.id);
+      expect(articles[0].guid).toBe("shared-guid-123");
+      expect(articles[1].guid).toBe("shared-guid-123");
+
+      // Verify duplicate GUID in same source is still deduplicated
+      const result3 = await fetchSingleFeed(source1.id, source1.url, db);
+      expect(result3.articlesAdded).toBe(0);
+      expect(result3.articlesSkipped).toBe(1);
+
+      // Final check: still only 2 articles total
+      const finalArticles = await db.select().from(schema.articles);
+      expect(finalArticles).toHaveLength(2);
+    });
+
     it("should update source lastFetched timestamp", async () => {
       const source = await seedTestSource(db);
 
