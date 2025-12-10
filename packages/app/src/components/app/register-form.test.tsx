@@ -156,7 +156,8 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(mockMutate).toHaveBeenCalledWith({
-        name: "testuser", // Better Auth uses 'name' field
+        name: "testuser", // Display name (Better Auth requirement)
+        username: "testuser", // Username for login (username plugin)
         email: "test@example.com",
         password: "TestP@ssw0rd!",
       });
