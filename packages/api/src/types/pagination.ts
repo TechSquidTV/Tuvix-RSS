@@ -53,6 +53,19 @@ export const paginationInputSchema = z.object({
 });
 
 /**
+ * Helper to wrap any schema to handle undefined input from batch GET requests
+ * Use this when tRPC might send undefined instead of an empty object
+ *
+ * @example
+ * ```ts
+ * .input(withUndefinedAsEmpty(paginationInputSchema))
+ * .input(withUndefinedAsEmpty(z.object({ id: z.number() })))
+ * ```
+ */
+export const withUndefinedAsEmpty = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((val) => (val === undefined ? {} : val), schema);
+
+/**
  * Infer TypeScript type from pagination input
  */
 export type PaginationInput = z.infer<typeof paginationInputSchema>;
