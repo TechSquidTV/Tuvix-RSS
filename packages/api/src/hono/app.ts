@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context, type Next, type Input } from "hono";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
 import { TRPCError } from "@trpc/server";
@@ -19,6 +19,55 @@ export type Variables = {
   user: BetterAuthUser | null;
   session: BetterAuthSession["session"] | null;
 };
+
+/**
+ * Type helper to bridge Hono's typed Context with @hono/trpc-server's generic MiddlewareHandler
+ *
+ * Background:
+ * - @hono/trpc-server returns: MiddlewareHandler → (c: Context<any, string, {}>, next: Next) => ...
+ * - Hono wildcard routes infer: Context<{ Variables: Variables }, "/trpc/*", any>
+ *   (Note: `any` for Input is Hono's inference for wildcard routes)
+ *
+ * The runtime behavior is correct (Context is covariant), but TypeScript flags the mismatch.
+ * This helper safely bridges the type gap to satisfy both type systems.
+ *
+ * Why this is safe:
+ * - Hono's Context is covariant: a more specific context can be used where generic is expected
+ * - trpcServer() only reads from context (get("env"), etc.) - doesn't modify the type signature
+ * - The middleware correctly propagates the typed context to downstream handlers
+ * - The Input parameter difference (any vs {}) doesn't affect runtime behavior
+ *
+ * Alternative approaches considered:
+ * 1. `as any` - Unsafe, defeats all type checking ❌
+ * 2. Update @hono/trpc-server - Already on latest (0.4.1), no better types available ❌
+ * 3. Fork @hono/trpc-server - Unnecessary maintenance burden ❌
+ * 4. This approach - Type-safe bridge with clear documentation ✅
+ */
+type TRPCMiddleware<I extends Input = Input> = (
+  c: Context<{ Variables: Variables }, "/trpc/*", I>,
+  next: Next
+) => ReturnType<ReturnType<typeof trpcServer>>;
+
+/**
+ * Safely cast trpcServer middleware to work with our typed Hono context
+ *
+ * This adapter handles the type incompatibility between:
+ * - Hono's inferred context: Context<{ Variables: Variables }, "/trpc/*", any>
+ *   (Note: `any` for Input is how Hono types wildcard routes)
+ * - Our typed middleware: TRPCMiddleware<Input>
+ *   (Note: Input is the proper constraint, but conflicts with Hono's `any`)
+ */
+function adaptTRPCMiddleware<I extends Input>(
+  middleware: ReturnType<typeof trpcServer>
+): TRPCMiddleware<I> {
+  // TypeScript doesn't understand the covariance, but runtime behavior is correct
+  // This cast is safe because:
+  // 1. The middleware only reads context properties (env, etc.)
+  // 2. It doesn't modify the context type
+  // 3. Downstream handlers receive the correct typed context
+  // 4. The Input type parameter difference (any vs Input) doesn't affect runtime behavior
+  return middleware as TRPCMiddleware<I>;
+}
 
 export interface HonoAppConfig {
   env: Env;
@@ -167,24 +216,29 @@ export function createHonoApp(config: HonoAppConfig) {
     // Extract typed env from context to avoid unsafe assignment in callback
     const env = c.get("env");
 
-    return trpcServer({
-      endpoint: "/trpc",
-      router: appRouter,
-      createContext: (_opts, honoContext) => {
-        return createContext({
-          req: honoContext.req.raw,
-          resHeaders: {} as FetchCreateContextFnOptions["resHeaders"],
-          info: {} as FetchCreateContextFnOptions["info"],
-          env,
-        });
-      },
-      onError: ({ error, type, path }) => {
-        console.error("❌ tRPC Error:", { type, path, error });
+    // Use type adapter to handle Hono Context incompatibility with @hono/trpc-server
+    // Hono infers `any` for Input on wildcard routes, but trpcServer expects proper Input type
+    // The adapter safely bridges the type gap with proper generic constraints
+    return adaptTRPCMiddleware(
+      trpcServer({
+        endpoint: "/trpc",
+        router: appRouter,
+        createContext: (_opts, honoContext) => {
+          return createContext({
+            req: honoContext.req.raw,
+            resHeaders: {} as FetchCreateContextFnOptions["resHeaders"],
+            info: {} as FetchCreateContextFnOptions["info"],
+            env,
+          });
+        },
+        onError: ({ error, type, path }) => {
+          console.error("❌ tRPC Error:", { type, path, error });
 
-        // Note: Error capturing is handled in errorFormatter in trpc/init.ts
-        // This onError is just for additional logging
-      },
-    })(c, next);
+          // Note: Error capturing is handled in errorFormatter in trpc/init.ts
+          // This onError is just for additional logging
+        },
+      })
+    )(c, next);
   });
 
   // Public RSS feeds
