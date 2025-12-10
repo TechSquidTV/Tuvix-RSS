@@ -118,6 +118,7 @@ export const authRouter = router({
                       email: input.email,
                       password: input.password,
                       name: input.username,
+                      username: input.username, // Set username for username plugin
                     },
                     headers: authHeaders,
                   });
@@ -173,6 +174,15 @@ export const authRouter = router({
                 code: "INTERNAL_SERVER_ERROR",
                 message: "User created but not found in database",
               });
+            }
+
+            // Ensure username is set (fallback for Better Auth compatibility)
+            // The username plugin should set this automatically, but ensure it's populated
+            if (!dbUser.username) {
+              await ctx.db
+                .update(schema.user)
+                .set({ username: input.username })
+                .where(eq(schema.user.id, userId));
             }
 
             // STEP 2: Determine Role and Plan
