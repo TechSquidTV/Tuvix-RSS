@@ -124,6 +124,15 @@ const isEmail = (input: string): boolean => {
   return input.includes("@");
 };
 
+// TODO: Refactor to use tRPC instead of Better Auth client directly
+// Current implementation bypasses tRPC and calls Better Auth HTTP endpoints directly
+// This creates architectural inconsistency and loses tRPC benefits:
+// - Type safety is lost (need manual casting to AuthResult)
+// - No Sentry tracing through tRPC middleware
+// - No unified logging
+// - More complex testing (need to mock Better Auth client instead of tRPC)
+// See: docs/planning/auth-architecture-improvements.md - Problem 2
+//
 // Hook for username or email-based login
 // Detects if input is email and uses appropriate endpoint
 // Tries username first for non-email inputs, falls back to email if username fails
@@ -168,6 +177,11 @@ export const useLogin = () => {
 
       if (signInWithUsername) {
         // Username method exists, try it
+        // IMPORTANT: We intentionally DO NOT fall back to email login on failure
+        // This prevents confusing scenarios like:
+        // - User types wrong username → accidentally logs into different account via email
+        // - Username auth fails → user expects username error, not silent email retry
+        // See commit: efa35ce (fix: prevent incorrect fallback to email login for username errors)
         try {
           const result = (await signInWithUsername(input)) as AuthResult;
           // Check if the response indicates an error
