@@ -44,6 +44,7 @@ import {
   createPaginatedSchema,
   paginationInputSchema,
   createPaginatedResponse,
+  withUndefinedAsEmpty,
 } from "@/types/pagination";
 import * as schema from "@/db/schema";
 import { generateColorFromString } from "@/utils/color-generator";
@@ -96,7 +97,7 @@ export const subscriptionsRouter = router({
    * List all user's subscriptions with pagination
    */
   list: rateLimitedProcedure
-    .input(paginationInputSchema)
+    .input(withUndefinedAsEmpty(paginationInputSchema))
     .output(createPaginatedSchema(subscriptionResponseSchema))
     .query(async ({ ctx, input }) => {
       const { userId } = ctx.user;
@@ -950,8 +951,9 @@ export const subscriptionsRouter = router({
         FeedValidationError,
         FeedDiscoveryError,
       } = await import("@tuvixrss/tricorder");
-      const { sentryTelemetryAdapter } =
-        await import("@/adapters/sentry-telemetry");
+      const { sentryTelemetryAdapter } = await import(
+        "@/adapters/sentry-telemetry"
+      );
 
       // Use the extensible discovery system with Sentry telemetry
       let discoveredFeeds;

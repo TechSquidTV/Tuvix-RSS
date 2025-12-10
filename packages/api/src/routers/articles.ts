@@ -12,6 +12,7 @@ import { articleWithSourceSchema } from "@/db/schemas.zod";
 import {
   createPaginatedSchema,
   paginationInputSchema,
+  withUndefinedAsEmpty,
 } from "@/types/pagination";
 import {
   buildArticlesBaseQuery,
@@ -181,12 +182,14 @@ export const articlesRouter = router({
    */
   list: rateLimitedProcedure
     .input(
-      paginationInputSchema.extend({
-        categoryId: z.number().optional(),
-        subscriptionId: z.number().optional(),
-        read: z.boolean().optional(),
-        saved: z.boolean().optional(),
-      })
+      withUndefinedAsEmpty(
+        paginationInputSchema.extend({
+          categoryId: z.number().optional(),
+          subscriptionId: z.number().optional(),
+          read: z.boolean().optional(),
+          saved: z.boolean().optional(),
+        })
+      )
     )
     .output(createPaginatedSchema(articleWithSourceSchema))
     .query(async ({ ctx, input }) => {
@@ -1059,10 +1062,12 @@ export const articlesRouter = router({
    */
   getCounts: rateLimitedProcedure
     .input(
-      z.object({
-        categoryId: z.number().optional(),
-        subscriptionId: z.number().optional(),
-      })
+      withUndefinedAsEmpty(
+        z.object({
+          categoryId: z.number().optional(),
+          subscriptionId: z.number().optional(),
+        })
+      )
     )
     .query(async ({ ctx, input }) => {
       const userId = ctx.user.userId;

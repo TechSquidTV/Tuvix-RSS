@@ -30,6 +30,7 @@ import {
   createPaginatedSchema,
   paginationInputSchema,
   createPaginatedResponse,
+  withUndefinedAsEmpty,
 } from "@/types/pagination";
 import { validatePlanExists, getAllPlans } from "@/services/plans";
 import {
@@ -87,26 +88,28 @@ export const adminRouter = router({
    */
   listUsers: adminProcedure
     .input(
-      paginationInputSchema.extend({
-        role: z.enum(["user", "admin"]).optional(),
-        plan: z.string().optional(), // Plan ID filter - validated at runtime
-        banned: z.boolean().optional(),
-        emailVerified: z.boolean().optional(), // Filter by email verification status
-        search: z.string().optional(), // Search by username or email
-        sortBy: z
-          .enum([
-            "username",
-            "email",
-            "role",
-            "plan",
-            "banned",
-            "emailVerified",
-            "createdAt",
-            "lastSeenAt",
-          ])
-          .optional(),
-        sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
-      })
+      withUndefinedAsEmpty(
+        paginationInputSchema.extend({
+          role: z.enum(["user", "admin"]).optional(),
+          plan: z.string().optional(), // Plan ID filter - validated at runtime
+          banned: z.boolean().optional(),
+          emailVerified: z.boolean().optional(), // Filter by email verification status
+          search: z.string().optional(), // Search by username or email
+          sortBy: z
+            .enum([
+              "username",
+              "email",
+              "role",
+              "plan",
+              "banned",
+              "emailVerified",
+              "createdAt",
+              "lastSeenAt",
+            ])
+            .optional(),
+          sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+        })
+      )
     )
     .output(createPaginatedSchema(AdminUserSchema))
     .query(async ({ ctx, input }) => {
@@ -1680,19 +1683,21 @@ export const adminRouter = router({
    */
   listBlockedDomains: adminProcedure
     .input(
-      paginationInputSchema.extend({
-        search: z.string().optional(),
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .optional(),
-      })
+      withUndefinedAsEmpty(
+        paginationInputSchema.extend({
+          search: z.string().optional(),
+          reason: z
+            .enum([
+              "illegal_content",
+              "excessive_automation",
+              "spam",
+              "malware",
+              "copyright_violation",
+              "other",
+            ])
+            .optional(),
+        })
+      )
     )
     .output(
       createPaginatedSchema(
