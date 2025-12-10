@@ -43,6 +43,56 @@ import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
 import { withQueryMetrics } from "@/utils/db-metrics";
 import { aggregateByDay, calculateStartDate } from "@/utils/admin-metrics";
 
+// ============================================================================
+// SHARED SCHEMAS AND CONSTANTS
+// ============================================================================
+
+/**
+ * Blocked domain reason enum - used across multiple endpoints
+ */
+const blockedDomainReasonSchema = z.enum([
+  "illegal_content",
+  "excessive_automation",
+  "spam",
+  "malware",
+  "copyright_violation",
+  "other",
+]);
+
+/**
+ * Plan output schema - used by listPlans and getPlan
+ */
+const planOutputSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  maxSources: z.number(),
+  maxPublicFeeds: z.number(),
+  maxCategories: z.number().nullable(),
+  apiRateLimitPerMinute: z.number(),
+  publicFeedRateLimitPerMinute: z.number(),
+  priceCents: z.number(),
+  features: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+/**
+ * Global settings output schema
+ */
+const globalSettingsOutputSchema = z.object({
+  maxLoginAttempts: z.number(),
+  loginAttemptWindowMinutes: z.number(),
+  lockoutDurationMinutes: z.number(),
+  allowRegistration: z.boolean(),
+  requireEmailVerification: z.boolean(),
+  passwordResetTokenExpiryHours: z.number(),
+  fetchIntervalMinutes: z.number(),
+  pruneDays: z.number(),
+  lastRssFetchAt: z.date().nullable(),
+  lastPruneAt: z.date().nullable(),
+  updatedAt: z.date(),
+});
+
 // User with usage info for admin views
 const AdminUserSchema = z.object({
   id: z.number(),
@@ -82,6 +132,80 @@ const AdminUserSchema = z.object({
   rateLimitEnabled: z.boolean(),
 });
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Transform user data into AdminUser format with usage and limits
+ */
+function transformAdminUser(
+  user: typeof schema.user.$inferSelect,
+  usage: Awaited<ReturnType<typeof getUserUsage>>,
+  limits: Awaited<ReturnType<typeof getUserLimits>>,
+  customLimits: typeof schema.userLimits.$inferSelect | null | undefined,
+  rateLimitEnabled: boolean
+): z.infer<typeof AdminUserSchema> {
+  return {
+    id: user.id,
+    username: user.username || user.name,
+    email: user.email,
+    emailVerified: user.emailVerified || false,
+    role: (user.role as "user" | "admin") || "user",
+    plan: user.plan || "free",
+    banned: user.banned || false,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    lastSeenAt: user.lastSeenAt,
+    usage: {
+      sourceCount: usage.sourceCount,
+      publicFeedCount: usage.publicFeedCount,
+      categoryCount: usage.categoryCount,
+      articleCount: usage.articleCount,
+      lastUpdated: usage.lastUpdated,
+    },
+    limits: {
+      maxSources: limits.maxSources,
+      maxPublicFeeds: limits.maxPublicFeeds,
+      maxCategories: limits.maxCategories,
+      apiRateLimitPerMinute: limits.apiRateLimitPerMinute,
+    },
+    customLimits: customLimits
+      ? {
+          maxSources: customLimits.maxSources,
+          maxPublicFeeds: customLimits.maxPublicFeeds,
+          maxCategories: customLimits.maxCategories,
+          // Rate limits are not customizable - they come from plan-specific bindings
+          apiRateLimitPerMinute: null,
+          publicFeedRateLimitPerMinute: null,
+          notes: customLimits.notes,
+        }
+      : null,
+    rateLimitEnabled,
+  };
+}
+
+/**
+ * Format global settings from database record
+ */
+function formatGlobalSettings(
+  settings: typeof schema.globalSettings.$inferSelect
+): z.infer<typeof globalSettingsOutputSchema> {
+  return {
+    maxLoginAttempts: settings.maxLoginAttempts,
+    loginAttemptWindowMinutes: settings.loginAttemptWindowMinutes,
+    lockoutDurationMinutes: settings.lockoutDurationMinutes,
+    allowRegistration: settings.allowRegistration,
+    requireEmailVerification: settings.requireEmailVerification,
+    passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
+    fetchIntervalMinutes: settings.fetchIntervalMinutes,
+    pruneDays: settings.pruneDays,
+    lastRssFetchAt: settings.lastRssFetchAt,
+    lastPruneAt: settings.lastPruneAt,
+    updatedAt: settings.updatedAt,
+  };
+}
+
 export const adminRouter = router({
   /**
    * List all users with pagination and filtering
@@ -113,23 +237,34 @@ export const adminRouter = router({
     )
     .output(createPaginatedSchema(AdminUserSchema))
     .query(async ({ ctx, input }) => {
+      // Extract filter and pagination params (TypeScript loses track of Zod defaults with withUndefinedAsEmpty)
+      const limit = input.limit ?? 50;
+      const offset = input.offset ?? 0;
+      const role = input.role;
+      const plan = input.plan;
+      const banned = input.banned;
+      const emailVerified = input.emailVerified;
+      const search = input.search;
+      const sortBy = input.sortBy;
+      const sortOrder = input.sortOrder ?? "desc";
+
       // Build WHERE conditions
       const conditions: SQL[] = [];
-      if (input.role !== undefined) {
-        conditions.push(eq(schema.user.role, input.role));
+      if (role !== undefined) {
+        conditions.push(eq(schema.user.role, role));
       }
-      if (input.plan !== undefined) {
-        conditions.push(eq(schema.user.plan, input.plan));
+      if (plan !== undefined) {
+        conditions.push(eq(schema.user.plan, plan));
       }
-      if (input.banned !== undefined) {
-        conditions.push(eq(schema.user.banned, input.banned));
+      if (banned !== undefined) {
+        conditions.push(eq(schema.user.banned, banned));
       }
-      if (input.emailVerified !== undefined) {
-        conditions.push(eq(schema.user.emailVerified, input.emailVerified));
+      if (emailVerified !== undefined) {
+        conditions.push(eq(schema.user.emailVerified, emailVerified));
       }
-      if (input.search) {
+      if (search) {
         conditions.push(
-          sql`(LOWER(COALESCE(${schema.user.username}, ${schema.user.name})) LIKE LOWER(${`%${input.search}%`}) OR LOWER(${schema.user.email}) LIKE LOWER(${`%${input.search}%`}))`
+          sql`(LOWER(COALESCE(${schema.user.username}, ${schema.user.name})) LIKE LOWER(${`%${search}%`}) OR LOWER(${schema.user.email}) LIKE LOWER(${`%${search}%`}))`
         );
       }
 
@@ -148,8 +283,7 @@ export const adminRouter = router({
       const totalCount = allMatchingUsers.length;
 
       // Determine sort field and order
-      const sortField = input.sortBy || "createdAt";
-      const sortOrder = input.sortOrder || "desc";
+      const sortField = sortBy || "createdAt";
       const sortFn = sortOrder === "asc" ? asc : desc;
 
       // Map sortBy field names to database columns
@@ -192,26 +326,26 @@ export const adminRouter = router({
             .from(schema.user)
             .where(whereClause)
             .orderBy(orderByClause)
-            .limit(input.limit + 1)
-            .offset(input.offset),
+            .limit(limit + 1)
+            .offset(offset),
         {
           "db.table": "user",
           "db.operation": "select",
-          "db.has_role_filter": input.role !== undefined,
-          "db.has_plan_filter": input.plan !== undefined,
-          "db.has_banned_filter": input.banned !== undefined,
-          "db.has_email_verified_filter": input.emailVerified !== undefined,
-          "db.has_search": !!input.search,
+          "db.has_role_filter": role !== undefined,
+          "db.has_plan_filter": plan !== undefined,
+          "db.has_banned_filter": banned !== undefined,
+          "db.has_email_verified_filter": emailVerified !== undefined,
+          "db.has_search": !!search,
           "db.sort_by": sortField,
           "db.sort_order": sortOrder,
         }
       );
 
       // Check if there are more results for pagination
-      const hasMore = users.length > input.limit;
+      const hasMore = users.length > limit;
 
       // Slice to actual requested items (don't process the extra pagination-detection item)
-      const requestedUsers = users.slice(0, input.limit);
+      const requestedUsers = users.slice(0, limit);
 
       // Bulk fetch usage stats and custom limits for requested users only
       const userIds = requestedUsers.map((u) => u.id);
@@ -245,61 +379,30 @@ export const adminRouter = router({
       );
 
       // Build results with usage and limits for requested users only
+      const rateLimitEnabled = ctx.env.RUNTIME === "cloudflare";
+
       const allResults = await Promise.all(
         requestedUsers.map(async (user) => {
           const usage = usageMap.get(user.id);
           const customLimits = customLimitsMap.get(user.id);
           const limits = await getUserLimits(ctx.db, user.id);
 
-          // Check if rate limiting is enabled (Cloudflare Workers)
-          // Note: Actual binding checks will be added in Phase 3
-          const rateLimitEnabled = ctx.env.RUNTIME === "cloudflare";
-
-          return {
-            id: user.id,
-            username: user.username || user.name,
-            email: user.email,
-            emailVerified: user.emailVerified || false,
-            role: (user.role as "user" | "admin") || "user",
-            plan: user.plan || "free",
-            banned: user.banned || false,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-            lastSeenAt: user.lastSeenAt,
-            usage: usage
-              ? {
-                  sourceCount: usage.sourceCount,
-                  publicFeedCount: usage.publicFeedCount,
-                  categoryCount: usage.categoryCount,
-                  articleCount: usage.articleCount,
-                  lastUpdated: usage.lastUpdated,
-                }
-              : {
-                  sourceCount: 0,
-                  publicFeedCount: 0,
-                  categoryCount: 0,
-                  articleCount: 0,
-                  lastUpdated: new Date(),
-                },
-            limits: {
-              maxSources: limits.maxSources,
-              maxPublicFeeds: limits.maxPublicFeeds,
-              maxCategories: limits.maxCategories,
-              apiRateLimitPerMinute: limits.apiRateLimitPerMinute,
-            },
-            customLimits: customLimits
-              ? {
-                  maxSources: customLimits.maxSources,
-                  maxPublicFeeds: customLimits.maxPublicFeeds,
-                  maxCategories: customLimits.maxCategories,
-                  // Rate limits are not customizable - they come from plan-specific bindings
-                  apiRateLimitPerMinute: null,
-                  publicFeedRateLimitPerMinute: null,
-                  notes: customLimits.notes,
-                }
-              : null,
-            rateLimitEnabled,
+          // Provide default usage if not found
+          const usageData = usage || {
+            sourceCount: 0,
+            publicFeedCount: 0,
+            categoryCount: 0,
+            articleCount: 0,
+            lastUpdated: new Date(),
           };
+
+          return transformAdminUser(
+            user,
+            usageData,
+            limits,
+            customLimits,
+            rateLimitEnabled
+          );
         })
       );
 
@@ -356,43 +459,13 @@ export const adminRouter = router({
       // Note: Actual binding checks will be added in Phase 3
       const rateLimitEnabled = ctx.env.RUNTIME === "cloudflare";
 
-      return {
-        id: user.id,
-        username: user.username || user.name,
-        email: user.email,
-        emailVerified: user.emailVerified || false,
-        role: (user.role as "user" | "admin") || "user",
-        plan: user.plan || "free",
-        banned: user.banned || false,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        lastSeenAt: user.lastSeenAt,
-        usage: {
-          sourceCount: usage.sourceCount,
-          publicFeedCount: usage.publicFeedCount,
-          categoryCount: usage.categoryCount,
-          articleCount: usage.articleCount,
-          lastUpdated: usage.lastUpdated,
-        },
-        limits: {
-          maxSources: limits.maxSources,
-          maxPublicFeeds: limits.maxPublicFeeds,
-          maxCategories: limits.maxCategories,
-          apiRateLimitPerMinute: limits.apiRateLimitPerMinute,
-        },
-        customLimits: customLimits
-          ? {
-              maxSources: customLimits.maxSources,
-              maxPublicFeeds: customLimits.maxPublicFeeds,
-              maxCategories: customLimits.maxCategories,
-              // Rate limits are not customizable - they come from plan-specific bindings
-              apiRateLimitPerMinute: null,
-              publicFeedRateLimitPerMinute: null,
-              notes: customLimits.notes,
-            }
-          : null,
-        rateLimitEnabled,
-      };
+      return transformAdminUser(
+        user,
+        usage,
+        limits,
+        customLimits,
+        rateLimitEnabled
+      );
     }),
 
   /**
@@ -670,21 +743,7 @@ export const adminRouter = router({
    * Get global settings
    */
   getGlobalSettings: adminProcedure
-    .output(
-      z.object({
-        maxLoginAttempts: z.number(),
-        loginAttemptWindowMinutes: z.number(),
-        lockoutDurationMinutes: z.number(),
-        allowRegistration: z.boolean(),
-        requireEmailVerification: z.boolean(),
-        passwordResetTokenExpiryHours: z.number(),
-        fetchIntervalMinutes: z.number(),
-        pruneDays: z.number(),
-        lastRssFetchAt: z.date().nullable(),
-        lastPruneAt: z.date().nullable(),
-        updatedAt: z.date(),
-      })
-    )
+    .output(globalSettingsOutputSchema)
     .query(async ({ ctx }) => {
       const [settings] = await ctx.db
         .select()
@@ -710,35 +769,10 @@ export const adminRouter = router({
           .from(schema.globalSettings)
           .limit(1);
 
-        return {
-          maxLoginAttempts: newSettings!.maxLoginAttempts,
-          loginAttemptWindowMinutes: newSettings!.loginAttemptWindowMinutes,
-          lockoutDurationMinutes: newSettings!.lockoutDurationMinutes,
-          allowRegistration: newSettings!.allowRegistration,
-          requireEmailVerification: newSettings!.requireEmailVerification,
-          passwordResetTokenExpiryHours:
-            newSettings!.passwordResetTokenExpiryHours,
-          fetchIntervalMinutes: newSettings!.fetchIntervalMinutes,
-          pruneDays: newSettings!.pruneDays,
-          lastRssFetchAt: newSettings!.lastRssFetchAt,
-          lastPruneAt: newSettings!.lastPruneAt,
-          updatedAt: newSettings!.updatedAt,
-        };
+        return formatGlobalSettings(newSettings!);
       }
 
-      return {
-        maxLoginAttempts: settings.maxLoginAttempts,
-        loginAttemptWindowMinutes: settings.loginAttemptWindowMinutes,
-        lockoutDurationMinutes: settings.lockoutDurationMinutes,
-        allowRegistration: settings.allowRegistration,
-        requireEmailVerification: settings.requireEmailVerification,
-        passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
-        fetchIntervalMinutes: settings.fetchIntervalMinutes,
-        pruneDays: settings.pruneDays,
-        lastRssFetchAt: settings.lastRssFetchAt,
-        lastPruneAt: settings.lastPruneAt,
-        updatedAt: settings.updatedAt,
-      };
+      return formatGlobalSettings(settings);
     }),
 
   /**
@@ -825,23 +859,7 @@ export const adminRouter = router({
    * List all plans
    */
   listPlans: adminProcedure
-    .output(
-      z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          maxSources: z.number(),
-          maxPublicFeeds: z.number(),
-          maxCategories: z.number().nullable(),
-          apiRateLimitPerMinute: z.number(),
-          publicFeedRateLimitPerMinute: z.number(),
-          priceCents: z.number(),
-          features: z.string().nullable(),
-          createdAt: z.date(),
-          updatedAt: z.date(),
-        })
-      )
-    )
+    .output(z.array(planOutputSchema))
     .query(async ({ ctx }) => {
       return await getAllPlans(ctx.db);
     }),
@@ -851,21 +869,7 @@ export const adminRouter = router({
    */
   getPlan: adminProcedure
     .input(z.object({ planId: z.string() }))
-    .output(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        maxSources: z.number(),
-        maxPublicFeeds: z.number(),
-        maxCategories: z.number().nullable(),
-        apiRateLimitPerMinute: z.number(),
-        publicFeedRateLimitPerMinute: z.number(),
-        priceCents: z.number(),
-        features: z.string().nullable(),
-        createdAt: z.date(),
-        updatedAt: z.date(),
-      })
-    )
+    .output(planOutputSchema)
     .query(async ({ ctx, input }) => {
       const [plan] = await ctx.db
         .select()
@@ -1406,7 +1410,7 @@ export const adminRouter = router({
         const date = article.publishedAt || article.createdAt;
         if (date) {
           const dateObj = new Date(date);
-          const dateStr = dateObj.toISOString().split("T")[0];
+          const dateStr = dateObj.toISOString().split("T")[0]!;
           grouped.set(dateStr, (grouped.get(dateStr) || 0) + 1);
         }
       });
@@ -1416,7 +1420,7 @@ export const adminRouter = router({
       for (let i = 0; i < input.days; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = date.toISOString().split("T")[0]!;
         data.push({
           date: dateStr,
           count: grouped.get(dateStr) || 0,
@@ -1564,7 +1568,7 @@ export const adminRouter = router({
       >();
       logs.forEach((log) => {
         const date = new Date(log.createdAt);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = date.toISOString().split("T")[0]!;
         const dayData = grouped.get(dateStr) || { logins: 0, failedLogins: 0 };
 
         if (log.action === "login") {
@@ -1583,7 +1587,7 @@ export const adminRouter = router({
       for (let i = 0; i < input.days; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = date.toISOString().split("T")[0]!;
         const dayData = grouped.get(dateStr) || { logins: 0, failedLogins: 0 };
         data.push({
           date: dateStr,
@@ -1686,16 +1690,7 @@ export const adminRouter = router({
       withUndefinedAsEmpty(
         paginationInputSchema.extend({
           search: z.string().optional(),
-          reason: z
-            .enum([
-              "illegal_content",
-              "excessive_automation",
-              "spam",
-              "malware",
-              "copyright_violation",
-              "other",
-            ])
-            .optional(),
+          reason: blockedDomainReasonSchema.optional(),
         })
       )
     )
@@ -1704,16 +1699,7 @@ export const adminRouter = router({
         z.object({
           id: z.number(),
           domain: z.string(),
-          reason: z
-            .enum([
-              "illegal_content",
-              "excessive_automation",
-              "spam",
-              "malware",
-              "copyright_violation",
-              "other",
-            ])
-            .nullable(),
+          reason: blockedDomainReasonSchema.nullable(),
           notes: z.string().nullable(),
           createdAt: z.date(),
           updatedAt: z.date(),
@@ -1722,16 +1708,20 @@ export const adminRouter = router({
       )
     )
     .query(async ({ ctx, input }) => {
+      // Extract filter and pagination params (TypeScript loses track of Zod defaults with withUndefinedAsEmpty)
+      const limit = input.limit ?? 50;
+      const offset = input.offset ?? 0;
+      const search = input.search;
+      const reason = input.reason;
+
       const conditions: SQL[] = [];
 
-      if (input.search) {
-        conditions.push(
-          like(schema.blockedDomains.domain, `%${input.search}%`)
-        );
+      if (search) {
+        conditions.push(like(schema.blockedDomains.domain, `%${search}%`));
       }
 
-      if (input.reason !== undefined) {
-        conditions.push(eq(schema.blockedDomains.reason, input.reason));
+      if (reason !== undefined) {
+        conditions.push(eq(schema.blockedDomains.reason, reason));
       }
 
       const blocked = await withQueryMetrics(
@@ -1742,17 +1732,17 @@ export const adminRouter = router({
             .from(schema.blockedDomains)
             .where(conditions.length > 0 ? and(...conditions) : undefined)
             .orderBy(desc(schema.blockedDomains.createdAt))
-            .limit(input.limit + 1)
-            .offset(input.offset),
+            .limit(limit + 1)
+            .offset(offset),
         {
           "db.table": "blockedDomains",
           "db.operation": "select",
-          "db.has_search": !!input.search,
-          "db.has_reason_filter": input.reason !== undefined,
+          "db.has_search": !!search,
+          "db.has_reason_filter": reason !== undefined,
         }
       );
 
-      return createPaginatedResponse(blocked, input.limit, input.offset);
+      return createPaginatedResponse(blocked, limit, offset);
     }),
 
   /**
@@ -1762,17 +1752,7 @@ export const adminRouter = router({
     .input(
       z.object({
         domain: domainValidator,
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .nullable()
-          .optional(),
+        reason: blockedDomainReasonSchema.nullable().optional(),
         notes: z.string().max(1000).nullable().optional(),
       })
     )
@@ -1780,16 +1760,7 @@ export const adminRouter = router({
       z.object({
         id: z.number(),
         domain: z.string(),
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .nullable(),
+        reason: blockedDomainReasonSchema.nullable(),
         notes: z.string().nullable(),
         createdAt: z.date(),
         updatedAt: z.date(),
@@ -1823,6 +1794,13 @@ export const adminRouter = router({
         })
         .returning();
 
+      if (!blocked) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create blocked domain",
+        });
+      }
+
       return blocked;
     }),
 
@@ -1833,17 +1811,7 @@ export const adminRouter = router({
     .input(
       z.object({
         id: z.number(),
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .nullable()
-          .optional(),
+        reason: blockedDomainReasonSchema.nullable().optional(),
         notes: z.string().max(1000).nullable().optional(),
       })
     )
@@ -1851,16 +1819,7 @@ export const adminRouter = router({
       z.object({
         id: z.number(),
         domain: z.string(),
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .nullable(),
+        reason: blockedDomainReasonSchema.nullable(),
         notes: z.string().nullable(),
         createdAt: z.date(),
         updatedAt: z.date(),
@@ -1911,6 +1870,13 @@ export const adminRouter = router({
         .where(eq(schema.blockedDomains.id, input.id))
         .returning();
 
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Failed to update blocked domain",
+        });
+      }
+
       return updated;
     }),
 
@@ -1935,17 +1901,7 @@ export const adminRouter = router({
     .input(
       z.object({
         domains: z.string(),
-        reason: z
-          .enum([
-            "illegal_content",
-            "excessive_automation",
-            "spam",
-            "malware",
-            "copyright_violation",
-            "other",
-          ])
-          .nullable()
-          .optional(),
+        reason: blockedDomainReasonSchema.nullable().optional(),
         notes: z.string().max(1000).nullable().optional(),
       })
     )
@@ -2058,16 +2014,7 @@ export const adminRouter = router({
     .input(
       z
         .object({
-          reason: z
-            .enum([
-              "illegal_content",
-              "excessive_automation",
-              "spam",
-              "malware",
-              "copyright_violation",
-              "other",
-            ])
-            .optional(),
+          reason: blockedDomainReasonSchema.optional(),
         })
         .optional()
     )
