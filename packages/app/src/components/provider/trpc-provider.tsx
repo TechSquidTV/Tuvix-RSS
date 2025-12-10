@@ -5,7 +5,6 @@ import {
 } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState, useEffect } from "react";
-import superjson from "superjson";
 import { trpc } from "@/lib/api/trpc";
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
@@ -68,8 +67,11 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      transformer: superjson,
       links: [
+        // IMPORTANT: Do NOT add `transformer: superjson` to the client config
+        // The backend uses @hono/trpc-server which handles SuperJSON serialization internally
+        // Adding it here causes double-wrapping where data arrives as {json: {...}} instead of {...}
+        // Backend keeps `transformer: superjson` in packages/api/src/trpc/init.ts for @hono/trpc-server
         httpBatchLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           // Better Auth handles authentication via HTTP-only cookies

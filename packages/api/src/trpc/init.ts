@@ -16,6 +16,10 @@ import type { Context } from "./context";
 
 // Initialize tRPC with context
 const t = initTRPC.context<Context>().create({
+  // IMPORTANT: SuperJSON transformer is required for @hono/trpc-server
+  // @hono/trpc-server handles serialization/deserialization internally
+  // The frontend client should NOT configure `transformer: superjson` to avoid double-wrapping
+  // See: packages/app/src/components/provider/trpc-provider.tsx
   transformer: superjson,
   errorFormatter({ shape, error, ctx }) {
     // Log all errors to console for debugging
