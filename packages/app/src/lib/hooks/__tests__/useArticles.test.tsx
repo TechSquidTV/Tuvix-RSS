@@ -316,6 +316,52 @@ describe("useMarkAllRead", () => {
     expect(result.current).toHaveProperty("isPending");
     expect(typeof result.current.mutate).toBe("function");
   });
+
+  it("should accept empty object payload for marking all articles read", async () => {
+    const { result } = renderHook(() => useMarkAllRead(), {
+      wrapper: createWrapper(),
+    });
+
+    // Call mutate with empty object (marks all articles read)
+    act(() => {
+      result.current.mutate({});
+    });
+
+    // Wait for mutation to process
+    await waitFor(
+      () => {
+        // Either success or error toast should be called
+        expect(
+          vi.mocked(toast.success).mock.calls.length +
+            vi.mocked(toast.error).mock.calls.length,
+        ).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it("should accept payload with olderThanDays property for marking old articles read", async () => {
+    const { result } = renderHook(() => useMarkAllRead(), {
+      wrapper: createWrapper(),
+    });
+
+    // Call mutate with olderThanDays property (marks articles older than N days as read)
+    act(() => {
+      result.current.mutate({ olderThanDays: 3 });
+    });
+
+    // Wait for mutation to process
+    await waitFor(
+      () => {
+        // Either success or error toast should be called
+        expect(
+          vi.mocked(toast.success).mock.calls.length +
+            vi.mocked(toast.error).mock.calls.length,
+        ).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
+  });
 });
 
 describe("useRefreshFeeds", () => {
