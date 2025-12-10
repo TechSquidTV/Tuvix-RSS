@@ -753,24 +753,28 @@ export const adminRouter = router({
 
       // If no settings exist, create defaults
       if (!settings) {
-        await ctx.db.insert(schema.globalSettings).values({
-          maxLoginAttempts: 5,
-          loginAttemptWindowMinutes: 15,
-          lockoutDurationMinutes: 30,
-          allowRegistration: true,
-          requireEmailVerification: false,
-          passwordResetTokenExpiryHours: 1,
-          fetchIntervalMinutes: 60,
-          pruneDays: 30,
-        });
-
-        // Fetch the newly created settings
         const [newSettings] = await ctx.db
-          .select()
-          .from(schema.globalSettings)
-          .limit(1);
+          .insert(schema.globalSettings)
+          .values({
+            maxLoginAttempts: 5,
+            loginAttemptWindowMinutes: 15,
+            lockoutDurationMinutes: 30,
+            allowRegistration: true,
+            requireEmailVerification: false,
+            passwordResetTokenExpiryHours: 1,
+            fetchIntervalMinutes: 60,
+            pruneDays: 30,
+          })
+          .returning();
 
-        return formatGlobalSettings(newSettings!);
+        if (!newSettings) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create default global settings",
+          });
+        }
+
+        return formatGlobalSettings(newSettings);
       }
 
       return formatGlobalSettings(settings);
