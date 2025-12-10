@@ -307,7 +307,7 @@ function ArticlesPage() {
   };
 
   const confirmMarkAllRead = () => {
-    markAllRead.mutate(undefined);
+    markAllRead.mutate({});
     setMarkAllDialogOpen(false);
   };
 
@@ -316,7 +316,7 @@ function ArticlesPage() {
   };
 
   const confirmMarkOldRead = () => {
-    markAllRead.mutate(3);
+    markAllRead.mutate({ olderThanDays: 3 });
     setMarkOldDialogOpen(false);
   };
 
