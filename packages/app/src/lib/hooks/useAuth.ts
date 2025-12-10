@@ -233,8 +233,12 @@ export const useRegister = () => {
   const queryClient = useQueryClient();
 
   const signUp = useMutation({
-    mutationFn: (input: { email: string; password: string; name: string }) =>
-      authClient.signUp.email(input),
+    mutationFn: (input: {
+      email: string;
+      password: string;
+      name: string;
+      username?: string;
+    }) => authClient.signUp.email(input),
     onSuccess: async () => {
       // Better Auth automatically updates session via HTTP-only cookies
       // and nanostore is updated automatically - no need to manually verify

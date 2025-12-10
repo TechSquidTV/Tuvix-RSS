@@ -61,7 +61,8 @@ export function RegisterForm() {
     register.mutate({
       email: values.email,
       password: values.password,
-      name: values.username, // Better Auth uses 'name' field for username
+      name: values.username, // Display name (Better Auth requirement)
+      username: values.username, // Username for login (username plugin)
     });
   }
 
