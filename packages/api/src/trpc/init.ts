@@ -97,11 +97,19 @@ export const publicProcedure = sentryMiddleware
  * Checks cache first to avoid N+1 queries in batch requests
  * If not cached, fetches from database and stores in cache
  *
- * @param ctx tRPC context
+ * @param ctx tRPC context (must have valid user with userId)
  * @returns User record from cache or database
- * @throws TRPCError if user not found
+ * @throws TRPCError if user not authenticated or not found in database
  */
 async function getCachedUserRecord(ctx: Context) {
+  // Ensure user context exists
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required",
+    });
+  }
+
   // Ensure cache exists (defensive programming for test contexts)
   if (!ctx.cache) {
     ctx.cache = {};
@@ -111,11 +119,11 @@ async function getCachedUserRecord(ctx: Context) {
   let userRecord = ctx.cache.userRecord;
 
   if (!userRecord) {
-    // Ensure we have a user ID to query
-    if (!ctx.user?.userId) {
+    // User ID should always be present when ctx.user exists
+    if (!ctx.user.userId) {
       throw new TRPCError({
         code: "UNAUTHORIZED",
-        message: "User not found",
+        message: "User ID not available",
       });
     }
 
