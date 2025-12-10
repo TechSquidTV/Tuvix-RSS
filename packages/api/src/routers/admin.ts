@@ -85,6 +85,7 @@ const globalSettingsOutputSchema = z.object({
   lockoutDurationMinutes: z.number(),
   allowRegistration: z.boolean(),
   requireEmailVerification: z.boolean(),
+  adminBypassEmailVerification: z.boolean(),
   passwordResetTokenExpiryHours: z.number(),
   fetchIntervalMinutes: z.number(),
   pruneDays: z.number(),
@@ -197,6 +198,7 @@ function formatGlobalSettings(
     lockoutDurationMinutes: settings.lockoutDurationMinutes,
     allowRegistration: settings.allowRegistration,
     requireEmailVerification: settings.requireEmailVerification,
+    adminBypassEmailVerification: settings.adminBypassEmailVerification,
     passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
     fetchIntervalMinutes: settings.fetchIntervalMinutes,
     pruneDays: settings.pruneDays,
@@ -761,6 +763,7 @@ export const adminRouter = router({
             lockoutDurationMinutes: 30,
             allowRegistration: true,
             requireEmailVerification: false,
+            adminBypassEmailVerification: true,
             passwordResetTokenExpiryHours: 1,
             fetchIntervalMinutes: 60,
             pruneDays: 30,
@@ -791,6 +794,7 @@ export const adminRouter = router({
         lockoutDurationMinutes: z.number().int().min(1).max(10080).optional(),
         allowRegistration: z.boolean().optional(),
         requireEmailVerification: z.boolean().optional(),
+        adminBypassEmailVerification: z.boolean().optional(),
         passwordResetTokenExpiryHours: z
           .number()
           .int()
@@ -824,6 +828,9 @@ export const adminRouter = router({
         updates.allowRegistration = input.allowRegistration;
       if (input.requireEmailVerification !== undefined)
         updates.requireEmailVerification = input.requireEmailVerification;
+      if (input.adminBypassEmailVerification !== undefined)
+        updates.adminBypassEmailVerification =
+          input.adminBypassEmailVerification;
       if (input.passwordResetTokenExpiryHours !== undefined)
         updates.passwordResetTokenExpiryHours =
           input.passwordResetTokenExpiryHours;
@@ -846,6 +853,8 @@ export const adminRouter = router({
           lockoutDurationMinutes: input.lockoutDurationMinutes ?? 30,
           allowRegistration: input.allowRegistration ?? true,
           requireEmailVerification: input.requireEmailVerification ?? false,
+          adminBypassEmailVerification:
+            input.adminBypassEmailVerification ?? true,
           passwordResetTokenExpiryHours:
             input.passwordResetTokenExpiryHours ?? 1,
           fetchIntervalMinutes: input.fetchIntervalMinutes ?? 60,
