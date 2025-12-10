@@ -100,19 +100,19 @@ describe("RSS Fetcher Service", () => {
       // Mock feeds with same GUID
       global.fetch = vi.fn().mockImplementation(() => {
         const feed = `<?xml version="1.0"?>
-      <rss version="2.0">
-        <channel>
-          <title>Test Feed</title>
-          <link>https://example.com</link>
-          <description>Test</description>
-          <item>
-            <title>Article</title>
-            <link>https://example.com/article</link>
-            <guid>shared-guid-123</guid>
-            <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
-          </item>
-        </channel>
-      </rss>`;
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <description>Test</description>
+    <item>
+      <title>Article</title>
+      <link>https://example.com/article</link>
+      <guid>shared-guid-123</guid>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
         return Promise.resolve(
           new Response(feed, {
             status: 200,
