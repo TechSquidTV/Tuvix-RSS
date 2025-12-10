@@ -60,7 +60,8 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
 
     // Simulate what happens when tRPC sends a batch GET request
     // where the input is undefined (empty object in query string)
-    const result = await caller.subscriptions.list(undefined as any);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.subscriptions.list(undefined);
 
     expect(result).toBeDefined();
     expect(result.items).toBeInstanceOf(Array);
@@ -72,7 +73,8 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
     const caller = createCaller();
 
     // Simulate undefined input from batch GET request
-    const result = await caller.articles.getCounts(undefined as any);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.articles.getCounts(undefined);
 
     expect(result).toBeDefined();
     expect(typeof result.all).toBe("number");
@@ -85,7 +87,8 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
     const caller = createCaller();
 
     // Simulate undefined input from batch GET request
-    const result = await caller.articles.list(undefined as any);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.articles.list(undefined);
 
     expect(result).toBeDefined();
     expect(result.items).toBeInstanceOf(Array);
@@ -93,19 +96,85 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
     expect(typeof result.hasMore).toBe("boolean");
   });
 
+  it("should handle undefined input in categories.list", async () => {
+    const caller = createCaller();
+
+    // Simulate undefined input from batch GET request
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.categories.list(undefined);
+
+    expect(result).toBeDefined();
+    expect(result).toBeInstanceOf(Array);
+  });
+
+  it("should handle undefined input in userSettings.get", async () => {
+    const caller = createCaller();
+
+    // Simulate undefined input from batch GET request
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.userSettings.get(undefined);
+
+    expect(result).toBeDefined();
+    expect(result).toHaveProperty("theme");
+    expect(result).toHaveProperty("autoAgeDays");
+  });
+
+  it("should handle undefined input in plans.list", async () => {
+    const caller = createCaller();
+
+    // Simulate undefined input from batch GET request
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.plans.list(undefined);
+
+    expect(result).toBeDefined();
+    expect(result).toBeInstanceOf(Array);
+  });
+
+  it("should handle undefined input in admin.getGlobalSettings", async () => {
+    // Make the test user an admin
+    await db
+      .update(schema.user)
+      .set({ role: "admin" })
+      .where(eq(schema.user.id, testUser.id));
+
+    // Create caller with admin role
+    const adminCaller = appRouter.createCaller({
+      db,
+      user: { userId: testUser.id, username: "testuser", role: "admin" },
+      env: {} as any,
+      headers: {},
+      req: {} as any,
+      cache: {},
+    });
+
+    // Simulate undefined input in admin.getGlobalSettings
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await adminCaller.admin.getGlobalSettings(undefined);
+
+    expect(result).toBeDefined();
+    expect(result).toHaveProperty("maxLoginAttempts");
+    expect(result).toHaveProperty("allowRegistration");
+  });
+
   it("should handle batch request with mixed undefined and defined inputs", async () => {
     const caller = createCaller();
 
     // Simulate batch request where some procedures get undefined input
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const listResultPromise = caller.subscriptions.list(undefined);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const countsResultPromise = caller.articles.getCounts(undefined);
+    const detailedListResultPromise = caller.articles.list({
+      // defined input with filters
+      limit: 10,
+      offset: 0,
+      read: false,
+    });
+
     const [listResult, countsResult, detailedListResult] = await Promise.all([
-      caller.subscriptions.list(undefined as any), // undefined input
-      caller.articles.getCounts(undefined as any), // undefined input
-      caller.articles.list({
-        // defined input with filters
-        limit: 10,
-        offset: 0,
-        read: false,
-      }),
+      listResultPromise,
+      countsResultPromise,
+      detailedListResultPromise,
     ]);
 
     // All should succeed without validation errors
@@ -118,7 +187,8 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
     const caller = createCaller();
 
     // When input is undefined, defaults should be applied
-    const result = await caller.subscriptions.list(undefined as any);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await caller.subscriptions.list(undefined);
 
     // The withUndefinedAsEmpty helper converts undefined -> {}
     // Then paginationInputSchema applies defaults: limit=50, offset=0
@@ -160,7 +230,8 @@ describe("Batch Query Input Handling (TUVIX-API-14)", () => {
     });
 
     // Simulate undefined input in admin.listUsers
-    const result = await adminCaller.admin.listUsers(undefined as any);
+    // @ts-expect-error - Testing runtime behavior when tRPC passes undefined
+    const result = await adminCaller.admin.listUsers(undefined);
 
     expect(result).toBeDefined();
     expect(result.items).toBeInstanceOf(Array);

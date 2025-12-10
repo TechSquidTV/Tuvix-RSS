@@ -14,6 +14,7 @@ import {
 } from "@/db/schemas.zod";
 import { getUserUsage, getUserLimits } from "@/services/limits";
 import type { Database } from "@/db/client";
+import { withUndefinedAsEmpty } from "@/types/pagination";
 
 // ============================================================================
 // HELPERS
@@ -89,6 +90,7 @@ export const userSettingsRouter = router({
    * Get user's settings (creates defaults if not exists)
    */
   get: rateLimitedProcedure
+    .input(withUndefinedAsEmpty(z.object({})))
     .output(selectUserSettingsSchema)
     .query(async ({ ctx }) => {
       const { userId } = ctx.user;

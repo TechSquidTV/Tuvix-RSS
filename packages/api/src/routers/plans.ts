@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { router, publicProcedure, adminProcedure } from "@/trpc/init";
 import { getAllPlans, getPlanById } from "@/services/plans";
 import * as schema from "@/db/schema";
+import { withUndefinedAsEmpty } from "@/types/pagination";
 
 export const plansRouter = router({
   /**
@@ -18,6 +19,7 @@ export const plansRouter = router({
    * Public endpoint - no authentication required
    */
   list: publicProcedure
+    .input(withUndefinedAsEmpty(z.object({})))
     .output(
       z.array(
         z.object({

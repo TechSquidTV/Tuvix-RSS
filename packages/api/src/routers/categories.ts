@@ -18,12 +18,14 @@ import {
   incrementCategoryCount,
   decrementCategoryCount,
 } from "@/services/limits";
+import { withUndefinedAsEmpty } from "@/types/pagination";
 
 export const categoriesRouter = router({
   /**
    * List all user's categories
    */
   list: rateLimitedProcedure
+    .input(withUndefinedAsEmpty(z.object({})))
     .output(z.array(selectCategorySchema))
     .query(async ({ ctx }) => {
       const { userId } = ctx.user;

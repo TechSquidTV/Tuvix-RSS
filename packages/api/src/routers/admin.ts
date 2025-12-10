@@ -28,9 +28,9 @@ import {
 } from "@/services/limits";
 import {
   createPaginatedSchema,
+  withUndefinedAsEmpty,
   paginationInputSchema,
   createPaginatedResponse,
-  withUndefinedAsEmpty,
 } from "@/types/pagination";
 import { validatePlanExists, getAllPlans } from "@/services/plans";
 import {
@@ -743,6 +743,7 @@ export const adminRouter = router({
    * Get global settings
    */
   getGlobalSettings: adminProcedure
+    .input(withUndefinedAsEmpty(z.object({})))
     .output(globalSettingsOutputSchema)
     .query(async ({ ctx }) => {
       const [settings] = await ctx.db
