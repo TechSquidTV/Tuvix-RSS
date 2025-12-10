@@ -34,7 +34,7 @@ export function aggregateByDay<T>(
   const grouped = new Map<string, number>();
   records.forEach((record) => {
     const date = dateExtractor(record);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = date.toISOString().split("T")[0]!;
     grouped.set(dateStr, (grouped.get(dateStr) || 0) + 1);
   });
 
@@ -42,7 +42,7 @@ export function aggregateByDay<T>(
   const data: TimeSeriesDataPoint[] = [];
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = date.toISOString().split("T")[0]!;
     data.push({
       date: dateStr,
       count: grouped.get(dateStr) || 0,

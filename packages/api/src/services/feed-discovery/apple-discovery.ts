@@ -165,6 +165,13 @@ export class AppleDiscoveryService implements DiscoveryService {
           }
 
           const podcast = data.results[0];
+
+          // Check if podcast exists in results
+          if (!podcast) {
+            span.setStatus({ code: 2, message: "No podcast in results" });
+            return [];
+          }
+
           span.setAttribute("podcast_name", podcast.collectionName);
 
           // Check if feedUrl exists
@@ -276,6 +283,6 @@ export class AppleDiscoveryService implements DiscoveryService {
   private extractPodcastId(url: string): string | null {
     // Match /id followed by digits, optionally followed by query string or end of string
     const match = url.match(/\/id(\d+)(?:\?|$)/);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }
 }

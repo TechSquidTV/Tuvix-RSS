@@ -110,6 +110,13 @@ export const categoriesRouter = router({
       // Update usage stats
       await incrementCategoryCount(ctx.db, userId);
 
+      if (!newCategory[0]) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create category",
+        });
+      }
+
       return newCategory[0];
     }),
 
@@ -165,6 +172,13 @@ export const categoriesRouter = router({
         .set(updates)
         .where(eq(schema.categories.id, input.id))
         .returning();
+
+      if (!updatedCategory[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Failed to update category",
+        });
+      }
 
       return updatedCategory[0];
     }),

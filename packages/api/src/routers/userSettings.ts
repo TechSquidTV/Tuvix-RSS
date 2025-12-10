@@ -60,7 +60,7 @@ const getOrCreateSettings = async (
     .limit(1);
 
   if (existing.length > 0) {
-    return existing[0];
+    return existing[0]!;
   }
 
   // Create default settings if they don't exist
@@ -72,7 +72,12 @@ const getOrCreateSettings = async (
     })
     .returning();
 
-  return defaultSettings[0];
+  const newSettings = defaultSettings[0];
+  if (!newSettings) {
+    throw new Error("Failed to create user settings");
+  }
+
+  return newSettings;
 };
 
 // ============================================================================
@@ -121,7 +126,12 @@ export const userSettingsRouter = router({
         .where(eq(schema.userSettings.userId, userId))
         .returning();
 
-      return formatUserSettings(updatedSettings[0]);
+      const settings = updatedSettings[0];
+      if (!settings) {
+        throw new Error("Failed to update user settings");
+      }
+
+      return formatUserSettings(settings);
     }),
 
   /**

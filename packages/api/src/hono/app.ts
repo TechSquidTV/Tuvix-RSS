@@ -307,5 +307,5 @@ function getCorsOrigins(env: Env): string | string[] {
       ? []
       : ["http://localhost:5173", "http://localhost:3000"];
 
-  return allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins;
+  return allowedOrigins.length === 1 ? allowedOrigins[0]! : allowedOrigins;
 }

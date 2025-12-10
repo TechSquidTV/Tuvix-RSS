@@ -167,6 +167,15 @@ export class AppleDiscoveryService implements DiscoveryService {
 
       const podcast = data.results[0];
 
+      // Check if podcast exists in results
+      if (!podcast) {
+        context.telemetry?.addBreadcrumb?.({
+          message: "No results found for podcast ID",
+          data: { podcast_id: podcastId },
+        });
+        return [];
+      }
+
       // Validate that this is actually a podcast (not music, app, etc.)
       if (podcast.wrapperType !== "track" || podcast.kind !== "podcast") {
         context.telemetry?.addBreadcrumb?.({
@@ -271,6 +280,6 @@ export class AppleDiscoveryService implements DiscoveryService {
   private extractPodcastId(url: string): string | null {
     // Match /id followed by digits, optionally followed by query string or end of string
     const match = url.match(/\/id(\d+)(?:\?|$)/);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }
 }

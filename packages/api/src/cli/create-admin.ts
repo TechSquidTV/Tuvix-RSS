@@ -81,7 +81,7 @@ async function main() {
     console.log(`✅ Successfully promoted '${username}' to admin`);
     console.log(`   User ID: ${user.id}`);
     console.log(`   Email: ${user.email}`);
-    console.log(`   Plan: ${updatedUser.plan}`);
+    console.log(`   Plan: ${updatedUser?.plan ?? "unknown"}`);
 
     sqlite.close();
     process.exit(0);

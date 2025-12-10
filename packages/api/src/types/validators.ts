@@ -169,7 +169,6 @@ const EMAIL_TYPOS: Record<string, string> = {
  * - Domain normalization (lowercase)
  */
 export const emailValidator = z
-  .string()
   .email({ message: "Invalid email address" })
   .min(STRING_LIMITS.EMAIL.min)
   .max(STRING_LIMITS.EMAIL.max, {
@@ -192,6 +191,9 @@ export const emailValidator = z
   )
   .transform((email) => {
     const [localPart, domain] = email.split("@");
+    if (!domain) {
+      throw new Error("Invalid email format");
+    }
     const lowerDomain = domain.toLowerCase();
 
     // Check for common typos
@@ -235,7 +237,6 @@ export const passwordValidator = z
  * URL validator with length constraints and protocol validation
  */
 export const urlValidator = z
-  .string()
   .url({ message: "Invalid URL format" })
   .max(STRING_LIMITS.URL.max, {
     message: `URL must not exceed ${STRING_LIMITS.URL.max} characters`,

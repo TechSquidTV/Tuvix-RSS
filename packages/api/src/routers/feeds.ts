@@ -240,6 +240,13 @@ export const feedsRouter = router({
 
       const feed = newFeed[0];
 
+      if (!feed) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create feed",
+        });
+      }
+
       // Update usage stats if public feed
       if (feed.public) {
         await incrementPublicFeedCount(ctx.db, userId);
@@ -343,6 +350,13 @@ export const feedsRouter = router({
         .returning();
 
       const updatedFeed = updatedFeeds[0];
+
+      if (!updatedFeed) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Failed to update feed",
+        });
+      }
 
       // Update usage stats based on public status change
       if (wasPublic && !willBePublic) {
@@ -464,6 +478,13 @@ export const feedsRouter = router({
 
           const user = users[0];
 
+          if (!user) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "User not found",
+            });
+          }
+
           // Step 2: Find feed by user ID and slug
           const feeds = await withQueryMetrics(
             "public_feed.getFeed",
@@ -498,7 +519,7 @@ export const feedsRouter = router({
             });
           }
 
-          const feed = feeds[0];
+          const feed = feeds[0]!;
 
           // Step 3: Verify feed is public
           if (!feed.public) {

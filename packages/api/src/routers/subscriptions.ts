@@ -187,8 +187,8 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const subscription = result[0].subscriptions;
-      const source = result[0].sources;
+      const subscription = result[0]!.subscriptions;
+      const source = result[0]!.sources;
 
       // Fetch categories and filters
       const categoriesMap = await fetchSubscriptionCategories(ctx.db, [
@@ -451,7 +451,9 @@ export const subscriptionsRouter = router({
           // Check if we should retry this error
           const errorMessage = lastError.message;
           const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
-          const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 0;
+          const httpStatus = httpStatusMatch?.[1]
+            ? parseInt(httpStatusMatch[1])
+            : 0;
 
           if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
             // Non-transient error - don't retry
@@ -516,8 +518,8 @@ export const subscriptionsRouter = router({
           try {
             const discoveredFeeds = await discoverFeeds(input.url);
             // Use iconUrl from discovery if available (platform-specific high-quality icons)
-            if (discoveredFeeds.length > 0 && discoveredFeeds[0].iconUrl) {
-              feedIconUrl = discoveredFeeds[0].iconUrl;
+            if (discoveredFeeds.length > 0 && discoveredFeeds[0]!.iconUrl) {
+              feedIconUrl = discoveredFeeds[0]!.iconUrl;
 
               await Sentry.addBreadcrumb({
                 category: "subscription",
@@ -583,7 +585,7 @@ export const subscriptionsRouter = router({
       let sourceId: number;
 
       if (existingSources.length > 0) {
-        sourceId = existingSources[0].id;
+        sourceId = existingSources[0]!.id;
 
         // Update source metadata if we have new info
         await ctx.db
@@ -614,7 +616,15 @@ export const subscriptionsRouter = router({
           })
           .returning();
 
-        sourceId = newSource[0].id;
+        const source = newSource[0];
+        if (!source) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create source",
+          });
+        }
+
+        sourceId = source.id;
       }
 
       // Step 4: Check if user is already subscribed
@@ -657,7 +667,15 @@ export const subscriptionsRouter = router({
         })
         .returning();
 
-      const subscriptionId = newSubscription[0].id;
+      const createdSub = newSubscription[0];
+      if (!createdSub) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create subscription",
+        });
+      }
+
+      const subscriptionId = createdSub.id;
 
       // Step 7: Update usage stats (increment source count)
       await incrementSourceCount(ctx.db, userId);
@@ -750,8 +768,8 @@ export const subscriptionsRouter = router({
         .where(eq(schema.subscriptions.id, subscriptionId))
         .limit(1);
 
-      const subscription = result[0].subscriptions;
-      const source = result[0].sources;
+      const subscription = result[0]!.subscriptions;
+      const source = result[0]!.sources;
 
       // Get categories
       const categoriesMap = await fetchSubscriptionCategories(ctx.db, [
@@ -870,8 +888,8 @@ export const subscriptionsRouter = router({
         .where(eq(schema.subscriptions.id, input.id))
         .limit(1);
 
-      const subscription = result[0].subscriptions;
-      const source = result[0].sources;
+      const subscription = result[0]!.subscriptions;
+      const source = result[0]!.sources;
 
       // Fetch categories and filters
       const categoriesMap = await fetchSubscriptionCategories(ctx.db, [
@@ -1168,7 +1186,9 @@ export const subscriptionsRouter = router({
           // Check if we should retry this error
           const errorMessage = lastError.message;
           const httpStatusMatch = errorMessage.match(/HTTP (\d+):/);
-          const httpStatus = httpStatusMatch ? parseInt(httpStatusMatch[1]) : 0;
+          const httpStatus = httpStatusMatch?.[1]
+            ? parseInt(httpStatusMatch[1])
+            : 0;
 
           if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
             // Non-transient error - don't retry
@@ -1231,8 +1251,8 @@ export const subscriptionsRouter = router({
         try {
           const discoveredFeeds = await discoverFeeds(input.url);
           // Use iconUrl from discovery if available (platform-specific high-quality icons)
-          if (discoveredFeeds.length > 0 && discoveredFeeds[0].iconUrl) {
-            iconUrl = discoveredFeeds[0].iconUrl;
+          if (discoveredFeeds.length > 0 && discoveredFeeds[0]!.iconUrl) {
+            iconUrl = discoveredFeeds[0]!.iconUrl;
 
             await Sentry.addBreadcrumb({
               category: "subscription",
@@ -1948,7 +1968,7 @@ export const subscriptionsRouter = router({
                   let sourceId: number;
 
                   if (existingSources.length > 0) {
-                    sourceId = existingSources[0].id;
+                    sourceId = existingSources[0]!.id;
                     await ctx.db
                       .update(schema.sources)
                       .set({
@@ -1970,7 +1990,11 @@ export const subscriptionsRouter = router({
                         lastFetched: new Date(),
                       })
                       .returning();
-                    sourceId = newSource[0].id;
+                    const source = newSource[0];
+                    if (!source) {
+                      throw new Error("Failed to create source");
+                    }
+                    sourceId = source.id;
                   }
 
                   // Check if already subscribed
@@ -2040,7 +2064,12 @@ export const subscriptionsRouter = router({
                     })
                     .returning();
 
-                  const subscriptionId = newSubscription[0].id;
+                  const subscription = newSubscription[0];
+                  if (!subscription) {
+                    throw new Error("Failed to create subscription");
+                  }
+
+                  const subscriptionId = subscription.id;
 
                   // Create/link categories (using normalization helper to prevent duplicates)
                   if (feedInfo.categories.length > 0) {
@@ -2276,6 +2305,14 @@ export const subscriptionsRouter = router({
         })
         .returning();
 
+      const filter = newFilter[0];
+      if (!filter) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create filter",
+        });
+      }
+
       // Enable filters on subscription if not already
       if (!subscription.filterEnabled) {
         await ctx.db
@@ -2284,7 +2321,7 @@ export const subscriptionsRouter = router({
           .where(eq(schema.subscriptions.id, input.subscriptionId));
       }
 
-      return transformSubscriptionFilter(newFilter[0]);
+      return transformSubscriptionFilter(filter);
     }),
 
   /**
@@ -2350,8 +2387,8 @@ export const subscriptionsRouter = router({
         updates.caseSensitive = input.caseSensitive;
 
       // Validate regex if updating to regex matchType
-      const finalMatchType = input.matchType || existingFilter[0].matchType;
-      const finalPattern = input.pattern || existingFilter[0].pattern;
+      const finalMatchType = input.matchType || existingFilter[0]!.matchType;
+      const finalPattern = input.pattern || existingFilter[0]!.pattern;
 
       if (finalMatchType === "regex") {
         try {
@@ -2371,7 +2408,15 @@ export const subscriptionsRouter = router({
         .where(eq(schema.subscriptionFilters.id, input.filterId))
         .returning();
 
-      return transformSubscriptionFilter(updatedFilter[0]);
+      const filter = updatedFilter[0];
+      if (!filter) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to update filter",
+        });
+      }
+
+      return transformSubscriptionFilter(filter);
     }),
 
   /**
@@ -2442,7 +2487,7 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const source = result[0].sources;
+      const source = result[0]!.sources;
 
       // Use category discovery service
       try {
