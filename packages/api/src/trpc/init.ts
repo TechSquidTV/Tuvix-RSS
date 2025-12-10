@@ -101,18 +101,27 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check if user is banned (using Better Auth user table)
-  const [userRecord] = await ctx.db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, ctx.user.userId))
-    .limit(1);
+  // Check cache first to avoid N+1 queries in batch requests
+  let userRecord = ctx.cache.userRecord;
 
   if (!userRecord) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "User not found",
-    });
+    // Cache miss - fetch from database and store in cache
+    const [fetchedUser] = await ctx.db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, ctx.user.userId))
+      .limit(1);
+
+    if (!fetchedUser) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User not found",
+      });
+    }
+
+    // Store in cache for subsequent middleware/procedures in this request
+    userRecord = fetchedUser;
+    ctx.cache.userRecord = userRecord;
   }
 
   if (userRecord.banned) {
@@ -193,18 +202,27 @@ const isAuthedWithoutVerification = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check if user is banned (using Better Auth user table)
-  const [userRecord] = await ctx.db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, ctx.user.userId))
-    .limit(1);
+  // Check cache first to avoid N+1 queries in batch requests
+  let userRecord = ctx.cache.userRecord;
 
   if (!userRecord) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "User not found",
-    });
+    // Cache miss - fetch from database and store in cache
+    const [fetchedUser] = await ctx.db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, ctx.user.userId))
+      .limit(1);
+
+    if (!fetchedUser) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User not found",
+      });
+    }
+
+    // Store in cache for subsequent middleware/procedures in this request
+    userRecord = fetchedUser;
+    ctx.cache.userRecord = userRecord;
   }
 
   if (userRecord.banned) {
@@ -294,18 +312,27 @@ const isAdmin = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check if user is admin (using Better Auth user table)
-  const [userRecord] = await ctx.db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, ctx.user.userId))
-    .limit(1);
+  // Check cache first to avoid N+1 queries in batch requests
+  let userRecord = ctx.cache.userRecord;
 
   if (!userRecord) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "User not found",
-    });
+    // Cache miss - fetch from database and store in cache
+    const [fetchedUser] = await ctx.db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, ctx.user.userId))
+      .limit(1);
+
+    if (!fetchedUser) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User not found",
+      });
+    }
+
+    // Store in cache for subsequent middleware/procedures in this request
+    userRecord = fetchedUser;
+    ctx.cache.userRecord = userRecord;
   }
 
   if (userRecord.banned) {
@@ -350,17 +377,36 @@ const withRateLimit = t.middleware(async ({ ctx, next }) => {
     return next();
   }
 
-  // Get user's plan and limits
-  const limits = await getUserLimits(ctx.db, ctx.user.userId);
+  // Check cache first to avoid N+1 queries in batch requests
+  let limits = ctx.cache.userLimits;
+  let userRecord = ctx.cache.userRecord;
 
-  // Get user's plan ID (needed to select the correct binding)
-  const [user] = await ctx.db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, ctx.user.userId))
-    .limit(1);
+  if (!limits) {
+    // Cache miss - fetch user limits and store in cache
+    limits = await getUserLimits(ctx.db, ctx.user.userId);
+    ctx.cache.userLimits = limits;
+  }
 
-  const planId = user?.plan || "free";
+  if (!userRecord) {
+    // Cache miss - fetch user record and store in cache
+    const [fetchedUser] = await ctx.db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, ctx.user.userId))
+      .limit(1);
+
+    if (!fetchedUser) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User not found",
+      });
+    }
+
+    userRecord = fetchedUser;
+    ctx.cache.userRecord = userRecord;
+  }
+
+  const planId = userRecord.plan || "free";
 
   // Check rate limit using plan-specific binding
   const rateLimitResult = await checkApiRateLimit(
