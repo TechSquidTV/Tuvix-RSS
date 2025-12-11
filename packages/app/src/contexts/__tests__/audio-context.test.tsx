@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { AudioContextProvider, useAudio } from "../audio-context";
-import { ReactNode } from "react";
 
 // Mock Sentry to avoid issues in tests
 vi.mock("@sentry/react", () => ({
