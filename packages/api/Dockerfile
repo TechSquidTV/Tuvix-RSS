@@ -29,6 +29,9 @@ RUN pnpm --filter @tuvixrss/tricorder build
 # Build the application with tsup (bundles and resolves ESM)
 RUN pnpm --filter @tuvixrss/api build
 
+# Prune dev dependencies, keeping only production deps with compiled native modules
+RUN pnpm prune --prod
+
 # Production stage
 FROM node:20-alpine
 
@@ -38,16 +41,16 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Install pnpm for production dependencies
-RUN npm install -g pnpm@10.19.0
-
-# Copy package files with ownership
+# Copy package files with ownership (needed for pnpm workspace structure)
 COPY --chown=nodejs:nodejs package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --chown=nodejs:nodejs packages/api/package.json ./packages/api/
 COPY --chown=nodejs:nodejs packages/tricorder/package.json ./packages/tricorder/
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Copy pre-built node_modules from builder (includes compiled native modules)
+# This avoids needing Python/build tools in the runtime image
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/packages/api/node_modules ./packages/api/node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/packages/tricorder/node_modules ./packages/tricorder/node_modules
 
 # Copy built artifacts with correct ownership
 COPY --from=builder --chown=nodejs:nodejs /app/packages/api/dist ./packages/api/dist
