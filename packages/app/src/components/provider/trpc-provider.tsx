@@ -4,32 +4,9 @@ import {
   onlineManager,
 } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
-import superjson from "superjson";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
-
-/**
- * Transformer wrapper for tRPC v11
- * tRPC v11 expects transformers with input/output structure
- * SuperJSON is used for both input (requests) and output (responses)
- * Must be passed to httpBatchLink directly (not createClient) for proper deserialization
- */
-const transformer = {
-  input: {
-    serialize: (data: unknown) => superjson.serialize(data),
-    deserialize: (data: unknown) =>
-      superjson.deserialize(
-        data as Parameters<typeof superjson.deserialize>[0],
-      ),
-  },
-  output: {
-    serialize: (data: unknown) => superjson.serialize(data),
-    deserialize: (data: unknown) =>
-      superjson.deserialize(
-        data as Parameters<typeof superjson.deserialize>[0],
-      ),
-  },
-};
+import { transformer } from "@/lib/api/transformer";
 
 // Exported for testing
 export type TRPCError = { data?: { httpStatus?: number } };

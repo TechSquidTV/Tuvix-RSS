@@ -46,27 +46,8 @@ export const Route = createFileRoute("/app")({
       // Create a tRPC caller for server-side check
       // Note: In beforeLoad, we need to use the tRPC client directly
       const { createTRPCClient, httpBatchLink } = await import("@trpc/client");
-      const superjson = await import("superjson").then((m) => m.default);
+      const { transformer } = await import("@/lib/api/transformer");
       const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
-
-      // Transformer wrapper for tRPC v11
-      // Must be passed to httpBatchLink directly for proper deserialization
-      const transformer = {
-        input: {
-          serialize: (data: unknown) => superjson.serialize(data),
-          deserialize: (data: unknown) =>
-            superjson.deserialize(
-              data as Parameters<typeof superjson.deserialize>[0],
-            ),
-        },
-        output: {
-          serialize: (data: unknown) => superjson.serialize(data),
-          deserialize: (data: unknown) =>
-            superjson.deserialize(
-              data as Parameters<typeof superjson.deserialize>[0],
-            ),
-        },
-      };
 
       const client = createTRPCClient<AppRouter>({
         links: [
