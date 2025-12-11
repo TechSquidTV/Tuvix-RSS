@@ -78,9 +78,9 @@ describe("Auth Login - Username and Email Support", () => {
       expect(result.user.email).toBe(testUser.email);
     });
 
-    it("should NOT login with email when using username endpoint (email @ not valid as username)", async () => {
-      // Better Auth username plugin does NOT accept email format as username
-      // Usernames can't contain @ symbol per plugin validation
+    it("should login with email when @ detected in username field (smart routing)", async () => {
+      // NEW: Backend now detects @ symbol and routes to email signin automatically
+      // This allows users to enter either username OR email in the same field
       const caller = authRouter.createCaller({
         db,
         user: null,
@@ -92,14 +92,15 @@ describe("Auth Login - Username and Email Support", () => {
         req: { headers: {} } as any,
       } as any);
 
-      // Try passing email to username parameter - should fail
-      // This verifies Better Auth username plugin correctly validates username format
-      await expect(
-        caller.login({
-          username: testUser.email, // ← email passed as username
-          password: testUser.password,
-        })
-      ).rejects.toThrow(/Username is invalid/);
+      // Pass email to username field - backend should detect @ and route to email signin
+      const result = await caller.login({
+        username: testUser.email, // ← email passed as username field
+        password: testUser.password,
+      });
+
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe(testUser.id);
+      expect(result.user.email).toBe(testUser.email);
     });
 
     it("should fail login with incorrect password", async () => {
