@@ -5,8 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import React from "react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCurrentUser, useLogin, useRegister, useLogout } from "../useAuth";
@@ -29,153 +28,48 @@ vi.mock("@tanstack/react-query", async () => {
 const {
   mockUseSession,
   mockGetSession,
-  mockTrpcLogin,
-  mockTrpcRegister,
-  mockTrpcLogout,
+  mockSignInEmail,
+  mockSignInUsername,
+  mockSignUpEmail,
+  mockSignOut,
 } = vi.hoisted(() => {
   return {
     mockUseSession: vi.fn(),
     mockGetSession: vi.fn(),
-    mockTrpcLogin: vi.fn(),
-    mockTrpcRegister: vi.fn(),
-    mockTrpcLogout: vi.fn(),
+    mockSignInEmail: vi.fn(),
+    mockSignInUsername: vi.fn(),
+    mockSignUpEmail: vi.fn(),
+    mockSignOut: vi.fn(),
   };
 });
 
-// Mock auth-client for useCurrentUser (still uses Better Auth useSession)
+// Mock auth-client with all Better Auth methods used by the hooks
 vi.mock("@/lib/auth-client", () => {
   return {
     authClient: {
       useSession: () => mockUseSession(),
       getSession: mockGetSession,
+      signIn: {
+        email: mockSignInEmail,
+        username: mockSignInUsername,
+      },
+      signUp: {
+        email: mockSignUpEmail,
+      },
+      signOut: mockSignOut,
     },
   };
 });
 
-// Mock tRPC client for useLogin, useRegister, useLogout
-vi.mock("@/lib/api/trpc", () => {
-  const React = require("react");
-  return {
-    trpc: {
-      // Mock Provider component
-      Provider: ({ children }: { children: React.ReactNode }) => children,
-      // Mock createClient for test-utils wrapper
-      createClient: () => ({
-        auth: {
-          checkVerificationStatus: {
-            query: () =>
-              Promise.resolve({
-                requiresVerification: false,
-                emailVerified: true,
-              }),
-          },
-        },
-      }),
-      auth: {
-        login: {
-          useMutation: (opts: any) => {
-            const mutate = (...args: any[]) => {
-              try {
-                mockTrpcLogin(...args);
-                // Check if mock was set up to throw
-                const mockImpl = mockTrpcLogin.getMockImplementation();
-                if (mockImpl) {
-                  // If there's a custom implementation, use it
-                  const result = mockImpl(...args);
-                  if (result instanceof Promise) {
-                    return result.then(
-                      () => opts?.onSuccess && opts.onSuccess(),
-                      (err) => opts?.onError && opts.onError(err),
-                    );
-                  }
-                }
-                // Default: simulate success
-                if (opts?.onSuccess) {
-                  return Promise.resolve().then(() => opts.onSuccess());
-                }
-                return Promise.resolve();
-              } catch (error) {
-                if (opts?.onError) {
-                  opts.onError(error);
-                }
-                return Promise.reject(error);
-              }
-            };
-            return { mutate, isPending: false, isError: false, error: null };
-          },
-        },
-        register: {
-          useMutation: (opts: any) => {
-            const mutate = (...args: any[]) => {
-              try {
-                mockTrpcRegister(...args);
-                const mockImpl = mockTrpcRegister.getMockImplementation();
-                if (mockImpl) {
-                  const result = mockImpl(...args);
-                  if (result instanceof Promise) {
-                    return result.then(
-                      () => opts?.onSuccess && opts.onSuccess(),
-                      (err) => opts?.onError && opts.onError(err),
-                    );
-                  }
-                }
-                if (opts?.onSuccess) {
-                  return Promise.resolve().then(() => opts.onSuccess());
-                }
-                return Promise.resolve();
-              } catch (error) {
-                if (opts?.onError) {
-                  opts.onError(error);
-                }
-                return Promise.reject(error);
-              }
-            };
-            return { mutate, isPending: false, isError: false, error: null };
-          },
-        },
-        logout: {
-          useMutation: (opts: any) => {
-            const mutate = (...args: any[]) => {
-              try {
-                mockTrpcLogout(...args);
-                const mockImpl = mockTrpcLogout.getMockImplementation();
-                if (mockImpl) {
-                  const result = mockImpl(...args);
-                  if (result instanceof Promise) {
-                    return result.then(
-                      () => opts?.onSuccess && opts.onSuccess(),
-                      (err) => opts?.onError && opts.onError(err),
-                    );
-                  }
-                }
-                if (opts?.onSuccess) {
-                  return Promise.resolve().then(() => opts.onSuccess());
-                }
-                return Promise.resolve();
-              } catch (error) {
-                if (opts?.onError) {
-                  opts.onError(error);
-                }
-                return Promise.reject(error);
-              }
-            };
-            return { mutate, isPending: false, isError: false, error: null };
-          },
-        },
-        checkVerificationStatus: {
-          useQuery: () => ({
-            data: { requiresVerification: false, emailVerified: true },
-            isLoading: false,
-            error: null,
-          }),
-        },
-      },
-    },
-  };
-});
+// Mock Sentry
+vi.mock("@sentry/react", () => ({
+  captureException: vi.fn(),
+  setUser: vi.fn(),
+}));
 
 type MockRouter = {
   navigate: ReturnType<typeof vi.fn>;
+  invalidate: ReturnType<typeof vi.fn>;
 };
 
 type MockSessionResult = {
@@ -187,6 +81,7 @@ type MockSessionResult = {
       username?: string;
       role?: string;
       plan?: string;
+      emailVerified?: boolean;
     };
   } | null;
   isPending: boolean;
@@ -194,17 +89,19 @@ type MockSessionResult = {
 };
 
 describe("useAuth", () => {
-  const mockRouter: MockRouter & { invalidate: ReturnType<typeof vi.fn> } = {
+  const mockRouter: MockRouter = {
     navigate: vi.fn().mockResolvedValue(undefined),
-    invalidate: vi.fn(),
+    invalidate: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTrpcLogin.mockReset();
-    mockTrpcRegister.mockReset();
-    mockTrpcLogout.mockReset();
+    mockSignInEmail.mockReset();
+    mockSignInUsername.mockReset();
+    mockSignUpEmail.mockReset();
+    mockSignOut.mockReset();
     mockGetSession.mockReset();
+    mockGetSession.mockResolvedValue({ data: { user: { id: 1 } } });
     vi.mocked(useRouter).mockReturnValue(
       mockRouter as unknown as ReturnType<typeof useRouter>,
     );
@@ -302,7 +199,7 @@ describe("useAuth", () => {
   });
 
   describe("useLogin", () => {
-    it("should return React Query mutation", () => {
+    it("should return mutate function and isPending state", () => {
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
       });
@@ -313,102 +210,163 @@ describe("useAuth", () => {
     });
 
     it("should handle successful login with username", async () => {
+      mockSignInUsername.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({
-        username: "testuser",
-        password: "password",
-      });
-
-      await waitFor(() => {
-        expect(mockTrpcLogin).toHaveBeenCalledWith({
+      await act(async () => {
+        await result.current.mutate({
           username: "testuser",
           password: "password",
         });
-        expect(toast.success).toHaveBeenCalledWith("Welcome back!");
-        // Verification check fails in tests (ECONNREFUSED), so fail-closed defaults to /verify-email
-        expect(mockRouter.navigate).toHaveBeenCalledWith({
-          to: "/verify-email",
-          search: { token: undefined },
+      });
+
+      expect(mockSignInUsername).toHaveBeenCalledWith({
+        username: "testuser",
+        password: "password",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Welcome back!");
+      expect(mockRouter.navigate).toHaveBeenCalledWith({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
+    });
+
+    it("should handle successful login with email", async () => {
+      mockSignInEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "test@example.com",
+          password: "password",
         });
       });
+
+      expect(mockSignInEmail).toHaveBeenCalledWith({
+        email: "test@example.com",
+        password: "password",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Welcome back!");
     });
 
-    // EMAIL DETECTION TEST REMOVED:
-    // Frontend no longer detects @ symbol - backend handles email vs username routing automatically
-    // Backend detects @ in username field and routes to appropriate Better Auth method
-    // See: packages/api/src/routers/auth.ts login procedure
-
-    it("should handle login error", async () => {
-      // Set up mock to reject
-      mockTrpcLogin.mockImplementation(() =>
-        Promise.reject(new Error("Invalid credentials")),
-      );
+    it("should set isPending to true during login and false after", async () => {
+      let resolveLogin: (value: unknown) => void;
+      const loginPromise = new Promise((resolve) => {
+        resolveLogin = resolve;
+      });
+      mockSignInUsername.mockReturnValue(loginPromise);
 
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({
-        username: "testuser",
-        password: "wrongpassword",
+      expect(result.current.isPending).toBe(false);
+
+      // Start the login
+      let mutatePromise: Promise<void>;
+      act(() => {
+        mutatePromise = result.current.mutate({
+          username: "testuser",
+          password: "password",
+        });
       });
 
+      // isPending should be true while waiting
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalled();
+        expect(result.current.isPending).toBe(true);
+      });
+
+      // Resolve the login
+      await act(async () => {
+        resolveLogin!({ data: { user: { id: 1 } }, error: null });
+        await mutatePromise;
+      });
+
+      // isPending should be false after completion
+      await waitFor(() => {
+        expect(result.current.isPending).toBe(false);
       });
     });
 
-    it("should NOT fall back to email login when username authentication fails", async () => {
-      // With tRPC implementation, backend handles all routing logic
-      // Frontend simply calls trpc.auth.login.useMutation()
-      // Backend detects @ and routes to email or username signin
-      // No fallback logic exists - if backend returns error, it's shown to user
-
-      // Set up mock to reject
-      mockTrpcLogin.mockImplementation(() =>
-        Promise.reject(new Error("Invalid username or password")),
-      );
+    it("should handle login error from Better Auth", async () => {
+      mockSignInUsername.mockResolvedValue({
+        data: null,
+        error: { message: "Invalid credentials" },
+      });
 
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
       });
 
-      // Try to login with username (not email format)
-      result.current.mutate({
-        username: "testuser",
-        password: "wrongpassword",
-      });
-
-      await waitFor(() => {
-        // Verify tRPC login was called (backend handles routing)
-        expect(mockTrpcLogin).toHaveBeenCalledWith({
+      await act(async () => {
+        await result.current.mutate({
           username: "testuser",
           password: "wrongpassword",
         });
-
-        // No need to check for email fallback - backend owns that logic
-        // If backend returns error, toast.error is called
-        expect(toast.error).toHaveBeenCalled();
       });
+
+      expect(toast.error).toHaveBeenCalledWith("Invalid credentials");
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
     });
 
-    it("should only fall back to email if username method does not exist", async () => {
-      // This test verifies the fallback behavior when the username plugin isn't loaded
-      // Note: In practice, this is hard to test because we'd need to re-mock the authClient
-      // with a signIn object that doesn't have a username method. For now, we document
-      // the expected behavior: if signInWithUsername is undefined (plugin not loaded),
-      // the code falls back to email login.
-      // Skip this test - it requires mocking the authClient import itself at runtime
-      // which is not straightforward with vitest. The behavior is documented in the code
-      // with comments explaining when fallback occurs.
+    it("should handle login exception", async () => {
+      mockSignInUsername.mockRejectedValue(new Error("Network error"));
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "testuser",
+          password: "password",
+        });
+      });
+
+      expect(toast.error).toHaveBeenCalledWith("Network error");
+    });
+
+    it("should detect email vs username based on @ symbol", async () => {
+      mockSignInEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+      mockSignInUsername.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      // With @ - should use email
+      await act(async () => {
+        await result.current.mutate({
+          username: "user@example.com",
+          password: "password",
+        });
+      });
+      expect(mockSignInEmail).toHaveBeenCalled();
+      expect(mockSignInUsername).not.toHaveBeenCalled();
+
+      vi.clearAllMocks();
+      mockGetSession.mockResolvedValue({ data: { user: { id: 1 } } });
+
+      // Without @ - should use username
+      await act(async () => {
+        await result.current.mutate({
+          username: "testuser",
+          password: "password",
+        });
+      });
+      expect(mockSignInUsername).toHaveBeenCalled();
+      expect(mockSignInEmail).not.toHaveBeenCalled();
     });
   });
 
   describe("useRegister", () => {
-    it("should return React Query mutation", () => {
+    it("should return mutate function and isPending state", () => {
       const { result } = renderHook(() => useRegister(), {
         wrapper: createWrapper(),
       });
@@ -419,55 +377,116 @@ describe("useAuth", () => {
     });
 
     it("should handle successful registration", async () => {
+      mockSignUpEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+
       const { result } = renderHook(() => useRegister(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({
-        email: "test@example.com",
+      await act(async () => {
+        await result.current.mutate({
+          username: "newuser",
+          email: "new@example.com",
+          password: "password",
+        });
+      });
+
+      expect(mockSignUpEmail).toHaveBeenCalledWith({
+        email: "new@example.com",
         password: "password",
-        name: "Test User",
+        name: "newuser",
+        username: "newuser",
+      });
+      expect(toast.success).toHaveBeenCalledWith("Account created!");
+      expect(mockRouter.navigate).toHaveBeenCalledWith({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
+    });
+
+    it("should set isPending during registration", async () => {
+      let resolveRegister: (value: unknown) => void;
+      const registerPromise = new Promise((resolve) => {
+        resolveRegister = resolve;
+      });
+      mockSignUpEmail.mockReturnValue(registerPromise);
+
+      const { result } = renderHook(() => useRegister(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.isPending).toBe(false);
+
+      let mutatePromise: Promise<void>;
+      act(() => {
+        mutatePromise = result.current.mutate({
+          username: "newuser",
+          email: "new@example.com",
+          password: "password",
+        });
       });
 
       await waitFor(() => {
-        expect(mockTrpcRegister).toHaveBeenCalledWith({
-          email: "test@example.com",
-          password: "password",
-          name: "Test User",
-        });
-        expect(toast.success).toHaveBeenCalledWith("Account created!");
-        // Verification check fails in tests (ECONNREFUSED), so fail-closed defaults to /verify-email
-        expect(mockRouter.navigate).toHaveBeenCalledWith({
-          to: "/verify-email",
-          search: { token: undefined },
-        });
+        expect(result.current.isPending).toBe(true);
+      });
+
+      await act(async () => {
+        resolveRegister!({ data: { user: { id: 1 } }, error: null });
+        await mutatePromise;
+      });
+
+      await waitFor(() => {
+        expect(result.current.isPending).toBe(false);
       });
     });
 
     it("should handle registration error", async () => {
-      // Set up mock to reject
-      mockTrpcRegister.mockImplementation(() =>
-        Promise.reject(new Error("Username exists")),
-      );
+      mockSignUpEmail.mockResolvedValue({
+        data: null,
+        error: { message: "Email already exists" },
+      });
 
       const { result } = renderHook(() => useRegister(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate({
-        email: "test@example.com",
-        password: "password",
-        name: "Test User",
+      await act(async () => {
+        await result.current.mutate({
+          username: "newuser",
+          email: "existing@example.com",
+          password: "password",
+        });
       });
 
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("Email already exists");
+    });
+
+    it("should handle registration disabled error", async () => {
+      mockSignUpEmail.mockResolvedValue({
+        data: null,
+        error: { message: "Registration is currently disabled" },
       });
+
+      const { result } = renderHook(() => useRegister(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "newuser",
+          email: "new@example.com",
+          password: "password",
+        });
+      });
+
+      expect(toast.error).toHaveBeenCalledWith(
+        "Registration is currently disabled. Please contact an administrator.",
+      );
     });
   });
 
   describe("useLogout", () => {
-    it("should return React Query mutation", () => {
+    it("should return mutate function and isPending state", () => {
       const { result } = renderHook(() => useLogout(), {
         wrapper: createWrapper(),
       });
@@ -478,34 +497,65 @@ describe("useAuth", () => {
     });
 
     it("should handle successful logout", async () => {
+      mockSignOut.mockResolvedValue({ error: null });
+
       const { result } = renderHook(() => useLogout(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate();
+      await act(async () => {
+        await result.current.mutate();
+      });
+
+      expect(mockSignOut).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Logged out");
+      expect(mockRouter.navigate).toHaveBeenCalledWith({ to: "/" });
+    });
+
+    it("should set isPending during logout", async () => {
+      let resolveLogout: (value: unknown) => void;
+      const logoutPromise = new Promise((resolve) => {
+        resolveLogout = resolve;
+      });
+      mockSignOut.mockReturnValue(logoutPromise);
+
+      const { result } = renderHook(() => useLogout(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.isPending).toBe(false);
+
+      let mutatePromise: Promise<void>;
+      act(() => {
+        mutatePromise = result.current.mutate();
+      });
 
       await waitFor(() => {
-        expect(mockTrpcLogout).toHaveBeenCalled();
-        expect(toast.success).toHaveBeenCalledWith("Logged out");
-        expect(mockRouter.navigate).toHaveBeenCalledWith({ to: "/" });
+        expect(result.current.isPending).toBe(true);
+      });
+
+      await act(async () => {
+        resolveLogout!({ error: null });
+        await mutatePromise;
+      });
+
+      await waitFor(() => {
+        expect(result.current.isPending).toBe(false);
       });
     });
 
     it("should handle logout error", async () => {
-      // Set up mock to reject
-      mockTrpcLogout.mockImplementation(() =>
-        Promise.reject(new Error("Failed to logout")),
-      );
+      mockSignOut.mockRejectedValue(new Error("Logout failed"));
 
       const { result } = renderHook(() => useLogout(), {
         wrapper: createWrapper(),
       });
 
-      result.current.mutate();
-
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalled();
+      await act(async () => {
+        await result.current.mutate();
       });
+
+      expect(toast.error).toHaveBeenCalledWith("Failed to logout");
     });
   });
 });

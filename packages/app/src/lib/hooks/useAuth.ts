@@ -5,6 +5,7 @@
  * This ensures proper cookie handling for session management.
  */
 
+import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ const navigateAfterAuth = async (
 ): Promise<void> => {
   try {
     // Get fresh session from Better Auth
-    const session = await authClient.getSession();
+    await authClient.getSession();
 
     // Invalidate router to force root beforeLoad to re-run with fresh session
     await router.invalidate({ sync: true });
@@ -49,44 +50,45 @@ const navigateAfterAuth = async (
 export const useLogin = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
 
-  const signIn = {
-    isPending: false,
-    mutate: async (values: { username: string; password: string }) => {
-      try {
-        // Detect if input is email or username
-        const isEmail = values.username.includes("@");
+  const mutate = async (values: { username: string; password: string }) => {
+    setIsPending(true);
+    try {
+      // Detect if input is email or username
+      const isEmail = values.username.includes("@");
 
-        let result;
-        if (isEmail) {
-          result = await authClient.signIn.email({
-            email: values.username,
-            password: values.password,
-          });
-        } else {
-          result = await authClient.signIn.username({
-            username: values.username,
-            password: values.password,
-          });
-        }
-
-        if (result.error) {
-          console.error("Login error:", result.error);
-          toast.error(result.error.message || "Invalid credentials");
-          return;
-        }
-
-        toast.success("Welcome back!");
-        await queryClient.invalidateQueries();
-        await navigateAfterAuth(router);
-      } catch (error) {
-        console.error("Login error:", error);
-        toast.error((error as Error).message || "Invalid credentials");
+      let result;
+      if (isEmail) {
+        result = await authClient.signIn.email({
+          email: values.username,
+          password: values.password,
+        });
+      } else {
+        result = await authClient.signIn.username({
+          username: values.username,
+          password: values.password,
+        });
       }
-    },
+
+      if (result.error) {
+        console.error("Login error:", result.error);
+        toast.error(result.error.message || "Invalid credentials");
+        return;
+      }
+
+      toast.success("Welcome back!");
+      await queryClient.invalidateQueries();
+      await navigateAfterAuth(router);
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error((error as Error).message || "Invalid credentials");
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  return signIn;
+  return { mutate, isPending };
 };
 
 // Hook for email-based registration with username
@@ -94,54 +96,36 @@ export const useLogin = () => {
 export const useRegister = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
 
-  const signUp = {
-    isPending: false,
-    mutate: async (values: {
-      username: string;
-      email: string;
-      password: string;
-    }) => {
-      try {
-        const result = await authClient.signUp.email({
-          email: values.email,
-          password: values.password,
-          name: values.username,
-          username: values.username,
-        });
+  const mutate = async (values: {
+    username: string;
+    email: string;
+    password: string;
+  }) => {
+    setIsPending(true);
+    try {
+      const result = await authClient.signUp.email({
+        email: values.email,
+        password: values.password,
+        name: values.username,
+        username: values.username,
+      });
 
-        if (result.error) {
-          // Handle specific error cases
-          if (
-            result.error.message?.includes("Registration is currently disabled") ||
-            result.error.message?.includes("FORBIDDEN")
-          ) {
-            toast.error(
-              "Registration is currently disabled. Please contact an administrator.",
-            );
-          } else {
-            toast.error(result.error.message || "Failed to create account");
-          }
-
-          Sentry.captureException(new Error(result.error.message), {
-            tags: {
-              component: "register-hook",
-              operation: "signup",
-              flow: "registration",
-            },
-            level: "error",
-          });
-          return;
+      if (result.error) {
+        // Handle specific error cases
+        if (
+          result.error.message?.includes("Registration is currently disabled") ||
+          result.error.message?.includes("FORBIDDEN")
+        ) {
+          toast.error(
+            "Registration is currently disabled. Please contact an administrator.",
+          );
+        } else {
+          toast.error(result.error.message || "Failed to create account");
         }
 
-        toast.success("Account created!");
-        await queryClient.invalidateQueries();
-        await navigateAfterAuth(router);
-      } catch (error) {
-        console.error("Registration error:", error);
-        toast.error((error as Error).message || "Failed to create account");
-
-        Sentry.captureException(error, {
+        Sentry.captureException(new Error(result.error.message), {
           tags: {
             component: "register-hook",
             operation: "signup",
@@ -149,34 +133,54 @@ export const useRegister = () => {
           },
           level: "error",
         });
+        return;
       }
-    },
+
+      toast.success("Account created!");
+      await queryClient.invalidateQueries();
+      await navigateAfterAuth(router);
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error((error as Error).message || "Failed to create account");
+
+      Sentry.captureException(error, {
+        tags: {
+          component: "register-hook",
+          operation: "signup",
+          flow: "registration",
+        },
+        level: "error",
+      });
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  return signUp;
+  return { mutate, isPending };
 };
 
 // Hook for logout
 // Uses Better Auth client directly
 export const useLogout = () => {
   const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
 
-  const signOut = {
-    isPending: false,
-    mutate: async () => {
-      try {
-        await authClient.signOut();
-        Sentry.setUser(null);
-        toast.success("Logged out");
-        await router.navigate({ to: "/" });
-      } catch (error) {
-        console.error("Logout error:", error);
-        toast.error("Failed to logout");
-      }
-    },
+  const mutate = async () => {
+    setIsPending(true);
+    try {
+      await authClient.signOut();
+      Sentry.setUser(null);
+      toast.success("Logged out");
+      await router.navigate({ to: "/" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to logout");
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  return signOut;
+  return { mutate, isPending };
 };
 
 // Hook to check email verification status
