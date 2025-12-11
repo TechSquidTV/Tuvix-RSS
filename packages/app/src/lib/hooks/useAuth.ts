@@ -5,7 +5,7 @@
  */
 
 import { useRouter } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { toast } from "sonner";
 import * as Sentry from "@sentry/react";
@@ -16,14 +16,6 @@ import type { AppRouter } from "@tuvixrss/api";
 // Better Auth uses cookies, so we don't need token management
 // Session is automatically handled by Better Auth via HTTP-only cookies
 // Session now includes all user fields: id, username, email, role, plan, banned
-
-// Types for Better Auth responses
-type AuthResult = {
-  user?: unknown;
-  error?: {
-    message?: string;
-  };
-};
 
 type VerificationStatus = {
   requiresVerification: boolean;
@@ -117,109 +109,13 @@ export const useCurrentUser = () => {
   return authClient.useSession();
 };
 
-// Simple email detection - checks if input contains @ symbol
-// Better Auth username validation only allows alphanumeric + dots/underscores
-// So if input contains @, it's definitely an email, not a username
-const isEmail = (input: string): boolean => {
-  return input.includes("@");
-};
-
-// TODO: Refactor to use tRPC instead of Better Auth client directly
-// Current implementation bypasses tRPC and calls Better Auth HTTP endpoints directly
-// This creates architectural inconsistency and loses tRPC benefits:
-// - Type safety is lost (need manual casting to AuthResult)
-// - No Sentry tracing through tRPC middleware
-// - No unified logging
-// - More complex testing (need to mock Better Auth client instead of tRPC)
-// See: docs/planning/auth-architecture-improvements.md - Problem 2
-//
 // Hook for username or email-based login
-// Detects if input is email and uses appropriate endpoint
-// Tries username first for non-email inputs, falls back to email if username fails
+// Backend automatically detects @ symbol and routes to appropriate Better Auth method
 export const useLogin = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const signIn = useMutation({
-    mutationFn: async (input: { username: string; password: string }) => {
-      // If input looks like an email, skip username attempt and use email endpoint directly
-      // This prevents 422 validation errors when users enter their email address
-      if (isEmail(input.username)) {
-        try {
-          const emailResult = (await authClient.signIn.email({
-            email: input.username,
-            password: input.password,
-          })) as AuthResult;
-          if (!emailResult || emailResult.error) {
-            throw new Error(
-              emailResult.error?.message || "Invalid credentials",
-            );
-          }
-          return emailResult;
-        } catch (error) {
-          throw new Error(
-            error instanceof Error ? error.message : "Invalid credentials",
-          );
-        }
-      }
-
-      // For non-email inputs, try username login first
-      // Username plugin adds this method at runtime
-      // TypeScript doesn't know about username method, but it exists at runtime
-      const signInWithUsername = (
-        authClient.signIn as typeof authClient.signIn & {
-          username?: (input: {
-            username: string;
-            password: string;
-          }) => Promise<unknown>;
-        }
-      ).username;
-
-      if (signInWithUsername) {
-        // Username method exists, try it
-        // IMPORTANT: We intentionally DO NOT fall back to email login on failure
-        // This prevents confusing scenarios like:
-        // - User types wrong username → accidentally logs into different account via email
-        // - Username auth fails → user expects username error, not silent email retry
-        // See commit: efa35ce (fix: prevent incorrect fallback to email login for username errors)
-        try {
-          const result = (await signInWithUsername(input)) as AuthResult;
-          // Check if the response indicates an error
-          if (result && !result.error) {
-            return result;
-          }
-          // If result has an error, throw it so we don't fall back to email
-          throw new Error(
-            result.error?.message || "Invalid username or password",
-          );
-        } catch (error) {
-          // Re-throw authentication errors from username login
-          // Don't fall back to email for wrong credentials
-          throw new Error(
-            error instanceof Error
-              ? error.message
-              : "Invalid username or password",
-          );
-        }
-      }
-
-      // Only fall back to email if username method doesn't exist
-      // This handles the case where the app is misconfigured or username plugin isn't loaded
-      try {
-        const emailResult = (await authClient.signIn.email({
-          email: input.username, // Treat username field as email
-          password: input.password,
-        })) as AuthResult;
-        if (!emailResult || emailResult.error) {
-          throw new Error(emailResult.error?.message || "Invalid credentials");
-        }
-        return emailResult;
-      } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "Invalid credentials",
-        );
-      }
-    },
+  const signIn = trpc.auth.login.useMutation({
     onSuccess: async () => {
       // Better Auth automatically updates session via HTTP-only cookies
       // and nanostore is updated automatically - no need to manually verify
@@ -246,13 +142,7 @@ export const useRegister = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const signUp = useMutation({
-    mutationFn: (input: {
-      email: string;
-      password: string;
-      name: string;
-      username?: string;
-    }) => authClient.signUp.email(input),
+  const signUp = trpc.auth.register.useMutation({
     onSuccess: async () => {
       // Better Auth automatically updates session via HTTP-only cookies
       // and nanostore is updated automatically - no need to manually verify
@@ -301,8 +191,7 @@ export const useRegister = () => {
 export const useLogout = () => {
   const router = useRouter();
 
-  const signOut = useMutation({
-    mutationFn: () => authClient.signOut(),
+  const signOut = trpc.auth.logout.useMutation({
     onSuccess: async () => {
       // Better Auth automatically clears session cookie
       // Clear Sentry user context
