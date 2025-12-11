@@ -8,6 +8,25 @@ import superjson from "superjson";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
 
+/**
+ * Transformer wrapper for tRPC v11
+ * tRPC v11 expects transformers with input/output structure
+ * SuperJSON is used for both input (requests) and output (responses)
+ * Must be passed to httpBatchLink directly (not createClient) for proper deserialization
+ */
+const transformer = {
+  input: {
+    serialize: (data: unknown) => superjson.serialize(data),
+    deserialize: (data: unknown) =>
+      superjson.deserialize(data as Parameters<typeof superjson.deserialize>[0]),
+  },
+  output: {
+    serialize: (data: unknown) => superjson.serialize(data),
+    deserialize: (data: unknown) =>
+      superjson.deserialize(data as Parameters<typeof superjson.deserialize>[0]),
+  },
+};
+
 // Exported for testing
 export type TRPCError = { data?: { httpStatus?: number } };
 
@@ -108,19 +127,16 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         // Requires:
         // - @hono/trpc-server adapter on backend (handles batched requests properly)
         // - SuperJSON transformer on both client and server (consistent serialization)
+        // Note: In tRPC v11, transformer must be passed to httpBatchLink directly
         httpBatchLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           fetch: createFetchWithCredentials,
           headers() {
             return {};
           },
+          transformer,
         }),
       ],
-      // SuperJSON transformer for proper serialization of:
-      // - Date objects (preserved as Date, not ISO strings)
-      // - Maps, Sets, and other JS built-ins
-      // - Batched request/response bodies
-      transformer: superjson,
     }),
   );
 
