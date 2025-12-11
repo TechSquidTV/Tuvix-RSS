@@ -46,12 +46,14 @@ export const Route = createFileRoute("/app")({
       // Create a tRPC caller for server-side check
       // Note: In beforeLoad, we need to use the tRPC client directly
       const { createTRPCClient, httpBatchLink } = await import("@trpc/client");
+      const { transformer } = await import("@/lib/api/transformer");
       const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
 
       const client = createTRPCClient<AppRouter>({
         links: [
           httpBatchLink({
             url: apiUrl,
+            transformer,
             // Include cookies for authentication
             fetch: (url, options) => {
               return fetch(url, {

@@ -29,6 +29,15 @@ RUN pnpm --filter @tuvixrss/tricorder build
 # Build the application with tsup (bundles and resolves ESM)
 RUN pnpm --filter @tuvixrss/api build
 
+# Use pnpm deploy to create a self-contained production package
+# This properly resolves workspace dependencies and includes only prod deps
+# --legacy flag required for pnpm v10 without inject-workspace-packages
+RUN pnpm --filter @tuvixrss/api deploy /app/deploy --prod --legacy
+
+# Copy built artifacts to deploy directory
+RUN cp -r /app/packages/api/dist /app/deploy/dist && \
+    cp -r /app/packages/api/drizzle /app/deploy/drizzle
+
 # Production stage
 FROM node:20-alpine
 
@@ -38,20 +47,8 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Install pnpm for production dependencies
-RUN npm install -g pnpm@10.19.0
-
-# Copy package files with ownership
-COPY --chown=nodejs:nodejs package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY --chown=nodejs:nodejs packages/api/package.json ./packages/api/
-COPY --chown=nodejs:nodejs packages/tricorder/package.json ./packages/tricorder/
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built artifacts with correct ownership
-COPY --from=builder --chown=nodejs:nodejs /app/packages/api/dist ./packages/api/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/api/drizzle ./packages/api/drizzle
+# Copy the deployed package from builder (self-contained with all prod deps)
+COPY --from=builder --chown=nodejs:nodejs /app/deploy ./
 
 # Create data directory with ownership
 RUN mkdir -p /app/data && chown nodejs:nodejs /app/data
@@ -66,4 +63,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
 # Start the server (migrations run automatically inside node.ts)
-CMD ["node", "packages/api/dist/entries/node.js"]
+CMD ["node", "dist/entries/node.js"]

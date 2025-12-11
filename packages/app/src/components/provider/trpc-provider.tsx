@@ -4,9 +4,9 @@ import {
   onlineManager,
 } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
-import superjson from "superjson";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
+import { transformer } from "@/lib/api/transformer";
 
 // Exported for testing
 export type TRPCError = { data?: { httpStatus?: number } };
@@ -108,19 +108,16 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         // Requires:
         // - @hono/trpc-server adapter on backend (handles batched requests properly)
         // - SuperJSON transformer on both client and server (consistent serialization)
+        // Note: In tRPC v11, transformer must be passed to httpBatchLink directly
         httpBatchLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           fetch: createFetchWithCredentials,
           headers() {
             return {};
           },
+          transformer,
         }),
       ],
-      // SuperJSON transformer for proper serialization of:
-      // - Date objects (preserved as Date, not ISO strings)
-      // - Maps, Sets, and other JS built-ins
-      // - Batched request/response bodies
-      transformer: superjson,
     }),
   );
 
