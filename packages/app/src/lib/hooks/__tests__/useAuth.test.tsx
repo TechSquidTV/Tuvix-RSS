@@ -210,7 +210,10 @@ describe("useAuth", () => {
     });
 
     it("should handle successful login with username", async () => {
-      mockSignInUsername.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+      mockSignInUsername.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
 
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
@@ -235,7 +238,10 @@ describe("useAuth", () => {
     });
 
     it("should handle successful login with email", async () => {
-      mockSignInEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+      mockSignInEmail.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
 
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
@@ -333,8 +339,14 @@ describe("useAuth", () => {
     });
 
     it("should detect email vs username based on @ symbol", async () => {
-      mockSignInEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
-      mockSignInUsername.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+      mockSignInEmail.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
+      mockSignInUsername.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
 
       const { result } = renderHook(() => useLogin(), {
         wrapper: createWrapper(),
@@ -377,7 +389,10 @@ describe("useAuth", () => {
     });
 
     it("should handle successful registration", async () => {
-      mockSignUpEmail.mockResolvedValue({ data: { user: { id: 1 } }, error: null });
+      mockSignUpEmail.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
 
       const { result } = renderHook(() => useRegister(), {
         wrapper: createWrapper(),

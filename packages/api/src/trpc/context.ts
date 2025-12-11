@@ -34,7 +34,9 @@ export interface RequestCache {
  * - User authentication (from Better Auth session)
  * - Request metadata from Hono context
  */
-export const createContext = async (c: HonoContext<{ Variables: Variables }>) => {
+export const createContext = async (
+  c: HonoContext<{ Variables: Variables }>
+) => {
   const env = c.get("env");
   const req = c.req.raw;
 

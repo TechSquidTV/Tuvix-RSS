@@ -19,7 +19,6 @@ export type Variables = {
   session: BetterAuthSession["session"] | null;
 };
 
-
 export interface HonoAppConfig {
   env: Env;
   sentry: SentrySDK;
@@ -164,7 +163,6 @@ export function createHonoApp(config: HonoAppConfig) {
     const { appRouter } = await import("../trpc/router");
     const { createContext } = await import("../trpc/context");
 
-
     // Use tRPC's native fetch adapter instead of @hono/trpc-server
     // @hono/trpc-server has known body parsing issues on Cloudflare Workers
     // See: https://discord-questions.trpc.io/m/1439308003005300744
@@ -174,9 +172,9 @@ export function createHonoApp(config: HonoAppConfig) {
     // (even for debugging) will consume the stream and cause tRPC to receive undefined
     return fetchRequestHandler({
       endpoint: "/trpc",
-      req: c.req.raw,  // Pass original request directly - do NOT read body first
+      req: c.req.raw, // Pass original request directly - do NOT read body first
       router: appRouter,
-      createContext: () => createContext(c),  // Pass Hono context to our context creator
+      createContext: () => createContext(c), // Pass Hono context to our context creator
       onError: ({ error, type, path }) => {
         console.error("❌ tRPC Error:", { type, path, error });
 

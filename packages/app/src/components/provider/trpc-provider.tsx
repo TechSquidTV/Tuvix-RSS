@@ -88,7 +88,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
       // NOTE: Transformer removed - using plain JSON serialization
       // httpLink doesn't properly apply superjson to request bodies, causing mismatch
       // Plain JSON works for our data types (strings, numbers, booleans, arrays)
-    })
+    }),
   );
 
   return (

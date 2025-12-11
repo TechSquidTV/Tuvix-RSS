@@ -115,7 +115,9 @@ export const useRegister = () => {
       if (result.error) {
         // Handle specific error cases
         if (
-          result.error.message?.includes("Registration is currently disabled") ||
+          result.error.message?.includes(
+            "Registration is currently disabled",
+          ) ||
           result.error.message?.includes("FORBIDDEN")
         ) {
           toast.error(
