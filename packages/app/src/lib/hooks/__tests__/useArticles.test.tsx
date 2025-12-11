@@ -28,6 +28,7 @@ const {
   useBulkMarkRead,
   useMarkAllRead,
   useRefreshFeeds,
+  deduplicateArticlesData,
 } = await import("../useArticles");
 
 describe("useArticles", () => {
@@ -386,5 +387,192 @@ describe("useRefreshFeeds", () => {
     expect(result.current).toHaveProperty("mutate");
     expect(result.current).toHaveProperty("isPending");
     expect(typeof result.current.mutate).toBe("function");
+  });
+});
+
+describe("deduplicateArticlesData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const createArticle = (id: number) => ({
+    id,
+    read: false,
+    saved: false,
+    source: { id: 1 },
+  });
+
+  const createPage = (
+    items: ReturnType<typeof createArticle>[],
+    total = items.length,
+    hasMore = false,
+  ) => ({
+    items,
+    total,
+    hasMore,
+  });
+
+  it("should deduplicate articles across pages", () => {
+    const data = {
+      pages: [
+        createPage([createArticle(1), createArticle(2)]),
+        createPage([createArticle(2), createArticle(3)]), // article 2 is duplicate
+      ],
+      pageParams: [0, 2],
+    };
+
+    const result = deduplicateArticlesData(data);
+
+    expect(result.pages[0].items).toHaveLength(2);
+    expect(result.pages[1].items).toHaveLength(1); // Only article 3
+    expect(result.pages[1].items[0].id).toBe(3);
+  });
+
+  it("should handle empty pages", () => {
+    const data = {
+      pages: [createPage([]), createPage([createArticle(1)])],
+      pageParams: [0, 0],
+    };
+
+    const result = deduplicateArticlesData(data);
+
+    expect(result.pages[0].items).toHaveLength(0);
+    expect(result.pages[1].items).toHaveLength(1);
+  });
+
+  it("should handle single page with no duplicates", () => {
+    const data = {
+      pages: [
+        createPage([createArticle(1), createArticle(2), createArticle(3)]),
+      ],
+      pageParams: [0],
+    };
+
+    const result = deduplicateArticlesData(data);
+
+    expect(result.pages[0].items).toHaveLength(3);
+  });
+
+  describe("defensive checks", () => {
+    it("should handle null data gracefully", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = deduplicateArticlesData(null as any);
+
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Invalid data structure",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle undefined data gracefully", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = deduplicateArticlesData(undefined as any);
+
+      expect(result).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Invalid data structure",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle data without pages property", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = { pageParams: [] } as any;
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result).toEqual(data);
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Invalid data structure",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle pages that is not an array", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = { pages: "not an array", pageParams: [] } as any;
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result).toEqual(data);
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Invalid data structure",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle page without items property", () => {
+      const data = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pages: [{ total: 0, hasMore: false } as any],
+        pageParams: [0],
+      };
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result.pages[0].items).toEqual([]);
+      expect(result.pages[0].total).toBe(0);
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Page missing items array",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle page with items that is not an array", () => {
+      const data = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pages: [{ items: "not an array", total: 0, hasMore: false } as any],
+        pageParams: [0],
+      };
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result.pages[0].items).toEqual([]);
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Page missing items array",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle null page in pages array", () => {
+      const data = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pages: [null as any],
+        pageParams: [0],
+      };
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result.pages[0].items).toEqual([]);
+      expect(result.pages[0].total).toBe(0);
+      expect(console.warn).toHaveBeenCalledWith(
+        "⚠️ useInfiniteArticles select: Page missing items array",
+        expect.any(Object),
+      );
+    });
+
+    it("should handle mix of valid and invalid pages", () => {
+      const data = {
+        pages: [
+          createPage([createArticle(1)]),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          null as any,
+          createPage([createArticle(2)]),
+        ],
+        pageParams: [0, 1, 2],
+      };
+
+      const result = deduplicateArticlesData(data);
+
+      expect(result.pages[0].items).toHaveLength(1);
+      expect(result.pages[1].items).toEqual([]);
+      expect(result.pages[2].items).toHaveLength(1);
+    });
   });
 });
