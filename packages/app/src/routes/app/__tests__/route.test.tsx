@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the createFileRoute function and dependencies
-vi.mock("@tanstack/router-plugin/vite", () => ({}));
+// Mock the redirect function from @tanstack/react-router
+vi.mock("@tanstack/react-router", () => ({
+  redirect: vi.fn((...args) => {
+    // Simulate redirect by throwing, as TanStack Router does
+    throw new Error("Redirected");
+  }),
+}));
 
 describe("App Route beforeLoad", () => {
   beforeEach(() => {
