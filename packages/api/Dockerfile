@@ -31,7 +31,8 @@ RUN pnpm --filter @tuvixrss/api build
 
 # Use pnpm deploy to create a self-contained production package
 # This properly resolves workspace dependencies and includes only prod deps
-RUN pnpm --filter @tuvixrss/api deploy /app/deploy --prod
+# --legacy flag required for pnpm v10 without inject-workspace-packages
+RUN pnpm --filter @tuvixrss/api deploy /app/deploy --prod --legacy
 
 # Copy built artifacts to deploy directory
 RUN cp -r /app/packages/api/dist /app/deploy/dist && \
