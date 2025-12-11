@@ -55,6 +55,24 @@ beforeEach(async () => {
   vi.mocked(createDatabase).mockReturnValue(globalTestDb as any);
 });
 
+/**
+ * Create a mock Hono context for testing
+ * The createContext function now expects a Hono context with .get() and .req.raw
+ */
+function createMockHonoContext(env: Env, headers: Headers = new Headers()) {
+  return {
+    get: (key: string) => {
+      if (key === "env") return env;
+      return undefined;
+    },
+    req: {
+      raw: {
+        headers,
+      } as Request,
+    },
+  } as any;
+}
+
 describe("tRPC Router", () => {
   it("should create a router", () => {
     const testRouter = router({
@@ -70,20 +88,14 @@ describe("publicProcedure", () => {
     const env: Env = {
       RUNTIME: "nodejs",
       BETTER_AUTH_SECRET: "test-secret",
-    };
+    } as Env;
 
     const testRouter = router({
       test: publicProcedure.query(() => "success"),
     });
 
-    const caller = testRouter.createCaller(
-      await createContext({
-        req: { headers: new Headers() } as any,
-        resHeaders: {} as any,
-        info: {} as any,
-        env,
-      })
-    );
+    const mockContext = createMockHonoContext(env);
+    const caller = testRouter.createCaller(await createContext(mockContext));
 
     const result = await caller.test();
     expect(result).toBe("success");
@@ -100,7 +112,7 @@ describe("rateLimitedProcedure", () => {
       RUNTIME: "nodejs",
       BETTER_AUTH_SECRET: "test-secret",
       SKIP_RATE_LIMIT: "true", // Skip rate limiting in tests
-    };
+    } as Env;
 
     // Mock createDatabase to return our test db
     const { createDatabase } = await import("@/db/client");
@@ -117,14 +129,8 @@ describe("rateLimitedProcedure", () => {
       test: rateLimitedProcedure.query(() => "success"),
     });
 
-    const caller = testRouter.createCaller(
-      await createContext({
-        req: { headers: new Headers() } as any,
-        resHeaders: {} as any,
-        info: {} as any,
-        env,
-      })
-    );
+    const mockContext = createMockHonoContext(env);
+    const caller = testRouter.createCaller(await createContext(mockContext));
 
     await expect(caller.test()).rejects.toThrow(TRPCError);
     await expect(caller.test()).rejects.toThrow("Authentication required");
@@ -136,7 +142,7 @@ describe("rateLimitedProcedure", () => {
       RUNTIME: "nodejs",
       BETTER_AUTH_SECRET: "test-secret",
       SKIP_RATE_LIMIT: "true",
-    };
+    } as Env;
 
     // Mock Better Auth session
     const mockSession = {
@@ -171,17 +177,12 @@ describe("rateLimitedProcedure", () => {
       }),
     });
 
-    // Create context - createAuth should now use our mock
-    const context = await createContext({
-      req: {
-        headers: new Headers({
-          cookie: `better-auth.session_token=mock-token`,
-        }),
-      } as any,
-      resHeaders: {} as any,
-      info: {} as any,
-      env,
+    // Create context with mock Hono context
+    const headers = new Headers({
+      cookie: `better-auth.session_token=mock-token`,
     });
+    const mockHonoContext = createMockHonoContext(env, headers);
+    const context = await createContext(mockHonoContext);
 
     // Verify getSession was called (proves mock is working)
     expect(getSessionMock).toHaveBeenCalled();

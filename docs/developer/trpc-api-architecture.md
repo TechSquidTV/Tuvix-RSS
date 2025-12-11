@@ -12,6 +12,7 @@ This document provides comprehensive documentation of the TuvixRSS tRPC API arch
 - [Deployment Adapters](#deployment-adapters)
 - [Type Safety](#type-safety)
 - [File Organization](#file-organization)
+- [Client Configuration](#client-configuration)
 
 ## Core Configuration
 
@@ -1059,6 +1060,63 @@ RESEND_API_KEY=re_...          # For email delivery
 ALLOW_FIRST_USER_ADMIN=true    # Auto-promote first user
 ```
 
+## Client Configuration
+
+### tRPC Link Selection
+
+**Location:** `packages/app/src/components/provider/trpc-provider.tsx`
+
+The frontend uses `httpLink` instead of `httpBatchLink` for tRPC requests. This is an intentional architectural decision.
+
+#### Why Not `httpBatchLink`?
+
+1. **Body Parsing Issues with `fetchRequestHandler`**
+   - The backend uses `fetchRequestHandler` from `@trpc/server/adapters/fetch` instead of `@hono/trpc-server`
+   - When deployed to Cloudflare Workers, `fetchRequestHandler` has issues properly parsing batched request bodies
+   - The request body stream can get consumed before tRPC processes it, resulting in `undefined` input
+
+2. **SuperJSON Serialization Complexity**
+   - `httpBatchLink` requires consistent SuperJSON configuration on both client and server
+   - Without SuperJSON, batched request serialization produces inconsistent formats
+   - SuperJSON adds complexity and potential for double-wrapping issues (`{json: {json: ...}}`)
+
+3. **Acceptable Performance Trade-off**
+   - For an RSS reader application, individual requests have acceptable latency
+   - Most user actions involve single API calls (fetch articles, mark read, etc.)
+   - The simplicity of non-batched requests outweighs the minor latency benefit of batching
+
+#### Current Configuration
+
+```typescript
+// packages/app/src/components/provider/trpc-provider.tsx
+trpc.createClient({
+  links: [
+    httpLink({
+      url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
+      fetch(url, options) {
+        return fetch(url, {
+          ...options,
+          credentials: "include", // Required for HTTP-only session cookies
+          headers: {
+            ...options?.headers, // Preserve Sentry trace headers
+          },
+        });
+      },
+    }),
+  ],
+  // No transformer - using plain JSON serialization
+});
+```
+
+#### If Switching Back to `httpBatchLink`
+
+If you need batching in the future, you must:
+
+1. Add SuperJSON transformer to both client and server
+2. Switch backend from `fetchRequestHandler` to `@hono/trpc-server`
+3. Test thoroughly on Cloudflare Workers before deploying
+4. Verify no double-wrapping of responses occurs
+
 ## Summary
 
 The TuvixRSS tRPC API provides:
@@ -1074,4 +1132,4 @@ The architecture leverages tRPC's strengths to create a robust, maintainable API
 
 ---
 
-**Last Updated:** 2025-01-15
+**Last Updated:** 2025-12-11

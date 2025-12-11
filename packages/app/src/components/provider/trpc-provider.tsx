@@ -3,7 +3,7 @@ import {
   QueryClientProvider,
   onlineManager,
 } from "@tanstack/react-query";
-import { httpBatchLink, httpLink } from "@trpc/client";
+import { httpLink } from "@trpc/client";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
 
@@ -68,13 +68,22 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        // TEMPORARY: Testing without batching to debug body parsing issue
+        // Using httpLink instead of httpBatchLink for the following reasons:
+        // 1. fetchRequestHandler (used on backend) has body parsing issues with batched requests
+        //    when deployed to Cloudflare Workers - the request body stream gets consumed
+        // 2. Without SuperJSON transformer, batched request serialization is inconsistent
+        // 3. For our use case (RSS reader), individual requests have acceptable latency
+        //
+        // If switching back to httpBatchLink in the future:
+        // - Must also add SuperJSON transformer on both client and server
+        // - Must use @hono/trpc-server instead of fetchRequestHandler
+        // - Test thoroughly on Cloudflare Workers before deploying
         httpLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           fetch(url, options) {
             return fetch(url, {
               ...options,
-              credentials: "include", // Required for HTTP-only cookies
+              credentials: "include", // Required for HTTP-only session cookies
               headers: {
                 ...options?.headers, // Preserve Sentry trace headers (sentry-trace, baggage)
               },
@@ -85,9 +94,8 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           },
         }),
       ],
-      // NOTE: Transformer removed - using plain JSON serialization
-      // httpLink doesn't properly apply superjson to request bodies, causing mismatch
-      // Plain JSON works for our data types (strings, numbers, booleans, arrays)
+      // No transformer - using plain JSON serialization
+      // All our data types (strings, numbers, booleans, arrays, dates as ISO strings) are JSON-safe
     }),
   );
 
