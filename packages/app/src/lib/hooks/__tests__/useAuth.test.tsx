@@ -8,7 +8,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useCurrentUser, useLogin, useRegister, useLogout } from "../useAuth";
+import {
+  useCurrentUser,
+  useLogin,
+  useRegister,
+  useLogout,
+  useEmailVerification,
+} from "../useAuth";
 import { createWrapper } from "@/test/test-utils";
 
 // Mock dependencies first
@@ -498,6 +504,57 @@ describe("useAuth", () => {
         "Registration is currently disabled. Please contact an administrator.",
       );
     });
+
+    it("should handle registration exception and capture to Sentry", async () => {
+      const Sentry = await import("@sentry/react");
+      mockSignUpEmail.mockRejectedValue(new Error("Network connection failed"));
+
+      const { result } = renderHook(() => useRegister(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "newuser",
+          email: "new@example.com",
+          password: "password",
+        });
+      });
+
+      expect(toast.error).toHaveBeenCalledWith("Network connection failed");
+      expect(Sentry.captureException).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            flow: "registration",
+          }),
+          level: "error",
+        }),
+      );
+    });
+
+    it("should handle FORBIDDEN error message", async () => {
+      mockSignUpEmail.mockResolvedValue({
+        data: null,
+        error: { message: "FORBIDDEN: Cannot register" },
+      });
+
+      const { result } = renderHook(() => useRegister(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "newuser",
+          email: "new@example.com",
+          password: "password",
+        });
+      });
+
+      expect(toast.error).toHaveBeenCalledWith(
+        "Registration is currently disabled. Please contact an administrator.",
+      );
+    });
   });
 
   describe("useLogout", () => {
@@ -571,6 +628,130 @@ describe("useAuth", () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith("Failed to logout");
+    });
+  });
+
+  describe("useEmailVerification", () => {
+    it("should return verification data when session exists with verified email", () => {
+      const mockSession: MockSessionResult = {
+        data: {
+          user: {
+            id: 1,
+            name: "testuser",
+            email: "test@example.com",
+            emailVerified: true,
+          },
+        },
+        isPending: false,
+        error: null,
+      };
+      mockUseSession.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.data).toEqual({
+        requiresVerification: true,
+        emailVerified: true,
+      });
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it("should return verification data when session exists with unverified email", () => {
+      const mockSession: MockSessionResult = {
+        data: {
+          user: {
+            id: 1,
+            name: "testuser",
+            email: "test@example.com",
+            emailVerified: false,
+          },
+        },
+        isPending: false,
+        error: null,
+      };
+      mockUseSession.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.data).toEqual({
+        requiresVerification: true,
+        emailVerified: false,
+      });
+    });
+
+    it("should return undefined data when no session exists", () => {
+      const mockSession: MockSessionResult = {
+        data: null,
+        isPending: false,
+        error: null,
+      };
+      mockUseSession.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.data).toBeUndefined();
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it("should return loading state when session is pending", () => {
+      const mockSession: MockSessionResult = {
+        data: null,
+        isPending: true,
+        error: null,
+      };
+      mockUseSession.mockReturnValue(mockSession);
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it("should return error when session has error", () => {
+      const testError = new Error("Session error");
+      mockUseSession.mockReturnValue({
+        data: null,
+        isPending: false,
+        error: testError,
+      });
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.error).toBe(testError);
+    });
+
+    it("should default emailVerified to false when user field is undefined", () => {
+      mockUseSession.mockReturnValue({
+        data: {
+          user: {
+            id: 1,
+            name: "testuser",
+            email: "test@example.com",
+            // emailVerified is undefined
+          },
+        },
+        isPending: false,
+        error: null,
+      });
+
+      const { result } = renderHook(() => useEmailVerification(), {
+        wrapper: createWrapper(),
+      });
+
+      expect(result.current.data).toEqual({
+        requiresVerification: true,
+        emailVerified: false,
+      });
     });
   });
 });
