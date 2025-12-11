@@ -18,12 +18,16 @@ const transformer = {
   input: {
     serialize: (data: unknown) => superjson.serialize(data),
     deserialize: (data: unknown) =>
-      superjson.deserialize(data as Parameters<typeof superjson.deserialize>[0]),
+      superjson.deserialize(
+        data as Parameters<typeof superjson.deserialize>[0],
+      ),
   },
   output: {
     serialize: (data: unknown) => superjson.serialize(data),
     deserialize: (data: unknown) =>
-      superjson.deserialize(data as Parameters<typeof superjson.deserialize>[0]),
+      superjson.deserialize(
+        data as Parameters<typeof superjson.deserialize>[0],
+      ),
   },
 };
 
