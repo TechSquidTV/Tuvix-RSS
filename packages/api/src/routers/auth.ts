@@ -476,15 +476,35 @@ export const authRouter = router({
                 );
 
           try {
-            // Use Better Auth's signIn with username plugin
-            // Note: Username plugin adds signInUsername method
-            const result: SignInUsernameResult = await auth.api.signInUsername({
-              body: {
-                username: input.username,
-                password: input.password,
-              },
-              headers: authHeaders,
-            });
+            // Detect if input is email (contains @) or username
+            const isEmail = input.username.includes("@");
+            let result: SignInEmailResult | SignInUsernameResult;
+
+            if (isEmail) {
+              // Use email signin
+              result = await auth.api.signInEmail({
+                body: {
+                  email: input.username,
+                  password: input.password,
+                },
+                headers: authHeaders,
+              });
+            } else {
+              // Use username signin
+              result = await auth.api.signInUsername({
+                body: {
+                  username: input.username,
+                  password: input.password,
+                },
+                headers: authHeaders,
+              });
+            }
+
+            // Update span attribute to show detected method
+            parentSpan?.setAttribute(
+              "auth.detected_method",
+              isEmail ? "email" : "username"
+            );
 
             if (!result || !result.user) {
               throw new TRPCError({
