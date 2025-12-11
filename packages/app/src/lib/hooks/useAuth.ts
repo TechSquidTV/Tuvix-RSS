@@ -127,13 +127,19 @@ export const useRegister = () => {
           toast.error(result.error.message || "Failed to create account");
         }
 
-        Sentry.captureException(new Error(result.error.message), {
+        // Capture registration error to Sentry with context
+        // Use captureMessage for API errors (no stack trace needed) to preserve error details
+        Sentry.captureMessage(result.error.message || "Registration failed", {
           tags: {
             component: "register-hook",
             operation: "signup",
             flow: "registration",
           },
           level: "error",
+          extra: {
+            errorCode: result.error.code,
+            errorStatus: result.error.status,
+          },
         });
         return;
       }
@@ -187,13 +193,19 @@ export const useLogout = () => {
 
 // Hook to check email verification status
 // Uses Better Auth session data
+// Note: requiresVerification is hardcoded to true here as a safe default.
+// The actual enforcement of email verification is done on the backend via
+// protected route middleware. If email verification is disabled in global settings,
+// the backend will allow access regardless of this frontend value.
 export const useEmailVerification = () => {
   const session = authClient.useSession();
 
   return {
     data: session.data
       ? {
-          requiresVerification: true, // Can be configured based on app settings
+          // Always indicate verification is required on frontend (safe default)
+          // Backend enforces actual policy based on global settings
+          requiresVerification: true,
           emailVerified: session.data.user?.emailVerified ?? false,
         }
       : undefined,

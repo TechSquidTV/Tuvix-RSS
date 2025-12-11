@@ -70,6 +70,7 @@ vi.mock("@/lib/auth-client", () => {
 // Mock Sentry
 vi.mock("@sentry/react", () => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
   setUser: vi.fn(),
 }));
 
@@ -461,10 +462,11 @@ describe("useAuth", () => {
       });
     });
 
-    it("should handle registration error", async () => {
+    it("should handle registration error and capture to Sentry via captureMessage", async () => {
+      const Sentry = await import("@sentry/react");
       mockSignUpEmail.mockResolvedValue({
         data: null,
-        error: { message: "Email already exists" },
+        error: { message: "Email already exists", code: "USER_EXISTS" },
       });
 
       const { result } = renderHook(() => useRegister(), {
@@ -480,6 +482,18 @@ describe("useAuth", () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith("Email already exists");
+      // API errors use captureMessage (not captureException) to preserve error details
+      expect(Sentry.captureMessage).toHaveBeenCalledWith(
+        "Email already exists",
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            component: "register-hook",
+            operation: "signup",
+            flow: "registration",
+          }),
+          level: "error",
+        }),
+      );
     });
 
     it("should handle registration disabled error", async () => {
