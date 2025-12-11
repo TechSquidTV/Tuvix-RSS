@@ -30,7 +30,8 @@ RUN pnpm --filter @tuvixrss/tricorder build
 RUN pnpm --filter @tuvixrss/api build
 
 # Prune dev dependencies, keeping only production deps with compiled native modules
-RUN pnpm prune --prod
+# CI=true is required for pnpm to run non-interactively in Docker
+RUN CI=true pnpm prune --prod
 
 # Production stage
 FROM node:20-alpine
