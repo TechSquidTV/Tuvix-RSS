@@ -53,7 +53,14 @@ if (env.SENTRY_DSN) {
     Sentry.init({
       ...sentryConfig,
       integrations: [
-        Sentry.httpIntegration(),
+        // Configure HTTP integration to NOT capture request bodies for tRPC routes
+        // tRPC needs to read the body stream, and Sentry's body capture consumes it
+        // See: https://docs.sentry.io/platforms/javascript/guides/node/configuration/integrations/http/
+        Sentry.httpIntegration({
+          // Ignore request bodies for tRPC routes - tRPC needs to read the stream itself
+          // If Sentry reads it first, the stream is consumed and tRPC receives undefined
+          ignoreIncomingRequestBody: (url) => url.includes("/trpc"),
+        }),
         Sentry.nativeNodeFetchIntegration(),
       ],
     });
