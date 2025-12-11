@@ -3,7 +3,8 @@ import {
   QueryClientProvider,
   onlineManager,
 } from "@tanstack/react-query";
-import { httpLink } from "@trpc/client";
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
 
@@ -68,17 +69,12 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        // Using httpLink instead of httpBatchLink for the following reasons:
-        // 1. fetchRequestHandler (used on backend) has body parsing issues with batched requests
-        //    when deployed to Cloudflare Workers - the request body stream gets consumed
-        // 2. Without SuperJSON transformer, batched request serialization is inconsistent
-        // 3. For our use case (RSS reader), individual requests have acceptable latency
-        //
-        // If switching back to httpBatchLink in the future:
-        // - Must also add SuperJSON transformer on both client and server
-        // - Must use @hono/trpc-server instead of fetchRequestHandler
-        // - Test thoroughly on Cloudflare Workers before deploying
-        httpLink({
+        // Using httpBatchLink with SuperJSON transformer
+        // This batches multiple tRPC calls into a single HTTP request for better performance
+        // Requires:
+        // - @hono/trpc-server adapter on backend (handles batched requests properly)
+        // - SuperJSON transformer on both client and server (consistent serialization)
+        httpBatchLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
           fetch(url, options) {
             return fetch(url, {
@@ -94,8 +90,11 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           },
         }),
       ],
-      // No transformer - using plain JSON serialization
-      // All our data types (strings, numbers, booleans, arrays, dates as ISO strings) are JSON-safe
+      // SuperJSON transformer for proper serialization of:
+      // - Date objects (preserved as Date, not ISO strings)
+      // - Maps, Sets, and other JS built-ins
+      // - Batched request/response bodies
+      transformer: superjson,
     }),
   );
 

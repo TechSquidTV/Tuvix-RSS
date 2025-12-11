@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { trpcServer } from "@hono/trpc-server";
 import { TRPCError } from "@trpc/server";
+import { appRouter } from "@/trpc/router";
+import { createContext } from "@/trpc/context";
 import type { Env } from "@/types";
 import type { BetterAuthUser, BetterAuthSession } from "@/types/better-auth";
 import type * as SentryNode from "@sentry/node";
@@ -158,38 +160,28 @@ export function createHonoApp(config: HonoAppConfig) {
     return auth.handler(c.req.raw);
   });
 
-  // tRPC routes (dynamically import router and context to avoid top-level await)
-  app.all("/trpc/:trpc{.*}", async (c) => {
-    const { appRouter } = await import("../trpc/router");
-    const { createContext } = await import("../trpc/context");
-
-    // Use tRPC's native fetch adapter instead of @hono/trpc-server
-    // @hono/trpc-server has known body parsing issues on Cloudflare Workers
-    // See: https://discord-questions.trpc.io/m/1439308003005300744
-    //
-    // CRITICAL: Must pass c.req.raw directly without reading the body first
-    // Request body streams can only be consumed once - any attempt to read
-    // (even for debugging) will consume the stream and cause tRPC to receive undefined
-    return fetchRequestHandler({
+  // tRPC routes using @hono/trpc-server middleware
+  // This adapter properly handles batched requests and integrates with Hono's context
+  app.use(
+    "/trpc/*",
+    trpcServer({
       endpoint: "/trpc",
-      req: c.req.raw, // Pass original request directly - do NOT read body first
       router: appRouter,
-      createContext: () => createContext(c), // Pass Hono context to our context creator
+      // Cast to our typed Variables context - safe because this middleware runs
+      // after our context-setting middleware above
+      createContext: (_opts, c) =>
+        createContext(c as unknown as Parameters<typeof createContext>[0]),
       onError: ({ error, type, path }) => {
         console.error("❌ tRPC Error:", { type, path, error });
-
         // Note: Error capturing is handled in errorFormatter in trpc/init.ts
-        // This onError is just for additional logging
       },
-    });
-  });
+    })
+  );
 
   // Public RSS feeds
   app.get("/public/:username/:slug", async (c) => {
     const { username, slug } = c.req.param();
     const env = c.get("env");
-    const { appRouter } = await import("../trpc/router");
-    const { createContext } = await import("../trpc/context");
     const { getUserLimits } = await import("../services/limits");
     const { checkPublicFeedRateLimit } =
       await import("../services/rate-limiter");

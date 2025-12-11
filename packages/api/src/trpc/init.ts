@@ -6,6 +6,7 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
+import superjson from "superjson";
 import * as schema from "@/db/schema";
 import { checkLimit, getUserLimits } from "@/services/limits";
 import { checkApiRateLimit } from "@/services/rate-limiter";
@@ -13,13 +14,11 @@ import { getGlobalSettings } from "@/services/global-settings";
 import * as Sentry from "@/utils/sentry";
 import type { Context } from "./context";
 
-// Initialize tRPC with context
+// Initialize tRPC with context and SuperJSON transformer
+// SuperJSON is required for httpBatchLink to properly serialize/deserialize request bodies
+// It also enables proper serialization of Date objects, Maps, Sets, etc.
 const t = initTRPC.context<Context>().create({
-  // NOTE: Transformer removed - using plain JSON serialization
-  // The frontend's httpLink doesn't apply the superjson transformer to request bodies,
-  // causing a mismatch where backend expected {"json":{...}} but received plain {...}
-  // Since we're using fetchRequestHandler (not @hono/trpc-server), plain JSON works fine
-  // and all our data types (strings, numbers, booleans, arrays) are JSON-safe
+  transformer: superjson,
   errorFormatter({ shape, error, ctx }) {
     // Log all errors to console for debugging
     console.error("❌ tRPC Error:", {

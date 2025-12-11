@@ -1066,32 +1066,45 @@ ALLOW_FIRST_USER_ADMIN=true    # Auto-promote first user
 
 **Location:** `packages/app/src/components/provider/trpc-provider.tsx`
 
-The frontend uses `httpLink` instead of `httpBatchLink` for tRPC requests. This is an intentional architectural decision.
+The frontend uses `httpBatchLink` with SuperJSON transformer for tRPC requests. This enables request batching for improved performance.
 
-#### Why Not `httpBatchLink`?
+#### Architecture Overview
 
-1. **Body Parsing Issues with `fetchRequestHandler`**
-   - The backend uses `fetchRequestHandler` from `@trpc/server/adapters/fetch` instead of `@hono/trpc-server`
-   - When deployed to Cloudflare Workers, `fetchRequestHandler` has issues properly parsing batched request bodies
-   - The request body stream can get consumed before tRPC processes it, resulting in `undefined` input
+The tRPC stack is configured as follows:
 
-2. **SuperJSON Serialization Complexity**
-   - `httpBatchLink` requires consistent SuperJSON configuration on both client and server
-   - Without SuperJSON, batched request serialization produces inconsistent formats
-   - SuperJSON adds complexity and potential for double-wrapping issues (`{json: {json: ...}}`)
+- **Client:** `httpBatchLink` with SuperJSON transformer
+- **Server:** `@hono/trpc-server` middleware with SuperJSON transformer
+- **Serialization:** SuperJSON for consistent handling of complex types (Date, Map, Set, etc.)
 
-3. **Acceptable Performance Trade-off**
-   - For an RSS reader application, individual requests have acceptable latency
-   - Most user actions involve single API calls (fetch articles, mark read, etc.)
-   - The simplicity of non-batched requests outweighs the minor latency benefit of batching
+#### Why `httpBatchLink`?
 
-#### Current Configuration
+1. **Performance Benefits**
+   - Multiple tRPC calls in a single render cycle are batched into one HTTP request
+   - Reduces network overhead and latency, especially for pages loading multiple data sources
+   - Improves perceived performance for users
+
+2. **Proper Hono Integration**
+   - The backend uses `@hono/trpc-server` middleware which properly integrates with Hono's context
+   - This adapter correctly handles batched request bodies without stream consumption issues
+   - Full access to Hono middleware chain (CORS, auth, logging, etc.)
+
+3. **SuperJSON Transformer**
+   - Consistent serialization/deserialization on both client and server
+   - Properly handles JavaScript built-ins: `Date`, `Map`, `Set`, `BigInt`, etc.
+   - Eliminates manual ISO string conversion for dates
+
+#### Configuration
+
+**Client:**
 
 ```typescript
 // packages/app/src/components/provider/trpc-provider.tsx
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
+
 trpc.createClient({
   links: [
-    httpLink({
+    httpBatchLink({
       url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
       fetch(url, options) {
         return fetch(url, {
@@ -1104,18 +1117,44 @@ trpc.createClient({
       },
     }),
   ],
-  // No transformer - using plain JSON serialization
+  transformer: superjson,
 });
 ```
 
-#### If Switching Back to `httpBatchLink`
+**Server:**
 
-If you need batching in the future, you must:
+```typescript
+// packages/api/src/trpc/init.ts
+import superjson from "superjson";
 
-1. Add SuperJSON transformer to both client and server
-2. Switch backend from `fetchRequestHandler` to `@hono/trpc-server`
-3. Test thoroughly on Cloudflare Workers before deploying
-4. Verify no double-wrapping of responses occurs
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+  // ... error formatter
+});
+```
+
+```typescript
+// packages/api/src/hono/app.ts
+import { trpcServer } from "@hono/trpc-server";
+
+app.use(
+  "/trpc/*",
+  trpcServer({
+    endpoint: "/trpc",
+    router: appRouter,
+    createContext: (_opts, c) => createContext(c),
+  })
+);
+```
+
+#### If Switching to `httpLink` (Non-Batched)
+
+If you need to disable batching:
+
+1. Replace `httpBatchLink` with `httpLink` in `trpc-provider.tsx`
+2. Remove the `transformer: superjson` from both client and server
+3. Switch server from `@hono/trpc-server` to `fetchRequestHandler` (optional)
+4. Note: Dates will need to be passed as ISO strings and manually parsed
 
 ## Summary
 
