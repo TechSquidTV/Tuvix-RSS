@@ -3,7 +3,7 @@ import {
   QueryClientProvider,
   onlineManager,
 } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { httpBatchLink, httpLink } from "@trpc/client";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
 
@@ -68,15 +68,9 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        // IMPORTANT: Do NOT add `transformer: superjson` to the client config
-        // The backend uses @hono/trpc-server which handles SuperJSON serialization internally
-        // Adding it here causes double-wrapping where data arrives as {json: {...}} instead of {...}
-        // Backend keeps `transformer: superjson` in packages/api/src/trpc/init.ts for @hono/trpc-server
-        httpBatchLink({
+        // TEMPORARY: Testing without batching to debug body parsing issue
+        httpLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
-          // Better Auth handles authentication via HTTP-only cookies
-          // Include credentials to send cookies with requests
-          // IMPORTANT: Preserve headers from options to maintain Sentry trace propagation
           fetch(url, options) {
             return fetch(url, {
               ...options,
@@ -91,7 +85,10 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           },
         }),
       ],
-    }),
+      // NOTE: Transformer removed - using plain JSON serialization
+      // httpLink doesn't properly apply superjson to request bodies, causing mismatch
+      // Plain JSON works for our data types (strings, numbers, booleans, arrays)
+    })
   );
 
   return (
