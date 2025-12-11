@@ -71,6 +71,16 @@ export type SignInUsernameResult = Awaited<
 >;
 
 /**
+ * Sign in email input type
+ */
+export type SignInEmailInput = Parameters<Auth["api"]["signInEmail"]>[0];
+
+/**
+ * Sign in email result type
+ */
+export type SignInEmailResult = Awaited<ReturnType<Auth["api"]["signInEmail"]>>;
+
+/**
  * Get session result type
  */
 export type GetSessionResult = Awaited<ReturnType<Auth["api"]["getSession"]>>;

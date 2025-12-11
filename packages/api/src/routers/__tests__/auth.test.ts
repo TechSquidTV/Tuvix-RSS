@@ -411,4 +411,64 @@ describe("Auth Router", () => {
       expect(sendPasswordResetEmail).not.toHaveBeenCalled();
     });
   });
+
+  describe("logout", () => {
+    it("should logout successfully", async () => {
+      const caller = authRouter.createCaller({
+        db,
+        user: { userId: testUser.id, username: "testuser", role: "user" },
+        env: {
+          BETTER_AUTH_SECRET: "test-secret",
+          BASE_URL: "https://test.com",
+        } as any,
+        headers: {},
+        req: { headers: {} } as any,
+      } as any);
+
+      const result = await caller.logout();
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should log logout to security audit", async () => {
+      const caller = authRouter.createCaller({
+        db,
+        user: { userId: testUser.id, username: "testuser", role: "user" },
+        env: {
+          BETTER_AUTH_SECRET: "test-secret",
+          BASE_URL: "https://test.com",
+        } as any,
+        headers: {},
+        req: { headers: {} } as any,
+      } as any);
+
+      await caller.logout();
+
+      const logs = await db
+        .select()
+        .from(schema.securityAuditLog)
+        .where(eq(schema.securityAuditLog.userId, testUser.id));
+
+      const logoutLog = logs.find((log) => log.action === "logout");
+      expect(logoutLog).toBeDefined();
+      expect(logoutLog!.success).toBe(true);
+    });
+
+    it("should work even without user context (expired session)", async () => {
+      const caller = authRouter.createCaller({
+        db,
+        user: null, // No user context
+        env: {
+          BETTER_AUTH_SECRET: "test-secret",
+          BASE_URL: "https://test.com",
+        } as any,
+        headers: {},
+        req: { headers: {} } as any,
+      } as any);
+
+      // Should not throw
+      const result = await caller.logout();
+      expect(result.success).toBe(true);
+    });
+  });
 });

@@ -155,8 +155,9 @@ describe("RegisterForm", () => {
     await user.click(submitButton);
 
     await waitFor(() => {
+      // The useRegister hook handles mapping username to both name and username
       expect(mockMutate).toHaveBeenCalledWith({
-        name: "testuser", // Better Auth uses 'name' field
+        username: "testuser",
         email: "test@example.com",
         password: "TestP@ssw0rd!",
       });

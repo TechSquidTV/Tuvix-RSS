@@ -4,9 +4,58 @@ import {
   onlineManager,
 } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
-import { useState, useEffect } from "react";
 import superjson from "superjson";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/api/trpc";
+
+// Exported for testing
+export type TRPCError = { data?: { httpStatus?: number } };
+
+/**
+ * Retry logic for tRPC queries
+ * - Don't retry on 4xx errors (client errors like validation, auth failures)
+ * - Retry up to 3 times for network/server errors (5xx, timeouts)
+ */
+export function shouldRetryQuery(
+  failureCount: number,
+  error: TRPCError,
+): boolean {
+  // Don't retry on 4xx errors (client errors)
+  if (
+    error?.data?.httpStatus &&
+    error.data.httpStatus >= 400 &&
+    error.data.httpStatus < 500
+  ) {
+    return false;
+  }
+  // Retry up to 3 times for network/server errors
+  return failureCount < 3;
+}
+
+/**
+ * Exponential backoff delay for retries
+ * 1s -> 2s -> 4s -> ... capped at 30s
+ */
+export function calculateRetryDelay(attemptIndex: number): number {
+  return Math.min(1000 * 2 ** attemptIndex, 30000);
+}
+
+/**
+ * Custom fetch wrapper that includes credentials for session cookies
+ * and preserves any existing headers (like Sentry trace headers)
+ */
+export function createFetchWithCredentials(
+  url: URL | RequestInfo,
+  options?: RequestInit,
+): Promise<Response> {
+  return fetch(url, {
+    ...options,
+    credentials: "include", // Required for HTTP-only session cookies
+    headers: {
+      ...options?.headers, // Preserve Sentry trace headers (sentry-trace, baggage)
+    },
+  });
+}
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,23 +71,8 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
             refetchOnReconnect: true, // Refetch when coming back online
 
             // Retry configuration
-            retry: (
-              failureCount,
-              error: { data?: { httpStatus?: number } },
-            ) => {
-              // Don't retry on 4xx errors (client errors)
-              if (
-                error?.data?.httpStatus &&
-                error.data.httpStatus >= 400 &&
-                error.data.httpStatus < 500
-              ) {
-                return false;
-              }
-              // Retry up to 3 times for network/server errors
-              return failureCount < 3;
-            },
-            retryDelay: (attemptIndex) =>
-              Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+            retry: shouldRetryQuery,
+            retryDelay: calculateRetryDelay,
 
             // Network mode - pause queries when offline
             networkMode: "online",
@@ -68,27 +102,25 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      transformer: superjson,
       links: [
+        // Using httpBatchLink with SuperJSON transformer
+        // This batches multiple tRPC calls into a single HTTP request for better performance
+        // Requires:
+        // - @hono/trpc-server adapter on backend (handles batched requests properly)
+        // - SuperJSON transformer on both client and server (consistent serialization)
         httpBatchLink({
           url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
-          // Better Auth handles authentication via HTTP-only cookies
-          // Include credentials to send cookies with requests
-          // IMPORTANT: Preserve headers from options to maintain Sentry trace propagation
-          fetch(url, options) {
-            return fetch(url, {
-              ...options,
-              credentials: "include", // Required for HTTP-only cookies
-              headers: {
-                ...options?.headers, // Preserve Sentry trace headers (sentry-trace, baggage)
-              },
-            });
-          },
+          fetch: createFetchWithCredentials,
           headers() {
             return {};
           },
         }),
       ],
+      // SuperJSON transformer for proper serialization of:
+      // - Date objects (preserved as Date, not ISO strings)
+      // - Maps, Sets, and other JS built-ins
+      // - Batched request/response bodies
+      transformer: superjson,
     }),
   );
 

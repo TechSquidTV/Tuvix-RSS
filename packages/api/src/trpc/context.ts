@@ -2,18 +2,19 @@
  * tRPC Context Creation
  *
  * Creates the context object for each request.
- * Portable: works with both Express and Cloudflare Workers.
+ * Uses Hono context for integration with Hono middleware.
  * Uses Better Auth for session management.
  */
 
-import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import type { Context as HonoContext } from "hono";
 import { fromNodeHeaders } from "better-auth/node";
 import { createDatabase } from "@/db/client";
 import { createAuth } from "@/auth/better-auth";
-import type { Env, AuthUser } from "@/types";
+import type { AuthUser } from "@/types";
 import type { BetterAuthUser } from "@/types/better-auth";
 import type { UserLimits } from "@/services/limits";
 import type * as schema from "@/db/schema";
+import type { Variables } from "@/hono/app";
 
 /**
  * Request-scoped cache to prevent N+1 queries
@@ -31,11 +32,13 @@ export interface RequestCache {
  * It sets up:
  * - Database connection (portable: SQLite or D1)
  * - User authentication (from Better Auth session)
+ * - Request metadata from Hono context
  */
 export const createContext = async (
-  opts: FetchCreateContextFnOptions & { env: Env }
+  c: HonoContext<{ Variables: Variables }>
 ) => {
-  const { req, env } = opts;
+  const env = c.get("env");
+  const req = c.req.raw;
 
   // Initialize database (automatically selects SQLite or D1)
   const db = createDatabase(env);

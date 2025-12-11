@@ -58,10 +58,11 @@ export function RegisterForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    // The useRegister hook handles mapping username to both name and username fields
     register.mutate({
+      username: values.username,
       email: values.email,
       password: values.password,
-      name: values.username, // Better Auth uses 'name' field for username
     });
   }
 

@@ -6,7 +6,12 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { TRPCProvider } from "../trpc-provider";
+import {
+  TRPCProvider,
+  shouldRetryQuery,
+  calculateRetryDelay,
+  createFetchWithCredentials,
+} from "../trpc-provider";
 import { onlineManager } from "@tanstack/react-query";
 
 describe("TRPCProvider - Offline Configuration", () => {
@@ -220,111 +225,175 @@ describe("TRPCProvider - Offline Configuration", () => {
   });
 });
 
-describe("Retry Function Behavior", () => {
-  describe("error type handling", () => {
+describe("shouldRetryQuery", () => {
+  describe("4xx client errors - should not retry", () => {
     it("should not retry 400 Bad Request", () => {
-      // Create a mock retry function based on the implementation
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
-
       const error = { data: { httpStatus: 400 } };
-      expect(retry(0, error)).toBe(false);
-      expect(retry(1, error)).toBe(false);
-      expect(retry(2, error)).toBe(false);
+      expect(shouldRetryQuery(0, error)).toBe(false);
+      expect(shouldRetryQuery(1, error)).toBe(false);
+      expect(shouldRetryQuery(2, error)).toBe(false);
     });
 
     it("should not retry 401 Unauthorized", () => {
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
-
       const error = { data: { httpStatus: 401 } };
-      expect(retry(0, error)).toBe(false);
+      expect(shouldRetryQuery(0, error)).toBe(false);
+    });
+
+    it("should not retry 403 Forbidden", () => {
+      const error = { data: { httpStatus: 403 } };
+      expect(shouldRetryQuery(0, error)).toBe(false);
     });
 
     it("should not retry 404 Not Found", () => {
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
-
       const error = { data: { httpStatus: 404 } };
-      expect(retry(0, error)).toBe(false);
+      expect(shouldRetryQuery(0, error)).toBe(false);
     });
 
-    it("should retry 500 Internal Server Error up to 3 times", () => {
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
+    it("should not retry 422 Unprocessable Entity", () => {
+      const error = { data: { httpStatus: 422 } };
+      expect(shouldRetryQuery(0, error)).toBe(false);
+    });
 
+    it("should not retry 499 Client Closed Request", () => {
+      const error = { data: { httpStatus: 499 } };
+      expect(shouldRetryQuery(0, error)).toBe(false);
+    });
+  });
+
+  describe("5xx server errors - should retry", () => {
+    it("should retry 500 Internal Server Error up to 3 times", () => {
       const error = { data: { httpStatus: 500 } };
-      expect(retry(0, error)).toBe(true);
-      expect(retry(1, error)).toBe(true);
-      expect(retry(2, error)).toBe(true);
-      expect(retry(3, error)).toBe(false); // Stop after 3 attempts
+      expect(shouldRetryQuery(0, error)).toBe(true);
+      expect(shouldRetryQuery(1, error)).toBe(true);
+      expect(shouldRetryQuery(2, error)).toBe(true);
+      expect(shouldRetryQuery(3, error)).toBe(false); // Stop after 3 attempts
+    });
+
+    it("should retry 502 Bad Gateway", () => {
+      const error = { data: { httpStatus: 502 } };
+      expect(shouldRetryQuery(0, error)).toBe(true);
+      expect(shouldRetryQuery(2, error)).toBe(true);
     });
 
     it("should retry 503 Service Unavailable", () => {
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
-
       const error = { data: { httpStatus: 503 } };
-      expect(retry(0, error)).toBe(true);
-      expect(retry(1, error)).toBe(true);
-      expect(retry(2, error)).toBe(true);
+      expect(shouldRetryQuery(0, error)).toBe(true);
+      expect(shouldRetryQuery(1, error)).toBe(true);
+      expect(shouldRetryQuery(2, error)).toBe(true);
     });
 
-    it("should retry network errors (no status code)", () => {
-      const retry = (failureCount: number, error: any) => {
-        if (error?.data?.httpStatus >= 400 && error?.data?.httpStatus < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      };
+    it("should retry 504 Gateway Timeout", () => {
+      const error = { data: { httpStatus: 504 } };
+      expect(shouldRetryQuery(0, error)).toBe(true);
+    });
+  });
 
-      const error = { data: {} }; // No httpStatus
-      expect(retry(0, error)).toBe(true);
-      expect(retry(1, error)).toBe(true);
-      expect(retry(2, error)).toBe(true);
+  describe("network errors - should retry", () => {
+    it("should retry network errors (no status code)", () => {
+      const error = { data: {} };
+      expect(shouldRetryQuery(0, error)).toBe(true);
+      expect(shouldRetryQuery(1, error)).toBe(true);
+      expect(shouldRetryQuery(2, error)).toBe(true);
+      expect(shouldRetryQuery(3, error)).toBe(false);
+    });
+
+    it("should retry when error.data is undefined", () => {
+      const error = {};
+      expect(shouldRetryQuery(0, error)).toBe(true);
+    });
+
+    it("should retry when error.data.httpStatus is undefined", () => {
+      const error = { data: { httpStatus: undefined } };
+      expect(shouldRetryQuery(0, error)).toBe(true);
     });
   });
 });
 
-describe("Retry Delay Function", () => {
+describe("calculateRetryDelay", () => {
   it("should use exponential backoff", () => {
-    const retryDelay = (attemptIndex: number) =>
-      Math.min(1000 * 2 ** attemptIndex, 30000);
-
-    expect(retryDelay(0)).toBe(1000); // 1s
-    expect(retryDelay(1)).toBe(2000); // 2s
-    expect(retryDelay(2)).toBe(4000); // 4s
-    expect(retryDelay(3)).toBe(8000); // 8s
-    expect(retryDelay(4)).toBe(16000); // 16s
-    expect(retryDelay(5)).toBe(30000); // Capped at 30s
-    expect(retryDelay(6)).toBe(30000); // Still capped
+    expect(calculateRetryDelay(0)).toBe(1000); // 1s
+    expect(calculateRetryDelay(1)).toBe(2000); // 2s
+    expect(calculateRetryDelay(2)).toBe(4000); // 4s
+    expect(calculateRetryDelay(3)).toBe(8000); // 8s
+    expect(calculateRetryDelay(4)).toBe(16000); // 16s
+    expect(calculateRetryDelay(5)).toBe(30000); // Capped at 30s
+    expect(calculateRetryDelay(6)).toBe(30000); // Still capped
   });
 
   it("should cap at 30 seconds", () => {
-    const retryDelay = (attemptIndex: number) =>
-      Math.min(1000 * 2 ** attemptIndex, 30000);
+    expect(calculateRetryDelay(10)).toBe(30000);
+    expect(calculateRetryDelay(100)).toBe(30000);
+  });
+});
 
-    expect(retryDelay(10)).toBe(30000);
-    expect(retryDelay(100)).toBe(30000);
+describe("createFetchWithCredentials", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue(new Response());
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("should call fetch with credentials: include", async () => {
+    await createFetchWithCredentials("http://example.com/api");
+
+    expect(global.fetch).toHaveBeenCalledWith("http://example.com/api", {
+      credentials: "include",
+      headers: {},
+    });
+  });
+
+  it("should preserve existing headers", async () => {
+    await createFetchWithCredentials("http://example.com/api", {
+      headers: {
+        "Content-Type": "application/json",
+        "sentry-trace": "abc123",
+      },
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("http://example.com/api", {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "sentry-trace": "abc123",
+      },
+    });
+  });
+
+  it("should preserve other options like method and body", async () => {
+    await createFetchWithCredentials("http://example.com/api", {
+      method: "POST",
+      body: JSON.stringify({ data: "test" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("http://example.com/api", {
+      method: "POST",
+      body: JSON.stringify({ data: "test" }),
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("should work with URL object", async () => {
+    const url = new URL("http://example.com/api");
+    await createFetchWithCredentials(url);
+
+    expect(global.fetch).toHaveBeenCalledWith(url, {
+      credentials: "include",
+      headers: {},
+    });
+  });
+
+  it("should handle undefined options", async () => {
+    await createFetchWithCredentials("http://example.com/api", undefined);
+
+    expect(global.fetch).toHaveBeenCalledWith("http://example.com/api", {
+      credentials: "include",
+      headers: {},
+    });
   });
 });

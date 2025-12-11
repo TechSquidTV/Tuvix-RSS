@@ -2,6 +2,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install build dependencies for native modules (better-sqlite3, bcrypt)
+# Python and build tools are required when prebuilt binaries aren't available
+RUN apk add --no-cache python3 make g++
+
 # Install pnpm
 RUN npm install -g pnpm@10.19.0
 

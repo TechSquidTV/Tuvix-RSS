@@ -12,6 +12,7 @@ This document provides comprehensive documentation of the TuvixRSS tRPC API arch
 - [Deployment Adapters](#deployment-adapters)
 - [Type Safety](#type-safety)
 - [File Organization](#file-organization)
+- [Client Configuration](#client-configuration)
 
 ## Core Configuration
 
@@ -1059,6 +1060,102 @@ RESEND_API_KEY=re_...          # For email delivery
 ALLOW_FIRST_USER_ADMIN=true    # Auto-promote first user
 ```
 
+## Client Configuration
+
+### tRPC Link Selection
+
+**Location:** `packages/app/src/components/provider/trpc-provider.tsx`
+
+The frontend uses `httpBatchLink` with SuperJSON transformer for tRPC requests. This enables request batching for improved performance.
+
+#### Architecture Overview
+
+The tRPC stack is configured as follows:
+
+- **Client:** `httpBatchLink` with SuperJSON transformer
+- **Server:** `@hono/trpc-server` middleware with SuperJSON transformer
+- **Serialization:** SuperJSON for consistent handling of complex types (Date, Map, Set, etc.)
+
+#### Why `httpBatchLink`?
+
+1. **Performance Benefits**
+   - Multiple tRPC calls in a single render cycle are batched into one HTTP request
+   - Reduces network overhead and latency, especially for pages loading multiple data sources
+   - Improves perceived performance for users
+
+2. **Proper Hono Integration**
+   - The backend uses `@hono/trpc-server` middleware which properly integrates with Hono's context
+   - This adapter correctly handles batched request bodies without stream consumption issues
+   - Full access to Hono middleware chain (CORS, auth, logging, etc.)
+
+3. **SuperJSON Transformer**
+   - Consistent serialization/deserialization on both client and server
+   - Properly handles JavaScript built-ins: `Date`, `Map`, `Set`, `BigInt`, etc.
+   - Eliminates manual ISO string conversion for dates
+
+#### Configuration
+
+**Client:**
+
+```typescript
+// packages/app/src/components/provider/trpc-provider.tsx
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
+
+trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
+      fetch(url, options) {
+        return fetch(url, {
+          ...options,
+          credentials: "include", // Required for HTTP-only session cookies
+          headers: {
+            ...options?.headers, // Preserve Sentry trace headers
+          },
+        });
+      },
+    }),
+  ],
+  transformer: superjson,
+});
+```
+
+**Server:**
+
+```typescript
+// packages/api/src/trpc/init.ts
+import superjson from "superjson";
+
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+  // ... error formatter
+});
+```
+
+```typescript
+// packages/api/src/hono/app.ts
+import { trpcServer } from "@hono/trpc-server";
+
+app.use(
+  "/trpc/*",
+  trpcServer({
+    endpoint: "/trpc",
+    router: appRouter,
+    createContext: (_opts, c) => createContext(c),
+  })
+);
+```
+
+#### If Switching to `httpLink` (Non-Batched)
+
+If you need to disable batching:
+
+1. Replace `httpBatchLink` with `httpLink` in `trpc-provider.tsx`
+2. Remove the `transformer: superjson` from both client and server
+3. Switch server from `@hono/trpc-server` to `fetchRequestHandler` (optional)
+4. Note: Dates will need to be passed as ISO strings and manually parsed
+
 ## Summary
 
 The TuvixRSS tRPC API provides:
@@ -1074,4 +1171,4 @@ The architecture leverages tRPC's strengths to create a robust, maintainable API
 
 ---
 
-**Last Updated:** 2025-01-15
+**Last Updated:** 2025-12-11

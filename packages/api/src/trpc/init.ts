@@ -14,7 +14,9 @@ import { getGlobalSettings } from "@/services/global-settings";
 import * as Sentry from "@/utils/sentry";
 import type { Context } from "./context";
 
-// Initialize tRPC with context
+// Initialize tRPC with context and SuperJSON transformer
+// SuperJSON is required for httpBatchLink to properly serialize/deserialize request bodies
+// It also enables proper serialization of Date objects, Maps, Sets, etc.
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error, ctx }) {

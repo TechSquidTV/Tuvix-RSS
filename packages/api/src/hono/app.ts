@@ -2,11 +2,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
 import { TRPCError } from "@trpc/server";
+import { appRouter } from "@/trpc/router";
+import { createContext } from "@/trpc/context";
 import type { Env } from "@/types";
 import type { BetterAuthUser, BetterAuthSession } from "@/types/better-auth";
 import type * as SentryNode from "@sentry/node";
 import type * as SentryCloudflare from "@sentry/cloudflare";
-import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 
 // Union type for Sentry SDK (Node.js or Cloudflare)
 export type SentrySDK = typeof SentryNode | typeof SentryCloudflare;
@@ -159,51 +160,35 @@ export function createHonoApp(config: HonoAppConfig) {
     return auth.handler(c.req.raw);
   });
 
-  // tRPC routes (dynamically import router and context to avoid top-level await)
-  app.all("/trpc/:trpc{.*}", async (c, next) => {
-    const { appRouter } = await import("../trpc/router");
-    const { createContext } = await import("../trpc/context");
-
-    // Extract typed env from context to avoid unsafe assignment in callback
-    const env = c.get("env");
-
-    return trpcServer({
+  // tRPC routes using @hono/trpc-server middleware
+  // This adapter properly handles batched requests and integrates with Hono's context
+  app.use(
+    "/trpc/*",
+    trpcServer({
+      endpoint: "/trpc",
       router: appRouter,
-      createContext: (_opts, honoContext) => {
-        return createContext({
-          req: honoContext.req.raw,
-          resHeaders: {} as FetchCreateContextFnOptions["resHeaders"],
-          info: {} as FetchCreateContextFnOptions["info"],
-          env,
-        });
-      },
+      // Cast to our typed Variables context - safe because this middleware runs
+      // after our context-setting middleware above
+      createContext: (_opts, c) =>
+        createContext(c as unknown as Parameters<typeof createContext>[0]),
       onError: ({ error, type, path }) => {
         console.error("❌ tRPC Error:", { type, path, error });
-
         // Note: Error capturing is handled in errorFormatter in trpc/init.ts
-        // This onError is just for additional logging
       },
-    })(c, next);
-  });
+    })
+  );
 
   // Public RSS feeds
   app.get("/public/:username/:slug", async (c) => {
     const { username, slug } = c.req.param();
     const env = c.get("env");
-    const { appRouter } = await import("../trpc/router");
-    const { createContext } = await import("../trpc/context");
     const { getUserLimits } = await import("../services/limits");
     const { checkPublicFeedRateLimit } =
       await import("../services/rate-limiter");
     const schema = await import("../db/schema");
     const { sql, eq, and } = await import("drizzle-orm");
 
-    const ctx = await createContext({
-      req: c.req.raw,
-      resHeaders: {} as FetchCreateContextFnOptions["resHeaders"],
-      info: {} as FetchCreateContextFnOptions["info"],
-      env,
-    });
+    const ctx = await createContext(c);
 
     // Find user
     const [user] = await ctx.db

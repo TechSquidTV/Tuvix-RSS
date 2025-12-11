@@ -42,6 +42,7 @@ import type {
   BetterAuthUser,
   SignUpEmailResult,
   SignInUsernameResult,
+  SignInEmailResult,
 } from "@/types/better-auth";
 
 export const authRouter = router({
@@ -118,6 +119,7 @@ export const authRouter = router({
                       email: input.email,
                       password: input.password,
                       name: input.username,
+                      username: input.username, // Set username for username plugin
                     },
                     headers: authHeaders,
                   });
@@ -173,6 +175,15 @@ export const authRouter = router({
                 code: "INTERNAL_SERVER_ERROR",
                 message: "User created but not found in database",
               });
+            }
+
+            // Ensure username is set (fallback for Better Auth compatibility)
+            // The username plugin should set this automatically, but ensure it's populated
+            if (!dbUser.username) {
+              await ctx.db
+                .update(schema.user)
+                .set({ username: input.username })
+                .where(eq(schema.user.id, userId));
             }
 
             // STEP 2: Determine Role and Plan
@@ -465,15 +476,35 @@ export const authRouter = router({
                 );
 
           try {
-            // Use Better Auth's signIn with username plugin
-            // Note: Username plugin adds signInUsername method
-            const result: SignInUsernameResult = await auth.api.signInUsername({
-              body: {
-                username: input.username,
-                password: input.password,
-              },
-              headers: authHeaders,
-            });
+            // Detect if input is email (contains @) or username
+            const isEmail = input.username.includes("@");
+            let result: SignInEmailResult | SignInUsernameResult;
+
+            if (isEmail) {
+              // Use email signin
+              result = await auth.api.signInEmail({
+                body: {
+                  email: input.username,
+                  password: input.password,
+                },
+                headers: authHeaders,
+              });
+            } else {
+              // Use username signin
+              result = await auth.api.signInUsername({
+                body: {
+                  username: input.username,
+                  password: input.password,
+                },
+                headers: authHeaders,
+              });
+            }
+
+            // Update span attribute to show detected method
+            parentSpan?.setAttribute(
+              "auth.detected_method",
+              isEmail ? "email" : "username"
+            );
 
             if (!result || !result.user) {
               throw new TRPCError({
@@ -666,6 +697,126 @@ export const authRouter = router({
         }
       );
     }),
+
+  /**
+   * Logout current user
+   * Clears Better Auth session cookie
+   * Better Auth handles session cleanup
+   */
+  logout: publicProcedure.mutation(async ({ ctx }) => {
+    // Wrap logout in Sentry span
+    return Sentry.startSpan(
+      {
+        name: "auth.logout",
+        op: "auth.signout",
+        attributes: {
+          "auth.user_id": ctx.user?.userId?.toString() || "unknown",
+        },
+      },
+      async (parentSpan) => {
+        const startTime = Date.now();
+        const userId = ctx.user?.userId;
+
+        const auth = createAuth(ctx.env, ctx.db);
+
+        // Convert headers for Better Auth
+        const authHeaders =
+          ctx.req.headers instanceof Headers
+            ? ctx.req.headers
+            : fromNodeHeaders(
+                Object.fromEntries(
+                  Object.entries(ctx.req.headers || {}).map(([k, v]) => [
+                    k,
+                    Array.isArray(v) ? v[0] : v,
+                  ])
+                ) as Record<string, string>
+              );
+
+        try {
+          // Call Better Auth signOut API
+          await auth.api.signOut({
+            headers: authHeaders,
+          });
+
+          // Log successful logout to security audit (best effort)
+          if (userId) {
+            const { ipAddress, userAgent } = getRequestMetadata(
+              ctx.req.headers
+            );
+
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId,
+                action: "logout",
+                ipAddress,
+                userAgent,
+                success: true,
+              });
+            } catch (auditError) {
+              // Don't fail logout if audit logging fails
+              console.error("Failed to log logout event:", auditError);
+              await Sentry.captureException(auditError, {
+                tags: {
+                  flow: "logout",
+                  step: "audit_log",
+                },
+                level: "warning",
+              });
+            }
+          }
+
+          const totalDuration = Date.now() - startTime;
+
+          // Set success attributes on span
+          parentSpan?.setAttributes({
+            "auth.logout_success": true,
+            "auth.duration_ms": totalDuration,
+          });
+
+          // Emit metrics
+          emitMetrics([
+            {
+              type: "counter",
+              name: "auth.logout_success",
+              value: 1,
+            },
+            {
+              type: "distribution",
+              name: "auth.logout_duration",
+              value: totalDuration,
+              unit: "millisecond",
+            },
+          ]);
+
+          return { success: true };
+        } catch (error) {
+          const totalDuration = Date.now() - startTime;
+
+          // Set failure attributes
+          parentSpan?.setAttributes({
+            "auth.logout_success": false,
+            "auth.duration_ms": totalDuration,
+            "auth.error": (error as Error).message,
+          });
+
+          // Emit failure metric
+          emitCounter("auth.logout_failed", 1);
+
+          await Sentry.captureException(error, {
+            tags: {
+              flow: "logout",
+            },
+            level: "error",
+          });
+
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Logout failed",
+          });
+        }
+      }
+    );
+  }),
 
   /**
    * Get current authenticated user

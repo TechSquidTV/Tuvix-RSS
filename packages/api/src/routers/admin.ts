@@ -85,6 +85,7 @@ const globalSettingsOutputSchema = z.object({
   lockoutDurationMinutes: z.number(),
   allowRegistration: z.boolean(),
   requireEmailVerification: z.boolean(),
+  adminBypassEmailVerification: z.boolean(),
   passwordResetTokenExpiryHours: z.number(),
   fetchIntervalMinutes: z.number(),
   pruneDays: z.number(),
@@ -197,6 +198,7 @@ function formatGlobalSettings(
     lockoutDurationMinutes: settings.lockoutDurationMinutes,
     allowRegistration: settings.allowRegistration,
     requireEmailVerification: settings.requireEmailVerification,
+    adminBypassEmailVerification: settings.adminBypassEmailVerification,
     passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
     fetchIntervalMinutes: settings.fetchIntervalMinutes,
     pruneDays: settings.pruneDays,
@@ -753,24 +755,29 @@ export const adminRouter = router({
 
       // If no settings exist, create defaults
       if (!settings) {
-        await ctx.db.insert(schema.globalSettings).values({
-          maxLoginAttempts: 5,
-          loginAttemptWindowMinutes: 15,
-          lockoutDurationMinutes: 30,
-          allowRegistration: true,
-          requireEmailVerification: false,
-          passwordResetTokenExpiryHours: 1,
-          fetchIntervalMinutes: 60,
-          pruneDays: 30,
-        });
-
-        // Fetch the newly created settings
         const [newSettings] = await ctx.db
-          .select()
-          .from(schema.globalSettings)
-          .limit(1);
+          .insert(schema.globalSettings)
+          .values({
+            maxLoginAttempts: 5,
+            loginAttemptWindowMinutes: 15,
+            lockoutDurationMinutes: 30,
+            allowRegistration: true,
+            requireEmailVerification: false,
+            adminBypassEmailVerification: true,
+            passwordResetTokenExpiryHours: 1,
+            fetchIntervalMinutes: 60,
+            pruneDays: 30,
+          })
+          .returning();
 
-        return formatGlobalSettings(newSettings!);
+        if (!newSettings) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create default global settings",
+          });
+        }
+
+        return formatGlobalSettings(newSettings);
       }
 
       return formatGlobalSettings(settings);
@@ -787,6 +794,7 @@ export const adminRouter = router({
         lockoutDurationMinutes: z.number().int().min(1).max(10080).optional(),
         allowRegistration: z.boolean().optional(),
         requireEmailVerification: z.boolean().optional(),
+        adminBypassEmailVerification: z.boolean().optional(),
         passwordResetTokenExpiryHours: z
           .number()
           .int()
@@ -820,6 +828,9 @@ export const adminRouter = router({
         updates.allowRegistration = input.allowRegistration;
       if (input.requireEmailVerification !== undefined)
         updates.requireEmailVerification = input.requireEmailVerification;
+      if (input.adminBypassEmailVerification !== undefined)
+        updates.adminBypassEmailVerification =
+          input.adminBypassEmailVerification;
       if (input.passwordResetTokenExpiryHours !== undefined)
         updates.passwordResetTokenExpiryHours =
           input.passwordResetTokenExpiryHours;
@@ -842,6 +853,8 @@ export const adminRouter = router({
           lockoutDurationMinutes: input.lockoutDurationMinutes ?? 30,
           allowRegistration: input.allowRegistration ?? true,
           requireEmailVerification: input.requireEmailVerification ?? false,
+          adminBypassEmailVerification:
+            input.adminBypassEmailVerification ?? true,
           passwordResetTokenExpiryHours:
             input.passwordResetTokenExpiryHours ?? 1,
           fetchIntervalMinutes: input.fetchIntervalMinutes ?? 60,

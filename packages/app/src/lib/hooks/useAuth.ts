@@ -1,297 +1,215 @@
 /**
  * Better Auth React Hooks
  *
- * Wrappers around Better Auth client hooks for use in React components.
+ * All authentication operations use Better Auth client directly.
+ * This ensures proper cookie handling for session management.
  */
 
+import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as Sentry from "@sentry/react";
 import { authClient } from "@/lib/auth-client";
-import { trpc } from "@/lib/api/trpc";
-import type { AppRouter } from "@tuvixrss/api";
-
-// Better Auth uses cookies, so we don't need token management
-// Session is automatically handled by Better Auth via HTTP-only cookies
-// Session now includes all user fields: id, username, email, role, plan, banned
-
-// Types for Better Auth responses
-type AuthResult = {
-  user?: unknown;
-  error?: {
-    message?: string;
-  };
-};
-
-type VerificationStatus = {
-  requiresVerification: boolean;
-  emailVerified: boolean;
-};
-
-/**
- * Check email verification status and navigate accordingly
- * Shared logic extracted from useLogin and useRegister
- * SECURITY: Fails closed - defaults to verification page if check fails
- */
-const checkVerificationAndNavigate = async (
-  router: ReturnType<typeof useRouter>,
-): Promise<void> => {
-  let verificationStatus: VerificationStatus | null = null;
-
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
-
-    const client = createTRPCClient<AppRouter>({
-      links: [
-        httpBatchLink({
-          url: apiUrl,
-          fetch: (url, options) => {
-            return fetch(url, {
-              ...options,
-              credentials: "include",
-              headers: {
-                ...options?.headers, // Preserve Sentry trace headers
-              },
-            });
-          },
-        }),
-      ],
-    });
-
-    verificationStatus = await client.auth.checkVerificationStatus.query();
-  } catch (error) {
-    // Don't log TanStack Router redirects as errors (they're not errors)
-    const isRedirect =
-      error && typeof error === "object" && "isRedirect" in error;
-    if (!isRedirect) {
-      console.error("Failed to check email verification status:", error);
-    }
-    // SECURITY: Fail closed - if we can't check verification status,
-    // default to requiring verification to be safe
-    console.warn("Defaulting to verification page due to status check failure");
-  }
-
-  // Invalidate router to force root beforeLoad to re-run with fresh session cookie
-  // This is necessary because the root route's context was set before login
-  // The { sync: true } ensures invalidation completes before navigation
-  // Note: This triggers one getSession() call in root beforeLoad - this is intentional
-  await router.invalidate({ sync: true });
-
-  // Navigate based on verification status
-  // If check failed (null), default to /verify-email for safety
-  if (
-    !verificationStatus ||
-    (verificationStatus.requiresVerification &&
-      !verificationStatus.emailVerified)
-  ) {
-    console.log("Email verification required, navigating to /verify-email");
-    try {
-      await router.navigate({
-        to: "/verify-email",
-        search: { token: undefined },
-      });
-    } catch (navError) {
-      console.error("Navigation to /verify-email failed:", navError);
-      window.location.href = "/verify-email";
-    }
-  } else {
-    console.log("Attempting navigation to /app/articles");
-    try {
-      await router.navigate({
-        to: "/app/articles",
-        search: { category_id: undefined, subscription_id: undefined },
-      });
-    } catch (navError) {
-      console.error("Navigation to /app/articles failed:", navError);
-      window.location.href = "/app/articles";
-    }
-  }
-};
 
 // Hook to get current user session
 // Better Auth session includes all necessary user data via customSession plugin
-// Note: Better Auth's useSession hook doesn't accept options - caching is configured at the QueryClient level
 export const useCurrentUser = () => {
   return authClient.useSession();
 };
 
-// Simple email detection - checks if input contains @ symbol
-// Better Auth username validation only allows alphanumeric + dots/underscores
-// So if input contains @, it's definitely an email, not a username
-const isEmail = (input: string): boolean => {
-  return input.includes("@");
+/**
+ * Navigate after successful authentication
+ * Checks if email verification is required and navigates accordingly
+ */
+const navigateAfterAuth = async (
+  router: ReturnType<typeof useRouter>,
+): Promise<void> => {
+  try {
+    // Get fresh session from Better Auth
+    await authClient.getSession();
+
+    // Invalidate router to force root beforeLoad to re-run with fresh session
+    await router.invalidate({ sync: true });
+
+    // Navigate to articles page
+    // Email verification can be checked on protected routes
+    await router.navigate({
+      to: "/app/articles",
+      search: { category_id: undefined, subscription_id: undefined },
+    });
+  } catch (error) {
+    console.error("Navigation failed:", error);
+    // Fallback to hard navigation
+    window.location.href = "/app/articles";
+  }
 };
 
 // Hook for username or email-based login
-// Detects if input is email and uses appropriate endpoint
-// Tries username first for non-email inputs, falls back to email if username fails
+// Uses Better Auth client directly to ensure session cookies are properly set
 export const useLogin = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
 
-  const signIn = useMutation({
-    mutationFn: async (input: { username: string; password: string }) => {
-      // If input looks like an email, skip username attempt and use email endpoint directly
-      // This prevents 422 validation errors when users enter their email address
-      if (isEmail(input.username)) {
-        try {
-          const emailResult = (await authClient.signIn.email({
-            email: input.username,
-            password: input.password,
-          })) as AuthResult;
-          if (!emailResult || emailResult.error) {
-            throw new Error(
-              emailResult.error?.message || "Invalid credentials",
-            );
-          }
-          return emailResult;
-        } catch (error) {
-          throw new Error(
-            error instanceof Error ? error.message : "Invalid credentials",
-          );
-        }
+  const mutate = async (values: { username: string; password: string }) => {
+    setIsPending(true);
+    try {
+      // Detect if input is email or username
+      const isEmail = values.username.includes("@");
+
+      let result;
+      if (isEmail) {
+        result = await authClient.signIn.email({
+          email: values.username,
+          password: values.password,
+        });
+      } else {
+        result = await authClient.signIn.username({
+          username: values.username,
+          password: values.password,
+        });
       }
 
-      // For non-email inputs, try username login first
-      // Username plugin adds this method at runtime
-      // TypeScript doesn't know about username method, but it exists at runtime
-      try {
-        const signInWithUsername = (
-          authClient.signIn as typeof authClient.signIn & {
-            username?: (input: {
-              username: string;
-              password: string;
-            }) => Promise<unknown>;
-          }
-        ).username;
-        if (signInWithUsername) {
-          const result = (await signInWithUsername(input)) as AuthResult;
-          // Check if the response indicates an error
-          if (result && !result.error) {
-            return result;
-          }
-        }
-      } catch {
-        // Username login failed or method doesn't exist, continue to email fallback
+      if (result.error) {
+        console.error("Login error:", result.error);
+        toast.error(result.error.message || "Invalid credentials");
+        return;
       }
 
-      // Fallback to email login (input might be an email that doesn't contain @)
-      // This handles edge cases where email format might be unusual
-      try {
-        const emailResult = (await authClient.signIn.email({
-          email: input.username, // Treat username field as email
-          password: input.password,
-        })) as AuthResult;
-        if (!emailResult || emailResult.error) {
-          throw new Error(emailResult.error?.message || "Invalid credentials");
-        }
-        return emailResult;
-      } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "Invalid credentials",
-        );
-      }
-    },
-    onSuccess: async () => {
-      // Better Auth automatically updates session via HTTP-only cookies
-      // and nanostore is updated automatically - no need to manually verify
       toast.success("Welcome back!");
-
-      // Invalidate all queries to ensure fresh data
       await queryClient.invalidateQueries();
-
-      // Check verification status and navigate accordingly
-      // Session cookie is already set by Better Auth
-      await checkVerificationAndNavigate(router);
-    },
-    onError: (error: Error) => {
+      await navigateAfterAuth(router);
+    } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.message || "Invalid credentials");
-    },
-  });
+      toast.error((error as Error).message || "Invalid credentials");
+    } finally {
+      setIsPending(false);
+    }
+  };
 
-  return signIn;
+  return { mutate, isPending };
 };
 
 // Hook for email-based registration with username
+// Uses Better Auth client directly to ensure session cookies are properly set
 export const useRegister = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
 
-  const signUp = useMutation({
-    mutationFn: (input: { email: string; password: string; name: string }) =>
-      authClient.signUp.email(input),
-    onSuccess: async () => {
-      // Better Auth automatically updates session via HTTP-only cookies
-      // and nanostore is updated automatically - no need to manually verify
+  const mutate = async (values: {
+    username: string;
+    email: string;
+    password: string;
+  }) => {
+    setIsPending(true);
+    try {
+      const result = await authClient.signUp.email({
+        email: values.email,
+        password: values.password,
+        name: values.username,
+        username: values.username,
+      });
+
+      if (result.error) {
+        // Handle specific error cases
+        if (
+          result.error.message?.includes(
+            "Registration is currently disabled",
+          ) ||
+          result.error.message?.includes("FORBIDDEN")
+        ) {
+          toast.error(
+            "Registration is currently disabled. Please contact an administrator.",
+          );
+        } else {
+          toast.error(result.error.message || "Failed to create account");
+        }
+
+        // Capture registration error to Sentry with context
+        // Use captureMessage for API errors (no stack trace needed) to preserve error details
+        Sentry.captureMessage(result.error.message || "Registration failed", {
+          tags: {
+            component: "register-hook",
+            operation: "signup",
+            flow: "registration",
+          },
+          level: "error",
+          extra: {
+            errorCode: result.error.code,
+            errorStatus: result.error.status,
+          },
+        });
+        return;
+      }
+
       toast.success("Account created!");
-
-      // Invalidate all queries to ensure fresh data
       await queryClient.invalidateQueries();
+      await navigateAfterAuth(router);
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error((error as Error).message || "Failed to create account");
 
-      // Check verification status and navigate accordingly
-      // Session cookie is already set by Better Auth
-      await checkVerificationAndNavigate(router);
-    },
-    onError: (error: Error) => {
-      // Capture registration errors to Sentry
       Sentry.captureException(error, {
         tags: {
           component: "register-hook",
           operation: "signup",
           flow: "registration",
         },
-        extra: {
-          errorMessage: error.message,
-          errorName: error.name,
-        },
         level: "error",
       });
+    } finally {
+      setIsPending(false);
+    }
+  };
 
-      // Handle specific error cases
-      if (
-        error.message.includes("Registration is currently disabled") ||
-        error.message.includes("FORBIDDEN")
-      ) {
-        toast.error(
-          "Registration is currently disabled. Please contact an administrator.",
-        );
-      } else {
-        toast.error(error.message || "Failed to create account");
-      }
-    },
-  });
-
-  return signUp;
+  return { mutate, isPending };
 };
 
 // Hook for logout
+// Uses Better Auth client directly
 export const useLogout = () => {
   const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
 
-  const signOut = useMutation({
-    mutationFn: () => authClient.signOut(),
-    onSuccess: async () => {
-      // Better Auth automatically clears session cookie
-      // Clear Sentry user context
+  const mutate = async () => {
+    setIsPending(true);
+    try {
+      await authClient.signOut();
       Sentry.setUser(null);
       toast.success("Logged out");
       await router.navigate({ to: "/" });
-    },
-    onError: () => {
+    } catch (error) {
+      console.error("Logout error:", error);
       toast.error("Failed to logout");
-    },
-  });
+    } finally {
+      setIsPending(false);
+    }
+  };
 
-  return signOut;
+  return { mutate, isPending };
 };
 
 // Hook to check email verification status
+// Uses Better Auth session data
+// Note: requiresVerification is hardcoded to true here as a safe default.
+// The actual enforcement of email verification is done on the backend via
+// protected route middleware. If email verification is disabled in global settings,
+// the backend will allow access regardless of this frontend value.
 export const useEmailVerification = () => {
-  return trpc.auth.checkVerificationStatus.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: true,
-  });
+  const session = authClient.useSession();
+
+  return {
+    data: session.data
+      ? {
+          // Always indicate verification is required on frontend (safe default)
+          // Backend enforces actual policy based on global settings
+          requiresVerification: true,
+          emailVerified: session.data.user?.emailVerified ?? false,
+        }
+      : undefined,
+    isLoading: session.isPending,
+    error: session.error,
+  };
 };
