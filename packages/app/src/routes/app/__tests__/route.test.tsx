@@ -1,21 +1,73 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock the redirect function from @tanstack/react-router
-vi.mock("@tanstack/react-router", () => ({
-  redirect: vi.fn((...args) => {
-    // Simulate redirect by throwing, as TanStack Router does
-    throw new Error("Redirected");
-  }),
-}));
+vi.mock("@tanstack/react-router", async () => {
+  const actual = await vi.importActual("@tanstack/react-router");
+
+  // Create a special redirect error class that can be identified
+  class RedirectError extends Error {
+    to: string;
+    constructor(to: string) {
+      super(`redirect:${to}`);
+      this.name = "RedirectError";
+      this.to = to;
+    }
+  }
+
+  return {
+    ...actual,
+    redirect: vi.fn((options) => {
+      const error = new RedirectError(options.to);
+      // Mark it as a redirect so the route can identify it
+      (error as any).isRedirect = true;
+      return error;
+    }),
+  };
+});
+
+// Mock tRPC client to avoid URL parsing issues in tests
+const mockCheckVerificationStatus = vi.fn().mockResolvedValue({
+  requiresVerification: false,
+  emailVerified: true,
+});
+
+vi.mock("@trpc/client", async () => {
+  return {
+    createTRPCClient: vi.fn(() => ({
+      auth: {
+        checkVerificationStatus: {
+          query: mockCheckVerificationStatus,
+        },
+      },
+      admin: {
+        getGlobalSettings: {
+          query: vi.fn().mockResolvedValue({
+            adminBypassEmailVerification: true,
+          }),
+        },
+      },
+    })),
+    httpBatchLink: vi.fn(() => () => {}),
+  };
+});
+
+// Import the route module after mocks are set up
+const routeModule = await import("../route");
 
 describe("App Route beforeLoad", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock navigator.onLine
+    // Reset navigator.onLine to true by default
     Object.defineProperty(navigator, "onLine", {
       writable: true,
       value: true,
+    });
+
+    // Reset the mock
+    mockCheckVerificationStatus.mockResolvedValue({
+      requiresVerification: false,
+      emailVerified: true,
     });
   });
 
@@ -26,13 +78,10 @@ describe("App Route beforeLoad", () => {
       },
     };
 
-    // Import the Route to get the beforeLoad function
-    const { Route } = await import("../route");
-
     // Expect the beforeLoad to throw a redirect
     await expect(
-      Route.options.beforeLoad({ context: mockContext } as any),
-    ).rejects.toThrow();
+      routeModule.Route.options.beforeLoad({ context: mockContext } as any),
+    ).rejects.toThrow("redirect:/");
   });
 
   it("redirects when session exists but no user", async () => {
@@ -42,11 +91,9 @@ describe("App Route beforeLoad", () => {
       },
     };
 
-    const { Route } = await import("../route");
-
     await expect(
-      Route.options.beforeLoad({ context: mockContext } as any),
-    ).rejects.toThrow();
+      routeModule.Route.options.beforeLoad({ context: mockContext } as any),
+    ).rejects.toThrow("redirect:/");
   });
 
   it("returns early when offline and session exists", async () => {
@@ -67,10 +114,8 @@ describe("App Route beforeLoad", () => {
       },
     };
 
-    const { Route } = await import("../route");
-
     // Should not throw when offline with valid session
-    const result = await Route.options.beforeLoad({
+    const result = await routeModule.Route.options.beforeLoad({
       context: mockContext,
     } as any);
 
@@ -85,23 +130,6 @@ describe("App Route beforeLoad", () => {
       value: true,
     });
 
-    const mockTRPCQuery = vi.fn().mockResolvedValue({
-      requiresVerification: false,
-      emailVerified: true,
-    });
-
-    // Mock the tRPC client creation
-    vi.doMock("@trpc/client", () => ({
-      createTRPCClient: vi.fn(() => ({
-        auth: {
-          checkVerificationStatus: {
-            query: mockTRPCQuery,
-          },
-        },
-      })),
-      httpBatchLink: vi.fn(() => ({})),
-    }));
-
     const mockContext = {
       auth: {
         session: {
@@ -114,10 +142,8 @@ describe("App Route beforeLoad", () => {
       },
     };
 
-    const { Route } = await import("../route");
-
     // Should complete without throwing
-    const result = await Route.options.beforeLoad({
+    const result = await routeModule.Route.options.beforeLoad({
       context: mockContext,
     } as any);
 

@@ -58,6 +58,19 @@ class MockAudio {
     this.paused = true;
     this.dispatchEvent("pause");
   }
+
+  // Add ended event support
+  end() {
+    this.paused = true;
+    this.currentTime = 0;
+    this.dispatchEvent("ended");
+  }
+
+  // Add error event support
+  triggerError(code: number = 4, message: string = "Media error") {
+    this.error = { code, message } as any;
+    this.dispatchEvent("error");
+  }
 }
 
 describe("AudioContext", () => {
