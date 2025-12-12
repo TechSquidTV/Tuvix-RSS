@@ -8,10 +8,11 @@ TuvixRSS uses **build-time aliasing** to provide Sentry error tracking and perfo
 
 ### Problem Statement
 
-The codebase runs in two different environments:
+The codebase runs in multiple environments:
 
 - **Cloudflare Workers** (production): Uses `@sentry/cloudflare`
-- **Node.js/Express** (local development, Docker Compose, testing): No Sentry needed
+- **Node.js/Docker** (local development): Uses `@sentry/node`
+- **Tests** (vitest): Uses no-op implementation (fast, no external deps)
 
 **Why can't we just use `@sentry/cloudflare` everywhere?**
 
@@ -28,10 +29,11 @@ When running the API locally via Docker Compose (`docker-compose up`), the app r
 We use build-time aliasing to swap the Sentry implementation at compile time:
 
 1. **Application code** imports from `@/utils/sentry`
-2. **Build system** (tsup/esbuild) aliases this to the correct implementation:
-   - **Node.js builds**: `sentry.noop.ts` (no-ops)
-   - **Cloudflare builds**: `sentry.cloudflare.ts` (real SDK)
-3. **Result**: Synchronous API, no runtime detection overhead
+2. **Build system** (tsup/esbuild/vitest) aliases this to the correct implementation:
+   - **Node.js builds** (tsup): `sentry.node.ts` → `@sentry/node`
+   - **Cloudflare builds**: `sentry.cloudflare.ts` → `@sentry/cloudflare`
+   - **Tests** (vitest): `sentry.noop.ts` → no-ops
+3. **Result**: Synchronous API, no runtime detection overhead, real Sentry in all environments
 
 ## Architecture
 
@@ -40,13 +42,14 @@ We use build-time aliasing to swap the Sentry implementation at compile time:
 ```
 packages/api/src/utils/
 ├── sentry.cloudflare.ts    # Re-exports @sentry/cloudflare (used in Workers)
-├── sentry.noop.ts          # No-op implementations (used in Node.js/tests)
+├── sentry.node.ts          # Re-exports @sentry/node (used in Docker/local dev)
+├── sentry.noop.ts          # No-op implementations (used in tests)
 └── sentry.types.ts         # Shared TypeScript types
 ```
 
 ### Build Configuration
 
-**tsup.config.ts** (Node.js builds):
+**tsup.config.ts** (Node.js/Docker builds):
 ```typescript
 import { defineConfig } from "tsup";
 import path from "path";
@@ -55,13 +58,13 @@ export default defineConfig({
   // ...
   esbuildOptions(options) {
     options.alias = {
-      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.noop.ts"),
+      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.node.ts"),
     };
   },
 });
 ```
 
-**vitest.config.ts** (tests):
+**vitest.config.ts** (tests - uses no-op for speed):
 ```typescript
 resolve: {
   alias: {
@@ -155,11 +158,17 @@ const result = Sentry.startSpan(
 - Full Sentry SDK functionality
 - Errors, spans, and metrics sent to Sentry
 
-### In Node.js / Tests
+### In Node.js / Docker
+
+- `@/utils/sentry` resolves to `sentry.node.ts`
+- Full `@sentry/node` SDK functionality
+- Errors, spans, and metrics sent to Sentry (if `SENTRY_DSN` is set)
+
+### In Tests (vitest)
 
 - `@/utils/sentry` resolves to `sentry.noop.ts`
 - All functions are no-ops (do nothing)
-- No errors thrown, code runs normally
+- Tests run fast without external dependencies
 
 ## Entry Points
 

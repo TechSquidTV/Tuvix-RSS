@@ -25,13 +25,14 @@ export default defineConfig({
   ],
   splitting: false,
   treeshake: true,
-  // BUILD-TIME ALIAS: Use no-op Sentry for Node.js builds
+  // BUILD-TIME ALIAS: Use @sentry/node for Node.js builds
   // This replaces runtime detection with build-time SDK selection.
   // Cloudflare Workers builds use @sentry/cloudflare directly (not via this config).
+  // Tests use sentry.noop.ts via vitest.config.ts alias.
   esbuildOptions(options) {
     options.alias = {
       ...options.alias,
-      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.noop.ts"),
+      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.node.ts"),
     };
   },
 });
