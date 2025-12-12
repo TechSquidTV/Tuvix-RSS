@@ -143,9 +143,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
     return "not-supported";
   }, [isInstalled, isIOS, isIOSInstalled, isInstallable]);
 
-  const promptInstall = async (): Promise<
-    "accepted" | "dismissed" | void
-  > => {
+  const promptInstall = async (): Promise<"accepted" | "dismissed" | void> => {
     if (!deferredPrompt) {
       return;
     }

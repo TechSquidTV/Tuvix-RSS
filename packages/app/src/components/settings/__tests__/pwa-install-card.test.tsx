@@ -254,9 +254,7 @@ describe("PWAInstallCard", () => {
           screen.queryByRole("button", { name: /install app/i }),
         ).not.toBeInTheDocument();
         expect(
-          screen.getByText(
-            /PWA installation not available in this browser/i,
-          ),
+          screen.getByText(/PWA installation not available in this browser/i),
         ).toBeInTheDocument();
       });
 
