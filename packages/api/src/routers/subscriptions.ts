@@ -225,11 +225,11 @@ export const subscriptionsRouter = router({
       const { userId } = ctx.user;
 
       // Set user context for Sentry
-      await Sentry.setUser({ id: userId.toString() });
+      Sentry.setUser({ id: userId.toString() });
 
       const domain = extractDomain(input.url);
 
-      await Sentry.addBreadcrumb({
+      Sentry.addBreadcrumb({
         category: "subscription",
         message: `Creating subscription for ${input.url}`,
         level: "info",
@@ -275,7 +275,7 @@ export const subscriptionsRouter = router({
 
           const reasonDisplayName = reason ? reasonMap[reason] || reason : null;
 
-          await Sentry.captureException(
+          Sentry.captureException(
             new Error("Subscription blocked - domain blocked"),
             {
               level: "info",
@@ -317,7 +317,7 @@ export const subscriptionsRouter = router({
             const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
             await new Promise((resolve) => setTimeout(resolve, delay));
 
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Retrying feed fetch (attempt ${attempt + 1}/${MAX_RETRIES + 1})`,
               level: "info",
@@ -327,7 +327,7 @@ export const subscriptionsRouter = router({
               },
             });
           } else {
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Fetching feed from ${feedUrl}`,
               level: "info",
@@ -367,7 +367,7 @@ export const subscriptionsRouter = router({
             const result = parseFeed(feedContent);
             feedData = result.feed;
 
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Successfully parsed feed as ${result.format}`,
               level: "info",
@@ -386,7 +386,7 @@ export const subscriptionsRouter = router({
                 ? parseError.message
                 : "Failed to parse feed";
 
-            await Sentry.captureException(parseError, {
+            Sentry.captureException(parseError, {
               level: "error",
               tags: {
                 operation: "subscription_feed_parse",
@@ -425,7 +425,7 @@ export const subscriptionsRouter = router({
               ? httpStatusMatch[1]
               : lastStatusCode?.toString();
 
-            await Sentry.captureException(lastError, {
+            Sentry.captureException(lastError, {
               level: "error",
               tags: {
                 operation: "subscription_feed_parse",
@@ -457,7 +457,7 @@ export const subscriptionsRouter = router({
 
           if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
             // Non-transient error - don't retry
-            await Sentry.captureException(lastError, {
+            Sentry.captureException(lastError, {
               level: "error",
               tags: {
                 operation: "subscription_feed_parse",
@@ -521,7 +521,7 @@ export const subscriptionsRouter = router({
             if (discoveredFeeds.length > 0 && discoveredFeeds[0]!.iconUrl) {
               feedIconUrl = discoveredFeeds[0]!.iconUrl;
 
-              await Sentry.addBreadcrumb({
+              Sentry.addBreadcrumb({
                 category: "subscription",
                 message: `Using icon from discovery service`,
                 level: "info",
@@ -686,7 +686,7 @@ export const subscriptionsRouter = router({
         const { fetchSingleFeed } = await import("@/services/rss-fetcher");
         await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
 
-        await Sentry.addBreadcrumb({
+        Sentry.addBreadcrumb({
           category: "subscription",
           message: `Successfully fetched articles for new subscription`,
           level: "info",
@@ -703,7 +703,7 @@ export const subscriptionsRouter = router({
           fetchError
         );
 
-        await Sentry.captureException(fetchError, {
+        Sentry.captureException(fetchError, {
           level: "warning",
           tags: {
             operation: "subscription_immediate_fetch",
@@ -966,7 +966,7 @@ export const subscriptionsRouter = router({
       const { userId } = ctx.user;
 
       // Set user context for Sentry (enables user-associated error tracking)
-      await Sentry.setUser({ id: userId.toString() });
+      Sentry.setUser({ id: userId.toString() });
 
       const {
         discoverFeeds,
@@ -1040,11 +1040,11 @@ export const subscriptionsRouter = router({
       const { parseFeed } = await import("feedsmith");
 
       // Set user context for Sentry (enables user-associated error tracking)
-      await Sentry.setUser({ id: userId.toString() });
+      Sentry.setUser({ id: userId.toString() });
 
       const domain = extractDomain(input.url);
 
-      await Sentry.addBreadcrumb({
+      Sentry.addBreadcrumb({
         category: "subscription",
         message: `Previewing feed ${input.url}`,
         level: "info",
@@ -1068,7 +1068,7 @@ export const subscriptionsRouter = router({
             const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
             await new Promise((resolve) => setTimeout(resolve, delay));
 
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Retrying feed preview (attempt ${attempt + 1}/${MAX_RETRIES + 1})`,
               level: "info",
@@ -1112,7 +1112,7 @@ export const subscriptionsRouter = router({
             const result = parseFeed(feedContent);
             feedData = result.feed;
 
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Preview parsed feed as ${result.format}`,
               level: "info",
@@ -1131,7 +1131,7 @@ export const subscriptionsRouter = router({
                 ? parseError.message
                 : "Failed to parse feed";
 
-            await Sentry.captureException(parseError, {
+            Sentry.captureException(parseError, {
               level: "error",
               tags: {
                 operation: "subscription_preview_parse",
@@ -1169,7 +1169,7 @@ export const subscriptionsRouter = router({
               ? httpStatusMatch[1]
               : lastStatusCode?.toString();
 
-            await Sentry.captureException(lastError, {
+            Sentry.captureException(lastError, {
               level: "error",
               tags: {
                 operation: "subscription_preview_fetch",
@@ -1201,7 +1201,7 @@ export const subscriptionsRouter = router({
 
           if (!TRANSIENT_STATUS_CODES.includes(httpStatus)) {
             // Non-transient error - don't retry
-            await Sentry.captureException(lastError, {
+            Sentry.captureException(lastError, {
               level: "error",
               tags: {
                 operation: "subscription_preview_fetch",
@@ -1263,7 +1263,7 @@ export const subscriptionsRouter = router({
           if (discoveredFeeds.length > 0 && discoveredFeeds[0]!.iconUrl) {
             iconUrl = discoveredFeeds[0]!.iconUrl;
 
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "subscription",
               message: `Icon discovery succeeded (platform-specific)`,
               level: "info",
@@ -1301,7 +1301,7 @@ export const subscriptionsRouter = router({
           const faviconResult = await discoverFavicon(input.url, feedIconUrl);
           iconUrl = faviconResult.iconUrl || undefined;
 
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "subscription",
             message: `Icon discovery ${iconUrl ? "succeeded" : "failed"} (generic)`,
             level: iconUrl ? "info" : "warning",
@@ -1314,7 +1314,7 @@ export const subscriptionsRouter = router({
         }
       } catch (error) {
         console.error("[preview] Failed to discover favicon:", error);
-        await Sentry.captureException(error, {
+        Sentry.captureException(error, {
           level: "warning",
           tags: {
             operation: "favicon_discovery",
@@ -1767,7 +1767,7 @@ export const subscriptionsRouter = router({
       const { parseOpml, parseFeed } = await import("feedsmith");
 
       // Set user context for Sentry (enables user-associated error tracking and replay)
-      await Sentry.setUser({ id: userId.toString() });
+      Sentry.setUser({ id: userId.toString() });
 
       // Type for OPML outline structure with custom Tuvix attributes
       // This extends the feedsmith Opml.Outline type with our custom attributes
@@ -2157,7 +2157,7 @@ export const subscriptionsRouter = router({
                       await import("@/services/rss-fetcher");
                     await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
 
-                    await Sentry.addBreadcrumb({
+                    Sentry.addBreadcrumb({
                       category: "subscription",
                       message: `Successfully fetched articles for OPML imported feed`,
                       level: "info",
@@ -2174,7 +2174,7 @@ export const subscriptionsRouter = router({
                       fetchError
                     );
 
-                    await Sentry.captureException(fetchError, {
+                    Sentry.captureException(fetchError, {
                       level: "warning",
                       tags: {
                         operation: "opml_import_immediate_fetch",
@@ -2209,7 +2209,7 @@ export const subscriptionsRouter = router({
                   });
 
                   // Capture exception for this specific feed
-                  await Sentry.captureException(error, {
+                  Sentry.captureException(error, {
                     level: "warning",
                     tags: {
                       operation: "opml_import_feed",

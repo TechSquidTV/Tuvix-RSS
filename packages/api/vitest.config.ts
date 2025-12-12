@@ -55,6 +55,9 @@ export default defineConfig({
   // Path resolution - match tsconfig.json
   resolve: {
     alias: {
+      // IMPORTANT: Sentry no-op alias must come BEFORE the general @/utils alias
+      // to ensure @/utils/sentry resolves to the no-op implementation in tests
+      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.noop.ts"),
       "@/utils": path.resolve(__dirname, "./src/utils"),
       "@/db": path.resolve(__dirname, "./src/db"),
       "@/services": path.resolve(__dirname, "./src/services"),

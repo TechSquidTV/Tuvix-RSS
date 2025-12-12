@@ -109,7 +109,7 @@ export class AppleDiscoveryService implements DiscoveryService {
 
           span.setAttribute("podcast_id", podcastId);
 
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "feed.discovery",
             message: `Trying Apple iTunes API for podcast ${podcastId}`,
             level: "info",
@@ -129,7 +129,7 @@ export class AppleDiscoveryService implements DiscoveryService {
 
           if (!response.ok) {
             span.setStatus({ code: 2, message: `HTTP ${response.status}` });
-            await Sentry.captureException(
+            Sentry.captureException(
               new Error(`iTunes API returned ${response.status}`),
               {
                 level: "warning",
@@ -155,7 +155,7 @@ export class AppleDiscoveryService implements DiscoveryService {
             !data.results ||
             data.results.length === 0
           ) {
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "feed.discovery",
               message: `iTunes API returned no results for podcast ${podcastId}`,
               level: "info",
@@ -177,7 +177,7 @@ export class AppleDiscoveryService implements DiscoveryService {
           // Check if feedUrl exists
           if (!podcast.feedUrl) {
             span.setStatus({ code: 2, message: "No feed URL in iTunes data" });
-            await Sentry.captureException(
+            Sentry.captureException(
               new Error("iTunes API result missing feedUrl"),
               {
                 level: "warning",
@@ -202,7 +202,7 @@ export class AppleDiscoveryService implements DiscoveryService {
             podcast.artworkUrl600 || podcast.artworkUrl100
           );
 
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "feed.discovery",
             message: `Found feed URL for ${podcast.collectionName}`,
             level: "info",
@@ -218,7 +218,7 @@ export class AppleDiscoveryService implements DiscoveryService {
           if (!discoveredFeed) {
             // Feed validation failed
             span.setStatus({ code: 2, message: "Feed validation failed" });
-            await Sentry.captureException(
+            Sentry.captureException(
               new Error("Feed validation failed for iTunes feed"),
               {
                 level: "error",
@@ -255,7 +255,7 @@ export class AppleDiscoveryService implements DiscoveryService {
           // Log error but don't fail discovery (fallback to standard discovery)
           span.setStatus({ code: 2, message: "Discovery failed" });
           console.error("Apple Podcast discovery error:", error);
-          await Sentry.captureException(error, {
+          Sentry.captureException(error, {
             level: "error",
             tags: {
               operation: "apple_discovery",

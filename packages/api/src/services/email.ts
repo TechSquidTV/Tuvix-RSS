@@ -107,7 +107,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   }
 
   // Add breadcrumb at service level for debugging
-  await Sentry.addBreadcrumb({
+  Sentry.addBreadcrumb({
     category: "email.service",
     message: `Attempting to send ${type} email`,
     level: "info",
@@ -129,7 +129,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
           const resend = new Resend(env.RESEND_API_KEY);
 
           // Add breadcrumb before API call
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "email.service",
             message: "Calling Resend API",
             level: "info",
@@ -151,7 +151,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             const errorMessage = `Failed to send ${type} email: ${error.message || "Unknown error"}`;
 
             // Add breadcrumb for Resend API error
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "email.service",
               message: "Resend API returned error",
               level: "error",
@@ -174,7 +174,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
 
             // Log to Sentry if available (using runtime-agnostic wrapper)
             if (env.SENTRY_DSN) {
-              await Sentry.captureException(new Error(errorMessage), {
+              Sentry.captureException(new Error(errorMessage), {
                 tags: {
                   "email.type": type,
                   "email.status": "error",
@@ -201,7 +201,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
           }
 
           // Add breadcrumb for successful send
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "email.service",
             message: `${type} email sent successfully`,
             level: "info",
@@ -230,7 +230,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
           const errorStack = error instanceof Error ? error.stack : undefined;
 
           // Add breadcrumb for exception
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "email.service",
             message: "Exception thrown while sending email",
             level: "error",
@@ -252,7 +252,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
 
           // Log to Sentry if available (using runtime-agnostic wrapper)
           if (env.SENTRY_DSN) {
-            await Sentry.captureException(
+            Sentry.captureException(
               error instanceof Error ? error : new Error(errorMessage),
               {
                 tags: {

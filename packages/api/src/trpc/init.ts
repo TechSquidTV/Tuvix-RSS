@@ -38,20 +38,14 @@ const t = initTRPC.context<Context>().create({
         error.message.includes("Email verification required"));
 
     if (ctx?.env?.SENTRY_DSN && !isExpectedError) {
-      // Try to import and use Sentry
-      import("@sentry/cloudflare")
-        .then((Sentry) => {
-          Sentry.captureException(error, {
-            tags: {
-              trpc_code: error.code,
-              trpc_path: shape.data.path || "unknown",
-            },
-            level: error.code === "INTERNAL_SERVER_ERROR" ? "error" : "warning",
-          });
-        })
-        .catch(() => {
-          // Sentry not available - ignore silently
-        });
+      // Use Sentry wrapper (build-time aliased to noop or cloudflare)
+      Sentry.captureException(error, {
+        tags: {
+          trpc_code: error.code,
+          trpc_path: shape.data.path || "unknown",
+        },
+        level: error.code === "INTERNAL_SERVER_ERROR" ? "error" : "warning",
+      });
     }
 
     return shape;
@@ -206,8 +200,6 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
       .catch((error) => {
         // Log error to Sentry but don't fail the request
         // Using 'info' level since this is fire-and-forget user activity tracking
-        // Sentry.captureException returns a promise, but we don't await it
-        // Add .catch() to prevent unhandled rejection warnings
         Sentry.captureException(error, {
           level: "info",
           tags: {
@@ -217,8 +209,6 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
           extra: {
             userId,
           },
-        }).catch(() => {
-          // Silently ignore Sentry logging failures - this is best-effort tracking
         });
       });
   }

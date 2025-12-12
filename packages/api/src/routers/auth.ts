@@ -131,7 +131,7 @@ export const authRouter = router({
                   return result;
                 } catch (error) {
                   span?.setAttribute("auth.error", (error as Error).message);
-                  await Sentry.captureException(error, {
+                  Sentry.captureException(error, {
                     tags: {
                       flow: "signup",
                       step: "create_user",
@@ -159,7 +159,7 @@ export const authRouter = router({
             const resultUser = result.user as Partial<BetterAuthUser>;
 
             // Update Sentry user context with ID
-            await Sentry.setUser({
+            Sentry.setUser({
               id: userId.toString(),
             });
 
@@ -249,7 +249,7 @@ export const authRouter = router({
                     initError
                   );
 
-                  await Sentry.captureException(initError, {
+                  Sentry.captureException(initError, {
                     tags: {
                       flow: "signup",
                       step: "init_rollback",
@@ -391,7 +391,7 @@ export const authRouter = router({
             });
 
             // Capture error with rich context
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               tags: {
                 flow: "signup",
                 step: "overall",
@@ -450,7 +450,7 @@ export const authRouter = router({
           let userId: number | undefined;
 
           // Add breadcrumb for login attempt
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "auth",
             message: "Login attempt",
             level: "info",
@@ -550,7 +550,7 @@ export const authRouter = router({
             } catch (auditError) {
               // Don't fail login if audit logging fails
               console.error("Failed to log login event:", auditError);
-              await Sentry.captureException(auditError, {
+              Sentry.captureException(auditError, {
                 tags: {
                   flow: "login",
                   step: "audit_log",
@@ -560,7 +560,7 @@ export const authRouter = router({
             }
 
             // Add success breadcrumb
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "auth",
               message: "Login successful",
               level: "info",
@@ -617,7 +617,7 @@ export const authRouter = router({
             const totalDuration = Date.now() - startTime;
 
             // Add failure breadcrumb
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "auth",
               message: "Login failed",
               level: "error",
@@ -663,7 +663,7 @@ export const authRouter = router({
             });
 
             // Capture in Sentry
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               tags: {
                 flow: "login",
                 step: "overall",
@@ -755,7 +755,7 @@ export const authRouter = router({
             } catch (auditError) {
               // Don't fail logout if audit logging fails
               console.error("Failed to log logout event:", auditError);
-              await Sentry.captureException(auditError, {
+              Sentry.captureException(auditError, {
                 tags: {
                   flow: "logout",
                   step: "audit_log",
@@ -802,7 +802,7 @@ export const authRouter = router({
           // Emit failure metric
           emitCounter("auth.logout_failed", 1);
 
-          await Sentry.captureException(error, {
+          Sentry.captureException(error, {
             tags: {
               flow: "logout",
             },
@@ -1056,7 +1056,7 @@ export const authRouter = router({
         } catch (auditError) {
           // Don't fail password change if audit logging fails
           console.error("Failed to log password change event:", auditError);
-          await Sentry.captureException(auditError, {
+          Sentry.captureException(auditError, {
             tags: {
               flow: "password_change",
               step: "audit_log",
@@ -1275,7 +1275,7 @@ export const authRouter = router({
         } catch (auditError) {
           // Don't fail password reset if audit logging fails
           console.error("Failed to log password reset event:", auditError);
-          await Sentry.captureException(auditError, {
+          Sentry.captureException(auditError, {
             tags: {
               flow: "password_reset",
               step: "audit_log",

@@ -2095,7 +2095,7 @@ export const adminRouter = router({
 
           // Capture errors as breadcrumbs if any feeds failed (only if Sentry available)
           if (Sentry && result.errorCount > 0) {
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "rss.fetch",
               message: `RSS fetch completed with ${result.errorCount} errors`,
               level: "warning",
@@ -2112,7 +2112,7 @@ export const adminRouter = router({
 
           // Capture unexpected errors to Sentry (only if Sentry available)
           if (Sentry) {
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               level: "error",
               tags: {
                 operation: "admin_refresh_all_feeds",

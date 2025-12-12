@@ -8,7 +8,7 @@
  * Emits both Span Metrics (for detailed tracing) and Sentry Metrics (for dashboards).
  */
 
-import * as Sentry from "./sentry.js";
+import * as Sentry from "@/utils/sentry";
 import { emitCounter, emitDistribution } from "./metrics.js";
 
 /**
@@ -117,7 +117,7 @@ export async function withQueryMetrics<T>(
         });
 
         // Capture error with context
-        await Sentry.captureException(error, {
+        Sentry.captureException(error, {
           tags: {
             query_name: queryName,
             runtime: runtime || "unknown",

@@ -239,39 +239,40 @@ If issues arise:
 
 ### Phase 1: Create New Sentry Implementations
 
-- [ ] Create `sentry.types.ts` with shared type definitions (Breadcrumb, Span, User, etc.)
-- [ ] Create `sentry.cloudflare.ts` that re-exports from `@sentry/cloudflare`
-- [ ] Create `sentry.noop.ts` with sync no-op implementations
+- [x] Create `sentry.types.ts` with shared type definitions (Breadcrumb, Span, User, etc.)
+- [x] Create `sentry.cloudflare.ts` that re-exports from `@sentry/cloudflare`
+- [x] Create `sentry.noop.ts` with sync no-op implementations
 
 ### Phase 2: Update Build Configuration
 
-- [ ] Update `tsup.config.ts` with esbuild alias for Node.js builds
-- [ ] Update `vitest.config.ts` with alias to noop for tests
+- [x] Update `tsup.config.ts` with esbuild alias for Node.js builds
+- [x] Update `vitest.config.ts` with alias to noop for tests
 
 ### Phase 3: Update All Sentry Call Sites
 
-- [ ] Create and run codemod script to remove `await` from Sentry calls
-- [ ] Manually verify all 118+ call sites updated correctly
-- [ ] Remove `.catch(() => {})` workarounds from `comment-link-extraction/registry.ts`
+- [x] Remove `await` from all Sentry calls (setUser, addBreadcrumb, captureException)
+- [x] Manually verified all call sites updated correctly
+- [x] Remove `.catch(() => {})` workarounds from `comment-link-extraction/registry.ts`
 
 ### Phase 4: Update Direct SDK Imports
 
-- [ ] Update `auth/better-auth.ts` to use `@/utils/sentry` instead of `@sentry/node`
-- [ ] Update `trpc/init.ts` to conditionally import tRPC middleware at build time
-- [ ] Update `hono/app.ts` type imports
+- [x] Update `auth/better-auth.ts` to use `@/utils/sentry` instead of `@sentry/node`
+- [x] Update `trpc/init.ts` to use wrapper instead of dynamic import
+- [x] Update `db-metrics.ts` and `metrics.ts` to use `@/utils/sentry` alias
+- [x] `hono/app.ts` type imports - no changes needed (types are compile-time only)
 
 ### Phase 5: Update Tests
 
-- [ ] Update `http-integration.test.ts` to use wrapper instead of direct SDK
-- [ ] Run full test suite to verify no regressions
+- [x] Tests use noop implementation via vitest alias (no changes needed)
+- [x] Run full test suite to verify no regressions - 865 tests passing
 
 ### Verification
 
-- [ ] Verify `pnpm build` succeeds for both targets
-- [ ] Test Docker Compose local development works
-- [ ] Test `wrangler dev` works with real Sentry
+- [x] Verify `pnpm build` succeeds (497.57 KB bundle)
+- [ ] Test Docker Compose local development works (manual verification)
+- [ ] Test `wrangler dev` works with real Sentry (manual verification)
 
 ### Cleanup
 
-- [ ] Delete old `sentry.ts` wrapper after migration complete
-- [ ] Update `docs/architecture/sentry-integration.md` with new approach
+- [x] Delete old `sentry.ts` wrapper after migration complete
+- [x] Update `docs/architecture/sentry-integration.md` with new approach
