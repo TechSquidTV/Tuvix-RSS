@@ -52,6 +52,7 @@ export class CommentLinkRegistry {
         const result = extractor.extract(item);
         if (result?.url) {
           // Found a comment link, return immediately
+          // Fire-and-forget with error handling to prevent unhandled rejections
           Sentry.addBreadcrumb({
             category: "comment.extraction",
             message: `Extracted comment link using ${extractorName}`,
@@ -62,13 +63,14 @@ export class CommentLinkRegistry {
               source: result.source,
               item_title: itemTitle,
             },
-          });
+          }).catch(() => {});
 
           return result.url;
         }
       } catch (error) {
         // Log error but continue to next extractor
         console.error(`Comment link extractor ${extractorName} failed:`, error);
+        // Fire-and-forget with error handling to prevent unhandled rejections
         Sentry.captureException(error, {
           level: "warning",
           tags: {
@@ -78,11 +80,12 @@ export class CommentLinkRegistry {
           extra: {
             item_title: itemTitle,
           },
-        });
+        }).catch(() => {});
       }
     }
 
     // No extractors found a link
+    // Fire-and-forget with error handling to prevent unhandled rejections
     Sentry.addBreadcrumb({
       category: "comment.extraction",
       message: "No comment link found",
@@ -92,7 +95,7 @@ export class CommentLinkRegistry {
         has_comments_field: "comments" in item,
         has_description: "description" in item,
       },
-    });
+    }).catch(() => {});
 
     return null;
   }
