@@ -143,7 +143,7 @@ async function fetchFeed(url: string) {
     message: `Fetching ${url}`,
     level: "info",
   });
-  
+
   try {
     return await fetch(url);
   } catch (error) {
@@ -165,8 +165,8 @@ function extractCommentLink(item: FeedItem): string | null {
     category: "extraction",
     message: "Extracting comment link",
     level: "debug",
-  }).catch(() => {});  // Prevents unhandled rejection
-  
+  }).catch(() => {}); // Prevents unhandled rejection
+
   return item.comments ?? null;
 }
 ```
@@ -174,6 +174,7 @@ function extractCommentLink(item: FeedItem): string | null {
 **Why `.catch(() => {})`?**
 
 Without it, if the Promise rejects, you get an **unhandled promise rejection**:
+
 - Node.js: Crashes the process (in strict mode) or logs a warning
 - Cloudflare Workers: May cause request failures or logs noise
 
@@ -207,7 +208,7 @@ fetchAllFeeds(db)
 async function processItem(item: Item) {
   // ❌ Wrong - Promise created but not awaited
   Sentry.addBreadcrumb({...});
-  
+
   // ✅ Correct
   await Sentry.addBreadcrumb({...});
 }
@@ -219,10 +220,10 @@ async function processItem(item: Item) {
 function syncFunction(): string {
   // ❌ Wrong - unhandled promise rejection if Sentry fails
   Sentry.captureException(new Error("test"));
-  
+
   // ✅ Correct - handle potential rejection
   Sentry.captureException(new Error("test")).catch(() => {});
-  
+
   return "done";
 }
 ```
@@ -235,7 +236,7 @@ somePromise
   .then((result) => {
     Sentry.addBreadcrumb({...});
   })
-  
+
   // ✅ Correct - async callback with await
   .then(async (result) => {
     await Sentry.addBreadcrumb({...});
@@ -244,12 +245,12 @@ somePromise
 
 ### When to Use Each Pattern
 
-| Context | Pattern | Example |
-|---------|---------|---------|
-| Async function | `await` | Route handlers, services |
-| Sync function (hot path) | `.catch(() => {})` | Extractors, parsers |
-| Background task | `async` callback + `await` | Scheduled jobs |
-| Error formatter | Direct SDK import | tRPC errorFormatter |
+| Context                  | Pattern                    | Example                  |
+| ------------------------ | -------------------------- | ------------------------ |
+| Async function           | `await`                    | Route handlers, services |
+| Sync function (hot path) | `.catch(() => {})`         | Extractors, parsers      |
+| Background task          | `async` callback + `await` | Scheduled jobs           |
+| Error formatter          | Direct SDK import          | tRPC errorFormatter      |
 
 ### Files Using Fire-and-Forget Pattern
 
