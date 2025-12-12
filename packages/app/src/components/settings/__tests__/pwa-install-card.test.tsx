@@ -212,9 +212,7 @@ describe("PWAInstallCard", () => {
       // Mock a delayed dismissal so we can observe state changes
       mockPromptInstall.mockImplementation(
         () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve("dismissed"), 50),
-          ),
+          new Promise((resolve) => setTimeout(() => resolve("dismissed"), 50)),
       );
 
       // Start with installable state
