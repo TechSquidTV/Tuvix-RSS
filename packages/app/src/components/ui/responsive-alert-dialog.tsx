@@ -221,7 +221,8 @@ function ResponsiveAlertDialogFooter({
   );
 }
 
-interface ResponsiveAlertDialogActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ResponsiveAlertDialogActionProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   className?: string;
 }
@@ -250,7 +251,8 @@ function ResponsiveAlertDialogAction({
   );
 }
 
-interface ResponsiveAlertDialogCancelProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ResponsiveAlertDialogCancelProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   className?: string;
 }
