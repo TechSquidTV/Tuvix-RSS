@@ -115,6 +115,149 @@ await Sentry.startSpan(
 );
 ```
 
+## Async Patterns and Pitfalls
+
+### Why All Wrapper Methods Return Promises
+
+The Sentry wrapper (`@/utils/sentry`) makes **all methods async**, even ones that are synchronous in the real SDK:
+
+```typescript
+// Real @sentry/cloudflare SDK
+Sentry.addBreadcrumb({...});  // Returns void (sync)
+
+// Our wrapper @/utils/sentry
+await Sentry.addBreadcrumb({...});  // Returns Promise<void> (async)
+```
+
+**Why?** The wrapper lazy-loads `@sentry/cloudflare` via dynamic import. Since `import()` is async, we must await it before calling any SDK method. This design keeps the async nature consistent across all methods.
+
+### Pattern 1: Async Functions (Recommended)
+
+In async functions, always `await` Sentry calls:
+
+```typescript
+// ✅ Correct - await in async function
+async function fetchFeed(url: string) {
+  await Sentry.addBreadcrumb({
+    category: "feed.fetch",
+    message: `Fetching ${url}`,
+    level: "info",
+  });
+  
+  try {
+    return await fetch(url);
+  } catch (error) {
+    await Sentry.captureException(error);
+    throw error;
+  }
+}
+```
+
+### Pattern 2: Fire-and-Forget with Error Handling
+
+When calling Sentry from a **synchronous function** or when you intentionally don't want to wait:
+
+```typescript
+// ✅ Correct - fire-and-forget with .catch()
+function extractCommentLink(item: FeedItem): string | null {
+  // Can't await in sync function, so fire-and-forget
+  Sentry.addBreadcrumb({
+    category: "extraction",
+    message: "Extracting comment link",
+    level: "debug",
+  }).catch(() => {});  // Prevents unhandled rejection
+  
+  return item.comments ?? null;
+}
+```
+
+**Why `.catch(() => {})`?**
+
+Without it, if the Promise rejects, you get an **unhandled promise rejection**:
+- Node.js: Crashes the process (in strict mode) or logs a warning
+- Cloudflare Workers: May cause request failures or logs noise
+
+The empty `.catch()` silently swallows any errors from Sentry (which is acceptable since Sentry is optional monitoring).
+
+### Pattern 3: Background Tasks
+
+For `.then()/.catch()` chains that run in the background:
+
+```typescript
+// ✅ Correct - async callbacks with await
+fetchAllFeeds(db)
+  .then(async (result) => {
+    // Callback is async, so we can await
+    await Sentry.addBreadcrumb({
+      category: "rss.fetch",
+      message: `Fetched ${result.count} feeds`,
+      level: "info",
+    });
+  })
+  .catch(async (error) => {
+    await Sentry.captureException(error);
+  });
+```
+
+### Common Mistakes
+
+#### ❌ Mistake 1: Forgetting `await` in async functions
+
+```typescript
+async function processItem(item: Item) {
+  // ❌ Wrong - Promise created but not awaited
+  Sentry.addBreadcrumb({...});
+  
+  // ✅ Correct
+  await Sentry.addBreadcrumb({...});
+}
+```
+
+#### ❌ Mistake 2: Calling async in sync function without `.catch()`
+
+```typescript
+function syncFunction(): string {
+  // ❌ Wrong - unhandled promise rejection if Sentry fails
+  Sentry.captureException(new Error("test"));
+  
+  // ✅ Correct - handle potential rejection
+  Sentry.captureException(new Error("test")).catch(() => {});
+  
+  return "done";
+}
+```
+
+#### ❌ Mistake 3: Sync callbacks in `.then()/.catch()` chains
+
+```typescript
+somePromise
+  // ❌ Wrong - sync callback, Sentry promise not awaited
+  .then((result) => {
+    Sentry.addBreadcrumb({...});
+  })
+  
+  // ✅ Correct - async callback with await
+  .then(async (result) => {
+    await Sentry.addBreadcrumb({...});
+  });
+```
+
+### When to Use Each Pattern
+
+| Context | Pattern | Example |
+|---------|---------|---------|
+| Async function | `await` | Route handlers, services |
+| Sync function (hot path) | `.catch(() => {})` | Extractors, parsers |
+| Background task | `async` callback + `await` | Scheduled jobs |
+| Error formatter | Direct SDK import | tRPC errorFormatter |
+
+### Files Using Fire-and-Forget Pattern
+
+These files intentionally use the `.catch(() => {})` pattern:
+
+- `packages/api/src/services/comment-link-extraction/registry.ts` - Sync `extract()` method in hot loop
+- `packages/api/src/trpc/init.ts` - `isAuthed` middleware for non-blocking lastSeenAt updates
+
 ## Configuration
 
 ### Cloudflare Workers
