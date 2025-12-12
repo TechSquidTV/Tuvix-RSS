@@ -10,10 +10,35 @@ TuvixRSS uses a runtime-agnostic Sentry wrapper to provide error tracking and pe
 
 The codebase runs in two different environments:
 
-- **Cloudflare Workers**: Uses `@sentry/cloudflare`
-- **Node.js/Express**: Does not require Sentry (development/testing only)
+- **Cloudflare Workers** (production): Uses `@sentry/cloudflare`
+- **Node.js/Express** (local development, Docker Compose, testing): Uses `@sentry/node` or no Sentry
 
-Statically importing `@sentry/cloudflare` in shared code breaks Node.js deployments because the Cloudflare SDK is not compatible with Node.js.
+**Why can't we just use `@sentry/cloudflare` everywhere?**
+
+The `@sentry/cloudflare` SDK is built specifically for the Cloudflare Workers runtime (`workerd`) and uses APIs that don't exist in Node.js:
+
+```
+Error: Cannot find module 'cloudflare:sockets'
+```
+
+When running the API locally via Docker Compose (`docker-compose up`), the app runs in Node.js, not Cloudflare Workers. Any shared code (routers, services) that statically imports `@sentry/cloudflare` will crash immediately:
+
+```typescript
+// ❌ This breaks Docker Compose / local development
+import * as Sentry from "@sentry/cloudflare";
+
+// Error at startup:
+// Error: Cannot find module 'cloudflare:sockets'
+// Require stack: node_modules/@sentry/cloudflare/...
+```
+
+This affects:
+
+- **Local development** with `docker-compose up` or `pnpm dev:node`
+- **Unit tests** running in Node.js via Vitest
+- **CI pipelines** that run tests in Node.js
+
+Since all routers and services are shared between both entry points (`cloudflare.ts` and `node.ts`), we needed a solution that works in both runtimes.
 
 ### Solution: Sentry Wrapper
 
