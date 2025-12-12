@@ -962,7 +962,12 @@ export const subscriptionsRouter = router({
         })
       )
     )
-    .mutation(async ({ ctx: _ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const { userId } = ctx.user;
+
+      // Set user context for Sentry (enables user-associated error tracking)
+      await Sentry.setUser({ id: userId.toString() });
+
       const {
         discoverFeeds,
         NoFeedsFoundError,
@@ -1030,8 +1035,12 @@ export const subscriptionsRouter = router({
         suggestedCategories: z.array(CategorySuggestionSchema),
       })
     )
-    .query(async ({ ctx: _ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      const { userId } = ctx.user;
       const { parseFeed } = await import("feedsmith");
+
+      // Set user context for Sentry (enables user-associated error tracking)
+      await Sentry.setUser({ id: userId.toString() });
 
       const domain = extractDomain(input.url);
 
@@ -1756,6 +1765,9 @@ export const subscriptionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
       const { parseOpml, parseFeed } = await import("feedsmith");
+
+      // Set user context for Sentry (enables user-associated error tracking and replay)
+      await Sentry.setUser({ id: userId.toString() });
 
       // Type for OPML outline structure with custom Tuvix attributes
       // This extends the feedsmith Opml.Outline type with our custom attributes
