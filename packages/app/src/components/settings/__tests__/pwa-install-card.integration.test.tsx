@@ -230,9 +230,7 @@ describe("PWAInstallCard Integration Tests", () => {
 
       // Wait for dismissal to be processed
       await waitFor(() => {
-        expect(
-          screen.queryByText("Installing..."),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText("Installing...")).not.toBeInTheDocument();
       });
 
       // Should show "not supported" since beforeinstallprompt won't fire again
