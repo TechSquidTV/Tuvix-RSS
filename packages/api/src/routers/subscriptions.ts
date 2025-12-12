@@ -2138,6 +2138,43 @@ export const subscriptionsRouter = router({
 
                   successCount++;
 
+                  // Immediately fetch articles for the new subscription
+                  // This matches single subscription behavior and provides instant feedback
+                  try {
+                    const { fetchSingleFeed } =
+                      await import("@/services/rss-fetcher");
+                    await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
+
+                    await Sentry.addBreadcrumb({
+                      category: "subscription",
+                      message: `Successfully fetched articles for OPML imported feed`,
+                      level: "info",
+                      data: {
+                        source_id: sourceId,
+                        url: normalizedFeedUrl,
+                      },
+                    });
+                  } catch (fetchError) {
+                    // Log error but don't fail the import
+                    // Articles will be fetched on the next scheduled run
+                    console.error(
+                      `[OPML import] Failed to fetch articles for ${normalizedFeedUrl}:`,
+                      fetchError
+                    );
+
+                    await Sentry.captureException(fetchError, {
+                      level: "warning",
+                      tags: {
+                        operation: "opml_import_immediate_fetch",
+                      },
+                      extra: {
+                        source_id: sourceId,
+                        url: normalizedFeedUrl,
+                        user_id: userId,
+                      },
+                    });
+                  }
+
                   // Mark span as successful
                   feedSpan.setAttribute("feed.status", "success");
                   feedSpan.setStatus({ code: 1, message: "ok" });
