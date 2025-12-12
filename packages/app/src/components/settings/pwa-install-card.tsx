@@ -17,13 +17,13 @@ export function PWAInstallCard() {
   const [isInstalling, setIsInstalling] = useState(false);
   const prevInstalledRef = useRef(isInstalled);
 
-  // Show success toast only when installation status changes to installed
+  // Show success toast when installation status changes to installed
   useEffect(() => {
-    if (isInstalled && !prevInstalledRef.current && isInstalling) {
+    if (isInstalled && !prevInstalledRef.current) {
       toast.success("App installed successfully!");
     }
     prevInstalledRef.current = isInstalled;
-  }, [isInstalled, isInstalling]);
+  }, [isInstalled]);
 
   // Derive loading state: installing is done when installed
   const showLoading = isInstalling && !isInstalled;
@@ -32,14 +32,16 @@ export function PWAInstallCard() {
     setIsInstalling(true);
     try {
       const outcome = await promptInstall();
-      // If user dismissed the prompt, reset installing state
-      if (outcome === "dismissed") {
-        setIsInstalling(false);
+      // Reset installing state after prompt completes
+      // The actual installation status is tracked by isInstalled from the hook
+      setIsInstalling(false);
+
+      if (outcome === "accepted") {
+        // useEffect will show success toast when isInstalled changes to true
+        // If appinstalled event never fires, button will return to normal state
       }
-      // If accepted, useEffect will handle success toast when isInstalled changes
     } catch {
       toast.error("Failed to show install prompt. Please try again.");
-      // Reset installing state on error
       setIsInstalling(false);
     }
   };

@@ -123,7 +123,11 @@ describe("PWAInstallCard", () => {
 
     it("should disable button and show loading state during installation", async () => {
       const user = userEvent.setup();
-      mockPromptInstall.mockResolvedValue("accepted");
+      // Use delayed mock to observe loading state before it clears
+      mockPromptInstall.mockImplementation(
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve("accepted"), 50)),
+      );
 
       render(<PWAInstallCard />);
 
@@ -134,7 +138,7 @@ describe("PWAInstallCard", () => {
       // Click the button
       await user.click(installButton);
 
-      // Button should be disabled and show loading text
+      // Button should be disabled and show loading text while prompt is open
       await waitFor(() => {
         expect(screen.getByText("Installing...")).toBeInTheDocument();
       });
@@ -143,6 +147,11 @@ describe("PWAInstallCard", () => {
         name: /installing/i,
       });
       expect(loadingButton).toBeDisabled();
+
+      // After prompt resolves, loading state clears
+      await waitFor(() => {
+        expect(screen.queryByText("Installing...")).not.toBeInTheDocument();
+      });
     });
   });
 

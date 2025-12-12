@@ -142,9 +142,9 @@ describe("PWAInstallCard Integration Tests", () => {
       resolvePrompt!();
       resolveUserChoice!({ outcome: "accepted", platform: "web" });
 
-      // Wait for userChoice to resolve
+      // Wait for prompt to resolve and loading state to clear
       await waitFor(() => {
-        expect(mockPrompt).toHaveBeenCalled();
+        expect(screen.queryByText("Installing...")).not.toBeInTheDocument();
       });
 
       // Simulate browser completing installation by firing appinstalled event
