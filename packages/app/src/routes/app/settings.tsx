@@ -22,6 +22,7 @@ import { ThemeSelector } from "@/components/settings/theme-selector";
 import { SubscriptionPlanCard } from "@/components/settings/subscription-plan-card";
 import { AccountStatusCard } from "@/components/settings/account-status-card";
 import { UsageQuotaItem } from "@/components/settings/usage-quota-item";
+import { PWAInstallCard } from "@/components/settings/pwa-install-card";
 import { useAutoSaveSettings } from "@/hooks/use-auto-save-settings";
 import { useState, useCallback } from "react";
 import {
@@ -301,6 +302,9 @@ function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* PWA Installation */}
+        <PWAInstallCard />
 
         {/* Reading Preferences */}
         <Card>
