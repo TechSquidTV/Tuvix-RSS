@@ -50,6 +50,7 @@ packages/api/src/utils/
 ### Build Configuration
 
 **tsup.config.ts** (Node.js/Docker builds):
+
 ```typescript
 import { defineConfig } from "tsup";
 import path from "path";
@@ -65,6 +66,7 @@ export default defineConfig({
 ```
 
 **vitest.config.ts** (tests - uses no-op for speed):
+
 ```typescript
 resolve: {
   alias: {
@@ -134,20 +136,14 @@ Sentry.metrics.distribution("response_time", 150, { unit: "millisecond" });
 
 ```typescript
 // Async callback - await the result
-const user = await Sentry.startSpan(
-  { name: "fetch-user" },
-  async (span) => {
-    return await db.getUser(id);
-  }
-);
+const user = await Sentry.startSpan({ name: "fetch-user" }, async (span) => {
+  return await db.getUser(id);
+});
 
 // Sync callback - no await
-const result = Sentry.startSpan(
-  { name: "compute" },
-  (span) => {
-    return heavyComputation();
-  }
-);
+const result = Sentry.startSpan({ name: "compute" }, (span) => {
+  return heavyComputation();
+});
 ```
 
 ## Runtime Behavior
@@ -184,7 +180,7 @@ Sentry.init({
 });
 
 // Wrap worker with Sentry
-export default Sentry.withSentry(env => env.SENTRY_DSN, worker);
+export default Sentry.withSentry((env) => env.SENTRY_DSN, worker);
 ```
 
 ### Node.js Entry (`node.ts`)
@@ -220,13 +216,13 @@ export async function handleRSSFetch(env: Env): Promise<void> {
 
 The previous implementation used runtime detection with async wrappers. The new build-time approach:
 
-| Aspect | Old (Runtime) | New (Build-time) |
-|--------|---------------|------------------|
-| Detection | `process.env.RUNTIME` at runtime | Build-time aliasing |
-| API | All methods `async` | Methods match native SDK |
-| `await` | Required everywhere | Only for `startSpan` with async callback |
-| `.catch()` | Needed for sync contexts | Not needed |
-| Bundle size | Larger (wrapper code) | Smaller (direct SDK or noop) |
+| Aspect      | Old (Runtime)                    | New (Build-time)                         |
+| ----------- | -------------------------------- | ---------------------------------------- |
+| Detection   | `process.env.RUNTIME` at runtime | Build-time aliasing                      |
+| API         | All methods `async`              | Methods match native SDK                 |
+| `await`     | Required everywhere              | Only for `startSpan` with async callback |
+| `.catch()`  | Needed for sync contexts         | Not needed                               |
+| Bundle size | Larger (wrapper code)            | Smaller (direct SDK or noop)             |
 
 ### Migration Checklist
 

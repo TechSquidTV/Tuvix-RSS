@@ -28,14 +28,14 @@ Replace **runtime detection** with **build-time aliasing**:
 
 Both `@sentry/cloudflare` and `@sentry/node` share the same API (Sentry JavaScript SDK v8+):
 
-| Method              | `@sentry/cloudflare` | `@sentry/node` | Our Wrapper     | After Migration |
-| ------------------- | -------------------- | -------------- | --------------- | --------------- |
-| `setUser()`         | sync (void)          | sync (void)    | async (Promise) | sync (void)     |
-| `addBreadcrumb()`   | sync (void)          | sync (void)    | async (Promise) | sync (void)     |
-| `captureException()`| sync (string)        | sync (string)  | async (Promise) | sync (string)   |
-| `startSpan()`       | sync (returns T)     | sync (returns T)| async (Promise)| sync (returns T)|
-| `flush()`           | async (Promise)      | async (Promise)| async (Promise) | async (Promise) |
-| `metrics.*`         | sync (void)          | sync (void)    | sync (void)     | sync (void)     |
+| Method               | `@sentry/cloudflare` | `@sentry/node`   | Our Wrapper     | After Migration  |
+| -------------------- | -------------------- | ---------------- | --------------- | ---------------- |
+| `setUser()`          | sync (void)          | sync (void)      | async (Promise) | sync (void)      |
+| `addBreadcrumb()`    | sync (void)          | sync (void)      | async (Promise) | sync (void)      |
+| `captureException()` | sync (string)        | sync (string)    | async (Promise) | sync (string)    |
+| `startSpan()`        | sync (returns T)     | sync (returns T) | async (Promise) | sync (returns T) |
+| `flush()`            | async (Promise)      | async (Promise)  | async (Promise) | async (Promise)  |
+| `metrics.*`          | sync (void)          | sync (void)      | sync (void)     | sync (void)      |
 
 Source: [Sentry JavaScript APIs](https://docs.sentry.io/platforms/javascript/guides/cloudflare/apis/)
 
@@ -61,20 +61,20 @@ Source: [Sentry JavaScript APIs](https://docs.sentry.io/platforms/javascript/gui
 
 **Files with `await Sentry.*` calls (must remove `await`):**
 
-| File                                          | Await Count | Notes                  |
-| --------------------------------------------- | ----------- | ---------------------- |
-| `routers/subscriptions.ts`                    | 29          | Largest file           |
-| `routers/auth.ts`                             | 17          | Auth flows             |
-| `services/rss-fetcher.ts`                     | 10          | Feed fetching          |
-| `services/feed-discovery/apple-discovery.ts`  | 8           | Apple podcast discovery|
-| `services/feed-discovery/registry.ts`         | 7           | Discovery registry     |
-| `services/email.ts`                           | 7           | Email service          |
-| `services/feed-discovery/standard-discovery.ts`| 5          | Standard discovery     |
-| `routers/articles.ts`                         | 4           | Article operations     |
-| `cron/handlers.ts`                            | 3           | Cron jobs              |
-| `routers/admin.ts`                            | 2           | Admin operations       |
-| `adapters/sentry-telemetry.ts`                | 2           | Telemetry adapter      |
-| `utils/db-metrics.ts`                         | 1           | DB metrics             |
+| File                                            | Await Count | Notes                   |
+| ----------------------------------------------- | ----------- | ----------------------- |
+| `routers/subscriptions.ts`                      | 29          | Largest file            |
+| `routers/auth.ts`                               | 17          | Auth flows              |
+| `services/rss-fetcher.ts`                       | 10          | Feed fetching           |
+| `services/feed-discovery/apple-discovery.ts`    | 8           | Apple podcast discovery |
+| `services/feed-discovery/registry.ts`           | 7           | Discovery registry      |
+| `services/email.ts`                             | 7           | Email service           |
+| `services/feed-discovery/standard-discovery.ts` | 5           | Standard discovery      |
+| `routers/articles.ts`                           | 4           | Article operations      |
+| `cron/handlers.ts`                              | 3           | Cron jobs               |
+| `routers/admin.ts`                              | 2           | Admin operations        |
+| `adapters/sentry-telemetry.ts`                  | 2           | Telemetry adapter       |
+| `utils/db-metrics.ts`                           | 1           | DB metrics              |
 
 **Files with `.catch(() => {})` pattern (can remove):**
 
@@ -84,13 +84,13 @@ Source: [Sentry JavaScript APIs](https://docs.sentry.io/platforms/javascript/gui
 
 **Files importing SDK directly (need conditional handling):**
 
-| File                   | Current Import         | Solution                          |
-| ---------------------- | ---------------------- | --------------------------------- |
-| `entries/cloudflare.ts`| `@sentry/cloudflare`   | Keep as-is (entry point)          |
-| `entries/node.ts`      | `@sentry/node`         | Keep as-is (entry point)          |
-| `auth/better-auth.ts`  | `@sentry/node`         | Use `@/utils/sentry` wrapper      |
-| `trpc/init.ts`         | Dynamic `@sentry/cloudflare` | Use build-time conditional  |
-| `hono/app.ts`          | Type imports only      | Update type imports               |
+| File                    | Current Import               | Solution                     |
+| ----------------------- | ---------------------------- | ---------------------------- |
+| `entries/cloudflare.ts` | `@sentry/cloudflare`         | Keep as-is (entry point)     |
+| `entries/node.ts`       | `@sentry/node`               | Keep as-is (entry point)     |
+| `auth/better-auth.ts`   | `@sentry/node`               | Use `@/utils/sentry` wrapper |
+| `trpc/init.ts`          | Dynamic `@sentry/cloudflare` | Use build-time conditional   |
+| `hono/app.ts`           | Type imports only            | Update type imports          |
 
 ### Phase 5: Update Tests
 
@@ -118,9 +118,18 @@ import type { Breadcrumb, User, Span } from "./sentry.types";
 
 export const setUser = (_user: User | null): void => {};
 export const addBreadcrumb = (_breadcrumb: Breadcrumb): void => {};
-export const captureException = (_error: unknown, _context?: unknown): string | undefined => undefined;
-export const startSpan = <T>(_options: unknown, callback: (span: Span) => T): T => {
-  const noopSpan = { setAttribute: () => noopSpan, setStatus: () => noopSpan } as Span;
+export const captureException = (
+  _error: unknown,
+  _context?: unknown
+): string | undefined => undefined;
+export const startSpan = <T>(
+  _options: unknown,
+  callback: (span: Span) => T
+): T => {
+  const noopSpan = {
+    setAttribute: () => noopSpan,
+    setStatus: () => noopSpan,
+  } as Span;
   return callback(noopSpan);
 };
 export const flush = async (_timeout?: number): Promise<boolean> => true;
@@ -208,12 +217,12 @@ If issues arise:
 
 ## Risk Assessment
 
-| Risk                    | Likelihood | Impact | Mitigation                              |
-| ----------------------- | ---------- | ------ | --------------------------------------- |
-| Missed await removal    | Medium     | Low    | Codemod + grep verification             |
-| Type mismatches         | Low        | Medium | Shared types file                       |
-| Build config issues     | Low        | High   | Test in CI first                        |
-| tRPC middleware breaks  | Medium     | Medium | Keep dynamic import for middleware only |
+| Risk                   | Likelihood | Impact | Mitigation                              |
+| ---------------------- | ---------- | ------ | --------------------------------------- |
+| Missed await removal   | Medium     | Low    | Codemod + grep verification             |
+| Type mismatches        | Low        | Medium | Shared types file                       |
+| Build config issues    | Low        | High   | Test in CI first                        |
+| tRPC middleware breaks | Medium     | Medium | Keep dynamic import for middleware only |
 
 ## Success Criteria
 

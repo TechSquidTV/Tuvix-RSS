@@ -20,7 +20,14 @@ import type {
 } from "./sentry.types";
 
 // Re-export types for consumers
-export type { User, Breadcrumb, Span, StartSpanOptions, CaptureContext, MetricOptions };
+export type {
+  User,
+  Breadcrumb,
+  Span,
+  StartSpanOptions,
+  CaptureContext,
+  MetricOptions,
+};
 
 /**
  * Set user context (no-op)
@@ -53,7 +60,14 @@ export function captureException(
  */
 export function captureMessage(
   _message: string,
-  _levelOrContext?: "fatal" | "error" | "warning" | "log" | "info" | "debug" | CaptureContext
+  _levelOrContext?:
+    | "fatal"
+    | "error"
+    | "warning"
+    | "log"
+    | "info"
+    | "debug"
+    | CaptureContext
 ): string | undefined {
   return undefined;
 }
@@ -125,7 +139,9 @@ export function getCurrentScope(): {
  * With scope (no-op)
  * Executes callback immediately
  */
-export function withScope<T>(callback: (scope: ReturnType<typeof getCurrentScope>) => T): T {
+export function withScope<T>(
+  callback: (scope: ReturnType<typeof getCurrentScope>) => T
+): T {
   return callback(getCurrentScope());
 }
 
@@ -150,14 +166,22 @@ export const metrics = {
   /**
    * Record a distribution metric (no-op)
    */
-  distribution: (_name: string, _value: number, _options?: MetricOptions): void => {
+  distribution: (
+    _name: string,
+    _value: number,
+    _options?: MetricOptions
+  ): void => {
     // No-op
   },
 
   /**
    * Record a set metric (no-op)
    */
-  set: (_name: string, _value: string | number, _options?: MetricOptions): void => {
+  set: (
+    _name: string,
+    _value: string | number,
+    _options?: MetricOptions
+  ): void => {
     // No-op
   },
 };
