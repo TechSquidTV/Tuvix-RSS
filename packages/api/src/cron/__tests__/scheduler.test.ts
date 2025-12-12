@@ -1,14 +1,13 @@
 /**
  * Cron Scheduler Tests
  *
- * Tests for Node.js cron scheduler initialization and cron expression conversion
+ * Tests for Node.js cron scheduler initialization.
+ * The scheduler now uses a 1-minute poll pattern with the shared executor.
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { initCronJobs } from "../scheduler";
 import { createTestDb, cleanupTestDb } from "@/test/setup";
-import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
 import type { Env } from "@/types";
 
 // Mock node-cron
@@ -18,15 +17,13 @@ vi.mock("node-cron", () => ({
   },
 }));
 
-// Mock handlers
-vi.mock("../handlers", () => ({
-  handleRSSFetch: vi.fn(),
-  handleArticlePrune: vi.fn(),
-}));
-
-// Mock services
-vi.mock("@/services/global-settings", () => ({
-  getGlobalSettings: vi.fn(),
+// Mock the executor
+vi.mock("../executor", () => ({
+  executeScheduledTasks: vi.fn().mockResolvedValue({
+    rssFetch: { executed: false },
+    articlePrune: { executed: false },
+    tokenCleanup: { executed: false },
+  }),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -63,198 +60,123 @@ describe("Cron Scheduler", () => {
   });
 
   describe("initCronJobs", () => {
-    beforeEach(async () => {
-      // Delete migration-seeded row first (migration creates id=1)
-      await db
-        .delete(schema.globalSettings)
-        .where(eq(schema.globalSettings.id, 1));
+    it("should schedule a single cron job polling every minute", async () => {
+      await initCronJobs(env);
 
-      // Seed global settings
-      await db.insert(schema.globalSettings).values({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
+      // Should be called exactly once with every-minute pattern
+      expect(mockCronSchedule).toHaveBeenCalledTimes(1);
+      expect(mockCronSchedule).toHaveBeenCalledWith(
+        "* * * * *",
+        expect.any(Function)
+      );
+    });
+
+    it("should call executeScheduledTasks when cron triggers", async () => {
+      const { executeScheduledTasks } = await import("../executor");
+
+      await initCronJobs(env);
+
+      // Get the cron callback
+      const cronCallback = mockCronSchedule.mock
+        .calls[0]![1] as () => Promise<void>;
+
+      // Execute the callback
+      await cronCallback();
+
+      expect(executeScheduledTasks).toHaveBeenCalledWith(env, db);
+    });
+
+    it("should handle errors without crashing the scheduler", async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const { executeScheduledTasks } = await import("../executor");
+      const error = new Error("Test error");
+      vi.mocked(executeScheduledTasks).mockRejectedValueOnce(error);
+
+      await initCronJobs(env);
+
+      // Get the cron callback
+      const cronCallback = mockCronSchedule.mock
+        .calls[0]![1] as () => Promise<void>;
+
+      // Execute the callback - should not throw
+      await expect(cronCallback()).resolves.not.toThrow();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith("❌ Cron job error:", error);
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("should log when tasks are executed", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const { executeScheduledTasks } = await import("../executor");
+      vi.mocked(executeScheduledTasks).mockResolvedValueOnce({
+        rssFetch: { executed: true },
+        articlePrune: { executed: false },
+        tokenCleanup: { executed: false },
       });
 
-      // Mock getGlobalSettings to return the settings
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      } as any);
-    });
-
-    it("should initialize RSS fetch cron job with correct interval", async () => {
       await initCronJobs(env);
 
-      // Should schedule RSS fetch
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/60 * * * *", // Every 60 minutes
-        expect.any(Function)
-      );
+      // Get and execute the cron callback
+      const cronCallback = mockCronSchedule.mock
+        .calls[0]![1] as () => Promise<void>;
+      await cronCallback();
+
+      expect(consoleSpy).toHaveBeenCalledWith("✅ Cron executed: RSS fetch");
+
+      consoleSpy.mockRestore();
     });
 
-    it("should initialize article prune cron job at 2 AM", async () => {
-      await initCronJobs(env);
-
-      // Should schedule prune at 2 AM
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "0 2 * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should schedule both cron jobs", async () => {
-      await initCronJobs(env);
-
-      // Should be called 3 times: RSS fetch, article prune, token cleanup
-      expect(mockCronSchedule).toHaveBeenCalledTimes(3);
-    });
-
-    it("should use fetchIntervalMinutes from global settings", async () => {
-      // Update mock to return new settings
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 30,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      } as any);
+    it("should log multiple executed tasks", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const { executeScheduledTasks } = await import("../executor");
+      vi.mocked(executeScheduledTasks).mockResolvedValueOnce({
+        rssFetch: { executed: true },
+        articlePrune: { executed: true, deletedCount: 10 },
+        tokenCleanup: { executed: false },
+      });
 
       await initCronJobs(env);
 
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/30 * * * *", // Every 30 minutes
-        expect.any(Function)
+      // Get and execute the cron callback
+      const cronCallback = mockCronSchedule.mock
+        .calls[0]![1] as () => Promise<void>;
+      await cronCallback();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "✅ Cron executed: RSS fetch, article prune"
       );
+
+      consoleSpy.mockRestore();
     });
 
-    it("should handle RSS fetch errors in cron callback", async () => {
-      // Ensure getGlobalSettings mock is set up correctly
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      } as any);
-
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const { handleRSSFetch } = await import("../handlers");
-      const error = new Error("RSS fetch failed");
-      vi.mocked(handleRSSFetch).mockRejectedValue(error);
+    it("should not log when no tasks are executed", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const { executeScheduledTasks } = await import("../executor");
+      vi.mocked(executeScheduledTasks).mockResolvedValueOnce({
+        rssFetch: { executed: false },
+        articlePrune: { executed: false },
+        tokenCleanup: { executed: false },
+      });
 
       await initCronJobs(env);
 
-      // Get the RSS fetch callback
-      const rssFetchCall = mockCronSchedule.mock.calls.find(
-        (call) => call[0] === "*/60 * * * *"
-      );
-      expect(rssFetchCall).toBeDefined();
+      // Clear initialization logs
+      consoleSpy.mockClear();
 
-      // Execute the callback - it should throw but we catch it
-      try {
-        await rssFetchCall![1]();
-      } catch (err) {
-        // Expected - the callback throws the error
-      }
+      // Get and execute the cron callback
+      const cronCallback = mockCronSchedule.mock
+        .calls[0]![1] as () => Promise<void>;
+      await cronCallback();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "❌ RSS fetch cron job error:",
-        error
+      // Should not log "Cron executed" when nothing ran
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("✅ Cron executed:")
       );
 
-      consoleErrorSpy.mockRestore();
-    });
-
-    it("should handle article prune errors in cron callback", async () => {
-      // Ensure getGlobalSettings mock is set up correctly
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      } as any);
-
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const { handleArticlePrune } = await import("../handlers");
-      const error = new Error("Prune failed");
-      vi.mocked(handleArticlePrune).mockRejectedValue(error);
-
-      await initCronJobs(env);
-
-      // Get the prune callback
-      const pruneCall = mockCronSchedule.mock.calls.find(
-        (call) => call[0] === "0 2 * * *"
-      );
-      expect(pruneCall).toBeDefined();
-
-      // Execute the callback - it should throw but we catch it
-      try {
-        await pruneCall![1]();
-      } catch (err) {
-        // Expected - the callback throws the error
-      }
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "❌ Prune cron job error:",
-        error
-      );
-
-      consoleErrorSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
 
     it("should log initialization messages", async () => {
@@ -263,189 +185,11 @@ describe("Cron Scheduler", () => {
       await initCronJobs(env);
 
       expect(consoleSpy).toHaveBeenCalledWith("⏰ Initializing cron jobs...");
-      expect(consoleSpy).toHaveBeenCalledWith("✅ Cron jobs initialized");
       expect(consoleSpy).toHaveBeenCalledWith(
-        "   - RSS fetch: every 60 minutes"
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "   - Article prune: daily at 2 AM"
+        "✅ Cron scheduler initialized (polling every minute)"
       );
 
       consoleSpy.mockRestore();
-    });
-
-    it("should throw error when initialization fails", async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      const error = new Error("Database error");
-      vi.mocked(getGlobalSettings).mockRejectedValue(error);
-
-      await expect(initCronJobs(env)).rejects.toThrow("Database error");
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "❌ Failed to initialize cron jobs:",
-        error
-      );
-
-      consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe("minutesToCronExpression (private function)", () => {
-    beforeEach(async () => {
-      // Delete migration-seeded row first (migration creates id=1)
-      await db
-        .delete(schema.globalSettings)
-        .where(eq(schema.globalSettings.id, 1));
-
-      // Seed global settings for these tests
-      await db.insert(schema.globalSettings).values({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      });
-
-      // Reset mock to return default settings
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        maxLoginAttempts: 5,
-        loginAttemptWindowMinutes: 15,
-        lockoutDurationMinutes: 30,
-        allowRegistration: true,
-        requireEmailVerification: false,
-        passwordResetTokenExpiryHours: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-        lastRssFetchAt: null,
-        lastPruneAt: null,
-        updatedAt: new Date(),
-        updatedBy: null,
-      } as any);
-    });
-
-    // Test the private function indirectly through initCronJobs
-    it("should convert 5 minutes to */5 * * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 5,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/5 * * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should convert 15 minutes to */15 * * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 15,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/15 * * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should convert 60 minutes to */60 * * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 60,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/60 * * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should convert 120 minutes (2 hours) to 0 */2 * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 120,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "0 */2 * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should convert 1440 minutes (24 hours) to 0 0 * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 1440,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "0 0 * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should convert 180 minutes (3 hours) to 0 */3 * * *", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 180,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "0 */3 * * *",
-        expect.any(Function)
-      );
-    });
-
-    it("should handle 1 minute interval", async () => {
-      const { getGlobalSettings } = await import("@/services/global-settings");
-      vi.mocked(getGlobalSettings).mockResolvedValue({
-        id: 1,
-        fetchIntervalMinutes: 1,
-        pruneDays: 30,
-      } as any);
-
-      await initCronJobs(env);
-
-      expect(mockCronSchedule).toHaveBeenCalledWith(
-        "*/1 * * * *",
-        expect.any(Function)
-      );
     });
   });
 });

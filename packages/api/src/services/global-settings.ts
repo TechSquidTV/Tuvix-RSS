@@ -31,6 +31,7 @@ export interface GlobalSettings {
   pruneDays: number;
   lastRssFetchAt: Date | null;
   lastPruneAt: Date | null;
+  lastTokenCleanupAt: Date | null;
   updatedAt: Date;
   updatedBy: number | null;
 }
@@ -107,6 +108,7 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings> {
     pruneDays: settings.pruneDays,
     lastRssFetchAt: settings.lastRssFetchAt,
     lastPruneAt: settings.lastPruneAt,
+    lastTokenCleanupAt: settings.lastTokenCleanupAt,
     updatedAt: settings.updatedAt,
     updatedBy: settings.updatedBy,
   };
