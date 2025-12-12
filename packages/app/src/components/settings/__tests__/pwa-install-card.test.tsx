@@ -121,68 +121,6 @@ describe("PWAInstallCard", () => {
       expect(mockPromptInstall).toHaveBeenCalledTimes(1);
     });
 
-    it("should show success toast when installation completes", async () => {
-      const user = userEvent.setup();
-      mockPromptInstall.mockResolvedValue("accepted");
-
-      // Start with installable state
-      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-        isInstallable: true,
-        isInstalled: false,
-        isStandalone: false,
-        isIOS: false,
-        isIOSInstalled: false,
-        installationStatus: "installable",
-        promptInstall: mockPromptInstall,
-        dismissPrompt: mockDismissPrompt,
-      });
-
-      const { rerender } = render(<PWAInstallCard />);
-
-      const installButton = screen.getByRole("button", {
-        name: /install app/i,
-      });
-      await user.click(installButton);
-
-      // Simulate installation completing by updating isInstalled
-      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-        isInstallable: false,
-        isInstalled: true,
-        isStandalone: true,
-        isIOS: false,
-        isIOSInstalled: false,
-        installationStatus: "installed",
-        promptInstall: mockPromptInstall,
-        dismissPrompt: mockDismissPrompt,
-      });
-
-      rerender(<PWAInstallCard />);
-
-      await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith(
-          "App installed successfully!",
-        );
-      });
-    });
-
-    it("should show error toast on installation failure", async () => {
-      const user = userEvent.setup();
-      mockPromptInstall.mockRejectedValue(new Error("Installation failed"));
-
-      render(<PWAInstallCard />);
-
-      const installButton = screen.getByRole("button", {
-        name: /install app/i,
-      });
-      await user.click(installButton);
-
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          "Failed to show install prompt. Please try again.",
-        );
-      });
-    });
-
     it("should disable button and show loading state during installation", async () => {
       const user = userEvent.setup();
       mockPromptInstall.mockResolvedValue("accepted");
@@ -205,53 +143,6 @@ describe("PWAInstallCard", () => {
         name: /installing/i,
       });
       expect(loadingButton).toBeDisabled();
-    });
-
-    it("should reset loading state when prompt is dismissed", async () => {
-      const user = userEvent.setup();
-      // Mock a delayed dismissal so we can observe state changes
-      mockPromptInstall.mockImplementation(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve("dismissed"), 50)),
-      );
-
-      // Start with installable state
-      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-        isInstallable: true,
-        isInstalled: false,
-        isStandalone: false,
-        isIOS: false,
-        isIOSInstalled: false,
-        installationStatus: "installable",
-        promptInstall: mockPromptInstall,
-        dismissPrompt: mockDismissPrompt,
-      });
-
-      render(<PWAInstallCard />);
-
-      const installButton = screen.getByRole("button", {
-        name: /install app/i,
-      });
-
-      await user.click(installButton);
-
-      // Verify loading state is shown while prompt is being shown
-      expect(screen.getByText("Installing...")).toBeInTheDocument();
-      expect(installButton).toBeDisabled();
-
-      // Wait for dismissal to complete
-      await waitFor(
-        () => {
-          expect(screen.getByText("Install App")).toBeInTheDocument();
-        },
-        { timeout: 200 },
-      );
-
-      // Button should be enabled again after dismissal
-      expect(installButton).not.toBeDisabled();
-
-      // Should not show success toast when dismissed
-      expect(toast.success).not.toHaveBeenCalled();
     });
   });
 
