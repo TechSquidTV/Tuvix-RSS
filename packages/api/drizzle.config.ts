@@ -21,6 +21,7 @@ export default {
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: process.env.DATABASE_PATH || "./data/tuvix.db",
+    // Relative to packages/api/ - points to project root /data/
+    url: process.env.DATABASE_PATH || "../data/tuvix.db",
   },
 } satisfies Config;

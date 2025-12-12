@@ -67,8 +67,7 @@ packages/api/
 │   │   ├── context.ts     # Request context
 │   │   └── router.ts      # Root router
 │   └── types.ts           # Shared types & Zod schemas
-├── data/                  # Local development data (gitignored)
-├── drizzle.config.ts      # Drizzle Kit config
+├── drizzle.config.ts      # Drizzle Kit config (local migrations only)
 ├── wrangler.toml          # Cloudflare Workers config
 ├── tsconfig.json          # TypeScript config
 └── package.json
@@ -98,10 +97,27 @@ Create a `.env` file in the package root:
 BETTER_AUTH_SECRET=your-secure-secret-key-here
 
 # Optional (defaults shown)
-DATABASE_PATH=./data/tuvix.db
+DATABASE_PATH=../data/tuvix.db  # Relative to packages/api/, points to project root
 PORT=3001
 RUNTIME=nodejs
 ```
+
+### Database Configuration
+
+The database location depends on the environment:
+
+| Environment | Database | Location |
+|-------------|----------|----------|
+| Local Dev (`pnpm dev`) | SQLite | `/data/tuvix.db` (project root) |
+| Docker Compose | SQLite | `/app/data/tuvix.db` (mounted volume) |
+| Tests | In-memory SQLite | `:memory:` |
+| Staging | Cloudflare D1 | Cloudflare-managed |
+| Production | Cloudflare D1 | Cloudflare-managed |
+
+- **Local dev**: Default path is `../data/tuvix.db` relative to `packages/api/`, which resolves to project root `/data/tuvix.db`
+- **Docker**: Uses absolute path via `DATABASE_PATH=/app/data/tuvix.db` with volume mount `./data:/app/data`
+- **Tests**: Always use in-memory SQLite (configured in test setup)
+- **Cloudflare**: Uses D1 binding (`env.DB`), no filesystem paths needed
 
 ### Database Setup
 
@@ -469,7 +485,7 @@ function MyComponent() {
 SQLite with WAL mode is enabled. If you see "database is locked":
 
 ```bash
-# Check for stale WAL files
+# Check for stale WAL files (from project root)
 rm data/tuvix.db-wal
 
 # Or restart the server

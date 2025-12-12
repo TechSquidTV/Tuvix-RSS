@@ -29,7 +29,8 @@ export function createDatabase(env: Env) {
     return drizzleD1(env.DB, { schema });
   } else {
     // Node.js/Docker with better-sqlite3
-    const dbPath = env.DATABASE_PATH || "./data/tuvix.db";
+    // Default points to project root /data/ (relative to packages/api/)
+    const dbPath = env.DATABASE_PATH || "../data/tuvix.db";
 
     // Resolve to absolute path to ensure consistency regardless of working directory
     const absoluteDbPath = dbPath.startsWith("/")
