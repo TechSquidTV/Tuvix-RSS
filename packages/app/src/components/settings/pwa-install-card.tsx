@@ -9,21 +9,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Download, Info, Smartphone, Share } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export function PWAInstallCard() {
-  const { installationStatus, promptInstall } = usePWAInstall();
+  const { installationStatus, promptInstall, isInstalled } = usePWAInstall();
   const [isInstalling, setIsInstalling] = useState(false);
+  const prevInstalledRef = useRef(isInstalled);
+
+  // Show success toast only when installation status changes to installed
+  useEffect(() => {
+    if (isInstalled && !prevInstalledRef.current && isInstalling) {
+      toast.success("App installed successfully!");
+    }
+    prevInstalledRef.current = isInstalled;
+  }, [isInstalled, isInstalling]);
+
+  // Derive loading state: installing is done when installed
+  const showLoading = isInstalling && !isInstalled;
 
   const handleInstall = async () => {
     setIsInstalling(true);
     try {
-      await promptInstall();
-      toast.success("App installed successfully!");
+      const outcome = await promptInstall();
+      // If user dismissed the prompt, reset installing state
+      if (outcome === "dismissed") {
+        setIsInstalling(false);
+      }
+      // If accepted, useEffect will handle success toast when isInstalled changes
     } catch {
-      toast.error("Failed to install app. Please try again.");
-    } finally {
+      toast.error("Failed to show install prompt. Please try again.");
+      // Reset installing state on error
       setIsInstalling(false);
     }
   };
@@ -91,11 +107,11 @@ export function PWAInstallCard() {
             </ul>
             <Button
               onClick={handleInstall}
-              disabled={isInstalling}
+              disabled={showLoading}
               className="w-full sm:w-auto"
             >
               <Download className="h-4 w-4 mr-2" />
-              {isInstalling ? "Installing..." : "Install App"}
+              {showLoading ? "Installing..." : "Install App"}
             </Button>
           </div>
         )}

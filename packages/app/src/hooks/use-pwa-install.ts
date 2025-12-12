@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -15,10 +15,10 @@ interface UsePWAInstallReturn {
   isInstallable: boolean;
   isInstalled: boolean;
   isStandalone: boolean;
-  isiOS: boolean;
+  isIOS: boolean;
   isIOSInstalled: boolean;
   installationStatus: InstallationStatus;
-  promptInstall: () => Promise<void>;
+  promptInstall: () => Promise<"accepted" | "dismissed" | void>;
   dismissPrompt: () => void;
 }
 
@@ -66,10 +66,10 @@ export function usePWAInstall(): UsePWAInstallReturn {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalledViaAPI, setIsInstalledViaAPI] = useState(false);
 
-  // Platform detection
-  const isiOS = detectiOS();
-  const isIOSInstalled = detectIOSInstalled();
-  const isStandalone = detectStandalone();
+  // Platform detection (memoized to avoid unnecessary re-computation)
+  const isIOS = useMemo(() => detectiOS(), []);
+  const isIOSInstalled = useMemo(() => detectIOSInstalled(), []);
+  const isStandalone = useMemo(() => detectStandalone(), []);
 
   // Combined installed state
   const isInstalled = isStandalone || isIOSInstalled || isInstalledViaAPI;
@@ -88,10 +88,11 @@ export function usePWAInstall(): UsePWAInstallReturn {
       }
     }
 
-    if (!isInstalled) {
+    // Only check if not already detected as installed via other methods
+    if (!isStandalone && !isIOSInstalled && !isInstalledViaAPI) {
       checkInstallation();
     }
-  }, [isInstalled]);
+  }, [isStandalone, isIOSInstalled, isInstalledViaAPI]);
 
   useEffect(() => {
     // Skip if already installed
@@ -128,40 +129,55 @@ export function usePWAInstall(): UsePWAInstallReturn {
     };
   }, [isInstalled]);
 
-  // Determine installation status
-  const getInstallationStatus = (): InstallationStatus => {
+  // Determine installation status (memoized to prevent unnecessary re-computation)
+  const getInstallationStatus = useCallback((): InstallationStatus => {
     if (isInstalled) {
       return "installed";
     }
-    if (isiOS && !isIOSInstalled) {
+    if (isIOS && !isIOSInstalled) {
       return "ios-instructions";
     }
     if (isInstallable) {
       return "installable";
     }
     return "not-supported";
-  };
+  }, [isInstalled, isIOS, isIOSInstalled, isInstallable]);
 
-  const promptInstall = async () => {
+  const promptInstall = async (): Promise<
+    "accepted" | "dismissed" | void
+  > => {
     if (!deferredPrompt) {
       return;
     }
 
-    // Show the install prompt
-    await deferredPrompt.prompt();
+    try {
+      // Show the install prompt
+      await deferredPrompt.prompt();
 
-    // Wait for the user's response
-    const { outcome } = await deferredPrompt.userChoice;
+      // Wait for the user's response
+      const { outcome } = await deferredPrompt.userChoice;
 
-    if (outcome === "accepted") {
-      console.log("User accepted the install prompt");
-    } else {
-      console.log("User dismissed the install prompt");
+      if (outcome === "accepted") {
+        console.log("User accepted the install prompt");
+      } else {
+        console.log("User dismissed the install prompt");
+      }
+
+      // Clear the deferred prompt
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+
+      // Return the outcome so component can handle it
+      return outcome;
+    } catch (error) {
+      // Handle prompt errors (e.g., called more than once)
+      console.error("Error showing install prompt:", error);
+      // Reset state to prevent stuck state
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      // Re-throw so component can handle it
+      throw error;
     }
-
-    // Clear the deferred prompt
-    setDeferredPrompt(null);
-    setIsInstallable(false);
   };
 
   const dismissPrompt = () => {
@@ -172,7 +188,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
     isInstallable,
     isInstalled,
     isStandalone,
-    isiOS,
+    isIOS,
     isIOSInstalled,
     installationStatus: getInstallationStatus(),
     promptInstall,

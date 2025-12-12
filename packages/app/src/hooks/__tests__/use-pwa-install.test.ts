@@ -80,7 +80,7 @@ describe("usePWAInstall", () => {
       expect(result.current.installationStatus).toBe("not-supported");
       expect(result.current.isInstalled).toBe(false);
       expect(result.current.isInstallable).toBe(false);
-      expect(result.current.isiOS).toBe(false);
+      expect(result.current.isIOS).toBe(false);
     });
 
     it("should detect installable state when beforeinstallprompt fires", async () => {
@@ -305,7 +305,7 @@ describe("usePWAInstall", () => {
 
       const { result } = renderHook(() => usePWAInstall());
 
-      expect(result.current.isiOS).toBe(true);
+      expect(result.current.isIOS).toBe(true);
       expect(result.current.installationStatus).toBe("ios-instructions");
     });
 
@@ -325,7 +325,7 @@ describe("usePWAInstall", () => {
 
       const { result } = renderHook(() => usePWAInstall());
 
-      expect(result.current.isiOS).toBe(true);
+      expect(result.current.isIOS).toBe(true);
       expect(result.current.isIOSInstalled).toBe(true);
       expect(result.current.isInstalled).toBe(true);
       expect(result.current.installationStatus).toBe("installed");
@@ -341,7 +341,7 @@ describe("usePWAInstall", () => {
 
       const { result } = renderHook(() => usePWAInstall());
 
-      expect(result.current.isiOS).toBe(true);
+      expect(result.current.isIOS).toBe(true);
       expect(result.current.installationStatus).toBe("ios-instructions");
     });
 
@@ -356,7 +356,7 @@ describe("usePWAInstall", () => {
 
       const { result } = renderHook(() => usePWAInstall());
 
-      expect(result.current.isiOS).toBe(false);
+      expect(result.current.isIOS).toBe(false);
     });
   });
 

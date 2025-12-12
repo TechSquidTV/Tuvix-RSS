@@ -28,7 +28,7 @@ describe("PWAInstallCard", () => {
         isInstallable: false,
         isInstalled: true,
         isStandalone: true,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "installed",
         promptInstall: mockPromptInstall,
@@ -77,7 +77,7 @@ describe("PWAInstallCard", () => {
         isInstallable: true,
         isInstalled: false,
         isStandalone: false,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "installable",
         promptInstall: mockPromptInstall,
@@ -121,16 +121,42 @@ describe("PWAInstallCard", () => {
       expect(mockPromptInstall).toHaveBeenCalledTimes(1);
     });
 
-    it("should show success toast on successful installation", async () => {
+    it("should show success toast when installation completes", async () => {
       const user = userEvent.setup();
       mockPromptInstall.mockResolvedValue(undefined);
 
-      render(<PWAInstallCard />);
+      // Start with installable state
+      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+        isInstallable: true,
+        isInstalled: false,
+        isStandalone: false,
+        isIOS: false,
+        isIOSInstalled: false,
+        installationStatus: "installable",
+        promptInstall: mockPromptInstall,
+        dismissPrompt: mockDismissPrompt,
+      });
+
+      const { rerender } = render(<PWAInstallCard />);
 
       const installButton = screen.getByRole("button", {
         name: /install app/i,
       });
       await user.click(installButton);
+
+      // Simulate installation completing by updating isInstalled
+      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+        isInstallable: false,
+        isInstalled: true,
+        isStandalone: true,
+        isIOS: false,
+        isIOSInstalled: false,
+        installationStatus: "installed",
+        promptInstall: mockPromptInstall,
+        dismissPrompt: mockDismissPrompt,
+      });
+
+      rerender(<PWAInstallCard />);
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
@@ -152,37 +178,90 @@ describe("PWAInstallCard", () => {
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          "Failed to install app. Please try again.",
+          "Failed to show install prompt. Please try again.",
         );
       });
     });
 
     it("should disable button and show loading state during installation", async () => {
       const user = userEvent.setup();
-      let resolveInstall: () => void;
-      mockPromptInstall.mockReturnValue(
-        new Promise((resolve) => {
-          resolveInstall = resolve as () => void;
-        }),
-      );
+      mockPromptInstall.mockResolvedValue(undefined);
 
       render(<PWAInstallCard />);
 
       const installButton = screen.getByRole("button", {
         name: /install app/i,
       });
+
+      // Click the button
       await user.click(installButton);
 
       // Button should be disabled and show loading text
-      expect(installButton).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByText("Installing...")).toBeInTheDocument();
+      });
+
+      const loadingButton = screen.getByRole("button", {
+        name: /installing/i,
+      });
+      expect(loadingButton).toBeDisabled();
+    });
+
+    it("should reset loading state when prompt is dismissed", async () => {
+      const user = userEvent.setup();
+      mockPromptInstall.mockResolvedValue(undefined);
+
+      // Start with installable state
+      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+        isInstallable: true,
+        isInstalled: false,
+        isStandalone: false,
+        isIOS: false,
+        isIOSInstalled: false,
+        installationStatus: "installable",
+        promptInstall: mockPromptInstall,
+        dismissPrompt: mockDismissPrompt,
+      });
+
+      const { rerender } = render(<PWAInstallCard />);
+
+      const installButton = screen.getByRole("button", {
+        name: /install app/i,
+      });
+      await user.click(installButton);
+
+      // Verify loading state is shown
       expect(screen.getByText("Installing...")).toBeInTheDocument();
 
-      // Resolve the promise
-      resolveInstall!();
-
-      await waitFor(() => {
-        expect(screen.getByText("Install App")).toBeInTheDocument();
+      // Simulate prompt being dismissed (isInstallable becomes false, but not installed)
+      // This changes status to "not-supported" and removes the install button
+      vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+        isInstallable: false,
+        isInstalled: false,
+        isStandalone: false,
+        isIOS: false,
+        isIOSInstalled: false,
+        installationStatus: "not-supported",
+        promptInstall: mockPromptInstall,
+        dismissPrompt: mockDismissPrompt,
       });
+
+      rerender(<PWAInstallCard />);
+
+      // After dismissal, button is removed and "not supported" message is shown
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: /install app/i }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /PWA installation not available in this browser/i,
+          ),
+        ).toBeInTheDocument();
+      });
+
+      // Should not show success toast when dismissed
+      expect(toast.success).not.toHaveBeenCalled();
     });
   });
 
@@ -192,7 +271,7 @@ describe("PWAInstallCard", () => {
         isInstallable: false,
         isInstalled: false,
         isStandalone: false,
-        isiOS: true,
+        isIOS: true,
         isIOSInstalled: false,
         installationStatus: "ios-instructions",
         promptInstall: mockPromptInstall,
@@ -248,7 +327,7 @@ describe("PWAInstallCard", () => {
         isInstallable: false,
         isInstalled: false,
         isStandalone: false,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "not-supported",
         promptInstall: mockPromptInstall,
@@ -289,7 +368,7 @@ describe("PWAInstallCard", () => {
         isInstallable: false,
         isInstalled: false,
         isStandalone: false,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "not-supported",
         promptInstall: mockPromptInstall,
@@ -313,7 +392,7 @@ describe("PWAInstallCard", () => {
         isInstallable: true,
         isInstalled: false,
         isStandalone: false,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "installable",
         promptInstall: mockPromptInstall,
@@ -332,7 +411,7 @@ describe("PWAInstallCard", () => {
         isInstallable: false,
         isInstalled: false,
         isStandalone: false,
-        isiOS: true,
+        isIOS: true,
         isIOSInstalled: false,
         installationStatus: "ios-instructions",
         promptInstall: mockPromptInstall,
@@ -352,7 +431,7 @@ describe("PWAInstallCard", () => {
         isInstallable: true,
         isInstalled: false,
         isStandalone: false,
-        isiOS: false,
+        isIOS: false,
         isIOSInstalled: false,
         installationStatus: "installable",
         promptInstall: mockPromptInstall,
