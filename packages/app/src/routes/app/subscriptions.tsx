@@ -12,7 +12,6 @@ import {
   type DiscoveredFeed,
 } from "@/lib/hooks/useFeedDiscovery";
 import { useParseOPML, useImportOPML } from "@/lib/hooks/useImportOPML";
-import { useRefreshFeeds } from "@/lib/hooks/useArticles";
 import { trpc } from "@/lib/api/trpc";
 import { ImportPreviewDialog } from "@/components/app/import-preview-dialog";
 import { FeedAvatar } from "@/components/app/feed-avatar";
@@ -112,7 +111,6 @@ function SubscriptionsPage() {
 
   const parseOPML = useParseOPML();
   const importOPML = useImportOPML();
-  const refreshFeeds = useRefreshFeeds();
 
   // Debounce the URL input
   const debouncedUrl = useDebounce(newSubUrl, 500);
@@ -144,9 +142,8 @@ function SubscriptionsPage() {
             setDiscoveredFeeds(feeds);
 
             // If only one feed found, auto-select it
-            if (feeds.length === 1) {
-              setNewSubUrl(feeds[0].url);
-            }
+            const [feed] = feeds;
+            if (feed && feeds.length === 1) setNewSubUrl(feed.url);
           },
           onError: () => {
             setDiscoveredFeeds([]);
@@ -239,6 +236,8 @@ function SubscriptionsPage() {
 
       // Handle the first file (OPML imports are typically single files)
       const fileHandle = launchParams.files[0];
+      if (!fileHandle) return;
+
       const file = await fileHandle.getFile();
       await handleFileLaunch(file);
     });
@@ -467,16 +466,11 @@ function SubscriptionsPage() {
 
         utils.subscriptions.list.invalidate();
         utils.categories.list.invalidate();
-
-        // Trigger immediate feed refresh for newly imported subscriptions
-        if (result.successCount > 0) {
-          refreshFeeds.mutate();
-        }
       } catch {
         toast.error("Failed to import feeds");
       }
     },
-    [uploadedFile, importOPML, utils, refreshFeeds],
+    [uploadedFile, importOPML, utils],
   );
 
   const handleExportSubscriptions = useCallback(async () => {
@@ -751,8 +745,11 @@ function SubscriptionsPage() {
                             value={filter.field}
                             onChange={(e) => {
                               const newFilters = [...initialFilters];
-                              newFilters[index].field = e.target.value;
-                              setInitialFilters(newFilters);
+                              const filterToUpdate = newFilters[index];
+                              if (filterToUpdate) {
+                                filterToUpdate.field = e.target.value;
+                                setInitialFilters(newFilters);
+                              }
                             }}
                             className="w-full mt-1 px-2 py-1 text-xs border rounded-md bg-background"
                           >
@@ -771,8 +768,11 @@ function SubscriptionsPage() {
                             value={filter.matchType}
                             onChange={(e) => {
                               const newFilters = [...initialFilters];
-                              newFilters[index].matchType = e.target.value;
-                              setInitialFilters(newFilters);
+                              const filterToUpdate = newFilters[index];
+                              if (filterToUpdate) {
+                                filterToUpdate.matchType = e.target.value;
+                                setInitialFilters(newFilters);
+                              }
                             }}
                             className="w-full mt-1 px-2 py-1 text-xs border rounded-md bg-background"
                           >
@@ -791,8 +791,11 @@ function SubscriptionsPage() {
                           value={filter.pattern}
                           onChange={(e) => {
                             const newFilters = [...initialFilters];
-                            newFilters[index].pattern = e.target.value;
-                            setInitialFilters(newFilters);
+                            const filterToUpdate = newFilters[index];
+                            if (filterToUpdate) {
+                              filterToUpdate.pattern = e.target.value;
+                              setInitialFilters(newFilters);
+                            }
                           }}
                           placeholder="Enter pattern to match"
                           className="w-full mt-1 px-2 py-1 text-xs border rounded-md bg-background"
@@ -806,9 +809,11 @@ function SubscriptionsPage() {
                             checked={filter.caseSensitive}
                             onChange={(e) => {
                               const newFilters = [...initialFilters];
-                              newFilters[index].caseSensitive =
-                                e.target.checked;
-                              setInitialFilters(newFilters);
+                              const filterToUpdate = newFilters[index];
+                              if (filterToUpdate) {
+                                filterToUpdate.caseSensitive = e.target.checked;
+                                setInitialFilters(newFilters);
+                              }
                             }}
                             className="rounded"
                           />

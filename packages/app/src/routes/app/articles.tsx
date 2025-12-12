@@ -4,7 +4,6 @@ import {
   useMarkAllRead,
   useArticleCounts,
 } from "@/lib/hooks/useArticles";
-import { useRefreshFeeds } from "@/lib/hooks/useArticles";
 import { useUserSettings } from "@/lib/hooks/useUserSettings";
 import { AnimatedArticleList } from "@/components/app/animated-article-list";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,7 +55,6 @@ export const Route = createFileRoute("/app/articles")({
 
 function ArticlesPage() {
   const search = Route.useSearch();
-  const refreshFeeds = useRefreshFeeds();
   const markAllRead = useMarkAllRead();
   const { data: userSettings } = useUserSettings();
 
@@ -291,10 +289,6 @@ function ArticlesPage() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleRefresh = () => {
-    refreshFeeds.mutate();
-  };
-
   const handleFilterChange = (value: string) => {
     // Mark that user manually changed the filter
     hasUserChangedFilterRef.current = true;
@@ -341,25 +335,6 @@ function ArticlesPage() {
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Refresh button for desktop */}
-      <div className="w-full hidden sm:flex justify-end">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleRefresh}
-          disabled={isLoading || refreshFeeds.isPending}
-          aria-label="Refresh feeds and fetch new articles"
-          title="Fetch new articles from all feeds"
-        >
-          <RefreshCw
-            className={
-              isLoading || refreshFeeds.isPending ? "animate-spin" : ""
-            }
-            aria-hidden="true"
-          />
-        </Button>
-      </div>
 
       {/* Articles List */}
       {isLoading && (

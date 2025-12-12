@@ -27,7 +27,6 @@ const {
   useUnsaveArticle,
   useBulkMarkRead,
   useMarkAllRead,
-  useRefreshFeeds,
   deduplicateArticlesData,
 } = await import("../useArticles");
 
@@ -362,31 +361,6 @@ describe("useMarkAllRead", () => {
       },
       { timeout: 3000 },
     );
-  });
-});
-
-describe("useRefreshFeeds", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("should be defined", () => {
-    expect(useRefreshFeeds).toBeDefined();
-    expect(typeof useRefreshFeeds).toBe("function");
-  });
-
-  it("should return a mutation result", () => {
-    const { result } = renderHook(() => useRefreshFeeds(), {
-      wrapper: createWrapper(),
-    });
-
-    expect(result.current).toHaveProperty("mutate");
-    expect(result.current).toHaveProperty("isPending");
-    expect(typeof result.current.mutate).toBe("function");
   });
 });
 

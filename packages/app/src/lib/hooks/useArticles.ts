@@ -376,16 +376,3 @@ export const useMarkAllRead = () => {
     },
   });
 };
-
-export const useRefreshFeeds = () => {
-  return trpc.articles.refresh.useMutation({
-    onSuccess: () => {
-      // Don't refetch immediately - the background fetch takes time
-      // Let the caller handle refetch timing (e.g., useCreateSubscriptionWithRefetch)
-      toast.success("Feed refresh started");
-    },
-    onError: () => {
-      toast.error("Failed to refresh feeds");
-    },
-  });
-};
