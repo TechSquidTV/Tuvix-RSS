@@ -2060,4 +2060,74 @@ export const adminRouter = router({
 
       return csvRows.join("\n");
     }),
+
+  /**
+   * Manually trigger RSS feed refresh for all feeds (admin only)
+   */
+  refreshAllFeeds: adminProcedure
+    .output(
+      z.object({
+        message: z.string(),
+        triggered: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx }) => {
+      // Import RSS fetcher (required)
+      const { fetchAllFeeds } = await import("../services/rss-fetcher");
+
+      // Import Sentry (optional - gracefully handle if unavailable)
+      let Sentry: typeof import("@/utils/sentry") | null = null;
+      try {
+        Sentry = await import("@/utils/sentry");
+      } catch (error) {
+        console.warn(
+          "Sentry unavailable, continuing without monitoring:",
+          error
+        );
+      }
+
+      // Trigger fetch in background (don't await)
+      fetchAllFeeds(ctx.db)
+        .then(async (result) => {
+          console.log(
+            `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`
+          );
+
+          // Capture errors as breadcrumbs if any feeds failed (only if Sentry available)
+          if (Sentry && result.errorCount > 0) {
+            await Sentry.addBreadcrumb({
+              category: "rss.fetch",
+              message: `RSS fetch completed with ${result.errorCount} errors`,
+              level: "warning",
+              data: {
+                success_count: result.successCount,
+                error_count: result.errorCount,
+                errors: result.errors.slice(0, 5), // First 5 errors
+              },
+            });
+          }
+        })
+        .catch(async (error) => {
+          console.error("Feed refresh failed:", error);
+
+          // Capture unexpected errors to Sentry (only if Sentry available)
+          if (Sentry) {
+            await Sentry.captureException(error, {
+              level: "error",
+              tags: {
+                operation: "admin_refresh_all_feeds",
+                context: "background_fetch",
+              },
+              extra: {
+                user_id: ctx.user.userId,
+              },
+            });
+          }
+        });
+
+      return {
+        triggered: true,
+        message: "Feed refresh triggered in background",
+      };
+    }),
 });
