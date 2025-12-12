@@ -15,8 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, UserCheck, UserX, Package, Activity } from "lucide-react";
+import {
+  Users,
+  UserCheck,
+  UserX,
+  Package,
+  Activity,
+  RefreshCw,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   UserGrowthChart,
   ArticleActivityChart,
@@ -61,6 +70,16 @@ function AdminDashboard() {
     trpc.admin.getArticlesRead.useQuery({
       days: timeRange,
     });
+
+  // Mutation for refreshing all feeds
+  const refreshAllFeeds = trpc.admin.refreshAllFeeds.useMutation({
+    onSuccess: () => {
+      toast.success("Feed refresh started");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to refresh feeds");
+    },
+  });
 
   if (isLoading) {
     return (
@@ -255,6 +274,29 @@ function AdminDashboard() {
           <ArticlesReadChart data={articlesRead.data} />
         )}
       </div>
+
+      {/* Feed Management Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Feed Management</CardTitle>
+          <CardDescription>
+            Manually trigger feed refresh for all subscribed sources
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => refreshAllFeeds.mutate()}
+            disabled={refreshAllFeeds.isPending}
+          >
+            <RefreshCw
+              className={
+                refreshAllFeeds.isPending ? "animate-spin mr-2" : "mr-2"
+              }
+            />
+            Refresh All Feeds
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
