@@ -23,7 +23,33 @@ const router = createRouter({
   defaultStaleTime: 5000,
   scrollRestoration: true,
   // Enable view transitions by default for all navigation
-  defaultViewTransition: true,
+  // Custom implementation that checks document visibility state to prevent
+  // InvalidStateError on iOS Safari and other browsers when tab is hidden
+  startViewTransition: (updateFn) => {
+    // Check if the View Transitions API is supported
+    if (typeof document.startViewTransition === "undefined") {
+      // Not supported, just run the update function synchronously
+      updateFn();
+      return;
+    }
+
+    // Check if document is visible before attempting view transition
+    // The View Transitions API spec requires document to be visible
+    if (document.visibilityState !== "visible") {
+      // Document is hidden, skip the transition and just update
+      updateFn();
+      return;
+    }
+
+    try {
+      // Document is visible, safe to use view transitions
+      document.startViewTransition(updateFn);
+    } catch (error) {
+      // Fallback: if startViewTransition fails for any reason, just update
+      console.warn("View transition failed, falling back to immediate update:", error);
+      updateFn();
+    }
+  },
 });
 
 // Register the router instance for type safety
