@@ -110,9 +110,9 @@ export async function executeScheduledTasks(
 
     result.rssFetch.executed = true;
     console.log("✅ RSS fetch completed");
-  } else {
+  } else if (settings.lastRssFetchAt) {
     const minutesSinceLastFetch = Math.floor(
-      (now.getTime() - settings.lastRssFetchAt!.getTime()) / (60 * 1000)
+      (now.getTime() - settings.lastRssFetchAt.getTime()) / (60 * 1000)
     );
     result.rssFetch.skippedReason = `Last fetch was ${minutesSinceLastFetch} minutes ago (interval: ${settings.fetchIntervalMinutes} minutes)`;
     console.log(`⏭️ Skipping RSS fetch: ${result.rssFetch.skippedReason}`);
@@ -132,9 +132,9 @@ export async function executeScheduledTasks(
     console.log(
       `✅ Prune completed (deleted ${pruneResult.deletedCount} articles)`
     );
-  } else {
+  } else if (settings.lastPruneAt) {
     const hoursSinceLastPrune = Math.floor(
-      (now.getTime() - settings.lastPruneAt!.getTime()) / (60 * 60 * 1000)
+      (now.getTime() - settings.lastPruneAt.getTime()) / (60 * 60 * 1000)
     );
     result.articlePrune.skippedReason = `Last prune was ${hoursSinceLastPrune} hours ago`;
     console.log(`⏭️ Skipping prune: ${result.articlePrune.skippedReason}`);
@@ -154,9 +154,9 @@ export async function executeScheduledTasks(
     console.log(
       `✅ Token cleanup completed (deleted ${cleanupResult.deletedCount} tokens)`
     );
-  } else {
+  } else if (settings.lastTokenCleanupAt) {
     const daysSinceLastCleanup = Math.floor(
-      (now.getTime() - settings.lastTokenCleanupAt!.getTime()) /
+      (now.getTime() - settings.lastTokenCleanupAt.getTime()) /
         (24 * 60 * 60 * 1000)
     );
     result.tokenCleanup.skippedReason = `Last cleanup was ${daysSinceLastCleanup} days ago`;
