@@ -15,7 +15,7 @@ import type { Env } from "@/types";
 const env: Env = {
   RUNTIME: "nodejs",
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-  DATABASE_PATH: process.env.DATABASE_PATH || "../data/tuvix.db",
+  DATABASE_PATH: process.env.DATABASE_PATH || "./data/tuvix.db",
   PORT: process.env.PORT || "3001",
   CORS_ORIGIN: process.env.CORS_ORIGIN,
   NODE_ENV: process.env.NODE_ENV,
@@ -71,13 +71,6 @@ if (env.SENTRY_DSN) {
 // Main initialization
 (async () => {
   try {
-    // Log database path for debugging
-    const path = await import("path");
-    const resolvedDbPath = env.DATABASE_PATH?.startsWith("/")
-      ? env.DATABASE_PATH
-      : path.resolve(process.cwd(), env.DATABASE_PATH || "../data/tuvix.db");
-    console.log(`📁 Database: ${resolvedDbPath}`);
-
     // Run migrations
     await runMigrationsIfNeeded(env);
     console.log("✅ Migrations completed");
