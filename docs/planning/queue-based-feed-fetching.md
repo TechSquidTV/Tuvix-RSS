@@ -725,14 +725,9 @@ export async function startQueueConsumer(env: Env): Promise<void> {
   console.log("✅ Queue consumer started");
 }
 
-// Start consumer if running as standalone process
-if (require.main === module) {
-  const env = process.env as unknown as Env;
-  startQueueConsumer(env).catch((error) => {
-    console.error("❌ Queue consumer failed:", error);
-    process.exit(1);
-  });
-}
+// Note: For Docker/Node.js deployment, environment is loaded via
+// the existing env loading mechanism (see packages/api/src/config/env.ts)
+// This function is called from the Node.js entry point with properly loaded env
 ```
 
 ##### 5. Configuration
@@ -1067,9 +1062,11 @@ describe("Queue Integration", () => {
 ```typescript
 // scripts/load-test-queue.ts
 import { createQueueAdapter } from "@/queue/factory";
+import { loadEnvForNode } from "@/config/env"; // Uses existing env loading pattern
 
 async function loadTest() {
-  const queue = createQueueAdapter(process.env as any);
+  const env = loadEnvForNode(); // Load env properly for Node.js context
+  const queue = createQueueAdapter(env);
 
   // Enqueue 10,000 test feeds
   const feeds = Array.from({ length: 10000 }, (_, i) => ({
