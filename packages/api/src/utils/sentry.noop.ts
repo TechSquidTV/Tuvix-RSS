@@ -85,6 +85,7 @@ export function startSpan<T>(
     setAttributes: () => noopSpan,
     setStatus: () => noopSpan,
   };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return callback(noopSpan);
 }
 
@@ -142,6 +143,7 @@ export function getCurrentScope(): {
 export function withScope<T>(
   callback: (scope: ReturnType<typeof getCurrentScope>) => T
 ): T {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return callback(getCurrentScope());
 }
 
