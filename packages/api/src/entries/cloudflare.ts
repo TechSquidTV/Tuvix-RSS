@@ -65,7 +65,7 @@ const workerHandler = {
       runtime: "cloudflare",
     });
 
-    return app.fetch(request, env);
+    return app.fetch(request, workerEnv);
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
