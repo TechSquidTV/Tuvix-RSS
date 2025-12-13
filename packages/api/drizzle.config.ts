@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Drizzle Kit Configuration
  *
@@ -21,7 +22,6 @@ export default {
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    // Relative to packages/api/ - points to project root /data/
-    url: process.env.DATABASE_PATH || "../data/tuvix.db",
+    url: process.env.DATABASE_PATH || "./data/tuvix.db",
   },
 } satisfies Config;
