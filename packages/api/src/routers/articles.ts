@@ -837,7 +837,7 @@ export const articlesRouter = router({
             span.setStatus({ code: 1, message: "ok" });
           } catch (error) {
             span.setStatus({ code: 2, message: "batch failed" });
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               tags: {
                 operation: "mark_articles_read",
                 batch_size: statements.length.toString(),
@@ -971,7 +971,7 @@ export const articlesRouter = router({
             span.setStatus({ code: 1, message: "ok" });
           } catch (error) {
             span.setStatus({ code: 2, message: "batch failed" });
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               tags: {
                 operation: "mark_all_read",
                 batch_size: statements.length.toString(),

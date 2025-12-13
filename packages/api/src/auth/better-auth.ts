@@ -24,7 +24,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import type { BetterAuthUser } from "@/types/better-auth";
-import * as Sentry from "@sentry/node";
+import * as Sentry from "@/utils/sentry";
 
 /**
  * Create Better Auth instance
@@ -152,7 +152,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
           },
           async (span) => {
             // Add breadcrumb for email sending attempt
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "email",
               message: "Sending password reset email",
               level: "info",
@@ -184,7 +184,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               );
 
               // Add breadcrumb for failure
-              await Sentry.addBreadcrumb({
+              Sentry.addBreadcrumb({
                 category: "email",
                 message: "Password reset email failed",
                 level: "error",
@@ -197,7 +197,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               });
             } else {
               // Add breadcrumb for success
-              await Sentry.addBreadcrumb({
+              Sentry.addBreadcrumb({
                 category: "email",
                 message: "Password reset email sent successfully",
                 level: "info",
@@ -226,7 +226,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             } catch (error) {
               // If logging fails, continue silently
               console.error("Error logging password reset email:", error);
-              await Sentry.captureException(error, {
+              Sentry.captureException(error, {
                 tags: {
                   component: "better-auth",
                   operation: "password-reset-audit-log",
@@ -240,7 +240,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 "Failed to send password reset email:",
                 emailResult.error
               );
-              await Sentry.captureException(
+              Sentry.captureException(
                 new Error(emailResult.error || "Unknown error"),
                 {
                   tags: {
@@ -292,7 +292,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
           };
         } catch (error) {
           // Log error to Sentry but don't block session creation
-          await Sentry.captureException(error, {
+          Sentry.captureException(error, {
             tags: {
               component: "better-auth",
               operation: "custom-session",
@@ -362,7 +362,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               },
               async (span) => {
                 // Add breadcrumb for email sending attempt
-                await Sentry.addBreadcrumb({
+                Sentry.addBreadcrumb({
                   category: "email",
                   message: "Sending verification email",
                   level: "info",
@@ -395,7 +395,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       span?.setStatus({ code: 2, message: "email failed" });
 
                       // Add breadcrumb for failure
-                      await Sentry.addBreadcrumb({
+                      Sentry.addBreadcrumb({
                         category: "email",
                         message: "Verification email failed",
                         level: "error",
@@ -408,7 +408,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       });
 
                       // Log critical email failures to Sentry
-                      await Sentry.captureException(
+                      Sentry.captureException(
                         new Error(
                           emailResult.error ||
                             "Failed to send verification email"
@@ -437,7 +437,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       span?.setStatus({ code: 1, message: "ok" });
 
                       // Add breadcrumb for success
-                      await Sentry.addBreadcrumb({
+                      Sentry.addBreadcrumb({
                         category: "email",
                         message: "Verification email sent successfully",
                         level: "info",
@@ -449,7 +449,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       });
                     }
                   })
-                  .catch(async (error) => {
+                  .catch((error) => {
                     span?.setAttribute(
                       "email.exception",
                       error instanceof Error ? error.message : String(error)
@@ -457,7 +457,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     span?.setStatus({ code: 2, message: "exception" });
 
                     // Add breadcrumb for unexpected error
-                    await Sentry.addBreadcrumb({
+                    Sentry.addBreadcrumb({
                       category: "email",
                       message: "Unexpected error sending verification email",
                       level: "error",
@@ -473,7 +473,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     });
 
                     // Log unexpected exceptions (e.g., network errors, timeouts)
-                    await Sentry.captureException(error, {
+                    Sentry.captureException(error, {
                       tags: {
                         component: "better-auth",
                         operation: "email-verification",
@@ -501,12 +501,12 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               }
             );
           })
-          .catch(async (error) => {
+          .catch((error) => {
             console.error(
               "Failed to check email verification settings:",
               error
             );
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               tags: {
                 component: "better-auth",
                 operation: "check-verification-settings",
@@ -593,7 +593,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     },
                     async (span) => {
                       // Add breadcrumb for email sending attempt
-                      await Sentry.addBreadcrumb({
+                      Sentry.addBreadcrumb({
                         category: "email",
                         message: "Sending welcome email",
                         level: "info",
@@ -631,7 +631,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             });
 
                             // Add breadcrumb for failure
-                            await Sentry.addBreadcrumb({
+                            Sentry.addBreadcrumb({
                               category: "email",
                               message: "Welcome email failed",
                               level: "error",
@@ -644,7 +644,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             });
 
                             // Log email failures to Sentry
-                            await Sentry.captureException(
+                            Sentry.captureException(
                               new Error(
                                 emailResult.error ||
                                   "Failed to send welcome email"
@@ -674,7 +674,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             span?.setStatus({ code: 1, message: "ok" });
 
                             // Add breadcrumb for success
-                            await Sentry.addBreadcrumb({
+                            Sentry.addBreadcrumb({
                               category: "email",
                               message: "Welcome email sent successfully",
                               level: "info",
@@ -686,7 +686,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             });
                           }
                         })
-                        .catch(async (error) => {
+                        .catch((error) => {
                           span?.setAttribute(
                             "email.exception",
                             error instanceof Error
@@ -696,7 +696,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                           span?.setStatus({ code: 2, message: "exception" });
 
                           // Add breadcrumb for unexpected error
-                          await Sentry.addBreadcrumb({
+                          Sentry.addBreadcrumb({
                             category: "email",
                             message: "Unexpected error sending welcome email",
                             level: "error",
@@ -712,7 +712,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                           });
 
                           // Log unexpected exceptions (e.g., network errors, timeouts)
-                          await Sentry.captureException(error, {
+                          Sentry.captureException(error, {
                             tags: {
                               component: "better-auth",
                               operation: "welcome-email",
@@ -739,12 +739,12 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                   );
                 }
               })
-              .catch(async (error) => {
+              .catch((error) => {
                 console.error(
                   `Error checking welcome email requirements:`,
                   error
                 );
-                await Sentry.captureException(error, {
+                Sentry.captureException(error, {
                   tags: {
                     component: "better-auth",
                     operation: "check-welcome-settings",

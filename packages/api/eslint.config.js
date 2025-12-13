@@ -56,6 +56,7 @@ export default [
       "**/*.test.ts",
       "**/*.test.tsx",
       "**/test/**",
+      "drizzle.config.ts", // Config file outside src/, runs with drizzle-kit CLI
     ],
   },
 ];

@@ -68,7 +68,7 @@ export class DiscoveryRegistry {
           validateFeed,
         };
 
-        await Sentry.addBreadcrumb({
+        Sentry.addBreadcrumb({
           category: "feed.discovery",
           message: `Starting feed discovery for ${url}`,
           level: "info",
@@ -80,7 +80,7 @@ export class DiscoveryRegistry {
           const serviceName = service.constructor.name;
 
           if (!service.canHandle(url)) {
-            await Sentry.addBreadcrumb({
+            Sentry.addBreadcrumb({
               category: "feed.discovery",
               message: `Service ${serviceName} cannot handle URL`,
               level: "debug",
@@ -89,7 +89,7 @@ export class DiscoveryRegistry {
             continue;
           }
 
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "feed.discovery",
             message: `Trying service ${serviceName}`,
             level: "info",
@@ -105,7 +105,7 @@ export class DiscoveryRegistry {
               span.setAttribute("feeds_found", feeds.length);
               span.setStatus({ code: 1, message: "ok" });
 
-              await Sentry.addBreadcrumb({
+              Sentry.addBreadcrumb({
                 category: "feed.discovery",
                 message: `Service ${serviceName} found ${feeds.length} feed(s)`,
                 level: "info",
@@ -122,7 +122,7 @@ export class DiscoveryRegistry {
             // Log error but continue to next service
             span.setAttribute(`service_${serviceName}_failed`, true);
             console.error(`Discovery service ${serviceName} failed:`, error);
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               level: "warning",
               tags: {
                 service: serviceName,
@@ -140,7 +140,7 @@ export class DiscoveryRegistry {
         span.setStatus({ code: 2, message: "No feeds found" });
         span.setAttribute("feeds_found", 0);
 
-        await Sentry.captureException(
+        Sentry.captureException(
           new Error("No RSS or Atom feeds found on this website"),
           {
             level: "info",

@@ -74,7 +74,7 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
       );
     }
 
-    await Sentry.addBreadcrumb({
+    Sentry.addBreadcrumb({
       category: breadcrumb.category || "feed.discovery",
       message: breadcrumb.message,
       level: breadcrumb.level || "info",
@@ -90,7 +90,7 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
       extra?: Record<string, unknown>;
     }
   ): Promise<string | undefined> => {
-    return await Sentry.captureException(error, {
+    return Sentry.captureException(error, {
       level: context?.level || "error",
       tags: context?.tags,
       extra: context?.extra,

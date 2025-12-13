@@ -2,99 +2,53 @@
  * Node.js Cron Scheduler
  *
  * Uses node-cron for Docker deployments.
- * For Cloudflare Workers, scheduled events are used instead (see cloudflare.ts).
+ * Polls every minute and uses the shared executor to determine which tasks to run.
+ * This matches Cloudflare Workers behavior for consistency across runtimes.
  */
 
 import cron from "node-cron";
-import {
-  handleRSSFetch,
-  handleArticlePrune,
-  handleTokenCleanup,
-} from "./handlers";
-import { getGlobalSettings } from "@/services/global-settings";
+import { executeScheduledTasks } from "./executor";
 import { createDatabase } from "@/db/client";
 import type { Env } from "@/types";
 
 /**
- * Convert minutes to cron expression
- *
- * @param minutes Number of minutes
- * @returns Cron expression string
- */
-function minutesToCronExpression(minutes: number): string {
-  if (minutes <= 0) {
-    throw new Error(`Invalid minutes: ${minutes}. Must be positive.`);
-  }
-
-  // For values <= 60, use */minutes format
-  if (minutes <= 60) {
-    return `*/${minutes} * * * *`;
-  }
-
-  // For values > 60, convert to hours
-  const hours = Math.floor(minutes / 60);
-  if (hours === 24) {
-    // Daily at midnight
-    return "0 0 * * *";
-  }
-
-  // Hourly at minute 0
-  return `0 */${hours} * * *`;
-}
-
-/**
  * Initialize cron jobs for Node.js runtime
+ *
+ * Sets up a single cron job that polls every minute.
+ * The executor checks timestamps in global_settings to determine
+ * which tasks should actually run, ensuring consistent behavior
+ * with Cloudflare Workers.
  */
 export async function initCronJobs(env: Env): Promise<void> {
   console.log("⏰ Initializing cron jobs...");
 
   const db = createDatabase(env);
 
-  try {
-    // Get global settings to determine fetch interval
-    const settings = await getGlobalSettings(db);
-    const fetchCronExpression = minutesToCronExpression(
-      settings.fetchIntervalMinutes
-    );
+  // Poll every minute - executor handles timing logic
+  // This matches Cloudflare Workers which triggers every minute via wrangler.toml
+  cron.schedule("* * * * *", async () => {
+    try {
+      const result = await executeScheduledTasks(env, db);
 
-    // Schedule RSS fetch with dynamic interval
-    cron.schedule(fetchCronExpression, async () => {
-      try {
-        await handleRSSFetch(env);
-      } catch (error) {
-        console.error("❌ RSS fetch cron job error:", error);
-        throw error;
+      // Only log summary if something was executed
+      const executed = [
+        result.rssFetch.executed && "RSS fetch",
+        result.articlePrune.executed && "article prune",
+        result.tokenCleanup.executed && "token cleanup",
+      ].filter(Boolean);
+
+      if (executed.length > 0) {
+        console.log(`✅ Cron executed: ${executed.join(", ")}`);
       }
-    });
+    } catch (error) {
+      console.error("❌ Cron job error:", error);
+      // Don't rethrow - let the scheduler continue
+    }
+  });
 
-    // Schedule article prune daily at 2 AM
-    cron.schedule("0 2 * * *", async () => {
-      try {
-        await handleArticlePrune(env);
-      } catch (error) {
-        console.error("❌ Prune cron job error:", error);
-        throw error;
-      }
-    });
-
-    // Schedule token cleanup hourly
-    cron.schedule("0 * * * *", async () => {
-      try {
-        await handleTokenCleanup(env);
-      } catch (error) {
-        console.error("❌ Token cleanup cron job error:", error);
-        throw error;
-      }
-    });
-
-    console.log("✅ Cron jobs initialized");
-    console.log(
-      `   - RSS fetch: every ${settings.fetchIntervalMinutes} minutes`
-    );
-    console.log("   - Article prune: daily at 2 AM");
-    console.log("   - Token cleanup: hourly");
-  } catch (error) {
-    console.error("❌ Failed to initialize cron jobs:", error);
-    throw error;
-  }
+  console.log("✅ Cron scheduler initialized (polling every minute)");
+  console.log("   Tasks run based on timestamps in global_settings:");
+  console.log("   - RSS fetch: based on fetchIntervalMinutes setting");
+  console.log("   - Article prune: every 24 hours");
+  console.log("   - Token cleanup: every 7 days");
 }

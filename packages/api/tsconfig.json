@@ -34,6 +34,9 @@
     "types": ["node", "@cloudflare/workers-types"],
     "baseUrl": "./src",
     "paths": {
+      // Sentry path for IDE/type checking. Uses @sentry/cloudflare as canonical API.
+      // Build-time aliasing routes to actual impl: sentry.node.ts, sentry.noop.ts, or this.
+      "@/utils/sentry": ["utils/sentry.cloudflare.ts"],
       "@/utils/*": ["utils/*"],
       "@/db": ["db"],
       "@/db/*": ["db/*"],

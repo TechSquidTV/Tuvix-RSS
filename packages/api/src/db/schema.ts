@@ -529,9 +529,10 @@ export const globalSettings = sqliteTable("global_settings", {
   fetchIntervalMinutes: integer("fetch_interval_minutes").notNull().default(60),
   pruneDays: integer("prune_days").notNull().default(90),
 
-  // Operational timestamps (for Cloudflare Workers)
+  // Operational timestamps (for cron scheduling)
   lastRssFetchAt: integer("last_rss_fetch_at", { mode: "timestamp" }),
   lastPruneAt: integer("last_prune_at", { mode: "timestamp" }),
+  lastTokenCleanupAt: integer("last_token_cleanup_at", { mode: "timestamp" }),
 
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()

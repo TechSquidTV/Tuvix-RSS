@@ -71,6 +71,13 @@
       "when": 1765092141081,
       "tag": "0009_cute_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1765500000000,
+      "tag": "0010_add_last_token_cleanup_at",
+      "breakpoints": true
     }
   ]
 }

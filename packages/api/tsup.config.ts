@@ -1,4 +1,5 @@
 import { defineConfig } from "tsup";
+import path from "path";
 
 export default defineConfig({
   entry: {
@@ -24,4 +25,15 @@ export default defineConfig({
   ],
   splitting: false,
   treeshake: true,
+  // BUILD-TIME ALIAS: Route @/utils/sentry to sentry.node.ts (which wraps @sentry/node)
+  // This replaces runtime detection with build-time SDK selection.
+  // - Node.js builds: sentry.node.ts → @sentry/node (via this config)
+  // - Cloudflare Workers: sentry.cloudflare.ts → @sentry/cloudflare (via wrangler)
+  // - Tests: sentry.noop.ts (via vitest.config.ts alias)
+  esbuildOptions(options) {
+    options.alias = {
+      ...options.alias,
+      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.node.ts"),
+    };
+  },
 });

@@ -328,7 +328,7 @@ export async function fetchSingleFeed(
           }
         }
 
-        await Sentry.addBreadcrumb({
+        Sentry.addBreadcrumb({
           category: "feed.fetch",
           message: `Fetching feed from ${feedUrl}`,
           level: "info",
@@ -355,7 +355,7 @@ export async function fetchSingleFeed(
           const error = new Error(
             `HTTP ${response.status}: ${response.statusText}`
           );
-          await Sentry.captureException(error, {
+          Sentry.captureException(error, {
             level: "error",
             tags: {
               feed_domain: domain || "unknown",
@@ -397,7 +397,7 @@ export async function fetchSingleFeed(
           span.setAttribute("feed_format", feedFormat);
           console.log(`Parsed ${feedUrl} as ${feedFormat}`);
 
-          await Sentry.addBreadcrumb({
+          Sentry.addBreadcrumb({
             category: "feed.fetch",
             message: `Parsed feed as ${feedFormat}`,
             level: "info",
@@ -408,7 +408,7 @@ export async function fetchSingleFeed(
           const parseError = new Error(
             `Failed to parse feed: ${error instanceof Error ? error.message : "Unknown"}`
           );
-          await Sentry.captureException(parseError, {
+          Sentry.captureException(parseError, {
             level: "error",
             tags: {
               feed_domain: domain || "unknown",
@@ -670,7 +670,7 @@ async function storeArticles(
           newArticles.push(articleData);
         } catch (error) {
           console.error("Failed to extract article data:", error);
-          await Sentry.captureException(error, {
+          Sentry.captureException(error, {
             level: "warning",
             tags: {
               operation: "extract_article_data",
@@ -717,7 +717,7 @@ async function storeArticles(
             }
           } catch (error) {
             console.error("Failed to batch insert articles:", error);
-            await Sentry.captureException(error, {
+            Sentry.captureException(error, {
               level: "warning",
               tags: {
                 operation: "batch_insert_articles",
@@ -745,7 +745,7 @@ async function storeArticles(
       }
 
       if (guidSamplesForLogging.length > 0) {
-        await Sentry.addBreadcrumb({
+        Sentry.addBreadcrumb({
           category: "feed.store",
           message: `Processed ${items.length} items from feed`,
           level: "info",
