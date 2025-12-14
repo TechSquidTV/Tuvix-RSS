@@ -126,7 +126,9 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
       ];
 
       // Helper to recursively remove PII from an object
-      const removePII = (obj: Record<string, unknown>): Record<string, unknown> => {
+      const removePII = (
+        obj: Record<string, unknown>
+      ): Record<string, unknown> => {
         const cleaned = { ...obj };
         for (const key of piiFields) {
           delete cleaned[key];
