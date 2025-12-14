@@ -146,13 +146,18 @@ export const authRouter = router({
 
                   return result;
                 } catch (error) {
-                  span?.setAttribute("auth.error", (error as Error).message);
-                  span?.setAttribute("auth.error_type", (error as Error).name);
+                  const errorMessage =
+                    error instanceof Error ? error.message : String(error);
+                  const errorType =
+                    error instanceof Error ? error.name : "UnknownError";
+
+                  span?.setAttribute("auth.error", errorMessage);
+                  span?.setAttribute("auth.error_type", errorType);
 
                   // Emit Better Auth API failure metric
                   emitCounter("signup.better_auth_api_failure", 1, {
                     api_method: "signUpEmail",
-                    error_type: (error as Error).name,
+                    error_type: errorType,
                   });
 
                   Sentry.captureException(error, {
@@ -294,15 +299,24 @@ export const authRouter = router({
                     is_first_user: isFirstUser ? "true" : "false",
                   });
                 } catch (initError) {
+                  const initErrorMessage =
+                    initError instanceof Error
+                      ? initError.message
+                      : String(initError);
+                  const initErrorType =
+                    initError instanceof Error
+                      ? initError.name
+                      : "UnknownError";
+
                   // Capture error with full context for debugging
                   span?.setAttributes({
                     "auth.init_error": true,
-                    "auth.error_message": (initError as Error).message,
+                    "auth.error_message": initErrorMessage,
                   });
 
                   // Emit initialization failure metric
                   emitCounter("signup.init_failed", 1, {
-                    error_type: (initError as Error).name,
+                    error_type: initErrorType,
                     user_id: userId!.toString(),
                   });
 
