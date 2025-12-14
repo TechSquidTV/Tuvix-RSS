@@ -183,9 +183,8 @@ export function createHonoApp(config: HonoAppConfig) {
     const { username, slug } = c.req.param();
     const env = c.get("env");
     const { getUserLimits } = await import("../services/limits");
-    const { checkPublicFeedRateLimit } = await import(
-      "../services/rate-limiter"
-    );
+    const { checkPublicFeedRateLimit } =
+      await import("../services/rate-limiter");
     const schema = await import("../db/schema");
     const { sql, eq, and } = await import("drizzle-orm");
 
