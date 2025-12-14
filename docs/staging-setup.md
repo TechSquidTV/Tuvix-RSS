@@ -51,22 +51,22 @@ Create a **new environment** called `staging`, then add these secrets:
 
 #### Staging Environment Secrets
 
-| Secret Name | Value | Description |
-|-------------|-------|-------------|
-| `STAGING_D1_DATABASE_ID` | `abc123-def456-ghi789` | Database ID from step 1 |
-| `STAGING_CLOUDFLARE_PAGES_PROJECT_NAME` | `tuvix-app-staging` | Pages project name from step 2 |
-| `STAGING_VITE_API_URL` | `https://tuvix-api-staging.workers.dev` | Staging API URL |
+| Secret Name                             | Value                                   | Description                    |
+| --------------------------------------- | --------------------------------------- | ------------------------------ |
+| `STAGING_D1_DATABASE_ID`                | `abc123-def456-ghi789`                  | Database ID from step 1        |
+| `STAGING_CLOUDFLARE_PAGES_PROJECT_NAME` | `tuvix-app-staging`                     | Pages project name from step 2 |
+| `STAGING_VITE_API_URL`                  | `https://tuvix-api-staging.workers.dev` | Staging API URL                |
 
 #### Shared Secrets (if not already set)
 
 These should already exist in your repository secrets (not environment-specific):
 
-| Secret Name | Value | Description |
-|-------------|-------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Your API token | Token with Workers/Pages/D1 permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Your account ID | Found in Cloudflare dashboard |
-| `VITE_SENTRY_DSN` | Your Sentry DSN | Frontend error tracking (optional) |
-| `SENTRY_DSN` | Your Sentry DSN | Backend error tracking (optional) |
+| Secret Name             | Value           | Description                             |
+| ----------------------- | --------------- | --------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Your API token  | Token with Workers/Pages/D1 permissions |
+| `CLOUDFLARE_ACCOUNT_ID` | Your account ID | Found in Cloudflare dashboard           |
+| `VITE_SENTRY_DSN`       | Your Sentry DSN | Frontend error tracking (optional)      |
+| `SENTRY_DSN`            | Your Sentry DSN | Backend error tracking (optional)       |
 
 ### 4. Set Staging Worker Secrets
 
@@ -145,6 +145,7 @@ wrangler d1 list
 ### Deployment fails with "Insufficient permissions"
 
 Ensure `CLOUDFLARE_API_TOKEN` has these permissions:
+
 - Account: Cloudflare D1 - Edit
 - Account: Workers Scripts - Edit
 - Account: Cloudflare Pages - Edit
