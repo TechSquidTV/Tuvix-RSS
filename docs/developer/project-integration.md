@@ -70,7 +70,7 @@ packages/api/
 │   ├── routers/             # API endpoints
 │   ├── adapters/            # Express & Cloudflare
 │   ├── db/                  # Database schema & client
-│   ├── auth/                # JWT & authentication
+│   ├── auth/                # Better Auth authentication
 │   └── types/               # Shared types
 ├── package.json
 └── tsconfig.json
@@ -944,7 +944,7 @@ The TuvixRSS frontend and backend are integrated through:
 2. **tRPC:** Type-safe API calls with zero code generation
 3. **TypeScript:** End-to-end type safety from database to UI
 4. **TanStack Query:** Caching, invalidation, optimistic updates
-5. **JWT Authentication:** Secure token-based auth
+5. **Better Auth:** HTTP-only cookie session-based authentication
 6. **Environment Variables:** Configuration for different deployments
 7. **Build Pipeline:** API first, then app
 
@@ -959,4 +959,4 @@ This architecture provides:
 
 ---
 
-**Last Updated:** 2025-01-13
+**Last Updated:** 2025-12-13
