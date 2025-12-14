@@ -599,8 +599,9 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 // Emit metric for welcome email attempt
                 emitCounter("email.welcome_attempt", 1, {
                   user_id: user.id,
-                  verification_skipped:
-                    (!settings.requireEmailVerification).toString(),
+                  verification_skipped: !settings.requireEmailVerification
+                    ? "true"
+                    : "false",
                 });
 
                 // Send welcome email with Sentry tracking (awaited)
@@ -644,8 +645,9 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       emitCounter("email.welcome_sent", 1, {
                         success: emailResult.success ? "true" : "false",
                         user_id: user.id,
-                        verification_skipped:
-                          (!settings.requireEmailVerification).toString(),
+                        verification_skipped: !settings.requireEmailVerification
+                          ? "true"
+                          : "false",
                       });
 
                       emitDistribution(

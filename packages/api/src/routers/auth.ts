@@ -291,7 +291,7 @@ export const authRouter = router({
                   emitCounter("signup.user_initialized", 1, {
                     role: roleData.role,
                     plan: roleData.plan,
-                    is_first_user: isFirstUser.toString(),
+                    is_first_user: isFirstUser ? "true" : "false",
                   });
                 } catch (initError) {
                   // Capture error with full context for debugging
