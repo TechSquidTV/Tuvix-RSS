@@ -338,22 +338,54 @@ export const authRouter = router({
                     },
                   });
 
-                  // Emit rollback metric
-                  emitCounter("signup.rollback_executed", 1, {
-                    reason: "init_failed",
-                    user_id: userId!.toString(),
-                  });
-
                   // Rollback: Delete the incomplete user
-                  await ctx.db
-                    .delete(schema.user)
-                    .where(eq(schema.user.id, userId!));
+                  // Emit metrics AFTER successful deletion to ensure accuracy
+                  try {
+                    await ctx.db
+                      .delete(schema.user)
+                      .where(eq(schema.user.id, userId!));
 
-                  // Emit user deletion metric
-                  emitCounter("signup.user_deleted", 1, {
-                    reason: "rollback",
-                    user_id: userId!.toString(),
-                  });
+                    // Rollback successful - emit success metrics
+                    emitCounter("signup.rollback_executed", 1, {
+                      reason: "init_failed",
+                      user_id: userId!.toString(),
+                    });
+
+                    emitCounter("signup.user_deleted", 1, {
+                      reason: "rollback",
+                      user_id: userId!.toString(),
+                    });
+                  } catch (rollbackError) {
+                    // Rollback failed - emit failure metric for observability
+                    // This indicates orphaned user data that may need manual cleanup
+                    emitCounter("signup.rollback_failed", 1, {
+                      reason: "delete_failed",
+                      user_id: userId!.toString(),
+                      error_type:
+                        rollbackError instanceof Error
+                          ? rollbackError.name
+                          : "UnknownError",
+                    });
+
+                    Sentry.captureException(rollbackError, {
+                      level: "error",
+                      tags: {
+                        flow: "signup",
+                        step: "rollback_delete",
+                        severity: "critical",
+                      },
+                      extra: {
+                        userId: userId!,
+                        email: input.email,
+                        originalError: initErrorMessage,
+                      },
+                    });
+
+                    console.error(
+                      "CRITICAL: Failed to rollback user creation - orphaned user data:",
+                      rollbackError
+                    );
+                  }
 
                   throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
