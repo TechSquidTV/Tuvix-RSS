@@ -183,8 +183,8 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 
 **Comprehensive authentication system documentation**
 
-- JWT-based authentication implementation
-- Password security (bcrypt, complexity requirements)
+- Better Auth session-based authentication (HTTP-only cookies)
+- Password security (scrypt via Better Auth)
 - Rate limiting and brute force protection
 - User roles and permissions
 - Plan system and resource limits
@@ -410,7 +410,9 @@ This directory contains comprehensive documentation for TuvixRSS, a self-hosted 
 
 ## Planning Documents
 
-The `planning/` directory is reserved for implementation plans and technical proposals for future enhancements. Currently empty - all previous plans have been completed.
+The `planning/` directory contains implementation plans and technical proposals for future enhancements:
+
+- **[Queue-Based Feed Fetching](./planning/queue-based-feed-fetching.md)** - Plan for migrating from cron-based to queue-based feed fetching using Cloudflare Queues (not yet implemented)
 
 ---
 
@@ -484,5 +486,5 @@ When adding new documentation:
 
 ---
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-13
 **Maintained By:** TuvixRSS Team

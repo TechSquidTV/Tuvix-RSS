@@ -32,11 +32,24 @@ Tuvix supports two deployment methods:
 
 See the **[Deployment Guide](./docs/deployment.md)** for detailed instructions.
 
+> **📦 Docker Images Coming Soon:** Pre-built container images will be published to a container registry once the project reaches a stable release. For now, use the Dockerfiles and docker-compose scripts included in the repository.
+
 ### Quick Start (Docker)
+
+> **⚠️ Use a Release:** The `main` branch contains active development and is not guaranteed to be stable. Always use the latest release for self-hosting.
+
+Clone the repository and checkout the latest release:
 
 ```bash
 git clone https://github.com/TechSquidTV/Tuvix-RSS.git
 cd Tuvix-RSS
+# Checkout the latest release tag (v*)
+git checkout $(git tag -l 'v*' | sort -V | tail -n1)
+```
+
+Configure and run:
+
+```bash
 cp env.example .env
 # Edit .env and configure:
 # 1. BETTER_AUTH_SECRET (generate: openssl rand -base64 32)
