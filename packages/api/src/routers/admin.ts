@@ -2063,12 +2063,17 @@ export const adminRouter = router({
 
   /**
    * Manually trigger RSS feed refresh for all feeds (admin only)
+   * Note: This operation is synchronous and waits for all feeds to refresh
+   * May take several minutes depending on the number of feeds
    */
   refreshAllFeeds: adminProcedure
     .output(
       z.object({
-        message: z.string(),
         triggered: z.boolean(),
+        completed: z.boolean(),
+        successCount: z.number(),
+        errorCount: z.number(),
+        error: z.string().optional(),
       })
     )
     .mutation(async ({ ctx }) => {
@@ -2086,48 +2091,61 @@ export const adminRouter = router({
         );
       }
 
-      // Trigger fetch in background (don't await)
-      fetchAllFeeds(ctx.db)
-        .then(async (result) => {
-          console.log(
-            `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`
-          );
+      // Execute feed refresh and await completion
+      // Note: This will block the response until all feeds are refreshed
+      // This ensures the refresh actually completes in Cloudflare Workers
+      // where async operations are terminated when the response is sent
+      try {
+        const result = await fetchAllFeeds(ctx.db);
 
-          // Capture errors as breadcrumbs if any feeds failed (only if Sentry available)
-          if (Sentry && result.errorCount > 0) {
-            Sentry.addBreadcrumb({
-              category: "rss.fetch",
-              message: `RSS fetch completed with ${result.errorCount} errors`,
-              level: "warning",
-              data: {
-                success_count: result.successCount,
-                error_count: result.errorCount,
-                errors: result.errors.slice(0, 5), // First 5 errors
-              },
-            });
-          }
-        })
-        .catch(async (error) => {
-          console.error("Feed refresh failed:", error);
+        console.log(
+          `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`
+        );
 
-          // Capture unexpected errors to Sentry (only if Sentry available)
-          if (Sentry) {
-            Sentry.captureException(error, {
-              level: "error",
-              tags: {
-                operation: "admin_refresh_all_feeds",
-                context: "background_fetch",
-              },
-              extra: {
-                user_id: ctx.user.userId,
-              },
-            });
-          }
-        });
+        // Capture errors as breadcrumbs if any feeds failed (only if Sentry available)
+        if (Sentry && result.errorCount > 0) {
+          Sentry.addBreadcrumb({
+            category: "rss.fetch",
+            message: `RSS fetch completed with ${result.errorCount} errors`,
+            level: "warning",
+            data: {
+              success_count: result.successCount,
+              error_count: result.errorCount,
+              errors: result.errors.slice(0, 5), // First 5 errors
+            },
+          });
+        }
 
-      return {
-        triggered: true,
-        message: "Feed refresh triggered in background",
-      };
+        return {
+          triggered: true,
+          completed: true,
+          successCount: result.successCount,
+          errorCount: result.errorCount,
+        };
+      } catch (error) {
+        console.error("Feed refresh failed:", error);
+
+        // Capture unexpected errors to Sentry (only if Sentry available)
+        if (Sentry) {
+          Sentry.captureException(error, {
+            level: "error",
+            tags: {
+              operation: "admin_refresh_all_feeds",
+              context: "synchronous_fetch",
+            },
+            extra: {
+              user_id: ctx.user.userId,
+            },
+          });
+        }
+
+        return {
+          triggered: true,
+          completed: false,
+          successCount: 0,
+          errorCount: 0,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
     }),
 });

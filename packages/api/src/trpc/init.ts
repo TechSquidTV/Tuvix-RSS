@@ -177,7 +177,7 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
   }
 
   // Update lastSeenAt (throttled to once every 5 minutes)
-  // Fire-and-forget update to avoid blocking the request
+  // Awaited to ensure completion before response (adds ~5-10ms)
   const now = new Date();
   const lastSeen = userRecord.lastSeenAt;
   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
@@ -187,30 +187,28 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     // Capture userId for error logging (TypeScript safety)
     const userId = ctx.user.userId;
 
-    // Fire-and-forget update (don't await)
+    // Await update to ensure completion
     // Note: Race condition is acceptable here - worst case multiple rapid requests
     // update lastSeenAt simultaneously, but all will set roughly the same timestamp
-    ctx.db
-      .update(schema.user)
-      .set({ lastSeenAt: now })
-      .where(eq(schema.user.id, userId))
-      .then(() => {
-        // Query executed successfully - no action needed
-      })
-      .catch((error) => {
-        // Log error to Sentry but don't fail the request
-        // Using 'info' level since this is fire-and-forget user activity tracking
-        Sentry.captureException(error, {
-          level: "info",
-          tags: {
-            context: "isAuthed_middleware",
-            operation: "update_lastSeenAt",
-          },
-          extra: {
-            userId,
-          },
-        });
+    try {
+      await ctx.db
+        .update(schema.user)
+        .set({ lastSeenAt: now })
+        .where(eq(schema.user.id, userId));
+    } catch (error) {
+      // Log error to Sentry but don't fail the request
+      // Using 'info' level since this is user activity tracking
+      Sentry.captureException(error, {
+        level: "info",
+        tags: {
+          context: "isAuthed_middleware",
+          operation: "update_lastSeenAt",
+        },
+        extra: {
+          userId,
+        },
       });
+    }
   }
 
   return next({
