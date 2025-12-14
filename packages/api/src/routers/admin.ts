@@ -2063,6 +2063,15 @@ export const adminRouter = router({
 
   /**
    * Manually trigger RSS feed refresh for all feeds (admin only)
+   *
+   * Note: This operation runs asynchronously (fire-and-forget) and returns immediately.
+   * The actual feed refresh continues in the background. In Cloudflare Workers, background
+   * tasks may be terminated when the response is sent unless waitUntil is used.
+   *
+   * For guaranteed completion of long-running operations, consider using:
+   * - Cloudflare Queues for reliable background processing
+   * - Durable Objects for stateful long-running tasks
+   * - Scheduled triggers (cron) for periodic refresh
    */
   refreshAllFeeds: adminProcedure
     .output(
@@ -2086,9 +2095,11 @@ export const adminRouter = router({
         );
       }
 
-      // Trigger fetch in background (don't await)
+      // Fire-and-forget: Start the feed refresh but don't await completion
+      // This prevents timeout issues in Cloudflare Workers for large feed counts
+      // Note: In Cloudflare Workers, this may be terminated when response is sent
       fetchAllFeeds(ctx.db)
-        .then(async (result) => {
+        .then((result) => {
           console.log(
             `Feed refresh completed: ${result.successCount} succeeded, ${result.errorCount} failed`
           );
@@ -2107,7 +2118,7 @@ export const adminRouter = router({
             });
           }
         })
-        .catch(async (error) => {
+        .catch((error) => {
           console.error("Feed refresh failed:", error);
 
           // Capture unexpected errors to Sentry (only if Sentry available)
@@ -2116,7 +2127,7 @@ export const adminRouter = router({
               level: "error",
               tags: {
                 operation: "admin_refresh_all_feeds",
-                context: "background_fetch",
+                context: "fire_and_forget",
               },
               extra: {
                 user_id: ctx.user.userId,
@@ -2126,8 +2137,9 @@ export const adminRouter = router({
         });
 
       return {
+        message:
+          "Feed refresh triggered. Check logs for completion status. Note: In serverless environments, background tasks may not complete if the worker terminates.",
         triggered: true,
-        message: "Feed refresh triggered in background",
       };
     }),
 });

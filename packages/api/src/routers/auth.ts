@@ -76,13 +76,29 @@ export const authRouter = router({
           let userId: number | undefined;
           let isFirstUser = false;
 
+          // Emit funnel start metric
+          emitCounter("signup.funnel", 1, {
+            stage: "started",
+          });
+
           try {
             // Check if registration is allowed
             const settings = await getGlobalSettings(ctx.db);
             if (!settings.allowRegistration) {
               parentSpan?.setAttribute("auth.registration_disabled", true);
+
+              // Emit metrics for registration disabled
               emitCounter("auth.signup_blocked", 1, {
                 reason: "registration_disabled",
+              });
+
+              emitCounter("signup.registration_disabled", 1);
+
+              // Add breadcrumb
+              Sentry.addBreadcrumb({
+                category: "auth",
+                message: "Signup blocked: registration disabled",
+                level: "warning",
               });
 
               throw new TRPCError({
@@ -130,7 +146,20 @@ export const authRouter = router({
 
                   return result;
                 } catch (error) {
-                  span?.setAttribute("auth.error", (error as Error).message);
+                  const errorMessage =
+                    error instanceof Error ? error.message : String(error);
+                  const errorType =
+                    error instanceof Error ? error.name : "UnknownError";
+
+                  span?.setAttribute("auth.error", errorMessage);
+                  span?.setAttribute("auth.error_type", errorType);
+
+                  // Emit Better Auth API failure metric
+                  emitCounter("signup.better_auth_api_failure", 1, {
+                    api_method: "signUpEmail",
+                    error_type: errorType,
+                  });
+
                   Sentry.captureException(error, {
                     tags: {
                       flow: "signup",
@@ -157,6 +186,12 @@ export const authRouter = router({
 
             userId = Number(result.user.id);
             const resultUser = result.user as Partial<BetterAuthUser>;
+
+            // Emit funnel progress: user created
+            emitCounter("signup.funnel", 1, {
+              stage: "user_created",
+              user_id: userId.toString(),
+            });
 
             // Update Sentry user context with ID
             Sentry.setUser({
@@ -205,6 +240,20 @@ export const authRouter = router({
                     role = "admin";
                     plan = ADMIN_PLAN;
                     isFirstUser = true;
+
+                    // Emit metric for first user admin assignment
+                    emitCounter("signup.first_user_admin", 1, {
+                      user_id: userId!.toString(),
+                    });
+
+                    Sentry.addBreadcrumb({
+                      category: "auth",
+                      message: "First user assigned admin role",
+                      level: "info",
+                      data: {
+                        user_id: userId!,
+                      },
+                    });
                   }
                 }
 
@@ -237,11 +286,38 @@ export const authRouter = router({
                     "auth.role": roleData.role,
                     "auth.plan": roleData.plan,
                   });
+
+                  // Emit funnel progress: user initialized
+                  emitCounter("signup.funnel", 1, {
+                    stage: "initialized",
+                    user_id: userId!.toString(),
+                  });
+
+                  emitCounter("signup.user_initialized", 1, {
+                    role: roleData.role,
+                    plan: roleData.plan,
+                    is_first_user: isFirstUser ? "true" : "false",
+                  });
                 } catch (initError) {
+                  const initErrorMessage =
+                    initError instanceof Error
+                      ? initError.message
+                      : String(initError);
+                  const initErrorType =
+                    initError instanceof Error
+                      ? initError.name
+                      : "UnknownError";
+
                   // Capture error with full context for debugging
                   span?.setAttributes({
                     "auth.init_error": true,
-                    "auth.error_message": (initError as Error).message,
+                    "auth.error_message": initErrorMessage,
+                  });
+
+                  // Emit initialization failure metric
+                  emitCounter("signup.init_failed", 1, {
+                    error_type: initErrorType,
+                    user_id: userId!.toString(),
                   });
 
                   console.error(
@@ -263,9 +339,53 @@ export const authRouter = router({
                   });
 
                   // Rollback: Delete the incomplete user
-                  await ctx.db
-                    .delete(schema.user)
-                    .where(eq(schema.user.id, userId!));
+                  // Emit metrics AFTER successful deletion to ensure accuracy
+                  try {
+                    await ctx.db
+                      .delete(schema.user)
+                      .where(eq(schema.user.id, userId!));
+
+                    // Rollback successful - emit success metrics
+                    emitCounter("signup.rollback_executed", 1, {
+                      reason: "init_failed",
+                      user_id: userId!.toString(),
+                    });
+
+                    emitCounter("signup.user_deleted", 1, {
+                      reason: "rollback",
+                      user_id: userId!.toString(),
+                    });
+                  } catch (rollbackError) {
+                    // Rollback failed - emit failure metric for observability
+                    // This indicates orphaned user data that may need manual cleanup
+                    emitCounter("signup.rollback_failed", 1, {
+                      reason: "delete_failed",
+                      user_id: userId!.toString(),
+                      error_type:
+                        rollbackError instanceof Error
+                          ? rollbackError.name
+                          : "UnknownError",
+                    });
+
+                    Sentry.captureException(rollbackError, {
+                      level: "error",
+                      tags: {
+                        flow: "signup",
+                        step: "rollback_delete",
+                        severity: "critical",
+                      },
+                      extra: {
+                        userId: userId!,
+                        email: input.email,
+                        originalError: initErrorMessage,
+                      },
+                    });
+
+                    console.error(
+                      "CRITICAL: Failed to rollback user creation - orphaned user data:",
+                      rollbackError
+                    );
+                  }
 
                   throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
@@ -320,6 +440,12 @@ export const authRouter = router({
             );
 
             const totalDuration = Date.now() - startTime;
+
+            // Emit funnel completion metric
+            emitCounter("signup.funnel", 1, {
+              stage: "completed",
+              user_id: userId.toString(),
+            });
 
             // Set attributes on parent span
             parentSpan?.setAttributes({

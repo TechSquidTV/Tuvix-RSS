@@ -235,7 +235,7 @@ export function createHonoApp(config: HonoAppConfig) {
       throw error;
     }
 
-    // Log access (non-blocking)
+    // Log access (awaited to ensure completion)
     const [feed] = await ctx.db
       .select()
       .from(schema.feeds)
@@ -248,15 +248,17 @@ export function createHonoApp(config: HonoAppConfig) {
         c.req.header("x-forwarded-for") ||
         "unknown";
 
-      ctx.db
-        .insert(schema.publicFeedAccessLog)
-        .values({
+      try {
+        await ctx.db.insert(schema.publicFeedAccessLog).values({
           feedId: feed.id,
           ipAddress: clientIP,
           userAgent: c.req.header("user-agent") || null,
           accessedAt: new Date(),
-        })
-        .catch(console.error);
+        });
+      } catch (error) {
+        // Log but don't fail the feed request
+        console.error("Failed to log feed access:", error);
+      }
     }
 
     c.header("Content-Type", "application/rss+xml; charset=utf-8");

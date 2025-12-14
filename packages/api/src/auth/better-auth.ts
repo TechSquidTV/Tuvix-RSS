@@ -25,6 +25,7 @@ import * as schema from "@/db/schema";
 import type { Env } from "@/types";
 import type { BetterAuthUser } from "@/types/better-auth";
 import * as Sentry from "@/utils/sentry";
+import { emitCounter, emitDistribution } from "@/utils/metrics";
 
 /**
  * Create Better Auth instance
@@ -326,142 +327,113 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     // Email verification configuration
     emailVerification: {
       sendVerificationEmail: async ({ user, token }, _request) => {
-        // Fire-and-forget email verification to avoid CPU timeout
-        // Better Auth callbacks don't provide access to waitUntil()
-        // If email fails to send, user can request a new one via resendVerificationEmail
+        // Send verification email and await completion
+        // This ensures the email is sent before the response completes
+        // Adds ~100-300ms latency but guarantees delivery and error capture
 
-        // Check if email verification is required (don't block on this)
-        getCachedSettings()
-          .then((settings) => {
-            if (!settings.requireEmailVerification) {
-              return; // Skip sending if not required
-            }
+        try {
+          // Check if email verification is required
+          const settings = await getCachedSettings();
+          if (!settings.requireEmailVerification) {
+            return; // Skip sending if not required
+          }
 
-            const userWithPlugins = user as BetterAuthUser;
+          const userWithPlugins = user as BetterAuthUser;
 
-            // Create frontend verification URL instead of using backend URL
-            // This ensures proper logo loading and post-verification redirect
-            const frontendVerificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+          // Create frontend verification URL instead of using backend URL
+          // This ensures proper logo loading and post-verification redirect
+          const frontendVerificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-            // Send verification email (fire-and-forget with Sentry tracking)
-            // Wrap in Sentry span for monitoring even though we don't await
-            Sentry.startSpan(
-              {
-                op: "email.verification",
-                name: "Send Verification Email (Fire-and-Forget)",
-                attributes: {
-                  user_id: user.id,
-                  fire_and_forget: true,
-                },
+          // Emit metric for verification email attempt
+          emitCounter("email.verification_attempt", 1, {
+            user_id: user.id,
+          });
+
+          // Send verification email with Sentry tracking (awaited)
+          const startTime = Date.now();
+          await Sentry.startSpan(
+            {
+              op: "email.verification",
+              name: "Send Verification Email",
+              attributes: {
+                user_id: user.id,
               },
-              async (span) => {
-                // Add breadcrumb for email sending attempt
-                Sentry.addBreadcrumb({
-                  category: "email",
-                  message: "Sending verification email",
-                  level: "info",
-                  data: {
-                    user_id: user.id,
-                    email_type: "verification",
-                  },
-                });
+            },
+            async (span) => {
+              // Add breadcrumb for email sending attempt
+              Sentry.addBreadcrumb({
+                category: "email",
+                message: "Sending verification email",
+                level: "info",
+                data: {
+                  user_id: user.id,
+                  email_type: "verification",
+                },
+              });
 
-                sendVerificationEmail(env, {
+              try {
+                const emailResult = await sendVerificationEmail(env, {
                   to: user.email,
                   username:
                     (userWithPlugins.username as string | undefined) ||
                     user.name ||
                     "User",
                   verificationToken: token,
-                  verificationUrl: frontendVerificationUrl, // Frontend URL instead of backend URL
-                })
-                  .then(async (emailResult) => {
-                    // Track result in span
-                    span?.setAttribute("email.success", emailResult.success);
+                  verificationUrl: frontendVerificationUrl,
+                });
 
-                    // Check if email sending failed
-                    if (!emailResult.success) {
-                      span?.setAttribute(
-                        "email.error",
-                        emailResult.error || "Unknown error"
-                      );
-                      span?.setStatus({ code: 2, message: "email failed" });
+                const duration = Date.now() - startTime;
 
-                      // Add breadcrumb for failure
-                      Sentry.addBreadcrumb({
-                        category: "email",
-                        message: "Verification email failed",
-                        level: "error",
-                        data: {
-                          user_id: user.id,
-                          error: emailResult.error,
-                          email_type: "verification",
-                        },
-                      });
+                // Track result in span
+                span?.setAttribute("email.success", emailResult.success);
 
-                      // Log critical email failures to Sentry
-                      Sentry.captureException(
-                        new Error(
-                          emailResult.error ||
-                            "Failed to send verification email"
-                        ),
-                        {
-                          tags: {
-                            component: "better-auth",
-                            operation: "email-verification",
-                            email_type: "verification",
-                          },
-                          extra: {
-                            user_id: user.id,
-                            errorMessage: emailResult.error,
-                          },
-                          level: "error",
-                        }
-                      );
+                // Emit metrics for email delivery
+                emitCounter("email.verification_sent", 1, {
+                  success: emailResult.success ? "true" : "false",
+                  user_id: user.id,
+                });
 
-                      console.error("Failed to send verification email:", {
-                        user_id: user.id,
-                        error: emailResult.error,
-                      });
-                    } else {
-                      span?.setStatus({ code: 1, message: "ok" });
+                emitDistribution(
+                  "email.verification_duration",
+                  duration,
+                  "millisecond",
+                  {
+                    success: emailResult.success ? "true" : "false",
+                  }
+                );
 
-                      // Add breadcrumb for success
-                      Sentry.addBreadcrumb({
-                        category: "email",
-                        message: "Verification email sent successfully",
-                        level: "info",
-                        data: {
-                          user_id: user.id,
-                          email_type: "verification",
-                        },
-                      });
-                    }
-                  })
-                  .catch((error) => {
-                    span?.setAttribute(
-                      "email.exception",
-                      error instanceof Error ? error.message : String(error)
-                    );
-                    span?.setStatus({ code: 2, message: "exception" });
+                // Check if email sending failed
+                if (!emailResult.success) {
+                  span?.setAttribute(
+                    "email.error",
+                    emailResult.error || "Unknown error"
+                  );
+                  span?.setStatus({ code: 2, message: "email failed" });
 
-                    // Add breadcrumb for unexpected error
-                    Sentry.addBreadcrumb({
-                      category: "email",
-                      message: "Unexpected error sending verification email",
-                      level: "error",
-                      data: {
-                        user_id: user.id,
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : String(error),
-                        email_type: "verification",
-                      },
-                    });
+                  // Emit failure metric with error type
+                  emitCounter("email.verification_failed", 1, {
+                    error_type: emailResult.error || "unknown",
+                    user_id: user.id,
+                  });
 
-                    // Log unexpected exceptions (e.g., network errors, timeouts)
-                    Sentry.captureException(error, {
+                  // Add breadcrumb for failure
+                  Sentry.addBreadcrumb({
+                    category: "email",
+                    message: "Verification email failed",
+                    level: "error",
+                    data: {
+                      user_id: user.id,
+                      error: emailResult.error,
+                      email_type: "verification",
+                    },
+                  });
+
+                  // Log critical email failures to Sentry
+                  Sentry.captureException(
+                    new Error(
+                      emailResult.error || "Failed to send verification email"
+                    ),
+                    {
                       tags: {
                         component: "better-auth",
                         operation: "email-verification",
@@ -469,43 +441,102 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       },
                       extra: {
                         user_id: user.id,
+                        errorMessage: emailResult.error,
                       },
                       level: "error",
-                    });
+                    }
+                  );
 
-                    console.error(
-                      "Unexpected error sending verification email:",
-                      {
-                        user_id: user.id,
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : String(error),
-                      }
-                    );
+                  console.error("Failed to send verification email:", {
+                    user_id: user.id,
+                    error: emailResult.error,
                   });
-              }
-            );
-          })
-          .catch((error) => {
-            console.error(
-              "Failed to check email verification settings:",
-              error
-            );
-            Sentry.captureException(error, {
-              tags: {
-                component: "better-auth",
-                operation: "check-verification-settings",
-              },
-              extra: {
-                user_id: user.id,
-              },
-              level: "warning",
-            });
-          });
+                } else {
+                  span?.setStatus({ code: 1, message: "ok" });
 
-        // Return immediately without awaiting
-        return;
+                  // Add breadcrumb for success
+                  Sentry.addBreadcrumb({
+                    category: "email",
+                    message: "Verification email sent successfully",
+                    level: "info",
+                    data: {
+                      user_id: user.id,
+                      email_type: "verification",
+                    },
+                  });
+                }
+              } catch (error) {
+                const duration = Date.now() - startTime;
+
+                span?.setAttribute(
+                  "email.exception",
+                  error instanceof Error ? error.message : String(error)
+                );
+                span?.setStatus({ code: 2, message: "exception" });
+
+                // Emit exception metrics
+                emitCounter("email.verification_exception", 1, {
+                  error_type:
+                    error instanceof Error ? error.name : "UnknownError",
+                  user_id: user.id,
+                });
+
+                emitDistribution(
+                  "email.verification_duration",
+                  duration,
+                  "millisecond",
+                  {
+                    success: "false",
+                    exception: "true",
+                  }
+                );
+
+                // Add breadcrumb for unexpected error
+                Sentry.addBreadcrumb({
+                  category: "email",
+                  message: "Unexpected error sending verification email",
+                  level: "error",
+                  data: {
+                    user_id: user.id,
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                    email_type: "verification",
+                  },
+                });
+
+                // Log unexpected exceptions (e.g., network errors, timeouts)
+                Sentry.captureException(error, {
+                  tags: {
+                    component: "better-auth",
+                    operation: "email-verification",
+                    email_type: "verification",
+                  },
+                  extra: {
+                    user_id: user.id,
+                  },
+                  level: "error",
+                });
+
+                console.error("Unexpected error sending verification email:", {
+                  user_id: user.id,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Failed to check email verification settings:", error);
+          Sentry.captureException(error, {
+            tags: {
+              component: "better-auth",
+              operation: "check-verification-settings",
+            },
+            extra: {
+              user_id: user.id,
+            },
+            level: "warning",
+          });
+        }
       },
       sendOnSignUp: true, // Callback checks requireEmailVerification setting dynamically
       autoSignInAfterVerification: true,
@@ -549,149 +580,120 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             // Note: Registration event logging is handled in the register endpoint
             // after the user is created in the user table, to avoid foreign key constraint issues
 
-            // Send welcome email based on verification requirements (fire-and-forget to avoid CPU timeout)
+            // Send welcome email based on verification requirements (awaited)
             // Logic:
             // 1. If verification is NOT required: Send welcome email immediately
             // 2. If verification IS required but user is already verified: Send welcome email
             //    (This handles edge cases like admins or pre-verified emails)
             // 3. If verification IS required and user is NOT verified: Skip welcome email
             //    (User receives verification email instead; welcome email sent after verification)
-            getCachedSettings()
-              .then((settings) => {
-                const shouldSendWelcome =
-                  !settings.requireEmailVerification || user.emailVerified;
+            try {
+              const settings = await getCachedSettings();
+              const shouldSendWelcome =
+                !settings.requireEmailVerification || user.emailVerified;
 
-                if (shouldSendWelcome) {
-                  const appUrl = frontendUrl;
-                  const userWithPlugins = user as BetterAuthUser;
+              if (shouldSendWelcome) {
+                const appUrl = frontendUrl;
+                const userWithPlugins = user as BetterAuthUser;
 
-                  // Send welcome email (fire-and-forget with Sentry tracking)
-                  Sentry.startSpan(
-                    {
-                      op: "email.welcome",
-                      name: "Send Welcome Email (Fire-and-Forget)",
-                      attributes: {
-                        user_id: user.id,
-                        fire_and_forget: true,
-                      },
+                // Emit metric for welcome email attempt
+                emitCounter("email.welcome_attempt", 1, {
+                  user_id: user.id,
+                  verification_skipped: !settings.requireEmailVerification
+                    ? "true"
+                    : "false",
+                });
+
+                // Send welcome email with Sentry tracking (awaited)
+                const startTime = Date.now();
+                await Sentry.startSpan(
+                  {
+                    op: "email.welcome",
+                    name: "Send Welcome Email",
+                    attributes: {
+                      user_id: user.id,
                     },
-                    async (span) => {
-                      // Add breadcrumb for email sending attempt
-                      Sentry.addBreadcrumb({
-                        category: "email",
-                        message: "Sending welcome email",
-                        level: "info",
-                        data: {
-                          user_id: user.id,
-                          email_type: "welcome",
-                        },
-                      });
+                  },
+                  async (span) => {
+                    // Add breadcrumb for email sending attempt
+                    Sentry.addBreadcrumb({
+                      category: "email",
+                      message: "Sending welcome email",
+                      level: "info",
+                      data: {
+                        user_id: user.id,
+                        email_type: "welcome",
+                      },
+                    });
 
-                      sendWelcomeEmail(env, {
+                    try {
+                      const emailResult = await sendWelcomeEmail(env, {
                         to: user.email,
                         username:
                           (userWithPlugins.username as string | undefined) ||
                           user.name ||
                           "User",
                         appUrl,
-                      })
-                        .then(async (emailResult) => {
-                          // Track result in span
-                          span?.setAttribute(
-                            "email.success",
-                            emailResult.success
-                          );
+                      });
 
-                          // Check if email sending failed
-                          if (!emailResult.success) {
-                            span?.setAttribute(
-                              "email.error",
-                              emailResult.error || "Unknown error"
-                            );
-                            span?.setStatus({
-                              code: 2,
-                              message: "email failed",
-                            });
+                      const duration = Date.now() - startTime;
 
-                            // Add breadcrumb for failure
-                            Sentry.addBreadcrumb({
-                              category: "email",
-                              message: "Welcome email failed",
-                              level: "error",
-                              data: {
-                                user_id: user.id,
-                                error: emailResult.error,
-                                email_type: "welcome",
-                              },
-                            });
+                      // Track result in span
+                      span?.setAttribute("email.success", emailResult.success);
 
-                            // Log email failures to Sentry
-                            Sentry.captureException(
-                              new Error(
-                                emailResult.error ||
-                                  "Failed to send welcome email"
-                              ),
-                              {
-                                tags: {
-                                  component: "better-auth",
-                                  operation: "welcome-email",
-                                  email_type: "welcome",
-                                },
-                                extra: {
-                                  user_id: user.id,
-                                  errorMessage: emailResult.error,
-                                },
-                                level: "error",
-                              }
-                            );
+                      // Emit metrics for email delivery
+                      emitCounter("email.welcome_sent", 1, {
+                        success: emailResult.success ? "true" : "false",
+                        user_id: user.id,
+                        verification_skipped: !settings.requireEmailVerification
+                          ? "true"
+                          : "false",
+                      });
 
-                            console.error(
-                              `Failed to send welcome email to ${user.email}:`,
-                              {
-                                error: emailResult.error,
-                              }
-                            );
-                          } else {
-                            span?.setStatus({ code: 1, message: "ok" });
+                      emitDistribution(
+                        "email.welcome_duration",
+                        duration,
+                        "millisecond",
+                        {
+                          success: emailResult.success ? "true" : "false",
+                        }
+                      );
 
-                            // Add breadcrumb for success
-                            Sentry.addBreadcrumb({
-                              category: "email",
-                              message: "Welcome email sent successfully",
-                              level: "info",
-                              data: {
-                                user_id: user.id,
-                                email_type: "welcome",
-                              },
-                            });
-                          }
-                        })
-                        .catch((error) => {
-                          span?.setAttribute(
-                            "email.exception",
-                            error instanceof Error
-                              ? error.message
-                              : String(error)
-                          );
-                          span?.setStatus({ code: 2, message: "exception" });
+                      // Check if email sending failed
+                      if (!emailResult.success) {
+                        span?.setAttribute(
+                          "email.error",
+                          emailResult.error || "Unknown error"
+                        );
+                        span?.setStatus({
+                          code: 2,
+                          message: "email failed",
+                        });
 
-                          // Add breadcrumb for unexpected error
-                          Sentry.addBreadcrumb({
-                            category: "email",
-                            message: "Unexpected error sending welcome email",
-                            level: "error",
-                            data: {
-                              user_id: user.id,
-                              error:
-                                error instanceof Error
-                                  ? error.message
-                                  : String(error),
-                              email_type: "welcome",
-                            },
-                          });
+                        // Emit failure metric with error type
+                        emitCounter("email.welcome_failed", 1, {
+                          error_type: emailResult.error || "unknown",
+                          user_id: user.id,
+                        });
 
-                          // Log unexpected exceptions (e.g., network errors, timeouts)
-                          Sentry.captureException(error, {
+                        // Add breadcrumb for failure
+                        Sentry.addBreadcrumb({
+                          category: "email",
+                          message: "Welcome email failed",
+                          level: "error",
+                          data: {
+                            user_id: user.id,
+                            error: emailResult.error,
+                            email_type: "welcome",
+                          },
+                        });
+
+                        // Log email failures to Sentry
+                        Sentry.captureException(
+                          new Error(
+                            emailResult.error || "Failed to send welcome email"
+                          ),
+                          {
                             tags: {
                               component: "better-auth",
                               operation: "welcome-email",
@@ -699,40 +701,115 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             },
                             extra: {
                               user_id: user.id,
+                              errorMessage: emailResult.error,
                             },
                             level: "error",
-                          });
+                          }
+                        );
 
-                          console.error(
-                            `Unexpected error sending welcome email to ${user.email}:`,
-                            {
-                              error:
-                                error instanceof Error
-                                  ? error.message
-                                  : String(error),
-                            }
-                          );
+                        console.error(
+                          `Failed to send welcome email to ${user.email}:`,
+                          {
+                            error: emailResult.error,
+                          }
+                        );
+                      } else {
+                        span?.setStatus({ code: 1, message: "ok" });
+
+                        // Add breadcrumb for success
+                        Sentry.addBreadcrumb({
+                          category: "email",
+                          message: "Welcome email sent successfully",
+                          level: "info",
+                          data: {
+                            user_id: user.id,
+                            email_type: "welcome",
+                          },
                         });
+                      }
+                    } catch (error) {
+                      const duration = Date.now() - startTime;
+
+                      span?.setAttribute(
+                        "email.exception",
+                        error instanceof Error ? error.message : String(error)
+                      );
+                      span?.setStatus({ code: 2, message: "exception" });
+
+                      // Emit exception metrics
+                      emitCounter("email.welcome_exception", 1, {
+                        error_type:
+                          error instanceof Error ? error.name : "UnknownError",
+                        user_id: user.id,
+                      });
+
+                      emitDistribution(
+                        "email.welcome_duration",
+                        duration,
+                        "millisecond",
+                        {
+                          success: "false",
+                          exception: "true",
+                        }
+                      );
+
+                      // Add breadcrumb for unexpected error
+                      Sentry.addBreadcrumb({
+                        category: "email",
+                        message: "Unexpected error sending welcome email",
+                        level: "error",
+                        data: {
+                          user_id: user.id,
+                          error:
+                            error instanceof Error
+                              ? error.message
+                              : String(error),
+                          email_type: "welcome",
+                        },
+                      });
+
+                      // Log unexpected exceptions (e.g., network errors, timeouts)
+                      Sentry.captureException(error, {
+                        tags: {
+                          component: "better-auth",
+                          operation: "welcome-email",
+                          email_type: "welcome",
+                        },
+                        extra: {
+                          user_id: user.id,
+                        },
+                        level: "error",
+                      });
+
+                      console.error(
+                        `Unexpected error sending welcome email to ${user.email}:`,
+                        {
+                          error:
+                            error instanceof Error
+                              ? error.message
+                              : String(error),
+                        }
+                      );
                     }
-                  );
-                }
-              })
-              .catch((error) => {
-                console.error(
-                  `Error checking welcome email requirements:`,
-                  error
+                  }
                 );
-                Sentry.captureException(error, {
-                  tags: {
-                    component: "better-auth",
-                    operation: "check-welcome-settings",
-                  },
-                  extra: {
-                    user_id: user.id,
-                  },
-                  level: "warning",
-                });
+              }
+            } catch (error) {
+              console.error(
+                `Error checking welcome email requirements:`,
+                error
+              );
+              Sentry.captureException(error, {
+                tags: {
+                  component: "better-auth",
+                  operation: "check-welcome-settings",
+                },
+                extra: {
+                  user_id: user.id,
+                },
+                level: "warning",
               });
+            }
           }
         }
 
