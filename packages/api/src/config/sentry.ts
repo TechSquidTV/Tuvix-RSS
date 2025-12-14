@@ -83,9 +83,21 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
      * Returns null to drop metrics, or the metric to send it
      */
     beforeSendMetric: (metric: SentryMetric): SentryMetric | null => {
+      // List of PII field names to remove
+      const piiFields = [
+        "email",
+        "recipient",
+        "userEmail",
+        "user_email",
+        "username",
+        "password",
+      ];
+
       // Remove any PII from metric attributes
-      if (metric.attributes?.email) {
-        delete metric.attributes.email;
+      if (metric.attributes) {
+        for (const field of piiFields) {
+          delete metric.attributes[field];
+        }
       }
 
       // Don't send test metrics in production
@@ -103,16 +115,36 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
      * This ensures email addresses and other sensitive data never leave the application
      */
     beforeSend: (event: SentryEvent): SentryEvent | null => {
+      // List of PII field names to remove
+      const piiFields = [
+        "email",
+        "recipient",
+        "userEmail",
+        "user_email",
+        "username",
+        "password",
+      ];
+
+      // Helper to recursively remove PII from an object
+      const removePII = (obj: Record<string, unknown>): Record<string, unknown> => {
+        const cleaned = { ...obj };
+        for (const key of piiFields) {
+          delete cleaned[key];
+        }
+        // Recursively clean nested objects
+        for (const [key, value] of Object.entries(cleaned)) {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            cleaned[key] = removePII(value as Record<string, unknown>);
+          }
+        }
+        return cleaned;
+      };
+
       // Remove PII from breadcrumbs
       if (event.breadcrumbs) {
         event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
           if (breadcrumb.data) {
-            const data = { ...breadcrumb.data };
-            // Remove email-related PII
-            delete data.recipient;
-            delete data.userEmail;
-            delete data.user_email;
-            return { ...breadcrumb, data };
+            return { ...breadcrumb, data: removePII(breadcrumb.data) };
           }
           return breadcrumb;
         });
@@ -120,11 +152,12 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
 
       // Remove PII from extra context
       if (event.extra) {
-        const extra = { ...event.extra };
-        delete extra.recipient;
-        delete extra.userEmail;
-        delete extra.user_email;
-        event.extra = extra;
+        event.extra = removePII(event.extra);
+      }
+
+      // Remove PII from contexts (signup.email, login.username, etc.)
+      if (event.contexts) {
+        event.contexts = removePII(event.contexts);
       }
 
       return event;
@@ -137,15 +170,25 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
      * Note: beforeSendSpan receives a serialized SpanJSON object, not a Span instance
      */
     beforeSendSpan: (span: SpanJSON): SpanJSON => {
+      // List of PII field names to remove
+      const piiFields = [
+        "email",
+        "recipient",
+        "userEmail",
+        "user_email",
+        "username",
+        "password",
+      ];
+
       // Initialize data object if it doesn't exist
       if (!span.data) {
         span.data = {};
       }
 
       // Remove PII from span attributes
-      delete span.data.user_email;
-      delete span.data.userEmail;
-      delete span.data.recipient;
+      for (const field of piiFields) {
+        delete span.data[field];
+      }
 
       // Add global context directly to span data
       span.data.runtime = runtime;
