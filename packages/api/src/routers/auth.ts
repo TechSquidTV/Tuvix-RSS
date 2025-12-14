@@ -565,7 +565,7 @@ export const authRouter = router({
               message: "Login successful",
               level: "info",
               data: {
-                userId: userId.toString(),
+                user_id: userId.toString(),
                 username: input.username,
                 role: dbUser.role,
               },
@@ -624,7 +624,7 @@ export const authRouter = router({
               data: {
                 username: input.username,
                 error: (error as Error).message,
-                errorType: (error as Error).constructor.name,
+                error_type: (error as Error).constructor.name,
               },
             });
 
