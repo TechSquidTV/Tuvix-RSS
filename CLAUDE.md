@@ -56,6 +56,54 @@ This includes but is not limited to:
 
 Deployment is explicitly forbidden and handled by CI/CD pipelines.
 
+### Staging Deployments
+
+**✅ Staging deployments are allowed via manual workflow dispatch.**
+
+Staging provides a production-like environment for testing PRs before they're merged to main.
+
+**How to Deploy to Staging:**
+
+1. Go to **Actions** → **Deploy to Staging** → **Run workflow**
+2. Select the branch/PR to deploy (default: `main`)
+3. Choose whether to seed test data (optional)
+4. Click **Run workflow**
+
+**What Happens:**
+
+- API and App are deployed to staging environment
+- **Staging database is wiped clean** (all data deleted)
+- Fresh migrations are applied from scratch
+- Optional test data seeding (if selected)
+
+**Key Points:**
+
+- Staging uses separate infrastructure (D1 database, Worker, Pages project)
+- Database starts fresh on every deployment (no migration conflicts)
+- Last deployment wins (concurrent deployments are cancelled)
+- Perfect for testing PRs in a production-like environment
+
+**Staging Secrets Required:**
+
+```
+STAGING_D1_DATABASE_ID              # Separate D1 database for staging
+STAGING_VITE_API_URL               # Staging API URL
+STAGING_CLOUDFLARE_PAGES_PROJECT_NAME  # Staging Pages project name
+```
+
+**When to Use Staging:**
+
+- Test PRs before merging to main
+- Verify database migrations work correctly
+- Integration testing with production-like infrastructure
+- Demo features to stakeholders
+
+**When NOT to Use Staging:**
+
+- Local development (use `pnpm dev` instead)
+- Quick iteration (too slow compared to local)
+- Testing that requires preserving data (staging wipes on each deploy)
+
 ## Common Workflows
 
 ### Database Changes
