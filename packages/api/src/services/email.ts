@@ -113,9 +113,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     level: "info",
     data: {
       emailType: type,
-      recipient: to,
-      subject,
-      configured: isEmailConfigured(env),
+      emailConfigured: isEmailConfigured(env),
     },
   });
 
@@ -135,7 +133,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             level: "info",
             data: {
               emailType: type,
-              recipient: to,
             },
           });
 
@@ -157,7 +154,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
               level: "error",
               data: {
                 emailType: type,
-                recipient: to,
                 errorMessage: error.message,
                 errorCode: (error as { code?: string })?.code,
                 errorStatus: (error as { status?: number })?.status,
@@ -180,7 +176,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
                   "email.status": "error",
                 },
                 extra: {
-                  recipient: to,
                   errorCode: (error as { code?: string })?.code,
                   errorStatus: (error as { status?: number })?.status,
                 },
@@ -207,7 +202,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             level: "info",
             data: {
               emailType: type,
-              recipient: to,
               emailId: data?.id,
             },
           });
@@ -236,7 +230,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             level: "error",
             data: {
               emailType: type,
-              recipient: to,
               errorMessage,
               errorType: error instanceof Error ? error.name : "Unknown",
             },
@@ -260,7 +253,6 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
                   "email.status": "exception",
                 },
                 extra: {
-                  recipient: to,
                   errorMessage,
                   errorStack,
                 },

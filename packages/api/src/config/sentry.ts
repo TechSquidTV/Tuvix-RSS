@@ -22,6 +22,17 @@ interface SpanJSON {
   [key: string]: unknown;
 }
 
+// Event represents the error/message event passed to beforeSend
+interface SentryEvent {
+  breadcrumbs?: Array<{
+    data?: Record<string, unknown>;
+    [key: string]: unknown;
+  }>;
+  extra?: Record<string, unknown>;
+  contexts?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 /**
  * Common Sentry configuration options
  *
@@ -86,9 +97,43 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
     },
 
     /**
+     * beforeSend callback
+     *
+     * Removes PII from error events before sending to Sentry
+     * This ensures email addresses and other sensitive data never leave the application
+     */
+    beforeSend: (event: SentryEvent): SentryEvent | null => {
+      // Remove PII from breadcrumbs
+      if (event.breadcrumbs) {
+        event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
+          if (breadcrumb.data) {
+            const data = { ...breadcrumb.data };
+            // Remove email-related PII
+            delete data.recipient;
+            delete data.userEmail;
+            delete data.user_email;
+            return { ...breadcrumb, data };
+          }
+          return breadcrumb;
+        });
+      }
+
+      // Remove PII from extra context
+      if (event.extra) {
+        const extra = { ...event.extra };
+        delete extra.recipient;
+        delete extra.userEmail;
+        delete extra.user_email;
+        event.extra = extra;
+      }
+
+      return event;
+    },
+
+    /**
      * beforeSendSpan callback
      *
-     * Adds global context to all spans (traces)
+     * Adds global context to all spans (traces) and removes PII
      * Note: beforeSendSpan receives a serialized SpanJSON object, not a Span instance
      */
     beforeSendSpan: (span: SpanJSON): SpanJSON => {
@@ -96,6 +141,11 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
       if (!span.data) {
         span.data = {};
       }
+
+      // Remove PII from span attributes
+      delete span.data.user_email;
+      delete span.data.userEmail;
+      delete span.data.recipient;
 
       // Add global context directly to span data
       span.data.runtime = runtime;

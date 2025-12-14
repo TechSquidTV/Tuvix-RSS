@@ -147,7 +147,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             name: "Send Password Reset Email",
             attributes: {
               user_id: user.id,
-              user_email: user.email,
+              email_type: "password_reset",
             },
           },
           async (span) => {
@@ -157,7 +157,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               message: "Sending password reset email",
               level: "info",
               data: {
-                userEmail: user.email,
                 userId: user.id,
                 emailType: "password_reset",
               },
@@ -189,7 +188,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 message: "Password reset email failed",
                 level: "error",
                 data: {
-                  userEmail: user.email,
                   userId: user.id,
                   error: emailResult.error,
                   emailType: "password_reset",
@@ -202,7 +200,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 message: "Password reset email sent successfully",
                 level: "info",
                 data: {
-                  userEmail: user.email,
                   userId: user.id,
                   emailType: "password_reset",
                 },
@@ -249,7 +246,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     email_type: "password_reset",
                   },
                   extra: {
-                    userEmail: user.email,
                     userId: user.id,
                   },
                   level: "error",
@@ -299,7 +295,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
             },
             extra: {
               userId: user.id,
-              userEmail: user.email,
             },
           });
 
@@ -356,7 +351,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                 name: "Send Verification Email (Fire-and-Forget)",
                 attributes: {
                   user_id: user.id,
-                  user_email: user.email,
                   fire_and_forget: true,
                 },
               },
@@ -367,7 +361,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                   message: "Sending verification email",
                   level: "info",
                   data: {
-                    userEmail: user.email,
                     userId: user.id,
                     emailType: "verification",
                   },
@@ -400,7 +393,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                         message: "Verification email failed",
                         level: "error",
                         data: {
-                          userEmail: user.email,
                           userId: user.id,
                           error: emailResult.error,
                           emailType: "verification",
@@ -420,7 +412,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             email_type: "verification",
                           },
                           extra: {
-                            userEmail: user.email,
                             userId: user.id,
                             errorMessage: emailResult.error,
                           },
@@ -429,7 +420,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       );
 
                       console.error("Failed to send verification email:", {
-                        userEmail: user.email,
                         userId: user.id,
                         error: emailResult.error,
                       });
@@ -442,7 +432,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                         message: "Verification email sent successfully",
                         level: "info",
                         data: {
-                          userEmail: user.email,
                           userId: user.id,
                           emailType: "verification",
                         },
@@ -462,7 +451,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       message: "Unexpected error sending verification email",
                       level: "error",
                       data: {
-                        userEmail: user.email,
                         userId: user.id,
                         error:
                           error instanceof Error
@@ -480,7 +468,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                         email_type: "verification",
                       },
                       extra: {
-                        userEmail: user.email,
                         userId: user.id,
                       },
                       level: "error",
@@ -489,7 +476,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                     console.error(
                       "Unexpected error sending verification email:",
                       {
-                        userEmail: user.email,
                         userId: user.id,
                         error:
                           error instanceof Error
@@ -513,7 +499,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
               },
               extra: {
                 userId: user.id,
-                userEmail: user.email,
               },
               level: "warning",
             });
@@ -587,7 +572,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                       name: "Send Welcome Email (Fire-and-Forget)",
                       attributes: {
                         user_id: user.id,
-                        user_email: user.email,
                         fire_and_forget: true,
                       },
                     },
@@ -598,7 +582,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                         message: "Sending welcome email",
                         level: "info",
                         data: {
-                          userEmail: user.email,
                           userId: user.id,
                           emailType: "welcome",
                         },
@@ -636,7 +619,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                               message: "Welcome email failed",
                               level: "error",
                               data: {
-                                userEmail: user.email,
                                 userId: user.id,
                                 error: emailResult.error,
                                 emailType: "welcome",
@@ -656,7 +638,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                                   email_type: "welcome",
                                 },
                                 extra: {
-                                  userEmail: user.email,
                                   userId: user.id,
                                   errorMessage: emailResult.error,
                                 },
@@ -679,7 +660,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                               message: "Welcome email sent successfully",
                               level: "info",
                               data: {
-                                userEmail: user.email,
                                 userId: user.id,
                                 emailType: "welcome",
                               },
@@ -701,7 +681,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                             message: "Unexpected error sending welcome email",
                             level: "error",
                             data: {
-                              userEmail: user.email,
                               userId: user.id,
                               error:
                                 error instanceof Error
@@ -719,7 +698,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                               email_type: "welcome",
                             },
                             extra: {
-                              userEmail: user.email,
                               userId: user.id,
                             },
                             level: "error",
@@ -751,7 +729,6 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
                   },
                   extra: {
                     userId: user.id,
-                    userEmail: user.email,
                   },
                   level: "warning",
                 });
