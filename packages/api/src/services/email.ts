@@ -112,8 +112,8 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     message: `Attempting to send ${type} email`,
     level: "info",
     data: {
-      emailType: type,
-      emailConfigured: isEmailConfigured(env),
+      email_type: type,
+      email_configured: isEmailConfigured(env),
     },
   });
 
@@ -132,7 +132,7 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             message: "Calling Resend API",
             level: "info",
             data: {
-              emailType: type,
+              email_type: type,
             },
           });
 
@@ -153,10 +153,10 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
               message: "Resend API returned error",
               level: "error",
               data: {
-                emailType: type,
-                errorMessage: error.message,
-                errorCode: (error as { code?: string })?.code,
-                errorStatus: (error as { status?: number })?.status,
+                email_type: type,
+                error_message: error.message,
+                error_code: (error as { code?: string })?.code,
+                error_status: (error as { status?: number })?.status,
               },
             });
 
@@ -176,8 +176,8 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
                   "email.status": "error",
                 },
                 extra: {
-                  errorCode: (error as { code?: string })?.code,
-                  errorStatus: (error as { status?: number })?.status,
+                  error_code: (error as { code?: string })?.code,
+                  error_status: (error as { status?: number })?.status,
                 },
               });
             }
@@ -201,8 +201,8 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             message: `${type} email sent successfully`,
             level: "info",
             data: {
-              emailType: type,
-              emailId: data?.id,
+              email_type: type,
+              email_id: data?.id,
             },
           });
 
@@ -229,9 +229,9 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
             message: "Exception thrown while sending email",
             level: "error",
             data: {
-              emailType: type,
-              errorMessage,
-              errorType: error instanceof Error ? error.name : "Unknown",
+              email_type: type,
+              error_message: errorMessage,
+              error_type: error instanceof Error ? error.name : "Unknown",
             },
           });
 
@@ -253,8 +253,8 @@ async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
                   "email.status": "exception",
                 },
                 extra: {
-                  errorMessage,
-                  errorStack,
+                  error_message: errorMessage,
+                  error_stack: errorStack,
                 },
               }
             );
