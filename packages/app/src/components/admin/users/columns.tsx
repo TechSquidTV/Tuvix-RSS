@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import {
   RefreshCw,
   CreditCard,
   Settings,
+  Copy,
 } from "lucide-react";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { getRelativeTime, getLastSeenStatusColor } from "@/lib/utils/date";
@@ -240,6 +242,15 @@ export const createColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigator.clipboard.writeText(user.id.toString());
+                toast.success("User ID copied to clipboard");
+              }}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy ID
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => actions.onChangePlan(user.id, user.plan)}
