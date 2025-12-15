@@ -179,6 +179,21 @@ function AdminUsers() {
     },
   });
 
+  const resendVerificationEmailMutation =
+    trpc.admin.resendVerificationEmail.useMutation({
+      onSuccess: (data) => {
+        if (data.success) {
+          toast.success(data.message);
+        } else {
+          toast.error(data.message);
+        }
+        refetch();
+      },
+      onError: (error: Error) => {
+        toast.error(error.message || "Failed to resend verification email");
+      },
+    });
+
   const handleBan = (userId: number, banned: boolean) => {
     banMutation.mutate({ userId, banned });
   };
@@ -220,6 +235,13 @@ function AdminUsers() {
     [recalculateUsageMutation],
   );
 
+  const handleResendVerificationEmail = useCallback(
+    (userId: number) => {
+      resendVerificationEmailMutation.mutate({ userId });
+    },
+    [resendVerificationEmailMutation],
+  );
+
   const openCustomLimitsDialog = useCallback(
     (userId: number) => {
       const user = users?.items.find((u: UserItem) => u.id === userId);
@@ -252,8 +274,14 @@ function AdminUsers() {
         },
         onCustomLimits: (userId: number) => openCustomLimitsDialog(userId),
         onRecalculateUsage: (userId: number) => handleRecalculateUsage(userId),
+        onResendVerificationEmail: (userId: number) =>
+          handleResendVerificationEmail(userId),
       }),
-    [handleRecalculateUsage, openCustomLimitsDialog],
+    [
+      handleRecalculateUsage,
+      handleResendVerificationEmail,
+      openCustomLimitsDialog,
+    ],
   );
 
   const userToBan = users?.items.find((u: UserItem) => u.id === banUserId);

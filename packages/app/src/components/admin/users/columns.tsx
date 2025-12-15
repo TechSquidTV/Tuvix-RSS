@@ -19,6 +19,7 @@ import {
   CreditCard,
   Settings,
   Copy,
+  Mail,
 } from "lucide-react";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { getRelativeTime, getLastSeenStatusColor } from "@/lib/utils/date";
@@ -64,6 +65,7 @@ type ColumnActions = {
   onChangePlan: (userId: number, currentPlan: string) => void;
   onCustomLimits: (userId: number) => void;
   onRecalculateUsage: (userId: number) => void;
+  onResendVerificationEmail: (userId: number) => void;
 };
 
 export const createColumns = (
@@ -251,6 +253,14 @@ export const createColumns = (
               <Copy className="mr-2 h-4 w-4" />
               Copy ID
             </DropdownMenuItem>
+            {!user.emailVerified && (
+              <DropdownMenuItem
+                onClick={() => actions.onResendVerificationEmail(user.id)}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Resend Verification Email
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => actions.onChangePlan(user.id, user.plan)}
