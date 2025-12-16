@@ -21,6 +21,7 @@ describe("Admin Users Columns - Copy ID", () => {
     onChangePlan: vi.fn(),
     onCustomLimits: vi.fn(),
     onRecalculateUsage: vi.fn(),
+    onResendVerificationEmail: vi.fn(),
   };
 
   const mockUser: AdminUser = {
@@ -185,7 +186,7 @@ describe("Admin Users Columns - Copy ID", () => {
       // Copy ID should appear in the DOM before Change Plan
       expect(
         copyId.compareDocumentPosition(changePlan) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     });
   });
