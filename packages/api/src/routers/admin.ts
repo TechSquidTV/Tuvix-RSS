@@ -177,14 +177,14 @@ function transformAdminUser(
     },
     customLimits: customLimits
       ? {
-          maxSources: customLimits.maxSources,
-          maxPublicFeeds: customLimits.maxPublicFeeds,
-          maxCategories: customLimits.maxCategories,
-          // Rate limits are not customizable - they come from plan-specific bindings
-          apiRateLimitPerMinute: null,
-          publicFeedRateLimitPerMinute: null,
-          notes: customLimits.notes,
-        }
+        maxSources: customLimits.maxSources,
+        maxPublicFeeds: customLimits.maxPublicFeeds,
+        maxCategories: customLimits.maxCategories,
+        // Rate limits are not customizable - they come from plan-specific bindings
+        apiRateLimitPerMinute: null,
+        publicFeedRateLimitPerMinute: null,
+        notes: customLimits.notes,
+      }
       : null,
     rateLimitEnabled,
   };
@@ -361,21 +361,21 @@ export const adminRouter = router({
       const usageRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.usageStats)
-              .where(
-                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.usageStats)
+            .where(
+              sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       const customLimitsRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.userLimits)
-              .where(
-                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.userLimits)
+            .where(
+              sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       // Create maps for quick lookup
@@ -766,18 +766,32 @@ export const adminRouter = router({
               });
             }
 
-            // Log security event
-            await logSecurityEvent(ctx.db, {
-              userId: ctx.user.userId,
-              action: "admin_resend_verification",
-              ipAddress: undefined,
-              userAgent: undefined,
-              success: true,
-              metadata: {
-                targetUserId: input.userId,
-                targetEmail: user.email,
-              },
-            });
+            // Log security event (non-blocking - don't fail the operation if logging fails)
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId: ctx.user.userId,
+                action: "admin_resend_verification",
+                ipAddress: undefined,
+                userAgent: undefined,
+                success: true,
+                metadata: {
+                  targetUserId: input.userId,
+                  targetEmail: user.email,
+                },
+              });
+            } catch (auditError) {
+              // Log error but don't fail the operation
+              console.error(
+                "Failed to log security event for resend verification:",
+                auditError
+              );
+              Sentry.captureException(auditError, {
+                tags: {
+                  flow: "admin_resend_verification",
+                  step: "security_logging",
+                },
+              });
+            }
 
             const duration = Date.now() - startTime;
             parentSpan?.setAttributes({
@@ -2037,13 +2051,13 @@ export const adminRouter = router({
 
       const updateData: {
         reason?:
-          | "illegal_content"
-          | "excessive_automation"
-          | "spam"
-          | "malware"
-          | "copyright_violation"
-          | "other"
-          | null;
+        | "illegal_content"
+        | "excessive_automation"
+        | "spam"
+        | "malware"
+        | "copyright_violation"
+        | "other"
+        | null;
         notes?: string | null;
         updatedAt: Date;
       } = {
