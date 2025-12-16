@@ -55,7 +55,7 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
     );
   },
 
-  addBreadcrumb: async (breadcrumb: {
+  addBreadcrumb: (breadcrumb: {
     message: string;
     level?: "debug" | "info" | "warning" | "error";
     category?: string;
@@ -80,9 +80,10 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
       level: breadcrumb.level || "info",
       data: filteredData,
     });
+    return Promise.resolve();
   },
 
-  captureException: async (
+  captureException: (
     error: Error,
     context?: {
       level?: "debug" | "info" | "warning" | "error";
@@ -90,10 +91,12 @@ export const sentryTelemetryAdapter: TelemetryAdapter = {
       extra?: Record<string, unknown>;
     }
   ): Promise<string | undefined> => {
-    return Sentry.captureException(error, {
-      level: context?.level || "error",
-      tags: context?.tags,
-      extra: context?.extra,
-    });
+    return Promise.resolve(
+      Sentry.captureException(error, {
+        level: context?.level || "error",
+        tags: context?.tags,
+        extra: context?.extra,
+      })
+    );
   },
 };
