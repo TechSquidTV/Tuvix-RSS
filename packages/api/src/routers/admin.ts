@@ -715,11 +715,13 @@ export const adminRouter = router({
             }
 
             // Check if user exists
-            const [user] = await ctx.db
+            const users = await ctx.db
               .select()
               .from(schema.user)
               .where(eq(schema.user.id, input.userId))
               .limit(1);
+
+            const user = users[0];
 
             if (!user) {
               throw new TRPCError({
