@@ -128,10 +128,10 @@ export function getCurrentScope(): {
   setExtra: (key: string, value: unknown) => void;
 } {
   return {
-    setTransactionName: () => { },
-    setUser: () => { },
-    setTag: () => { },
-    setExtra: () => { },
+    setTransactionName: () => {},
+    setUser: () => {},
+    setTag: () => {},
+    setExtra: () => {},
   };
 }
 

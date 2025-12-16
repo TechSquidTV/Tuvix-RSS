@@ -21,71 +21,62 @@ const __dirname = dirname(__filename);
  * @param env - Environment configuration (optional, uses process.env if not provided)
  * @returns Promise that resolves when migrations are complete
  */
-export function runMigrationsIfNeeded(
+export async function runMigrationsIfNeeded(
   env?: Pick<Env, "DATABASE_PATH">
 ): Promise<void> {
-  return Promise.resolve().then(() => {
-    const dbPath =
-      env?.DATABASE_PATH ||
-      process.env.DATABASE_PATH ||
-      resolve(process.cwd(), "./data/tuvix.db");
+  await Promise.resolve();
+  const dbPath = env?.DATABASE_PATH ||
+    process.env.DATABASE_PATH ||
+    resolve(process.cwd(), "./data/tuvix.db");
+  // Resolve to absolute path to avoid issues with working directory
+  const absoluteDbPath = dbPath.startsWith("/")
+    ? dbPath
+    : resolve(process.cwd(), dbPath);
+  // Ensure data directory exists
+  const dataDir = dirname(absoluteDbPath);
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+    console.log(`📁 Created data directory: ${dataDir}`);
+  }
+  // Resolve migrations folder path
+  // Try multiple possible locations:
+  // 1. Relative to source file (for dev): src/db/../../drizzle
+  // 2. Relative to dist (for production): dist/db/../../drizzle
+  // 3. Relative to process.cwd() (fallback): ./drizzle or packages/api/drizzle
+  let migrationsFolder = resolve(__dirname, "../../drizzle");
+  // If that doesn't exist, try from process.cwd()
+  if (!existsSync(migrationsFolder)) {
+    const cwdDrizzle = resolve(process.cwd(), "drizzle");
+    const apiDrizzle = resolve(process.cwd(), "packages/api/drizzle");
 
-    // Resolve to absolute path to avoid issues with working directory
-    const absoluteDbPath = dbPath.startsWith("/")
-      ? dbPath
-      : resolve(process.cwd(), dbPath);
-
-    // Ensure data directory exists
-    const dataDir = dirname(absoluteDbPath);
-    if (!existsSync(dataDir)) {
-      mkdirSync(dataDir, { recursive: true });
-      console.log(`📁 Created data directory: ${dataDir}`);
+    if (existsSync(cwdDrizzle)) {
+      migrationsFolder = cwdDrizzle;
+    } else if (existsSync(apiDrizzle)) {
+      migrationsFolder = apiDrizzle;
     }
+  }
+  if (!existsSync(migrationsFolder)) {
+    throw new Error(
+      `Migrations folder not found. Tried: ${resolve(__dirname, "../../drizzle")}, ${resolve(process.cwd(), "drizzle")}, ${resolve(process.cwd(), "packages/api/drizzle")}`
+    );
+  }
+  console.log(`🔄 Running migrations for database: ${absoluteDbPath}`);
+  const sqlite = new Database(absoluteDbPath);
+  try {
+    // Enable foreign keys
+    sqlite.pragma("foreign_keys = ON");
 
-    // Resolve migrations folder path
-    // Try multiple possible locations:
-    // 1. Relative to source file (for dev): src/db/../../drizzle
-    // 2. Relative to dist (for production): dist/db/../../drizzle
-    // 3. Relative to process.cwd() (fallback): ./drizzle or packages/api/drizzle
-    let migrationsFolder = resolve(__dirname, "../../drizzle");
+    const db = drizzle(sqlite);
 
-    // If that doesn't exist, try from process.cwd()
-    if (!existsSync(migrationsFolder)) {
-      const cwdDrizzle = resolve(process.cwd(), "drizzle");
-      const apiDrizzle = resolve(process.cwd(), "packages/api/drizzle");
-
-      if (existsSync(cwdDrizzle)) {
-        migrationsFolder = cwdDrizzle;
-      } else if (existsSync(apiDrizzle)) {
-        migrationsFolder = apiDrizzle;
-      }
-    }
-
-    if (!existsSync(migrationsFolder)) {
-      throw new Error(
-        `Migrations folder not found. Tried: ${resolve(__dirname, "../../drizzle")}, ${resolve(process.cwd(), "drizzle")}, ${resolve(process.cwd(), "packages/api/drizzle")}`
-      );
-    }
-
-    console.log(`🔄 Running migrations for database: ${absoluteDbPath}`);
-    const sqlite = new Database(absoluteDbPath);
-
-    try {
-      // Enable foreign keys
-      sqlite.pragma("foreign_keys = ON");
-
-      const db = drizzle(sqlite);
-
-      // Run migrations
-      migrate(db, { migrationsFolder });
-      console.log("✅ Migrations complete!");
-    } catch (error) {
-      sqlite.close();
-      throw error;
-    } finally {
-      sqlite.close();
-    }
-  });
+    // Run migrations
+    migrate(db, { migrationsFolder });
+    console.log("✅ Migrations complete!");
+  } catch (error) {
+    sqlite.close();
+    throw error;
+  } finally {
+    sqlite.close();
+  }
 }
 
 // CLI entry point - run migrations if this file is executed directly

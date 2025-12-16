@@ -177,14 +177,14 @@ function transformAdminUser(
     },
     customLimits: customLimits
       ? {
-        maxSources: customLimits.maxSources,
-        maxPublicFeeds: customLimits.maxPublicFeeds,
-        maxCategories: customLimits.maxCategories,
-        // Rate limits are not customizable - they come from plan-specific bindings
-        apiRateLimitPerMinute: null,
-        publicFeedRateLimitPerMinute: null,
-        notes: customLimits.notes,
-      }
+          maxSources: customLimits.maxSources,
+          maxPublicFeeds: customLimits.maxPublicFeeds,
+          maxCategories: customLimits.maxCategories,
+          // Rate limits are not customizable - they come from plan-specific bindings
+          apiRateLimitPerMinute: null,
+          publicFeedRateLimitPerMinute: null,
+          notes: customLimits.notes,
+        }
       : null,
     rateLimitEnabled,
   };
@@ -361,21 +361,21 @@ export const adminRouter = router({
       const usageRecords =
         userIds.length > 0
           ? await ctx.db
-            .select()
-            .from(schema.usageStats)
-            .where(
-              sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-            )
+              .select()
+              .from(schema.usageStats)
+              .where(
+                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
           : [];
 
       const customLimitsRecords =
         userIds.length > 0
           ? await ctx.db
-            .select()
-            .from(schema.userLimits)
-            .where(
-              sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-            )
+              .select()
+              .from(schema.userLimits)
+              .where(
+                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+              )
           : [];
 
       // Create maps for quick lookup
@@ -2037,13 +2037,13 @@ export const adminRouter = router({
 
       const updateData: {
         reason?:
-        | "illegal_content"
-        | "excessive_automation"
-        | "spam"
-        | "malware"
-        | "copyright_violation"
-        | "other"
-        | null;
+          | "illegal_content"
+          | "excessive_automation"
+          | "spam"
+          | "malware"
+          | "copyright_violation"
+          | "other"
+          | null;
         notes?: string | null;
         updatedAt: Date;
       } = {

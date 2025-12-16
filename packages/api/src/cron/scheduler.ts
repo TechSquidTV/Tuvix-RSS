@@ -19,7 +19,7 @@ import type { Env } from "@/types";
  * which tasks should actually run, ensuring consistent behavior
  * with Cloudflare Workers.
  */
-export function initCronJobs(env: Env): Promise<void> {
+export async function initCronJobs(env: Env): Promise<void> {
   console.log("⏰ Initializing cron jobs...");
 
   const db = createDatabase(env);

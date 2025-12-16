@@ -200,7 +200,7 @@ if (env.SENTRY_DSN) {
 // Create app and inject Sentry SDK
 const app = createHonoApp({
   env,
-  sentry: Sentry,  // Pass initialized SDK to shared code
+  sentry: Sentry, // Pass initialized SDK to shared code
   runtime: "nodejs",
 });
 ```
@@ -209,16 +209,16 @@ const app = createHonoApp({
 
 ### When to Import SDK Directly vs Using Shim
 
-| Location | Import Pattern | Reason |
-|----------|---------------|---------|
-| **Entry Points** | Direct SDK import | Runtime-specific, safe to import directly |
-| `entries/node.ts` | `import * as Sentry from "@sentry/node"` | Only runs in Node.js |
-| `entries/cloudflare.ts` | `import * as Sentry from "@sentry/cloudflare"` | Only runs in Cloudflare |
-| **Shared Application Code** | Shim via `@/utils/sentry` | Runs in both environments |
-| `routers/*.ts` | `import * as Sentry from "@/utils/sentry"` | Build-time aliasing |
-| `services/*.ts` | `import * as Sentry from "@/utils/sentry"` | Build-time aliasing |
-| **Shared Infrastructure** | Dependency injection | Gets initialized SDK instance |
-| `hono/app.ts` | `c.get("sentry")` from context | Receives SDK from entry point |
+| Location                    | Import Pattern                                 | Reason                                    |
+| --------------------------- | ---------------------------------------------- | ----------------------------------------- |
+| **Entry Points**            | Direct SDK import                              | Runtime-specific, safe to import directly |
+| `entries/node.ts`           | `import * as Sentry from "@sentry/node"`       | Only runs in Node.js                      |
+| `entries/cloudflare.ts`     | `import * as Sentry from "@sentry/cloudflare"` | Only runs in Cloudflare                   |
+| **Shared Application Code** | Shim via `@/utils/sentry`                      | Runs in both environments                 |
+| `routers/*.ts`              | `import * as Sentry from "@/utils/sentry"`     | Build-time aliasing                       |
+| `services/*.ts`             | `import * as Sentry from "@/utils/sentry"`     | Build-time aliasing                       |
+| **Shared Infrastructure**   | Dependency injection                           | Gets initialized SDK instance             |
+| `hono/app.ts`               | `c.get("sentry")` from context                 | Receives SDK from entry point             |
 
 ### Dependency Injection Pattern
 
@@ -227,9 +227,9 @@ const app = createHonoApp({
 ```typescript
 // hono/app.ts - receives SDK via context
 app.onError(async (err, c) => {
-  const sentry = c.get("sentry");  // Injected SDK instance
+  const sentry = c.get("sentry"); // Injected SDK instance
   if (sentry && env.SENTRY_DSN) {
-    sentry.captureException(err);  // Use injected SDK
+    sentry.captureException(err); // Use injected SDK
   }
 });
 ```
