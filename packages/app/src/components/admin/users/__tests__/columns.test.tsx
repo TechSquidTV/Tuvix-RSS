@@ -219,3 +219,174 @@ describe("Admin Users Columns - Copy ID", () => {
     });
   });
 });
+
+describe("Admin Users Columns - Resend Verification Email", () => {
+  const mockActions = {
+    onBan: vi.fn(),
+    onDelete: vi.fn(),
+    onChangePlan: vi.fn(),
+    onCustomLimits: vi.fn(),
+    onRecalculateUsage: vi.fn(),
+    onResendVerificationEmail: vi.fn(),
+  };
+
+  const unverifiedUser: AdminUser = {
+    id: 54321,
+    username: "unverifieduser",
+    email: "unverified@example.com",
+    emailVerified: false,
+    role: "user",
+    plan: "free",
+    banned: false,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    lastSeenAt: new Date("2024-01-15"),
+    usage: {
+      sourceCount: 3,
+      publicFeedCount: 1,
+      categoryCount: 2,
+      articleCount: 50,
+      lastUpdated: new Date("2024-01-15"),
+    },
+    limits: {
+      maxSources: 10,
+      maxPublicFeeds: 5,
+      maxCategories: 10,
+      apiRateLimitPerMinute: 60,
+    },
+    customLimits: null,
+    rateLimitEnabled: true,
+  };
+
+  const verifiedUser: AdminUser = {
+    ...unverifiedUser,
+    id: 12345,
+    username: "verifieduser",
+    email: "verified@example.com",
+    emailVerified: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders Resend Verification Email action for unverified users", async () => {
+    const user = userEvent.setup();
+    const columns = createColumns(mockActions);
+    const actionsColumn = columns.find((col) => col.id === "actions");
+
+    expect(actionsColumn).toBeDefined();
+
+    const ActionsCell = actionsColumn!.cell as any;
+    render(
+      <ActionsCell
+        row={{
+          original: unverifiedUser,
+          getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
+        }}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    // Open the dropdown menu
+    const menuButton = screen.getByRole("button", { name: /open menu/i });
+    await user.click(menuButton);
+
+    // Check if Resend Verification Email menu item exists
+    await waitFor(() => {
+      expect(
+        screen.getByText("Resend Verification Email"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("does not render Resend Verification Email for verified users", async () => {
+    const user = userEvent.setup();
+    const columns = createColumns(mockActions);
+    const actionsColumn = columns.find((col) => col.id === "actions");
+
+    const ActionsCell = actionsColumn!.cell as any;
+    render(
+      <ActionsCell
+        row={{
+          original: verifiedUser,
+          getValue: (key: string) => verifiedUser[key as keyof AdminUser],
+        }}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    // Open the dropdown menu
+    const menuButton = screen.getByRole("button", { name: /open menu/i });
+    await user.click(menuButton);
+
+    // Check that Resend Verification Email menu item does NOT exist
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Resend Verification Email"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("calls onResendVerificationEmail when clicked", async () => {
+    const user = userEvent.setup();
+    const columns = createColumns(mockActions);
+    const actionsColumn = columns.find((col) => col.id === "actions");
+
+    const ActionsCell = actionsColumn!.cell as any;
+    render(
+      <ActionsCell
+        row={{
+          original: unverifiedUser,
+          getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
+        }}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    // Open the dropdown menu
+    const menuButton = screen.getByRole("button", { name: /open menu/i });
+    await user.click(menuButton);
+
+    // Click Resend Verification Email
+    const resendButton = await screen.findByText("Resend Verification Email");
+    await user.click(resendButton);
+
+    // Verify callback was called with the user ID
+    await waitFor(() => {
+      expect(mockActions.onResendVerificationEmail).toHaveBeenCalledWith(
+        54321,
+      );
+    });
+  });
+
+  it("includes Mail icon in the menu item", async () => {
+    const user = userEvent.setup();
+    const columns = createColumns(mockActions);
+    const actionsColumn = columns.find((col) => col.id === "actions");
+
+    const ActionsCell = actionsColumn!.cell as any;
+    render(
+      <ActionsCell
+        row={{
+          original: unverifiedUser,
+          getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
+        }}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    // Open the dropdown menu
+    const menuButton = screen.getByRole("button", { name: /open menu/i });
+    await user.click(menuButton);
+
+    await waitFor(() => {
+      // Find the Resend Verification Email menu item
+      const resendItem = screen
+        .getByText("Resend Verification Email")
+        .closest("div");
+      // Check if it contains an svg icon (lucide Mail icon)
+      expect(resendItem?.querySelector("svg")).toBeInTheDocument();
+    });
+  });
+});
