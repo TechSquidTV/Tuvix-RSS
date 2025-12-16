@@ -113,7 +113,7 @@ export function createHonoApp(config: HonoAppConfig) {
     const sentry = c.get("sentry");
     const env = c.get("env");
     if (sentry && env.SENTRY_DSN) {
-      await sentry.captureException(err);
+      sentry.captureException(err);
     }
 
     const status =
@@ -146,7 +146,7 @@ export function createHonoApp(config: HonoAppConfig) {
     }
 
     const testError = new Error("Test Sentry error!");
-    const eventId = await sentry.captureException(testError, {
+    const eventId = sentry.captureException(testError, {
       tags: { test: "debug-sentry", runtime },
     });
 

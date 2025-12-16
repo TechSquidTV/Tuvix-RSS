@@ -37,7 +37,7 @@ const env: Env = {
 if (!env.BETTER_AUTH_SECRET) {
   console.error(
     "❌ FATAL: BETTER_AUTH_SECRET environment variable is required.\n" +
-      "   Generate: openssl rand -base64 32"
+    "   Generate: openssl rand -base64 32"
   );
   process.exit(1);
 }
@@ -69,7 +69,7 @@ if (env.SENTRY_DSN) {
 }
 
 // Main initialization
-(async () => {
+void (async () => {
   try {
     // Run migrations
     await runMigrationsIfNeeded(env);
