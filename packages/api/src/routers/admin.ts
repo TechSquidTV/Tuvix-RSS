@@ -42,6 +42,10 @@ import { normalizeDomain } from "@/utils/domain-checker";
 import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
 import { withQueryMetrics } from "@/utils/db-metrics";
 import { aggregateByDay, calculateStartDate } from "@/utils/admin-metrics";
+import { createAuth } from "@/auth/better-auth";
+import { getGlobalSettings } from "@/services/global-settings";
+import { logSecurityEvent } from "@/auth/security";
+import * as Sentry from "@/utils/sentry";
 
 // ============================================================================
 // SHARED SCHEMAS AND CONSTANTS
@@ -173,14 +177,14 @@ function transformAdminUser(
     },
     customLimits: customLimits
       ? {
-          maxSources: customLimits.maxSources,
-          maxPublicFeeds: customLimits.maxPublicFeeds,
-          maxCategories: customLimits.maxCategories,
-          // Rate limits are not customizable - they come from plan-specific bindings
-          apiRateLimitPerMinute: null,
-          publicFeedRateLimitPerMinute: null,
-          notes: customLimits.notes,
-        }
+        maxSources: customLimits.maxSources,
+        maxPublicFeeds: customLimits.maxPublicFeeds,
+        maxCategories: customLimits.maxCategories,
+        // Rate limits are not customizable - they come from plan-specific bindings
+        apiRateLimitPerMinute: null,
+        publicFeedRateLimitPerMinute: null,
+        notes: customLimits.notes,
+      }
       : null,
     rateLimitEnabled,
   };
@@ -357,21 +361,21 @@ export const adminRouter = router({
       const usageRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.usageStats)
-              .where(
-                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.usageStats)
+            .where(
+              sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       const customLimitsRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.userLimits)
-              .where(
-                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.userLimits)
+            .where(
+              sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       // Create maps for quick lookup
@@ -671,6 +675,196 @@ export const adminRouter = router({
       await recalculateUsage(ctx.db, input.userId);
 
       return { success: true };
+    }),
+
+  /**
+   * Resend verification email to a user
+   * Manually triggers email verification for unverified users
+   * TODO: Add rate limiting to prevent spam (e.g., 1 request per admin per 30 seconds)
+   */
+  resendVerificationEmail: adminProcedure
+    .input(z.object({ userId: z.number() }))
+    .output(
+      z.object({
+        success: z.boolean(),
+        message: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await Sentry.startSpan(
+        {
+          name: "admin.resendVerificationEmail",
+          op: "admin.email",
+          attributes: {
+            "admin.user_id": ctx.user.userId.toString(),
+            "target.user_id": input.userId.toString(),
+          },
+        },
+        async (parentSpan) => {
+          const startTime = Date.now();
+
+          try {
+            // Check if email verification is enabled globally
+            const settings = await getGlobalSettings(ctx.db);
+            if (!settings.requireEmailVerification) {
+              parentSpan?.setAttribute("verification.disabled", true);
+              return {
+                success: false,
+                message: "Email verification is not enabled",
+              };
+            }
+
+            // Check if user exists
+            const users = await ctx.db
+              .select()
+              .from(schema.user)
+              .where(eq(schema.user.id, input.userId))
+              .limit(1);
+
+            const user = users[0];
+
+            if (!user) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "User not found",
+              });
+            }
+
+            // Check if user is already verified
+            if (user.emailVerified) {
+              parentSpan?.setAttribute("user.already_verified", true);
+              return {
+                success: false,
+                message: "User email is already verified",
+              };
+            }
+
+            // Create Better Auth instance
+            const auth = createAuth(ctx.env, ctx.db);
+
+            // Get frontend URL for callback
+            const frontendUrl = ctx.env.BASE_URL || "http://localhost:5173";
+
+            // Send verification email using Better Auth API
+            // This creates a new token with a fresh 1-hour expiration
+            const result = await auth.api.sendVerificationEmail({
+              body: {
+                email: user.email,
+                callbackURL: `${frontendUrl}/app/articles`,
+              },
+            });
+
+            // Check if the operation was successful
+            // Better Auth API returns object with { status: boolean }
+            // verified in: packages/api/scripts/test-verification-email.ts
+            // and mocked in: packages/api/src/routers/__tests__/admin.test.ts
+            if (typeof result.status !== "boolean" || !result.status) {
+              parentSpan?.setAttribute("email.send_failed", true);
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Failed to send verification email",
+              });
+            }
+
+            // Log security event (non-blocking - don't fail the operation if logging fails)
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId: ctx.user.userId,
+                action: "admin_resend_verification",
+                ipAddress: undefined,
+                userAgent: undefined,
+                success: true,
+                metadata: {
+                  targetUserId: input.userId,
+                  targetEmail: user.email,
+                },
+              });
+            } catch (auditError) {
+              // Log error but don't fail the operation
+              console.error(
+                "Failed to log security event for resend verification:",
+                auditError
+              );
+              Sentry.captureException(auditError, {
+                tags: {
+                  flow: "admin_resend_verification",
+                  step: "security_logging",
+                },
+              });
+            }
+
+            const duration = Date.now() - startTime;
+            parentSpan?.setAttributes({
+              "verification.sent": true,
+              duration_ms: duration,
+            });
+
+            return {
+              success: true,
+              message: "Verification email sent successfully",
+            };
+          } catch (error) {
+            const duration = Date.now() - startTime;
+
+            // Log failed attempt
+            try {
+              await logSecurityEvent(ctx.db, {
+                userId: ctx.user.userId,
+                action: "admin_resend_verification",
+                ipAddress: undefined,
+                userAgent: undefined,
+                success: false,
+                metadata: {
+                  targetUserId: input.userId,
+                  error: (error as Error).message,
+                },
+              });
+            } catch (auditError) {
+              console.error(
+                "Failed to log failed resend verification:",
+                auditError
+              );
+              Sentry.captureException(auditError, {
+                tags: {
+                  flow: "admin_resend_verification",
+                  audit: "logSecurityEvent_failure",
+                },
+                extra: {
+                  adminUserId: ctx.user.userId,
+                  targetUserId: input.userId,
+                  originalError: (error as Error)?.message,
+                },
+              });
+            }
+
+            parentSpan?.setAttributes({
+              "verification.sent": false,
+              error: (error as Error).message,
+              duration_ms: duration,
+            });
+
+            Sentry.captureException(error, {
+              tags: {
+                flow: "admin_resend_verification",
+              },
+              extra: {
+                adminUserId: ctx.user.userId,
+                targetUserId: input.userId,
+              },
+            });
+
+            // Re-throw if it's already a TRPCError
+            if (error instanceof TRPCError) {
+              throw error;
+            }
+
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to resend verification email",
+            });
+          }
+        }
+      );
     }),
 
   /**
@@ -1857,13 +2051,13 @@ export const adminRouter = router({
 
       const updateData: {
         reason?:
-          | "illegal_content"
-          | "excessive_automation"
-          | "spam"
-          | "malware"
-          | "copyright_violation"
-          | "other"
-          | null;
+        | "illegal_content"
+        | "excessive_automation"
+        | "spam"
+        | "malware"
+        | "copyright_violation"
+        | "other"
+        | null;
         notes?: string | null;
         updatedAt: Date;
       } = {

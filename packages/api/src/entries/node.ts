@@ -69,7 +69,7 @@ if (env.SENTRY_DSN) {
 }
 
 // Main initialization
-(async () => {
+void (async () => {
   try {
     // Run migrations
     await runMigrationsIfNeeded(env);

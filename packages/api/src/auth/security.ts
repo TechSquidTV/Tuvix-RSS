@@ -26,7 +26,8 @@ export type SecurityAction =
   | "invalid_token"
   | "admin_created"
   | "admin_first_user"
-  | "promoted_to_admin";
+  | "promoted_to_admin"
+  | "admin_resend_verification";
 
 /**
  * Log a security event to the audit log
