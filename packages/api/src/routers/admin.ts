@@ -680,7 +680,7 @@ export const adminRouter = router({
   /**
    * Resend verification email to a user
    * Manually triggers email verification for unverified users
-   * Rate limited: 1 request per admin per 30 seconds (global)
+   * TODO: Add rate limiting to prevent spam (e.g., 1 request per admin per 30 seconds)
    */
   resendVerificationEmail: adminProcedure
     .input(z.object({ userId: z.number() }))
