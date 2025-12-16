@@ -25,7 +25,8 @@ export async function runMigrationsIfNeeded(
   env?: Pick<Env, "DATABASE_PATH">
 ): Promise<void> {
   await Promise.resolve();
-  const dbPath = env?.DATABASE_PATH ||
+  const dbPath =
+    env?.DATABASE_PATH ||
     process.env.DATABASE_PATH ||
     resolve(process.cwd(), "./data/tuvix.db");
   // Resolve to absolute path to avoid issues with working directory
