@@ -186,9 +186,55 @@ export default Sentry.withSentry((env) => env.SENTRY_DSN, worker);
 ### Node.js Entry (`node.ts`)
 
 ```typescript
-// No Sentry initialization needed
-// All Sentry calls become no-ops via build-time aliasing
+import * as Sentry from "@sentry/node";
+
+// Initialize Sentry (if DSN provided)
+if (env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    // Node-specific integrations
+  });
+}
+
+// Create app and inject Sentry SDK
+const app = createHonoApp({
+  env,
+  sentry: Sentry,  // Pass initialized SDK to shared code
+  runtime: "nodejs",
+});
 ```
+
+## Import Patterns
+
+### When to Import SDK Directly vs Using Shim
+
+| Location | Import Pattern | Reason |
+|----------|---------------|---------|
+| **Entry Points** | Direct SDK import | Runtime-specific, safe to import directly |
+| `entries/node.ts` | `import * as Sentry from "@sentry/node"` | Only runs in Node.js |
+| `entries/cloudflare.ts` | `import * as Sentry from "@sentry/cloudflare"` | Only runs in Cloudflare |
+| **Shared Application Code** | Shim via `@/utils/sentry` | Runs in both environments |
+| `routers/*.ts` | `import * as Sentry from "@/utils/sentry"` | Build-time aliasing |
+| `services/*.ts` | `import * as Sentry from "@/utils/sentry"` | Build-time aliasing |
+| **Shared Infrastructure** | Dependency injection | Gets initialized SDK instance |
+| `hono/app.ts` | `c.get("sentry")` from context | Receives SDK from entry point |
+
+### Dependency Injection Pattern
+
+`hono/app.ts` receives the Sentry SDK via dependency injection rather than importing:
+
+```typescript
+// hono/app.ts - receives SDK via context
+app.onError(async (err, c) => {
+  const sentry = c.get("sentry");  // Injected SDK instance
+  if (sentry && env.SENTRY_DSN) {
+    sentry.captureException(err);  // Use injected SDK
+  }
+});
+```
+
+This pattern ensures the same initialized SDK instance is used throughout the request lifecycle.
 
 ## Cron Job Monitoring
 
