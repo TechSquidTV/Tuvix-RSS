@@ -758,7 +758,7 @@ export const adminRouter = router({
             // Better Auth API returns object with { status: boolean }
             // verified in: packages/api/scripts/test-verification-email.ts
             // and mocked in: packages/api/src/routers/__tests__/admin.test.ts
-            if (!result.status) {
+            if (typeof result.status !== "boolean" || !result.status) {
               parentSpan?.setAttribute("email.send_failed", true);
               throw new TRPCError({
                 code: "INTERNAL_SERVER_ERROR",
