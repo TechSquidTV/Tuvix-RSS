@@ -249,7 +249,7 @@ export const createColumns = (
                   try {
                     await navigator.clipboard.writeText(user.id.toString());
                     toast.success("User ID copied to clipboard");
-                  } catch (error) {
+                  } catch {
                     toast.error("Failed to copy User ID to clipboard");
                   }
                 }}
