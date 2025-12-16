@@ -808,6 +808,17 @@ export const adminRouter = router({
                 "Failed to log failed resend verification:",
                 auditError
               );
+              Sentry.captureException(auditError, {
+                tags: {
+                  flow: "admin_resend_verification",
+                  audit: "logSecurityEvent_failure",
+                },
+                extra: {
+                  adminUserId: ctx.user.userId,
+                  targetUserId: input.userId,
+                  originalError: (error as Error)?.message,
+                },
+              });
             }
 
             parentSpan?.setAttributes({
