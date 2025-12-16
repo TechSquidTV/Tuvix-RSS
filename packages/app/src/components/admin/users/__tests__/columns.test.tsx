@@ -186,7 +186,7 @@ describe("Admin Users Columns - Copy ID", () => {
       // Copy ID should appear in the DOM before Change Plan
       expect(
         copyId.compareDocumentPosition(changePlan) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+          Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     });
   });
@@ -294,9 +294,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
 
     // Check if Resend Verification Email menu item exists
     await waitFor(() => {
-      expect(
-        screen.getByText("Resend Verification Email"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Resend Verification Email")).toBeInTheDocument();
     });
   });
 
@@ -354,9 +352,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
 
     // Verify callback was called with the user ID
     await waitFor(() => {
-      expect(mockActions.onResendVerificationEmail).toHaveBeenCalledWith(
-        54321,
-      );
+      expect(mockActions.onResendVerificationEmail).toHaveBeenCalledWith(54321);
     });
   });
 

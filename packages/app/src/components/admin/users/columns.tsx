@@ -71,243 +71,243 @@ type ColumnActions = {
 export const createColumns = (
   actions: ColumnActions,
 ): ColumnDef<AdminUser>[] => [
-    {
-      accessorKey: "username",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="User" />
-      ),
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
+  {
+    accessorKey: "username",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="User" />
+    ),
+    cell: ({ row }) => {
+      const user = row.original;
+      return (
+        <div>
+          <div className="font-medium">{user.username}</div>
+          <div className="text-sm text-muted-foreground">{user.email}</div>
+        </div>
+      );
+    },
+    filterFn: (row, id, value) => {
+      const user = row.original;
+      const searchValue = String(value).toLowerCase();
+      return (
+        user.username.toLowerCase().includes(searchValue) ||
+        user.email.toLowerCase().includes(searchValue)
+      );
+    },
+    enableSorting: true,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "role",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Role" />
+    ),
+    cell: ({ row }) => {
+      const role = row.getValue("role") as string;
+      return (
+        <Badge variant={role === "admin" ? "default" : "secondary"}>
+          {role}
+        </Badge>
+      );
+    },
+    filterFn: (row, id, value) => {
+      return value.includes(row.getValue(id));
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "plan",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Plan" />
+    ),
+    cell: ({ row }) => {
+      const plan = row.getValue("plan") as string;
+      return (
+        <Badge variant="outline" className="capitalize">
+          {plan}
+        </Badge>
+      );
+    },
+    filterFn: (row, id, value) => {
+      return value.includes(row.getValue(id));
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "banned",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => {
+      const banned = row.getValue("banned") as boolean;
+      return banned ? (
+        <Badge variant="destructive">Banned</Badge>
+      ) : (
+        <Badge variant="outline" className="text-green-600">
+          Active
+        </Badge>
+      );
+    },
+    filterFn: (row, id, value) => {
+      const banned = row.getValue(id) as boolean;
+      const status = banned ? "banned" : "active";
+      return value.includes(status);
+    },
+    enableSorting: true,
+  },
+  {
+    id: "usage",
+    header: "Usage",
+    cell: ({ row }) => {
+      const user = row.original;
+      return (
+        <div className="text-sm">
           <div>
-            <div className="font-medium">{user.username}</div>
-            <div className="text-sm text-muted-foreground">{user.email}</div>
+            {user.usage.sourceCount} / {user.limits.maxSources} sources
           </div>
-        );
-      },
-      filterFn: (row, id, value) => {
-        const user = row.original;
-        const searchValue = String(value).toLowerCase();
-        return (
-          user.username.toLowerCase().includes(searchValue) ||
-          user.email.toLowerCase().includes(searchValue)
-        );
-      },
-      enableSorting: true,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "role",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Role" />
-      ),
-      cell: ({ row }) => {
-        const role = row.getValue("role") as string;
-        return (
-          <Badge variant={role === "admin" ? "default" : "secondary"}>
-            {role}
-          </Badge>
-        );
-      },
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
-      enableSorting: true,
-    },
-    {
-      accessorKey: "plan",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Plan" />
-      ),
-      cell: ({ row }) => {
-        const plan = row.getValue("plan") as string;
-        return (
-          <Badge variant="outline" className="capitalize">
-            {plan}
-          </Badge>
-        );
-      },
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
-      enableSorting: true,
-    },
-    {
-      accessorKey: "banned",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Status" />
-      ),
-      cell: ({ row }) => {
-        const banned = row.getValue("banned") as boolean;
-        return banned ? (
-          <Badge variant="destructive">Banned</Badge>
-        ) : (
-          <Badge variant="outline" className="text-green-600">
-            Active
-          </Badge>
-        );
-      },
-      filterFn: (row, id, value) => {
-        const banned = row.getValue(id) as boolean;
-        const status = banned ? "banned" : "active";
-        return value.includes(status);
-      },
-      enableSorting: true,
-    },
-    {
-      id: "usage",
-      header: "Usage",
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
-          <div className="text-sm">
-            <div>
-              {user.usage.sourceCount} / {user.limits.maxSources} sources
-            </div>
-            <div className="text-muted-foreground">
-              {user.usage.publicFeedCount} / {user.limits.maxPublicFeeds} feeds
-            </div>
+          <div className="text-muted-foreground">
+            {user.usage.publicFeedCount} / {user.limits.maxPublicFeeds} feeds
           </div>
-        );
-      },
-      enableSorting: false,
+        </div>
+      );
     },
-    {
-      accessorKey: "emailVerified",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Email Verified" />
-      ),
-      cell: ({ row }) => {
-        const verified = row.getValue("emailVerified") as boolean;
-        return verified ? (
-          <Badge variant="outline" className="text-green-600">
-            Verified
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-yellow-600">
-            Unverified
-          </Badge>
-        );
-      },
-      filterFn: (row, id, value) => {
-        const verified = row.getValue(id) as boolean;
-        const status = verified ? "verified" : "unverified";
-        return value.includes(status);
-      },
-      enableSorting: true,
+    enableSorting: false,
+  },
+  {
+    accessorKey: "emailVerified",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Email Verified" />
+    ),
+    cell: ({ row }) => {
+      const verified = row.getValue("emailVerified") as boolean;
+      return verified ? (
+        <Badge variant="outline" className="text-green-600">
+          Verified
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="text-yellow-600">
+          Unverified
+        </Badge>
+      );
     },
-    {
-      accessorKey: "createdAt",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Join Date" />
-      ),
-      cell: ({ row }) => {
-        const date = row.getValue("createdAt") as Date;
-        return <div>{new Date(date).toLocaleDateString()}</div>;
-      },
-      enableSorting: true,
+    filterFn: (row, id, value) => {
+      const verified = row.getValue(id) as boolean;
+      const status = verified ? "verified" : "unverified";
+      return value.includes(status);
     },
-    {
-      accessorKey: "lastSeenAt",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Last Seen" />
-      ),
-      cell: ({ row }) => {
-        const date = row.getValue("lastSeenAt") as Date | null;
-        const relativeTime = getRelativeTime(date);
-        const colorClass = getLastSeenStatusColor(date);
-        return <div className={colorClass}>{relativeTime}</div>;
-      },
-      enableSorting: true,
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.getValue("lastSeenAt") as Date | null;
-        const b = rowB.getValue("lastSeenAt") as Date | null;
-        // Sort nulls last
-        if (!a && !b) return 0;
-        if (!a) return 1;
-        if (!b) return -1;
-        return a.getTime() - b.getTime();
-      },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Join Date" />
+    ),
+    cell: ({ row }) => {
+      const date = row.getValue("createdAt") as Date;
+      return <div>{new Date(date).toLocaleDateString()}</div>;
     },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const user = row.original;
+    enableSorting: true,
+  },
+  {
+    accessorKey: "lastSeenAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Last Seen" />
+    ),
+    cell: ({ row }) => {
+      const date = row.getValue("lastSeenAt") as Date | null;
+      const relativeTime = getRelativeTime(date);
+      const colorClass = getLastSeenStatusColor(date);
+      return <div className={colorClass}>{relativeTime}</div>;
+    },
+    enableSorting: true,
+    sortingFn: (rowA, rowB) => {
+      const a = rowA.getValue("lastSeenAt") as Date | null;
+      const b = rowB.getValue("lastSeenAt") as Date | null;
+      // Sort nulls last
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.getTime() - b.getTime();
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const user = row.original;
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(user.id.toString());
+                  toast.success("User ID copied to clipboard");
+                } catch {
+                  toast.error("Failed to copy User ID to clipboard");
+                }
+              }}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy ID
+            </DropdownMenuItem>
+            {!user.emailVerified && (
               <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(user.id.toString());
-                    toast.success("User ID copied to clipboard");
-                  } catch {
-                    toast.error("Failed to copy User ID to clipboard");
-                  }
-                }}
+                onClick={() => actions.onResendVerificationEmail(user.id)}
               >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy ID
+                <Mail className="mr-2 h-4 w-4" />
+                Resend Verification Email
               </DropdownMenuItem>
-              {!user.emailVerified && (
-                <DropdownMenuItem
-                  onClick={() => actions.onResendVerificationEmail(user.id)}
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Resend Verification Email
-                </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => actions.onChangePlan(user.id, user.plan)}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Change Plan
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => actions.onCustomLimits(user.id)}>
+              <Settings className="mr-2 h-4 w-4" />
+              Custom Limits
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => actions.onRecalculateUsage(user.id)}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Recalculate Usage
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => actions.onBan(user.id)}>
+              {user.banned ? (
+                <>
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Unban
+                </>
+              ) : (
+                <>
+                  <UserX className="mr-2 h-4 w-4" />
+                  Ban
+                </>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => actions.onChangePlan(user.id, user.plan)}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                Change Plan
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => actions.onCustomLimits(user.id)}>
-                <Settings className="mr-2 h-4 w-4" />
-                Custom Limits
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => actions.onRecalculateUsage(user.id)}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Recalculate Usage
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => actions.onBan(user.id)}>
-                {user.banned ? (
-                  <>
-                    <UserCheck className="mr-2 h-4 w-4" />
-                    Unban
-                  </>
-                ) : (
-                  <>
-                    <UserX className="mr-2 h-4 w-4" />
-                    Ban
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => actions.onDelete(user.id)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-      enableSorting: false,
-      enableHiding: false,
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => actions.onDelete(user.id)}
+              className="text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
     },
-  ];
+    enableSorting: false,
+    enableHiding: false,
+  },
+];
