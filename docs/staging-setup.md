@@ -152,15 +152,38 @@ Ensure `CLOUDFLARE_API_TOKEN` has these permissions:
 
 ### Database wipe fails
 
-If the wipe script fails, you can manually reset the database:
+If the wipe script fails, you can manually reset the database.
+
+**⚠️ IMPORTANT: Always use the safe wrapper script for manual wipes:**
 
 ```bash
-# Connect to staging database
-wrangler d1 execute tuvix-staging --remote --command "SELECT name FROM sqlite_master WHERE type='table'"
-
-# Drop tables manually
-wrangler d1 execute tuvix-staging --remote --file=packages/api/scripts/wipe-staging.sql
+# Recommended: Use the safe wrapper script (includes validation and confirmation)
+cd packages/api
+./scripts/wipe-staging-safe.sh
 ```
+
+**Advanced: Direct wrangler command (use with caution):**
+
+```bash
+# CRITICAL: Always include --env staging flag to ensure you're targeting staging!
+# The --env staging flag is a safety mechanism that:
+# 1. Targets the tuvix-staging database (not production)
+# 2. Sets ENVIRONMENT='staging' variable
+# 3. Prevents accidental production wipes
+
+# List tables in staging database
+wrangler d1 execute tuvix-staging --remote --env staging --command "SELECT name FROM sqlite_master WHERE type='table'"
+
+# Wipe staging database (REQUIRES --env staging flag)
+wrangler d1 execute tuvix-staging --remote --env staging --file=packages/api/scripts/wipe-staging.sql
+```
+
+> [!CAUTION]
+> **Never run wipe scripts without the `--env staging` flag!**
+> 
+> The wipe script includes SQL-level safety checks that verify you're targeting staging.
+> However, the primary safety mechanism is the database name (`tuvix-staging` vs `tuvix`)
+> and the `--env staging` flag. Always double-check before executing.
 
 ### App shows "Cannot connect to API"
 
