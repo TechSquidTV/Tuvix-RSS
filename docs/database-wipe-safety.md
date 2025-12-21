@@ -116,10 +116,15 @@ on:
 - Requires explicit human action to deploy
 - Prevents accidental automated wipes
 
-### Layer 6: Safe Wrapper Script
+### Layer 6: Safe Wrapper Script (Optional - Manual Use Only)
 
 **Location**: `packages/api/scripts/wipe-staging-safe.sh`  
-**Mechanism**: Interactive validation and confirmation
+**Mechanism**: Interactive validation and confirmation  
+**Usage**: Optional additional safety for manual/local operations
+
+> **Note**: This layer is NOT used by CI/GitHub Actions (which use the direct wrangler command).
+> The wrapper script is interactive and would fail in automated environments.
+> CI is already protected by Layers 1-5.
 
 ```bash
 # Shows available databases
@@ -143,6 +148,7 @@ read -p "Type 'WIPE STAGING' to confirm: " confirmation
 - Explicitly blocks production database selection
 - Requires typing exact confirmation phrase
 - Shows what will be deleted before proceeding
+- **Only for manual/local use** - CI uses direct command
 
 ## Usage Guidelines
 
@@ -161,7 +167,7 @@ read -p "Type 'WIPE STAGING' to confirm: " confirmation
 - ✅ Uses staging secrets only
 - ✅ Runs in staging environment context
 
-### ✅ Safe Usage (Manual - Wrapper Script)
+### ✅ Safe Usage (Manual - Wrapper Script - Optional)
 
 ```bash
 cd packages/api
@@ -175,20 +181,34 @@ cd packages/api
 - ✅ Requires explicit confirmation
 - ✅ Automatically adds `--env staging` flag
 
-### ⚠️ Advanced Usage (Manual - Direct Command)
+**When to use**:
+- Manual/local database resets
+- When you want extra confirmation prompts
+- When you're unsure which database you're targeting
+
+**When NOT to use**:
+- ❌ CI/automated workflows (it's interactive and will fail)
+- ❌ Scripts that need to run non-interactively
+
+### ✅ Safe Usage (Manual - Direct Command)
 
 ```bash
-# MUST include --env staging flag!
+# This is what CI uses - also safe for manual use
 wrangler d1 execute tuvix-staging --remote --env staging --file=packages/api/scripts/wipe-staging.sql
 ```
 
-**Why it's risky**:
-- ⚠️ Easy to forget `--env staging` flag
-- ⚠️ Easy to typo database name
-- ⚠️ No confirmation prompt
-- ⚠️ No visibility into what's being deleted
+**Why it's safe**:
+- ✅ Hardcoded database name: `tuvix-staging`
+- ✅ Environment flag: `--env staging`
+- ✅ Non-interactive (works in CI and manual)
+- ✅ Protected by Layers 1-5
 
-**Recommendation**: Use the wrapper script instead!
+**When to use**:
+- CI/automated workflows (required)
+- Manual operations when you're confident
+- Scripts that need non-interactive execution
+
+**Important**: Always include the `--env staging` flag!
 
 ### 🛑 NEVER DO THIS
 
@@ -283,15 +303,27 @@ All database wipe operations should be logged:
 
 ## Summary
 
-We have **6 independent layers of protection** against accidental production database wipes:
+We have **6 layers of protection** against accidental production database wipes:
 
 1. ✅ Database name validation (`tuvix-staging` vs `tuvix`)
 2. ✅ Environment flag requirement (`--env staging`)
 3. ✅ SQL-level safety checks (validation queries)
 4. ✅ GitHub environment secrets isolation
 5. ✅ Manual trigger only (no automation)
-6. ✅ Safe wrapper script (interactive validation)
+6. ✅ Safe wrapper script (optional - manual use only)
 
-**For a production wipe to occur, ALL of these would need to fail simultaneously**, which is extremely unlikely with proper usage of the provided tools.
+**CI/GitHub Actions** uses Layers 1-5 (the direct wrangler command is non-interactive and already safe).
 
-**Best Practice**: Always use the wrapper script (`wipe-staging-safe.sh`) for manual operations.
+**Manual operations** can optionally use Layer 6 (wrapper script) for extra confirmation prompts, or use the direct command like CI does.
+
+**For a production wipe to occur**, multiple safety mechanisms would need to fail:
+- Wrong database name (`tuvix` instead of `tuvix-staging`)
+- Missing or wrong environment flag
+- Access to production secrets (not available in staging context)
+- Ignoring SQL validation warnings
+
+This is **extremely unlikely** with proper usage of the provided tools and workflows.
+
+**Best Practices**:
+- **CI/Automated**: Use the direct wrangler command (as currently implemented)
+- **Manual/Local**: Use the wrapper script for extra safety, or the direct command if you're confident
