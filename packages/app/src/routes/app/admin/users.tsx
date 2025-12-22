@@ -239,7 +239,7 @@ function AdminUsers() {
     (userId: number) => {
       resendVerificationEmailMutation.mutate({ userId });
     },
-    [resendVerificationEmailMutation],
+    [resendVerificationEmailMutation]
   );
 
   const openCustomLimitsDialog = useCallback(
@@ -281,7 +281,7 @@ function AdminUsers() {
       handleRecalculateUsage,
       handleResendVerificationEmail,
       openCustomLimitsDialog,
-    ],
+    ]
   );
 
   const userToBan = users?.items.find((u: UserItem) => u.id === banUserId);
