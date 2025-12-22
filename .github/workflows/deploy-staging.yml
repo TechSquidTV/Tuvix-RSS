@@ -78,7 +78,7 @@ jobs:
         if: env.SENTRY_DSN != ''
         run: |
           cd packages/api
-          echo "${{ steps.version.outputs.version }}" | pnpm exec wrangler secret put SENTRY_RELEASE --name "${{ steps.worker-name.outputs.name }}" --env staging
+          echo "${{ steps.version.outputs.version }}" | pnpm exec wrangler secret put SENTRY_RELEASE --env staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -142,9 +142,11 @@ jobs:
         working-directory: packages/api
         run: |
           echo "🌱 Seeding test data..."
-          # TODO: Create a seed script for test data
-          echo "⚠️  Seed script not yet implemented"
-          # pnpm exec tsx scripts/seed-staging.ts
+          pnpm exec wrangler d1 execute tuvix-staging --remote --file=scripts/seed-staging.sql --env staging
+          echo "✅ Test data seeded"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-app:
     name: Deploy App to Staging
