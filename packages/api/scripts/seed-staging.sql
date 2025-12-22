@@ -23,7 +23,7 @@
 
 -- Demo user password hash (bcrypt, 12 rounds): Demo123!Pass
 -- Generated with: bcrypt.hash("Demo123!Pass", 12)
--- Hash: $2b$12$LKzO5nFQqh9YvP8tVxJxXeF7HqGqxQN5yVwZ8tQJxYqKqQxQxQxQx
+-- Hash: $2b$12$0yT89TmJ7Nh7a6cVtyiN9uajEYyo/zsY0QoGSW9hdX1RPkxuXjU9O
 -- Note: This is a placeholder - actual hash will be generated
 
 -- For security, we'll generate the hash in the TypeScript seed script
@@ -70,7 +70,7 @@ SELECT
   'demo@tuvixrss.local',
   'credential',
   id,
-  '$2b$12$LKzO5nFQqh9YvP8tVxJxXeF7HqGqxQN5yVwZ8tQJxYqKqQxQxQxQx', -- Placeholder hash
+  '$2b$12$0yT89TmJ7Nh7a6cVtyiN9uajEYyo/zsY0QoGSW9hdX1RPkxuXjU9O', -- Valid hash for Demo123!Pass
   cast(unixepoch('subsecond') * 1000 as integer),
   cast(unixepoch('subsecond') * 1000 as integer)
 FROM user 
