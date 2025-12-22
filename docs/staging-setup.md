@@ -82,8 +82,17 @@ wrangler secret put BETTER_AUTH_SECRET --name tuvix-api-staging --env staging
 wrangler secret put RESEND_API_KEY --name tuvix-api-staging --env staging
 # When prompted, enter the "from" email address to use for staging
 wrangler secret put EMAIL_FROM --name tuvix-api-staging --env staging
-# When prompted, enter the full base URL of your staging app (e.g. https://staging.yourdomain.com)
+# When prompted, enter the full base URL of your staging app (e.g. https://tuvix-app-staging.pages.dev)
 wrangler secret put BASE_URL --name tuvix-api-staging --env staging
+
+# CORS Origin (Required for frontend to talk to API)
+# The full URL of your staging app (e.g. https://tuvix-app-staging.pages.dev)
+wrangler secret put CORS_ORIGIN --name tuvix-api-staging --env staging
+
+# API URL (Self-reference for Better Auth)
+# The full URL of your staging API (e.g. https://tuvix-api-staging.your-subdomain.workers.dev)
+wrangler secret put BETTER_AUTH_URL --name tuvix-api-staging --env staging
+wrangler secret put API_URL --name tuvix-api-staging --env staging
 
 # Sentry release (will be set automatically by deployment workflow)
 # When prompted, enter the staging release identifier (if you choose to set this manually)
