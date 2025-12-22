@@ -43,7 +43,7 @@ export async function executeBatch<
   } else {
     // better-sqlite3: Execute sequentially
     for (const stmt of statements) {
-      await stmt;
+      await stmt.execute();
     }
   }
 }

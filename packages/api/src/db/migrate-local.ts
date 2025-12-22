@@ -24,30 +24,27 @@ const __dirname = dirname(__filename);
 export async function runMigrationsIfNeeded(
   env?: Pick<Env, "DATABASE_PATH">
 ): Promise<void> {
+  await Promise.resolve();
   const dbPath =
     env?.DATABASE_PATH ||
     process.env.DATABASE_PATH ||
     resolve(process.cwd(), "./data/tuvix.db");
-
   // Resolve to absolute path to avoid issues with working directory
   const absoluteDbPath = dbPath.startsWith("/")
     ? dbPath
     : resolve(process.cwd(), dbPath);
-
   // Ensure data directory exists
   const dataDir = dirname(absoluteDbPath);
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true });
     console.log(`📁 Created data directory: ${dataDir}`);
   }
-
   // Resolve migrations folder path
   // Try multiple possible locations:
   // 1. Relative to source file (for dev): src/db/../../drizzle
   // 2. Relative to dist (for production): dist/db/../../drizzle
   // 3. Relative to process.cwd() (fallback): ./drizzle or packages/api/drizzle
   let migrationsFolder = resolve(__dirname, "../../drizzle");
-
   // If that doesn't exist, try from process.cwd()
   if (!existsSync(migrationsFolder)) {
     const cwdDrizzle = resolve(process.cwd(), "drizzle");
@@ -59,16 +56,13 @@ export async function runMigrationsIfNeeded(
       migrationsFolder = apiDrizzle;
     }
   }
-
   if (!existsSync(migrationsFolder)) {
     throw new Error(
       `Migrations folder not found. Tried: ${resolve(__dirname, "../../drizzle")}, ${resolve(process.cwd(), "drizzle")}, ${resolve(process.cwd(), "packages/api/drizzle")}`
     );
   }
-
   console.log(`🔄 Running migrations for database: ${absoluteDbPath}`);
   const sqlite = new Database(absoluteDbPath);
-
   try {
     // Enable foreign keys
     sqlite.pragma("foreign_keys = ON");

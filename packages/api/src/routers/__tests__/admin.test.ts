@@ -4,7 +4,7 @@
  * Tests for admin-only endpoints (user management, global settings, plans, stats)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import {
   createTestDb,
@@ -16,6 +16,15 @@ import {
 } from "@/test/setup";
 import { adminRouter } from "../admin";
 import * as schema from "@/db/schema";
+
+// Mock Better Auth
+vi.mock("@/auth/better-auth", () => ({
+  createAuth: vi.fn(() => ({
+    api: {
+      sendVerificationEmail: vi.fn().mockResolvedValue({ status: true }),
+    },
+  })),
+}));
 
 describe("Admin Router", () => {
   let db!: NonNullable<ReturnType<typeof createTestDb>>;
@@ -436,6 +445,134 @@ describe("Admin Router", () => {
       const userCaller = createUserCaller();
       await expect(
         userCaller.recalculateUsage({ userId: regularUser.id })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("resendVerificationEmail", () => {
+    it("should successfully resend verification email to unverified user", async () => {
+      // Create an unverified user
+      const { user: unverifiedUser } = await seedTestUser(db, {
+        username: "unverified",
+        email: "unverified@example.com",
+        emailVerified: false,
+        role: "user",
+      });
+
+      // Enable email verification
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const caller = createAdminCaller();
+      const result = await caller.resendVerificationEmail({
+        userId: unverifiedUser.id,
+      });
+
+      // Debug output
+      if (!result.success) {
+        console.log("TEST DEBUG - Result:", result);
+      }
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("Verification email sent successfully");
+    });
+
+    it("should return error when user is already verified", async () => {
+      // regularUser is verified by default
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const caller = createAdminCaller();
+      const result = await caller.resendVerificationEmail({
+        userId: regularUser.id,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("User email is already verified");
+    });
+
+    it("should return error when email verification is disabled", async () => {
+      const { user: unverifiedUser } = await seedTestUser(db, {
+        username: "unverified2",
+        email: "unverified2@example.com",
+        emailVerified: false,
+        role: "user",
+      });
+
+      // Disable email verification (it's false by default, but explicitly set it)
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: false })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const caller = createAdminCaller();
+      const result = await caller.resendVerificationEmail({
+        userId: unverifiedUser.id,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("Email verification is not enabled");
+    });
+
+    it("should throw error when user not found", async () => {
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const caller = createAdminCaller();
+      await expect(
+        caller.resendVerificationEmail({ userId: 99999 })
+      ).rejects.toThrow("User not found");
+    });
+
+    it("should log security event on success", async () => {
+      const { user: unverifiedUser } = await seedTestUser(db, {
+        username: "unverified3",
+        email: "unverified3@example.com",
+        emailVerified: false,
+        role: "user",
+      });
+
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const caller = createAdminCaller();
+      await caller.resendVerificationEmail({ userId: unverifiedUser.id });
+
+      const logs = await db
+        .select()
+        .from(schema.securityAuditLog)
+        .where(eq(schema.securityAuditLog.action, "admin_resend_verification"));
+
+      expect(logs.length).toBeGreaterThan(0);
+      const latestLog = logs[logs.length - 1];
+      expect(latestLog.success).toBe(true);
+      expect(latestLog.userId).toBe(adminUser.id);
+    });
+
+    it("should require admin role", async () => {
+      const { user: unverifiedUser } = await seedTestUser(db, {
+        username: "unverified4",
+        email: "unverified4@example.com",
+        emailVerified: false,
+        role: "user",
+      });
+
+      await db
+        .update(schema.globalSettings)
+        .set({ requireEmailVerification: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const userCaller = createUserCaller();
+      await expect(
+        userCaller.resendVerificationEmail({ userId: unverifiedUser.id })
       ).rejects.toThrow();
     });
   });

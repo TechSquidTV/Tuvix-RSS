@@ -85,7 +85,6 @@ export function startSpan<T>(
     setAttributes: () => noopSpan,
     setStatus: () => noopSpan,
   };
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return callback(noopSpan);
 }
 
@@ -106,16 +105,16 @@ export function startInactiveSpan(_options: StartSpanOptions): Span {
  * Flush pending events (no-op)
  * Always returns true (success)
  */
-export async function flush(_timeout?: number): Promise<boolean> {
-  return true;
+export function flush(_timeout?: number): Promise<boolean> {
+  return Promise.resolve(true);
 }
 
 /**
  * Close the Sentry SDK (no-op)
  * Always returns immediately
  */
-export async function close(_timeout?: number): Promise<boolean> {
-  return true;
+export function close(_timeout?: number): Promise<boolean> {
+  return Promise.resolve(true);
 }
 
 /**
@@ -143,7 +142,6 @@ export function getCurrentScope(): {
 export function withScope<T>(
   callback: (scope: ReturnType<typeof getCurrentScope>) => T
 ): T {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return callback(getCurrentScope());
 }
 

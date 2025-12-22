@@ -38,6 +38,16 @@ export default [
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-return": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
+      // Promise handling rules - catch missing awaits and floating promises
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: false,
+        },
+      ],
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/require-await": "warn",
       // Enforce tsconfig path aliases, disallow ../ imports but allow same folder ./
       "no-relative-import-paths/no-relative-import-paths": [
         "error",

@@ -51,4 +51,6 @@ export async function initCronJobs(env: Env): Promise<void> {
   console.log("   - RSS fetch: based on fetchIntervalMinutes setting");
   console.log("   - Article prune: every 24 hours");
   console.log("   - Token cleanup: every 7 days");
+
+  return Promise.resolve();
 }

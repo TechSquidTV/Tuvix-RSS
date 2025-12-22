@@ -2260,7 +2260,7 @@ export const subscriptionsRouter = router({
   importStatus: rateLimitedProcedure
     .input(z.object({ jobId: z.string() }))
     .output(ImportJobSchema)
-    .query(async ({ ctx: _ctx, input: _input }) => {
+    .query(({ ctx: _ctx, input: _input }) => {
       // Since we're doing synchronous imports, this is not used
       throw new TRPCError({
         code: "NOT_FOUND",

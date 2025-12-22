@@ -62,6 +62,7 @@ export async function seedTestUser(
     password?: string;
     role?: "user" | "admin";
     plan?: string;
+    emailVerified?: boolean;
   }
 ) {
   const username = overrides?.username || "testuser";
@@ -69,6 +70,7 @@ export async function seedTestUser(
   const password = overrides?.password || "TestPass123!";
   const role = overrides?.role || "user";
   const plan = overrides?.plan || "free";
+  const emailVerified = overrides?.emailVerified ?? true;
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -82,7 +84,7 @@ export async function seedTestUser(
       role,
       plan,
       banned: false,
-      emailVerified: true,
+      emailVerified,
     })
     .returning();
 
