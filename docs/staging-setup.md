@@ -53,9 +53,9 @@ Create a **new environment** called `staging`, then add these secrets:
 
 | Secret Name                             | Value                                   | Description                    |
 | --------------------------------------- | --------------------------------------- | ------------------------------ |
-| `STAGING_D1_DATABASE_ID`                | `abc123-def456-ghi789`                  | Database ID from step 1        |
-| `STAGING_CLOUDFLARE_PAGES_PROJECT_NAME` | `tuvix-app-staging`                     | Pages project name from step 2 |
-| `STAGING_VITE_API_URL`                  | `https://tuvix-api-staging.workers.dev` | Staging API URL                |
+| `STAGING_D1_DATABASE_ID`                | `abc123-def456-ghi789`                            | Database ID from step 1          |
+| `STAGING_CLOUDFLARE_PAGES_PROJECT_NAME` | `tuvix-app-staging`                               | Pages project name from step 2   |
+| `STAGING_VITE_API_URL`                  | `https://tuvix-api-staging.<subdomain>.workers.dev` | Staging API URL (see note below) |
 
 #### Shared Secrets (if not already set)
 
