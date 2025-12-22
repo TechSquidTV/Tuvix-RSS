@@ -9,8 +9,8 @@ const password = "Demo123!Pass";
 const saltRounds = 12;
 
 bcrypt.hash(password, saltRounds).then((hash) => {
-    console.log("Password:", password);
-    console.log("Hash:", hash);
-    console.log("");
-    console.log("Copy this hash into scripts/seed-staging.sql");
+  console.log("Password:", password);
+  console.log("Hash:", hash);
+  console.log("");
+  console.log("Copy this hash into scripts/seed-staging.sql");
 });

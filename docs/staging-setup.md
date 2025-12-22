@@ -180,12 +180,13 @@ wrangler d1 execute tuvix-staging --remote --env staging --file=packages/api/scr
 
 > [!CAUTION]
 > **Never run wipe scripts without the `--env staging` flag!**
-> 
+>
 > The `--env staging` flag is critical for safety:
+>
 > - Targets the `tuvix-staging` database (not production)
 > - Sets `ENVIRONMENT='staging'` variable
 > - Uses staging-specific configuration
-> 
+>
 > The wipe script includes SQL-level safety checks, but the primary protection
 > is the database name and environment flag. Always double-check before executing.
 

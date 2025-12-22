@@ -974,9 +974,8 @@ export const subscriptionsRouter = router({
         FeedValidationError,
         FeedDiscoveryError,
       } = await import("@tuvixrss/tricorder");
-      const { sentryTelemetryAdapter } = await import(
-        "@/adapters/sentry-telemetry"
-      );
+      const { sentryTelemetryAdapter } =
+        await import("@/adapters/sentry-telemetry");
 
       // Use the extensible discovery system with Sentry telemetry
       let discoveredFeeds;
@@ -2154,9 +2153,8 @@ export const subscriptionsRouter = router({
                   // Immediately fetch articles for the new subscription
                   // This matches single subscription behavior and provides instant feedback
                   try {
-                    const { fetchSingleFeed } = await import(
-                      "@/services/rss-fetcher"
-                    );
+                    const { fetchSingleFeed } =
+                      await import("@/services/rss-fetcher");
                     await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
 
                     Sentry.addBreadcrumb({

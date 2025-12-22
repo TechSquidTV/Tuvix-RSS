@@ -21,7 +21,8 @@ wrangler d1 execute tuvix-staging --remote --env staging --file=scripts/wipe-sta
 wrangler d1 execute tuvix --remote --file=scripts/wipe-staging.sql
 ```
 
-**Protection**: 
+**Protection**:
+
 - Staging uses `tuvix-staging` database
 - Production uses `tuvix` database
 - These are completely separate D1 database instances with different IDs
@@ -48,6 +49,7 @@ database_id = "${D1_DATABASE_ID}"  # Different from production!
 ```
 
 **Protection**:
+
 - The `--env staging` flag binds to staging-specific configuration
 - Sets `ENVIRONMENT='staging'` variable
 - Uses `STAGING_D1_DATABASE_ID` secret (not production database ID)
@@ -60,19 +62,20 @@ database_id = "${D1_DATABASE_ID}"  # Different from production!
 
 ```sql
 -- Safety check: Verify database state before wiping
-SELECT CASE 
+SELECT CASE
     WHEN COUNT(*) = 0 THEN 'OK: Database is empty (fresh staging)'
     WHEN COUNT(*) > 0 THEN 'WARNING: Database has tables - proceeding with wipe'
 END as safety_check
-FROM sqlite_master 
-WHERE type = 'table' 
-  AND name NOT LIKE 'sqlite_%' 
+FROM sqlite_master
+WHERE type = 'table'
+  AND name NOT LIKE 'sqlite_%'
   AND name NOT LIKE '_cf_%'
   AND name NOT LIKE '__drizzle_migrations'
   AND name NOT LIKE 'd1_migrations';
 ```
 
 **Protection**:
+
 - Validates database state before proceeding
 - Provides visibility into what will be deleted
 - Creates an audit trail in logs
@@ -83,16 +86,19 @@ WHERE type = 'table'
 **Mechanism**: Environment-specific secrets
 
 **Staging Environment Secrets**:
+
 - `STAGING_D1_DATABASE_ID` - Staging database UUID
 - `STAGING_CLOUDFLARE_PAGES_PROJECT_NAME` - Staging Pages project
 - `STAGING_VITE_API_URL` - Staging API URL
 
 **Production Secrets** (separate):
+
 - `D1_DATABASE_ID` - Production database UUID
 - Different Pages project name
 - Different API URL
 
 **Protection**:
+
 - Staging workflow can only access staging secrets
 - Production database ID is never available in staging context
 - Even if someone tried to target production, they wouldn't have the credentials
@@ -112,6 +118,7 @@ on:
 ```
 
 **Protection**:
+
 - No automatic triggers (no push, pull_request, schedule)
 - Requires explicit human action to deploy
 - Prevents accidental automated wipes
@@ -144,6 +151,7 @@ read -p "Type 'WIPE STAGING' to confirm: " confirmation
 ```
 
 **Protection**:
+
 - Lists all databases so you can verify target
 - Explicitly blocks production database selection
 - Requires typing exact confirmation phrase
@@ -162,6 +170,7 @@ read -p "Type 'WIPE STAGING' to confirm: " confirmation
 ```
 
 **Why it's safe**:
+
 - ✅ Hardcoded database name: `tuvix-staging`
 - ✅ Environment flag: `--env staging`
 - ✅ Uses staging secrets only
@@ -175,6 +184,7 @@ cd packages/api
 ```
 
 **Why it's safe**:
+
 - ✅ Interactive validation
 - ✅ Shows current databases
 - ✅ Blocks production attempts
@@ -182,11 +192,13 @@ cd packages/api
 - ✅ Automatically adds `--env staging` flag
 
 **When to use**:
+
 - Manual/local database resets
 - When you want extra confirmation prompts
 - When you're unsure which database you're targeting
 
 **When NOT to use**:
+
 - ❌ CI/automated workflows (it's interactive and will fail)
 - ❌ Scripts that need to run non-interactively
 
@@ -198,12 +210,14 @@ wrangler d1 execute tuvix-staging --remote --env staging --file=packages/api/scr
 ```
 
 **Why it's safe**:
+
 - ✅ Hardcoded database name: `tuvix-staging`
 - ✅ Environment flag: `--env staging`
 - ✅ Non-interactive (works in CI and manual)
 - ✅ Protected by Layers 1-5
 
 **When to use**:
+
 - CI/automated workflows (required)
 - Manual operations when you're confident
 - Scripts that need non-interactive execution
@@ -221,6 +235,7 @@ wrangler d1 execute tuvix --remote --env staging --file=packages/api/scripts/wip
 ```
 
 **Why it's dangerous**:
+
 - 🛑 Targets production database
 - 🛑 Would cause catastrophic data loss
 - 🛑 No way to recover without backups
@@ -260,6 +275,7 @@ grep "d1 execute" .github/workflows/deploy-staging.yml
 
 **Impact**: Low - staging is designed to be wiped regularly  
 **Recovery**:
+
 1. Re-run staging deployment workflow
 2. Database will be recreated with fresh migrations
 3. Optionally seed test data
@@ -268,6 +284,7 @@ grep "d1 execute" .github/workflows/deploy-staging.yml
 
 **Impact**: CATASTROPHIC - all user data lost  
 **Recovery**:
+
 1. **STOP**: Immediately halt all operations
 2. Check if Cloudflare D1 has automatic backups (check dashboard)
 3. Restore from most recent backup
@@ -317,6 +334,7 @@ We have **6 layers of protection** against accidental production database wipes:
 **Manual operations** can optionally use Layer 6 (wrapper script) for extra confirmation prompts, or use the direct command like CI does.
 
 **For a production wipe to occur**, multiple safety mechanisms would need to fail:
+
 - Wrong database name (`tuvix` instead of `tuvix-staging`)
 - Missing or wrong environment flag
 - Access to production secrets (not available in staging context)
@@ -325,5 +343,6 @@ We have **6 layers of protection** against accidental production database wipes:
 This is **extremely unlikely** with proper usage of the provided tools and workflows.
 
 **Best Practices**:
+
 - **CI/Automated**: Use the direct wrangler command (as currently implemented)
 - **Manual/Local**: Use the wrapper script for extra safety, or the direct command if you're confident
