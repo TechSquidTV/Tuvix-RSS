@@ -62,7 +62,7 @@ export function ShareDropdown({
     window.open(
       `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`,
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   };
 
@@ -70,7 +70,7 @@ export function ShareDropdown({
     window.open(
       `https://reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`,
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   };
 
@@ -78,7 +78,7 @@ export function ShareDropdown({
     window.open(
       `https://news.ycombinator.com/submitlink?u=${encodeURIComponent(url)}&t=${encodeURIComponent(title)}`,
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   };
 
@@ -88,7 +88,7 @@ export function ShareDropdown({
     window.open(
       `https://mastodon.social/share?text=${text}`,
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   };
 
@@ -97,7 +97,7 @@ export function ShareDropdown({
     window.open(
       `https://bsky.app/intent/compose?text=${text}`,
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   };
 

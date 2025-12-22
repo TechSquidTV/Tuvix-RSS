@@ -124,7 +124,7 @@ function AdminBlockedDomains() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteDomainId, setDeleteDomainId] = useState<number | null>(null);
   const [editingDomain, setEditingDomain] = useState<BlockedDomain | null>(
-    null,
+    null
   );
   const [bulkImportText, setBulkImportText] = useState("");
   const [bulkImportReason, setBulkImportReason] = useState<string | null>(null);
@@ -198,7 +198,7 @@ function AdminBlockedDomains() {
       errors: Array<{ domain: string; error: string }>;
     }) => {
       toast.success(
-        `Imported ${result.added} domains${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}${result.errors.length > 0 ? `, ${result.errors.length} errors` : ""}`,
+        `Imported ${result.added} domains${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}${result.errors.length > 0 ? `, ${result.errors.length} errors` : ""}`
       );
       refetch();
       setShowBulkImportSheet(false);
@@ -226,7 +226,7 @@ function AdminBlockedDomains() {
     { reason: reasonFilter },
     {
       enabled: false,
-    },
+    }
   );
 
   const handleAdd = useCallback(() => {
@@ -305,7 +305,7 @@ function AdminBlockedDomains() {
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to export domains",
+        error instanceof Error ? error.message : "Failed to export domains"
       );
     }
   }, [exportMutation]);
@@ -327,7 +327,7 @@ function AdminBlockedDomains() {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(
-        new Set(blockedDomains?.items.map((d: BlockedDomain) => d.id) || []),
+        new Set(blockedDomains?.items.map((d: BlockedDomain) => d.id) || [])
       );
     }
   }, [selectedIds.size, blockedDomains?.items]);
@@ -727,7 +727,7 @@ function AdminBlockedDomains() {
                         <SelectItem key={key} value={key}>
                           {label}
                         </SelectItem>
-                      ),
+                      )
                     )}
                   </SelectContent>
                 </Select>

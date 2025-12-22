@@ -17,7 +17,7 @@ interface NetworkInformation extends EventTarget {
 
 export function useNetworkStatus(): NetworkStatus {
   const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true,
+    typeof navigator !== "undefined" ? navigator.onLine : true
   );
 
   const [connectionInfo, setConnectionInfo] = useState<

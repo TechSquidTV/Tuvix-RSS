@@ -18,7 +18,7 @@ export type TRPCError = { data?: { httpStatus?: number } };
  */
 export function shouldRetryQuery(
   failureCount: number,
-  error: TRPCError,
+  error: TRPCError
 ): boolean {
   // Don't retry on 4xx errors (client errors)
   if (
@@ -46,7 +46,7 @@ export function calculateRetryDelay(attemptIndex: number): number {
  */
 export function createFetchWithCredentials(
   url: URL | RequestInfo,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<Response> {
   return fetch(url, {
     ...options,
@@ -83,7 +83,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
             retry: false, // Don't auto-retry mutations
           },
         },
-      }),
+      })
   );
 
   // Sync React Query's online manager with browser's navigator.onLine
@@ -118,7 +118,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           transformer,
         }),
       ],
-    }),
+    })
   );
 
   return (

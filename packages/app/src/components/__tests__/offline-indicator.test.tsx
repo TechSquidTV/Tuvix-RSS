@@ -240,7 +240,7 @@ describe("OfflineIndicator", () => {
         "You're offline",
         expect.objectContaining({
           description: "Some features may be unavailable",
-        }),
+        })
       );
     });
 
@@ -265,7 +265,7 @@ describe("OfflineIndicator", () => {
         "Back online!",
         expect.objectContaining({
           description: "Syncing your data...",
-        }),
+        })
       );
     });
   });

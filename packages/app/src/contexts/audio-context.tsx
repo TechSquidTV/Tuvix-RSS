@@ -11,7 +11,7 @@ interface AudioContextValue {
   playAudio: (
     articleId: number,
     audioUrl: string,
-    startPosition?: number,
+    startPosition?: number
   ) => void;
   pauseAudio: () => void;
   stopAudio: () => void;
@@ -23,7 +23,7 @@ const [AudioProvider, useAudio] =
 
 function AudioContextProvider({ children }: { children: React.ReactNode }) {
   const [currentAudioId, setCurrentAudioId] = React.useState<number | null>(
-    null,
+    null
   );
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0);
@@ -220,10 +220,10 @@ function AudioContextProvider({ children }: { children: React.ReactNode }) {
               },
             });
           });
-        },
+        }
       );
     },
-    [currentAudioId, audioUrl],
+    [currentAudioId, audioUrl]
   );
 
   const pauseAudio = React.useCallback(() => {

@@ -37,7 +37,7 @@ export function registerPWA() {
           () => {
             registration.update();
           },
-          60 * 60 * 1000,
+          60 * 60 * 1000
         );
       }
     },

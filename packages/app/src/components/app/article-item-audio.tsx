@@ -82,7 +82,7 @@ export function ArticleItemAudio({
         }
       }
     },
-    [article.id, isRead, markRead, markUnread],
+    [article.id, isRead, markRead, markUnread]
   );
 
   const handleSave = useCallback(
@@ -96,7 +96,7 @@ export function ArticleItemAudio({
         }
       }
     },
-    [article.id, isSaved, saveArticle, unsaveArticle],
+    [article.id, isSaved, saveArticle, unsaveArticle]
   );
 
   const handleOpenLink = useCallback(() => {
@@ -141,7 +141,7 @@ export function ArticleItemAudio({
       markUnread,
       saveArticle,
       unsaveArticle,
-    ],
+    ]
   );
 
   const handleImageError = useCallback(() => {
@@ -173,7 +173,7 @@ export function ArticleItemAudio({
           "group bg-card text-card-foreground border border-border hover:bg-accent/50 transition-colors",
           isRead && "opacity-60",
           isMobile && "cursor-pointer",
-          className,
+          className
         )}
         onClick={handleCardClick}
       >
@@ -262,7 +262,7 @@ export function ArticleItemAudio({
                   alt={`Artwork for ${article.title || "podcast episode"}`}
                   className={cn(
                     "object-cover rounded-lg",
-                    isMobile ? "w-full h-48" : "w-32 h-32",
+                    isMobile ? "w-full h-48" : "w-32 h-32"
                   )}
                   onError={handleImageError}
                   loading="lazy"
@@ -271,7 +271,7 @@ export function ArticleItemAudio({
                 <div
                   className={cn(
                     "flex items-center justify-center bg-muted rounded-lg",
-                    isMobile ? "w-full h-48" : "w-32 h-32",
+                    isMobile ? "w-full h-48" : "w-32 h-32"
                   )}
                   aria-hidden="true"
                 >
@@ -286,13 +286,13 @@ export function ArticleItemAudio({
         <ItemFooter
           className={cn(
             "flex items-center pt-3 border-t",
-            isMobile ? "flex-col gap-2" : "justify-between",
+            isMobile ? "flex-col gap-2" : "justify-between"
           )}
         >
           <div
             className={cn(
               "flex items-center gap-2",
-              isMobile && "w-full justify-between",
+              isMobile && "w-full justify-between"
             )}
           >
             <Button
@@ -301,7 +301,7 @@ export function ArticleItemAudio({
               className={cn(
                 "h-8 gap-1.5",
                 isMobile && "flex-1",
-                isRead && "text-primary",
+                isRead && "text-primary"
               )}
               onClick={handleRead}
               disabled={markRead.isPending || markUnread.isPending}
@@ -321,7 +321,7 @@ export function ArticleItemAudio({
               className={cn(
                 "h-8 gap-1.5",
                 isMobile && "flex-1",
-                isSaved && "text-primary",
+                isSaved && "text-primary"
               )}
               onClick={handleSave}
               disabled={saveArticle.isPending || unsaveArticle.isPending}

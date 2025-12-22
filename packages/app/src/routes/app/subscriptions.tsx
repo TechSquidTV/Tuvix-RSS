@@ -93,7 +93,7 @@ function SubscriptionsPage() {
   // Filter configuration state (for new subscription)
   const [filterEnabled, setFilterEnabled] = useState(false);
   const [filterMode, setFilterMode] = useState<"include" | "exclude">(
-    "include",
+    "include"
   );
   const [initialFilters, setInitialFilters] = useState<
     Array<{
@@ -148,7 +148,7 @@ function SubscriptionsPage() {
           onError: () => {
             setDiscoveredFeeds([]);
           },
-        },
+        }
       );
     } else {
       // Clear discovered feeds when URL is empty, invalid, or looks like a feed
@@ -310,7 +310,7 @@ function SubscriptionsPage() {
     setSelectedCategoryIds((prev) =>
       prev.includes(categoryId)
         ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId],
+        : [...prev, categoryId]
     );
   }, []);
 
@@ -332,7 +332,7 @@ function SubscriptionsPage() {
     (
       id: number,
       currentTitle: string,
-      currentCategories: Array<{ id?: number }>,
+      currentCategories: Array<{ id?: number }>
     ) => {
       setEditingId(id);
       setEditValue(currentTitle);
@@ -340,11 +340,11 @@ function SubscriptionsPage() {
       setEditCategoryIds(
         currentCategories
           .filter((c): c is typeof c & { id: number } => c.id !== undefined)
-          .map((c) => c.id),
+          .map((c) => c.id)
       );
       setEditNewCategories([]);
     },
-    [],
+    []
   );
 
   const handleSaveEdit = useCallback(
@@ -364,10 +364,10 @@ function SubscriptionsPage() {
             setEditCategoryIds([]);
             setEditNewCategories([]);
           },
-        },
+        }
       );
     },
-    [editValue, editCategoryIds, editNewCategories, updateSubscription],
+    [editValue, editCategoryIds, editNewCategories, updateSubscription]
   );
 
   const handleDelete = useCallback((id: number) => {
@@ -421,7 +421,7 @@ function SubscriptionsPage() {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [parseOPML],
+    [parseOPML]
   );
 
   const handleConfirmImport = useCallback(
@@ -430,7 +430,7 @@ function SubscriptionsPage() {
       categorySelections: Record<
         string,
         { selectedCategoryIds: number[]; newCategoryNames: string[] }
-      >,
+      >
     ) => {
       // Category selections are collected in the preview dialog but not used
       // The backend automatically imports categories from the OPML structure
@@ -470,7 +470,7 @@ function SubscriptionsPage() {
         toast.error("Failed to import feeds");
       }
     },
-    [uploadedFile, importOPML, utils],
+    [uploadedFile, importOPML, utils]
   );
 
   const handleExportSubscriptions = useCallback(async () => {
@@ -549,7 +549,7 @@ function SubscriptionsPage() {
             (feed: (typeof parseOPML.data.feeds)[0]) => ({
               ...feed,
               folder: feed.categories?.[0], // Use first category as folder for grouping
-            }),
+            })
           )}
           existingCategories={existingCategories}
           onConfirm={handleConfirmImport}
@@ -828,7 +828,7 @@ function SubscriptionsPage() {
                           type="button"
                           onClick={() =>
                             setInitialFilters((prev) =>
-                              prev.filter((_, i) => i !== index),
+                              prev.filter((_, i) => i !== index)
                             )
                           }
                           className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors"
@@ -959,7 +959,7 @@ function SubscriptionsPage() {
                       setEditCategoryIds((prev) =>
                         prev.includes(categoryId)
                           ? prev.filter((id) => id !== categoryId)
-                          : [...prev, categoryId],
+                          : [...prev, categoryId]
                       );
                     }}
                     onAddNewCategory={(categoryName: string) => {
@@ -967,7 +967,7 @@ function SubscriptionsPage() {
                     }}
                     onRemoveNewCategory={(categoryName: string) => {
                       setEditNewCategories((prev) =>
-                        prev.filter((n) => n !== categoryName),
+                        prev.filter((n) => n !== categoryName)
                       );
                     }}
                     isLoadingSuggestions={false}
@@ -1064,7 +1064,7 @@ function SubscriptionsPage() {
                             handleEdit(
                               sub.id,
                               sub.customTitle || sub.source?.title || "",
-                              sub.categories || [],
+                              sub.categories || []
                             )
                           }
                           aria-label={`Edit subscription ${sub.customTitle || sub.source?.title || "Untitled Feed"}`}
@@ -1112,36 +1112,36 @@ function SubscriptionsPage() {
                         categories={sub.categories
                           .filter(
                             (
-                              c: (typeof sub.categories)[0],
+                              c: (typeof sub.categories)[0]
                             ): c is typeof c & { id: number } =>
-                              c.id !== undefined,
+                              c.id !== undefined
                           )
                           .map(
                             (
                               c: (typeof sub.categories)[0] & {
                                 id: number;
-                              },
+                              }
                             ) => ({
                               id: c.id,
                               name: c.name || "",
                               color: c.color,
-                            }),
+                            })
                           )}
                         onRemove={(categoryId) => {
                           const currentCategoryIds =
                             sub.categories
                               ?.filter(
                                 (
-                                  c: (typeof sub.categories)[0],
+                                  c: (typeof sub.categories)[0]
                                 ): c is typeof c & { id: number } =>
-                                  c.id !== undefined && c.id !== categoryId,
+                                  c.id !== undefined && c.id !== categoryId
                               )
                               .map(
                                 (
                                   c: (typeof sub.categories)[0] & {
                                     id: number;
-                                  },
-                                ) => c.id,
+                                  }
+                                ) => c.id
                               ) || [];
                           updateSubscription.mutate({
                             id: sub.id!,

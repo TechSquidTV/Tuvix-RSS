@@ -105,7 +105,7 @@ describe("AnimatedArticleList", () => {
     render(
       <AnimatedArticleList articles={mockArticles}>
         {trigger}
-      </AnimatedArticleList>,
+      </AnimatedArticleList>
     );
 
     expect(screen.getByTestId("infinite-trigger")).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("AnimatedArticleList", () => {
 
   it("applies className prop correctly", () => {
     render(
-      <AnimatedArticleList articles={mockArticles} className="custom-class" />,
+      <AnimatedArticleList articles={mockArticles} className="custom-class" />
     );
 
     // Get the container (first motion-div, which is the wrapper)
@@ -130,7 +130,7 @@ describe("AnimatedArticleList", () => {
       <AnimatedArticleList
         articles={mockArticles}
         newArticleIds={newArticleIds}
-      />,
+      />
     );
 
     // All articles should still render

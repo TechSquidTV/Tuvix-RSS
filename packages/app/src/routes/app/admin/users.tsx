@@ -52,7 +52,7 @@ function AdminUsers() {
   const [changePlanUserId, setChangePlanUserId] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [customLimitsUserId, setCustomLimitsUserId] = useState<number | null>(
-    null,
+    null
   );
   const [customLimits, setCustomLimits] = useState({
     maxSources: "",
@@ -74,8 +74,8 @@ function AdminUsers() {
         | { id: string; desc: boolean }[]
         | undefined
         | ((
-            old: { id: string; desc: boolean }[] | undefined,
-          ) => { id: string; desc: boolean }[] | undefined),
+            old: { id: string; desc: boolean }[] | undefined
+          ) => { id: string; desc: boolean }[] | undefined)
     ) => {
       setSorting(updaterOrValue);
       // Reset to first page when sorting changes
@@ -84,7 +84,7 @@ function AdminUsers() {
         pageIndex: 0,
       }));
     },
-    [],
+    []
   );
 
   // Type-safe sorting field mapping - ensures only valid sort fields are passed to API
@@ -217,7 +217,7 @@ function AdminUsers() {
     (userId: number) => {
       recalculateUsageMutation.mutate({ userId });
     },
-    [recalculateUsageMutation],
+    [recalculateUsageMutation]
   );
 
   const openCustomLimitsDialog = useCallback(
@@ -238,7 +238,7 @@ function AdminUsers() {
       }
       setCustomLimitsUserId(userId);
     },
-    [users?.items],
+    [users?.items]
   );
 
   const columns = useMemo(
@@ -253,12 +253,12 @@ function AdminUsers() {
         onCustomLimits: (userId: number) => openCustomLimitsDialog(userId),
         onRecalculateUsage: (userId: number) => handleRecalculateUsage(userId),
       }),
-    [handleRecalculateUsage, openCustomLimitsDialog],
+    [handleRecalculateUsage, openCustomLimitsDialog]
   );
 
   const userToBan = users?.items.find((u: UserItem) => u.id === banUserId);
   const userToDelete = users?.items.find(
-    (u: UserItem) => u.id === deleteUserId,
+    (u: UserItem) => u.id === deleteUserId
   );
 
   if (isLoading) {
@@ -446,7 +446,7 @@ function AdminUsers() {
               <strong>
                 {
                   users?.items.find(
-                    (u: UserItem) => u.id === customLimitsUserId,
+                    (u: UserItem) => u.id === customLimitsUserId
                   )?.username
                 }
               </strong>

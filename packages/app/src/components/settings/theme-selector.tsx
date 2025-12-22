@@ -42,7 +42,7 @@ export function ThemeSelector({
                 "hover:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                 isSelected
                   ? "border-primary bg-accent/50"
-                  : "border-border bg-card hover:bg-accent/30",
+                  : "border-border bg-card hover:bg-accent/30"
               )}
               aria-pressed={isSelected}
             >

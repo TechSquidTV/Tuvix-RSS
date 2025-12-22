@@ -244,7 +244,7 @@ describe("Subscription Hooks", () => {
         () => useCreateSubscriptionWithRefetch(),
         {
           wrapper: createWrapper(),
-        },
+        }
       );
 
       // Verify hook is mounted

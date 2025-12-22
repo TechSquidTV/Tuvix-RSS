@@ -67,7 +67,7 @@ type TooltipContextType = {
 };
 
 const [LocalTooltipProvider, useTooltip] = getStrictContext<TooltipContextType>(
-  "LocalTooltipProvider",
+  "LocalTooltipProvider"
 );
 
 type TooltipPosition = { x: number; y: number };
@@ -119,10 +119,10 @@ function TooltipProvider({
       const delay = now - lastCloseTimeRef.current < closeDelay ? 0 : openDelay;
       timeoutRef.current = window.setTimeout(
         () => setCurrentTooltip(data),
-        delay,
+        delay
       );
     },
-    [openDelay, closeDelay, currentTooltip],
+    [openDelay, closeDelay, currentTooltip]
   );
 
   const hideTooltip = React.useCallback(() => {
@@ -396,7 +396,7 @@ type TooltipContentProps = WithAsChild<HTMLMotionProps<"div">>;
 
 function shallowEqualWithoutChildren(
   a?: HTMLMotionProps<"div">,
-  b?: HTMLMotionProps<"div">,
+  b?: HTMLMotionProps<"div">
 ) {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -413,7 +413,7 @@ function shallowEqualWithoutChildren(
 function TooltipContent({ asChild = false, ...props }: TooltipContentProps) {
   const { setProps, setAsChild } = useTooltip();
   const lastPropsRef = React.useRef<HTMLMotionProps<"div"> | undefined>(
-    undefined,
+    undefined
   );
 
   React.useEffect(() => {
@@ -501,7 +501,7 @@ function TooltipTrigger({
         });
       }
     },
-    [onPointerDown, currentTooltip?.id, id, hideImmediate],
+    [onPointerDown, currentTooltip?.id, id, hideImmediate]
   );
 
   const handleMouseEnter = React.useCallback(
@@ -509,7 +509,7 @@ function TooltipTrigger({
       onMouseEnter?.(e);
       handleOpen();
     },
-    [handleOpen, onMouseEnter],
+    [handleOpen, onMouseEnter]
   );
 
   const handleMouseLeave = React.useCallback(
@@ -517,7 +517,7 @@ function TooltipTrigger({
       onMouseLeave?.(e);
       hideTooltip();
     },
-    [hideTooltip, onMouseLeave],
+    [hideTooltip, onMouseLeave]
   );
 
   const handleFocus = React.useCallback(
@@ -526,7 +526,7 @@ function TooltipTrigger({
       if (suppressNextFocusRef.current) return;
       handleOpen();
     },
-    [handleOpen, onFocus],
+    [handleOpen, onFocus]
   );
 
   const handleBlur = React.useCallback(
@@ -534,7 +534,7 @@ function TooltipTrigger({
       onBlur?.(e);
       hideTooltip();
     },
-    [hideTooltip, onBlur],
+    [hideTooltip, onBlur]
   );
 
   const Component = asChild ? Slot : motion.div;

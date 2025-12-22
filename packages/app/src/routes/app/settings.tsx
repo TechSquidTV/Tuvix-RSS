@@ -84,7 +84,7 @@ function SettingsPage() {
         setTheme(updates.theme as ThemeId);
       }
     },
-    [updateUserSettings, setTheme],
+    [updateUserSettings, setTheme]
   );
 
   const { formData, setFormData } = useAutoSaveSettings<UserSettings>({
@@ -327,7 +327,7 @@ function SettingsPage() {
                     ...formData,
                     autoAgeDays: Math.max(
                       0,
-                      Math.min(90, parseInt(value) || 0),
+                      Math.min(90, parseInt(value) || 0)
                     ),
                   })
                 }

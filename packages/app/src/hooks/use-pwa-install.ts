@@ -123,7 +123,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
-        handleBeforeInstallPrompt,
+        handleBeforeInstallPrompt
       );
       window.removeEventListener("appinstalled", handleAppInstalled);
     };

@@ -152,7 +152,7 @@ describe("DebugSentryPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Error captured and sent to Sentry!/),
+        screen.getByText(/Error captured and sent to Sentry!/)
       ).toBeInTheDocument();
     });
   });
@@ -174,7 +174,7 @@ describe("DebugSentryPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Transaction created and sent to Sentry!/),
+        screen.getByText(/Transaction created and sent to Sentry!/)
       ).toBeInTheDocument();
     });
   });
@@ -281,7 +281,7 @@ describe("DebugSentryPage", () => {
     await waitFor(() => {
       expect(screen.getByText("How to Verify")).toBeInTheDocument();
       expect(
-        screen.getByText(/Check your Sentry dashboard/),
+        screen.getByText(/Check your Sentry dashboard/)
       ).toBeInTheDocument();
     });
   });
@@ -300,7 +300,7 @@ describe("DebugSentryPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Error captured and sent to Sentry!/),
+        screen.getByText(/Error captured and sent to Sentry!/)
       ).toBeInTheDocument();
     });
 
@@ -310,10 +310,10 @@ describe("DebugSentryPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByText(/Error captured and sent to Sentry!/),
+        screen.queryByText(/Error captured and sent to Sentry!/)
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText(/Transaction created and sent to Sentry!/),
+        screen.getByText(/Transaction created and sent to Sentry!/)
       ).toBeInTheDocument();
     });
   });
@@ -381,7 +381,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Event ID: test-event-id-123/),
+        screen.getByText(/Event ID: test-event-id-123/)
       ).toBeInTheDocument();
     });
   });
@@ -401,7 +401,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Error captured and sent to Sentry!/),
+        screen.getByText(/Error captured and sent to Sentry!/)
       ).toBeInTheDocument();
     });
   });
@@ -428,7 +428,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Backend debug endpoint not found/),
+        screen.getByText(/Backend debug endpoint not found/)
       ).toBeInTheDocument();
     });
   });
@@ -455,7 +455,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Backend returned non-JSON response/),
+        screen.getByText(/Backend returned non-JSON response/)
       ).toBeInTheDocument();
     });
   });
@@ -485,7 +485,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Backend test error captured!/),
+        screen.getByText(/Backend test error captured!/)
       ).toBeInTheDocument();
     });
   });
@@ -515,7 +515,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Error occurred.*Sentry disabled in dev/),
+        screen.getByText(/Error occurred.*Sentry disabled in dev/)
       ).toBeInTheDocument();
     });
   });
@@ -542,7 +542,7 @@ describe("DebugSentryPage - Error Messages", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Backend returned invalid JSON/),
+        screen.getByText(/Backend returned invalid JSON/)
       ).toBeInTheDocument();
     });
   });

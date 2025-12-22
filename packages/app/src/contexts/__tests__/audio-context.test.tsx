@@ -33,7 +33,7 @@ class MockAudio {
   removeEventListener(event: string, handler: (event?: any) => void) {
     if (this.listeners[event]) {
       this.listeners[event] = this.listeners[event].filter(
-        (h) => h !== handler,
+        (h) => h !== handler
       );
     }
   }
@@ -106,7 +106,7 @@ describe("AudioContext", () => {
     render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     expect(screen.getByTestId("audio-id")).toHaveTextContent("null");
@@ -137,7 +137,7 @@ describe("AudioContext", () => {
     const { getByText } = render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Initially not playing
@@ -152,7 +152,7 @@ describe("AudioContext", () => {
     expect(screen.getByTestId("audio-id")).toHaveTextContent("1");
     expect(screen.getByTestId("is-playing")).toHaveTextContent("true");
     expect(screen.getByTestId("audio-url")).toHaveTextContent(
-      "https://example.com/audio.mp3",
+      "https://example.com/audio.mp3"
     );
   });
 
@@ -179,7 +179,7 @@ describe("AudioContext", () => {
     const { getByText } = render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Start playing
@@ -219,7 +219,7 @@ describe("AudioContext", () => {
     const { getByText } = render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Start playing
@@ -257,7 +257,7 @@ describe("AudioContext", () => {
     const { getByText } = render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Start playing
@@ -282,7 +282,7 @@ describe("AudioContext", () => {
     render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Simulate timeupdate event
@@ -303,7 +303,7 @@ describe("AudioContext", () => {
     render(
       <AudioContextProvider>
         <TestConsumer />
-      </AudioContextProvider>,
+      </AudioContextProvider>
     );
 
     // Simulate loadedmetadata event

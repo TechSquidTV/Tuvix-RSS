@@ -37,7 +37,7 @@ describe("AudioPlayer with Progress", () => {
 
     // Mock audio progress hooks
     vi.mocked(useAudioProgressModule.useAudioProgressSync).mockImplementation(
-      mockUseAudioProgressSync,
+      mockUseAudioProgressSync
     );
 
     vi.mocked(useAudioProgressModule.useAudioProgressRestore).mockReturnValue({
@@ -51,7 +51,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(screen.getByLabelText("Play")).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 3600,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     // Should show saved progress even when not currently playing
@@ -85,7 +85,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={42}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(mockUseAudioProgressSync).toHaveBeenCalledWith(42);
@@ -104,13 +104,13 @@ describe("AudioPlayer with Progress", () => {
         articleId={1}
         title="Test Episode"
         audioProgress={audioProgress}
-      />,
+      />
     );
 
     expect(useAudioProgressModule.useAudioProgressRestore).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      audioProgress,
+      audioProgress
     );
   });
 
@@ -127,7 +127,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 3600,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     const playButton = screen.getByLabelText("Play");
@@ -156,7 +156,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 3600,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     // Should show actual current time, not saved progress
@@ -179,7 +179,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(screen.getByLabelText("Pause")).toBeInTheDocument();
@@ -202,7 +202,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const pauseButton = screen.getByLabelText("Pause");
@@ -219,7 +219,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const playButton = screen.getByLabelText("Play");
@@ -231,7 +231,7 @@ describe("AudioPlayer with Progress", () => {
         const button = screen.getByRole("button");
         expect(button).toHaveAttribute("disabled");
       },
-      { timeout: 100 },
+      { timeout: 100 }
     );
   });
 
@@ -250,7 +250,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const playButton = screen.getByLabelText("Pause");
@@ -272,7 +272,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const playButton = screen.getByLabelText("Play");
@@ -285,13 +285,13 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(useAudioProgressModule.useAudioProgressRestore).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      null,
+      null
     );
   });
 
@@ -308,7 +308,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 3600,
           completedAt,
         }}
-      />,
+      />
     );
 
     // Should still render normally
@@ -322,7 +322,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio1.mp3"
         articleId={1}
         title="Episode 1"
-      />,
+      />
     );
 
     expect(mockUseAudioProgressSync).toHaveBeenCalledWith(1);
@@ -335,7 +335,7 @@ describe("AudioPlayer with Progress", () => {
         audioUrl="https://example.com/audio2.mp3"
         articleId={2}
         title="Episode 2"
-      />,
+      />
     );
 
     expect(mockUseAudioProgressSync).toHaveBeenCalledWith(2);
@@ -362,7 +362,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 1800,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     // Should show saved progress, not current audio progress
@@ -390,7 +390,7 @@ describe("AudioPlayer with Progress", () => {
           duration: 1800,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     // Should show live progress (600s), not saved progress (900s)
@@ -409,7 +409,7 @@ describe("AudioPlayer with Progress", () => {
           duration: null,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     // Should show saved position but duration shows 0:00

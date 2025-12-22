@@ -34,7 +34,7 @@ describe("AudioPlayer", () => {
 
     // Mock audio progress hooks
     vi.mocked(useAudioProgressModule.useAudioProgressSync).mockImplementation(
-      mockUseAudioProgressSync,
+      mockUseAudioProgressSync
     );
 
     vi.mocked(useAudioProgressModule.useAudioProgressRestore).mockReturnValue({
@@ -48,7 +48,7 @@ describe("AudioPlayer", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(screen.getByLabelText("Play")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("AudioPlayer", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const playButton = screen.getByLabelText("Play");
@@ -89,7 +89,7 @@ describe("AudioPlayer", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     expect(screen.getByLabelText("Pause")).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("AudioPlayer", () => {
         audioUrl="https://example.com/audio.mp3"
         articleId={1}
         title="Test Episode"
-      />,
+      />
     );
 
     const pauseButton = screen.getByLabelText("Pause");
@@ -135,7 +135,7 @@ describe("AudioPlayer", () => {
           duration: 3600,
           completedAt: null,
         }}
-      />,
+      />
     );
 
     expect(screen.getByText("20:00")).toBeInTheDocument(); // 1200 seconds
@@ -155,13 +155,13 @@ describe("AudioPlayer", () => {
         articleId={1}
         title="Test Episode"
         audioProgress={audioProgress}
-      />,
+      />
     );
 
     expect(useAudioProgressModule.useAudioProgressRestore).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      audioProgress,
+      audioProgress
     );
   });
 });

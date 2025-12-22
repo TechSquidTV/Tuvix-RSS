@@ -39,7 +39,7 @@ export function CategoryBadge({
         variant === "outline" &&
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         isClickable && "cursor-pointer hover:opacity-80",
-        className,
+        className
       )}
       onClick={onClick}
     >

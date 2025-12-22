@@ -26,7 +26,7 @@ const checkboxVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 const checkboxIndicatorVariants = cva("", {

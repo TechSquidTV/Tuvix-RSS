@@ -19,7 +19,7 @@ import React from "react";
 // Mock the useAuth hooks
 vi.mock("@/lib/hooks/useAuth", async () => {
   const actual = await vi.importActual<typeof useAuthModule>(
-    "@/lib/hooks/useAuth",
+    "@/lib/hooks/useAuth"
   );
   return {
     ...actual,
@@ -133,7 +133,7 @@ describe("AppSidebar", () => {
       () => {
         expect(screen.getByText("Articles")).toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 2000 }
     );
     expect(screen.getByText("Subscriptions")).toBeInTheDocument();
     expect(screen.getByText("Public Feeds")).toBeInTheDocument();
@@ -186,7 +186,7 @@ describe("AppSidebar", () => {
       () => {
         expect(screen.getByText("Administration")).toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 2000 }
     );
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Users")).toBeInTheDocument();
@@ -277,7 +277,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       // Should show "All Subscriptions"
@@ -320,7 +320,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       const viewAllLinks = screen.getAllByText("View All →");
@@ -370,10 +370,10 @@ describe("AppSidebar", () => {
           expect(screen.getByText("My Custom Feed")).toBeInTheDocument();
           expect(screen.getByText("Default Feed Title")).toBeInTheDocument();
           expect(
-            screen.queryByText("Original Feed Title"),
+            screen.queryByText("Original Feed Title")
           ).not.toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
     });
 
@@ -424,7 +424,7 @@ describe("AppSidebar", () => {
           expect(screen.getByText("Feed 1")).toBeInTheDocument();
           expect(screen.getByText("Feed 2")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       // Check that the active subscription link has the correct href
@@ -449,7 +449,7 @@ describe("AppSidebar", () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
           expect(screen.getByText("All Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       // Should not show "View More" when there are no subscriptions
@@ -497,7 +497,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Articles")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       const user = userEvent.setup();
@@ -534,7 +534,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       const user = userEvent.setup();
@@ -573,7 +573,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       // Accordion content should not be visible when sidebar is collapsed
@@ -619,7 +619,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       const user = userEvent.setup();
@@ -680,7 +680,7 @@ describe("AppSidebar", () => {
         () => {
           expect(screen.getByText("Subscriptions")).toBeInTheDocument();
         },
-        { timeout: 2000 },
+        { timeout: 2000 }
       );
 
       // Even when collapsed, the submenu items should be in the DOM (just hidden)

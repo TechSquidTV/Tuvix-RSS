@@ -51,7 +51,7 @@ const BookmarkFilledIcon = forwardRef<
         onMouseEnter?.(e);
       }
     },
-    [controls, onMouseEnter],
+    [controls, onMouseEnter]
   );
 
   const handleMouseLeave = useCallback(
@@ -62,7 +62,7 @@ const BookmarkFilledIcon = forwardRef<
         onMouseLeave?.(e);
       }
     },
-    [controls, onMouseLeave],
+    [controls, onMouseLeave]
   );
 
   return (

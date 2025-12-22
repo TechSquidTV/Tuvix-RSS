@@ -184,10 +184,10 @@ export default defineConfig(({ mode }) => {
       ...config,
       define: {
         "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
-          "https://test@test.ingest.sentry.io/123",
+          "https://test@test.ingest.sentry.io/123"
         ),
         "import.meta.env.VITE_API_URL": JSON.stringify(
-          "http://localhost:3001/trpc",
+          "http://localhost:3001/trpc"
         ),
         "import.meta.env.VITE_SENTRY_ENVIRONMENT": JSON.stringify("test"),
       },

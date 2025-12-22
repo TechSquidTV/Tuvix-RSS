@@ -49,7 +49,7 @@ const BookmarkIcon = forwardRef<BookmarkIconHandle, BookmarkIconProps>(
           onMouseEnter?.(e);
         }
       },
-      [controls, onMouseEnter],
+      [controls, onMouseEnter]
     );
 
     const handleMouseLeave = useCallback(
@@ -60,7 +60,7 @@ const BookmarkIcon = forwardRef<BookmarkIconHandle, BookmarkIconProps>(
           onMouseLeave?.(e);
         }
       },
-      [controls, onMouseLeave],
+      [controls, onMouseLeave]
     );
 
     return (
@@ -90,7 +90,7 @@ const BookmarkIcon = forwardRef<BookmarkIconHandle, BookmarkIconProps>(
         </svg>
       </div>
     );
-  },
+  }
 );
 
 BookmarkIcon.displayName = "BookmarkIcon";

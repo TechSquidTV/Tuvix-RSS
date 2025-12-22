@@ -56,7 +56,7 @@ function VerifyEmailPage() {
     {
       enabled: isAdmin, // Only fetch if user is admin
       retry: false,
-    },
+    }
   );
 
   // Determine if admin bypass is allowed
@@ -166,11 +166,11 @@ function VerifyEmailPage() {
             if (isMountedRef.current) {
               toast.error(
                 errorMessage ||
-                  "Failed to verify email. The link may have expired.",
+                  "Failed to verify email. The link may have expired."
               );
             }
           }
-        },
+        }
       );
     }
 

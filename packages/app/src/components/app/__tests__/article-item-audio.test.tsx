@@ -149,7 +149,7 @@ describe("ArticleItemAudio", () => {
     render(<ArticleItemAudio article={mockArticle} />);
 
     expect(
-      screen.getByText("This is a test audio episode description"),
+      screen.getByText("This is a test audio episode description")
     ).toBeInTheDocument();
   });
 

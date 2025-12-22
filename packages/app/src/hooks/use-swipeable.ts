@@ -53,31 +53,31 @@ export function useSwipeable({
   const leftActionOpacity = useTransform(
     x,
     [-leftThreshold, -leftThreshold / 3, 0],
-    [1, 0.5, 0],
+    [1, 0.5, 0]
   );
   const leftActionScale = useTransform(
     x,
     [-leftThreshold, -leftThreshold / 2, 0],
-    [1, 0.8, 0.5],
+    [1, 0.8, 0.5]
   );
 
   // Right action (positive x - swipe right)
   const rightActionOpacity = useTransform(
     x,
     [0, rightThreshold / 3, rightThreshold],
-    [0, 0.5, 1],
+    [0, 0.5, 1]
   );
   const rightActionScale = useTransform(
     x,
     [0, rightThreshold / 2, rightThreshold],
-    [0.5, 0.8, 1],
+    [0.5, 0.8, 1]
   );
 
   // Background opacity that increases as you swipe in either direction
   const backgroundOpacity = useTransform(
     x,
     [-leftThreshold, -leftThreshold / 2, 0, rightThreshold / 2, rightThreshold],
-    [0.5, 0.25, 0, 0.25, 0.5],
+    [0.5, 0.25, 0, 0.25, 0.5]
   );
 
   // Dynamic gradient that changes direction and intensity based on swipe
@@ -173,7 +173,7 @@ export function useSwipeable({
       rightThreshold,
       onSwipeLeft,
       onSwipeRight,
-    ],
+    ]
   );
 
   return {

@@ -116,14 +116,14 @@ describe("transformer", () => {
     // Use output for responses (what the client receives)
     const serialized = transformer.output.serialize(data);
     const deserialized = transformer.output.deserialize(
-      serialized,
+      serialized
     ) as typeof data;
 
     expect(deserialized.id).toBe(data.id);
     expect(deserialized.name).toBe(data.name);
     expect(deserialized.createdAt).toBeInstanceOf(Date);
     expect(deserialized.createdAt.toISOString()).toBe(
-      data.createdAt.toISOString(),
+      data.createdAt.toISOString()
     );
     expect(deserialized.tags).toEqual(data.tags);
     expect(deserialized.nested).toEqual(data.nested);
@@ -142,7 +142,7 @@ describe("transformer", () => {
 
     const serialized = transformer.output.serialize(serverResponse);
     const deserialized = transformer.output.deserialize(
-      serialized,
+      serialized
     ) as typeof serverResponse;
 
     expect(deserialized.items).toHaveLength(2);

@@ -56,7 +56,7 @@ function useResponsiveAlertDialog() {
   const context = React.useContext(ResponsiveAlertDialogContext);
   if (!context) {
     throw new Error(
-      "useResponsiveAlertDialog must be used within ResponsiveAlertDialog",
+      "useResponsiveAlertDialog must be used within ResponsiveAlertDialog"
     );
   }
   return context;

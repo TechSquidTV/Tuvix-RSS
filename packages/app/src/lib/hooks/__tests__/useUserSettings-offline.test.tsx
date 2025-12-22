@@ -314,7 +314,7 @@ describe("useUserUsage - offline behavior", () => {
   describe("integration with useNetworkStatus", () => {
     it("should call useNetworkStatus hook", () => {
       const mockUseNetworkStatus = vi.mocked(
-        useNetworkStatusModule.useNetworkStatus,
+        useNetworkStatusModule.useNetworkStatus
       );
       mockUseNetworkStatus.mockReturnValue({
         isOnline: true,
@@ -329,7 +329,7 @@ describe("useUserUsage - offline behavior", () => {
 
     it("should use isOnline value from useNetworkStatus", () => {
       const mockUseNetworkStatus = vi.mocked(
-        useNetworkStatusModule.useNetworkStatus,
+        useNetworkStatusModule.useNetworkStatus
       );
 
       // Test with online

@@ -40,7 +40,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 type ButtonProps = ButtonPrimitiveProps & VariantProps<typeof buttonVariants>;

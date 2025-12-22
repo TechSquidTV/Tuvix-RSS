@@ -121,7 +121,7 @@ describe("App Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
 
@@ -129,7 +129,7 @@ describe("App Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: { user: null } as any } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
   });
@@ -167,7 +167,7 @@ describe("App Route - Offline Navigation", () => {
     it("should allow navigation when network error occurs", async () => {
       // Mock verification check failure
       mockCheckVerificationStatus.mockRejectedValue(
-        new Error("Failed to fetch"),
+        new Error("Failed to fetch")
       );
 
       // Network errors should allow navigation (session is cached)
@@ -216,7 +216,7 @@ describe("App Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
   });
@@ -250,7 +250,7 @@ describe("App Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
   });

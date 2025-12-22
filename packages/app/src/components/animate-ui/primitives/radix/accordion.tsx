@@ -31,7 +31,7 @@ function Accordion(props: AccordionProps) {
     value: props?.value,
     defaultValue: props?.defaultValue,
     onChange: props?.onValueChange as (
-      value: string | string[] | undefined,
+      value: string | string[] | undefined
     ) => void,
   });
 
@@ -51,7 +51,7 @@ type AccordionItemProps = React.ComponentProps<typeof AccordionPrimitive.Item>;
 function AccordionItem(props: AccordionItemProps) {
   const { value } = useAccordion();
   const [isOpen, setIsOpen] = React.useState(
-    value?.includes(props?.value) ?? false,
+    value?.includes(props?.value) ?? false
   );
 
   React.useEffect(() => {

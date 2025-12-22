@@ -53,7 +53,7 @@ interface CustomRenderOptions extends Omit<RenderOptions, "wrapper"> {
 
 export function renderWithProviders(
   ui: ReactElement,
-  options?: CustomRenderOptions,
+  options?: CustomRenderOptions
 ) {
   const Wrapper = options?.wrapper || createWrapper();
   return render(ui, { wrapper: Wrapper, ...options });

@@ -187,7 +187,7 @@ function ArticlesPage() {
   // Memoize to prevent unnecessary re-renders
   const articles = useMemo(
     () => data?.pages.flatMap((page: { items: Article[] }) => page.items) || [],
-    [data?.pages],
+    [data?.pages]
   );
 
   // Fetch counts for all tabs using optimized endpoint
@@ -225,7 +225,7 @@ function ArticlesPage() {
     const idsChanged =
       currentIds.size !== previousArticleIdsRef.current.size ||
       Array.from(currentIds).some(
-        (id) => !previousArticleIdsRef.current.has(id),
+        (id) => !previousArticleIdsRef.current.has(id)
       );
 
     if (!idsChanged) {
@@ -235,7 +235,7 @@ function ArticlesPage() {
     }
 
     const newArticles = articles.filter(
-      (a: Article) => !seenArticleIds.current.has(a.id),
+      (a: Article) => !seenArticleIds.current.has(a.id)
     );
 
     if (newArticles.length > 0) {

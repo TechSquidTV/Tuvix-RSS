@@ -65,7 +65,7 @@ type ColumnActions = {
 };
 
 export const createColumns = (
-  actions: ColumnActions,
+  actions: ColumnActions
 ): ColumnDef<AdminUser>[] => [
   {
     accessorKey: "username",

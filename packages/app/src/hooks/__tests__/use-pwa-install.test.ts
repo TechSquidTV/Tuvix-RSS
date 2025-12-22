@@ -93,7 +93,7 @@ describe("usePWAInstall", () => {
       });
 
       const promptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(promptEvent, {
         prompt: mockPrompt,
@@ -120,7 +120,7 @@ describe("usePWAInstall", () => {
       });
 
       const promptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(promptEvent, {
         prompt: mockPrompt,
@@ -155,7 +155,7 @@ describe("usePWAInstall", () => {
       });
 
       const promptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(promptEvent, {
         prompt: mockPrompt,
@@ -194,7 +194,7 @@ describe("usePWAInstall", () => {
       const { result } = renderHook(() => usePWAInstall());
 
       const promptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(promptEvent, {
         prompt: vi.fn(),
@@ -253,7 +253,7 @@ describe("usePWAInstall", () => {
 
     it("should handle getInstalledRelatedApps API errors gracefully", async () => {
       mockGetInstalledRelatedApps.mockRejectedValue(
-        new Error("API not supported"),
+        new Error("API not supported")
       );
 
       const consoleSpy = vi
@@ -265,7 +265,7 @@ describe("usePWAInstall", () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           "Error checking installed apps:",
-          expect.any(Error),
+          expect.any(Error)
         );
       });
 
@@ -376,7 +376,7 @@ describe("usePWAInstall", () => {
       const { result } = renderHook(() => usePWAInstall());
 
       const promptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(promptEvent, {
         prompt: vi.fn(),

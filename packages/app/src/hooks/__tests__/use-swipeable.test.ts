@@ -65,7 +65,7 @@ describe("useSwipeable", () => {
       useSwipeable({
         leftThreshold: 200,
         rightThreshold: 150,
-      }),
+      })
     );
 
     expect(result.current).toBeDefined();
@@ -76,7 +76,7 @@ describe("useSwipeable", () => {
     const { result } = renderHook(() =>
       useSwipeable({
         onSwipeLeft,
-      }),
+      })
     );
 
     await act(async () => {
@@ -85,7 +85,7 @@ describe("useSwipeable", () => {
         {
           offset: { x: -150 },
           velocity: { x: -100 },
-        } as any,
+        } as any
       );
     });
 
@@ -97,7 +97,7 @@ describe("useSwipeable", () => {
     const { result } = renderHook(() =>
       useSwipeable({
         onSwipeRight,
-      }),
+      })
     );
 
     await act(async () => {
@@ -106,7 +106,7 @@ describe("useSwipeable", () => {
         {
           offset: { x: 150 },
           velocity: { x: 100 },
-        } as any,
+        } as any
       );
     });
 
@@ -121,7 +121,7 @@ describe("useSwipeable", () => {
         onSwipeLeft,
         onSwipeRight,
         disabled: true,
-      }),
+      })
     );
 
     await act(async () => {
@@ -130,7 +130,7 @@ describe("useSwipeable", () => {
         {
           offset: { x: -150 },
           velocity: { x: -100 },
-        } as any,
+        } as any
       );
     });
 
@@ -145,7 +145,7 @@ describe("useSwipeable", () => {
       useSwipeable({
         onSwipeLeft,
         onSwipeRight,
-      }),
+      })
     );
 
     await act(async () => {
@@ -155,7 +155,7 @@ describe("useSwipeable", () => {
         {
           offset: { x: 10 },
           velocity: { x: 10 },
-        } as any,
+        } as any
       );
     });
 
@@ -168,7 +168,7 @@ describe("useSwipeable", () => {
     const { result } = renderHook(() =>
       useSwipeable({
         onSwipeRight,
-      }),
+      })
     );
 
     await act(async () => {
@@ -178,7 +178,7 @@ describe("useSwipeable", () => {
         {
           offset: { x: 50 },
           velocity: { x: 600 },
-        } as any,
+        } as any
       );
     });
 

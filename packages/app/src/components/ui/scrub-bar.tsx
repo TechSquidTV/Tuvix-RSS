@@ -17,7 +17,7 @@ function useScrubBar() {
   const context = React.useContext(ScrubBarContext);
   if (!context) {
     throw new Error(
-      "ScrubBar components must be used within ScrubBarContainer",
+      "ScrubBar components must be used within ScrubBarContainer"
     );
   }
   return context;
@@ -83,7 +83,7 @@ export function ScrubBarTrack({
       const time = percentage * duration;
       onScrub?.(time);
     },
-    [duration, onScrub],
+    [duration, onScrub]
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -117,7 +117,7 @@ export function ScrubBarTrack({
       ref={trackRef}
       className={cn(
         "relative flex h-2 w-full cursor-pointer items-center",
-        className,
+        className
       )}
       onPointerDown={handlePointerDown}
       {...props}
@@ -138,7 +138,7 @@ export function ScrubBarProgress({
     <div
       className={cn(
         "absolute left-0 h-full w-full overflow-hidden rounded-full bg-muted",
-        className,
+        className
       )}
       {...props}
     >
@@ -162,7 +162,7 @@ export function ScrubBarThumb({
       className={cn(
         "absolute h-4 w-4 rounded-full bg-primary transition-transform",
         isDragging && "scale-125",
-        className,
+        className
       )}
       style={{
         left: `${percentage}%`,

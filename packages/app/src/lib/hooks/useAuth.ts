@@ -23,7 +23,7 @@ export const useCurrentUser = () => {
  * Checks if email verification is required and navigates accordingly
  */
 const navigateAfterAuth = async (
-  router: ReturnType<typeof useRouter>,
+  router: ReturnType<typeof useRouter>
 ): Promise<void> => {
   try {
     // Get fresh session from Better Auth
@@ -116,12 +116,12 @@ export const useRegister = () => {
         // Handle specific error cases
         if (
           result.error.message?.includes(
-            "Registration is currently disabled",
+            "Registration is currently disabled"
           ) ||
           result.error.message?.includes("FORBIDDEN")
         ) {
           toast.error(
-            "Registration is currently disabled. Please contact an administrator.",
+            "Registration is currently disabled. Please contact an administrator."
           );
         } else {
           toast.error(result.error.message || "Failed to create account");

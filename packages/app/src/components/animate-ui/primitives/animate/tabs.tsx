@@ -66,7 +66,7 @@ function Tabs({
   ...props
 }: TabsProps) {
   const [activeValue, setActiveValue] = React.useState<string | undefined>(
-    defaultValue,
+    defaultValue
   );
   const triggersRef = React.useRef(new Map<string, HTMLElement>());
   const initialSet = React.useRef(false);
@@ -99,7 +99,7 @@ function Tabs({
         triggersRef.current.delete(val);
       }
     },
-    [activeValue, isControlled],
+    [activeValue, isControlled]
   );
 
   const handleValueChange = React.useCallback(
@@ -107,7 +107,7 @@ function Tabs({
       if (!isControlled) setActiveValue(val);
       else onValueChange?.(val);
     },
-    [isControlled, onValueChange],
+    [isControlled, onValueChange]
   );
 
   return (
@@ -222,7 +222,7 @@ function TabsContents({
       typeof child.props === "object" &&
       child.props !== null &&
       "value" in child.props &&
-      child.props.value === activeValue,
+      child.props.value === activeValue
   );
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
