@@ -11,6 +11,7 @@
 --   Email:    demo@tuvixrss.local
 --   Username: demo
 --   Password: Demo123!Pass (bcrypt hash provided below)
+--   WARNING: This password is visible in the repo. DO NOT use for production.
 --   Role:     user
 --   Plan:     pro
 -- ============================================================================

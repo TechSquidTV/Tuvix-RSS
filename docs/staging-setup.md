@@ -74,15 +74,20 @@ Set the required secrets for the staging Worker:
 
 ```bash
 # Better Auth secret (generate a random 32-character string)
-echo "your-staging-secret-key" | wrangler secret put BETTER_AUTH_SECRET --name tuvix-api-staging --env staging
+# When prompted, paste your randomly generated staging secret key
+wrangler secret put BETTER_AUTH_SECRET --name tuvix-api-staging --env staging
 
 # Email service (optional, for testing email flows)
-echo "re_your_resend_key" | wrangler secret put RESEND_API_KEY --name tuvix-api-staging --env staging
-echo "noreply@yourdomain.com" | wrangler secret put EMAIL_FROM --name tuvix-api-staging --env staging
-echo "https://staging.yourdomain.com" | wrangler secret put BASE_URL --name tuvix-api-staging --env staging
+# When prompted, enter your Resend API key
+wrangler secret put RESEND_API_KEY --name tuvix-api-staging --env staging
+# When prompted, enter the "from" email address to use for staging
+wrangler secret put EMAIL_FROM --name tuvix-api-staging --env staging
+# When prompted, enter the full base URL of your staging app (e.g. https://staging.yourdomain.com)
+wrangler secret put BASE_URL --name tuvix-api-staging --env staging
 
 # Sentry release (will be set automatically by deployment workflow)
-# echo "staging-v1.0.0" | wrangler secret put SENTRY_RELEASE --name tuvix-api-staging --env staging
+# When prompted, enter the staging release identifier (if you choose to set this manually)
+# wrangler secret put SENTRY_RELEASE --name tuvix-api-staging --env staging
 ```
 
 ## Deployment
@@ -198,6 +203,12 @@ Verify `STAGING_VITE_API_URL` matches the staging Worker URL:
 # Get the Worker URL
 wrangler whoami
 # Then construct: https://tuvix-api-staging.<account-subdomain>.workers.dev
+# For this project the staging Worker URL is:
+# https://tuvix-api-staging.workers.dev
+#
+# You can confirm this in the Cloudflare dashboard:
+# - Go to "Workers & Queues" → select the `tuvix-api-staging` Worker
+# - Copy the "Default public URL" shown there
 ```
 
 ## Cost Considerations

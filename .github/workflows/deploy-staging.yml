@@ -95,7 +95,7 @@ jobs:
       - name: Output staging API URL
         run: |
           API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
-          echo "API_URL=$API_URL" >> $GITHUB_OUTPUT
+          echo "API URL: $API_URL"
           echo "## Staging API Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
@@ -204,7 +204,7 @@ jobs:
       - name: Output staging app URL
         run: |
           APP_URL="https://${{ secrets.STAGING_CLOUDFLARE_PAGES_PROJECT_NAME }}.pages.dev"
-          echo "APP_URL=$APP_URL" >> $GITHUB_OUTPUT
+          echo "App URL: $App_URL"
           echo "## Staging App Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY

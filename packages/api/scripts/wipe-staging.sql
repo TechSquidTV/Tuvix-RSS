@@ -6,38 +6,24 @@
 -- Used before applying fresh migrations in staging deployments
 -- ============================================================================
 -- 
--- SAFETY: This script includes validation to prevent accidental execution
--- against production databases. It will fail if not run in staging context.
+-- SAFETY: This script is intended to be run only against the staging database.
+-- The primary safety mechanism is your deployment tooling (e.g. wrangler
+-- with --env staging) ensuring it targets the correct D1 instance.
 -- ============================================================================
 
 -- ============================================================================
--- SAFETY CHECK: Verify this is the staging environment
+-- SAFETY CHECK: Informational validation of database state
 -- ============================================================================
--- This check ensures the script only runs against staging by verifying
--- the wrangler --env staging flag is set, which sets ENVIRONMENT='staging'
--- in the wrangler.toml [env.staging.vars] section.
+-- This section does NOT enforce environment separation by itself. It assumes
+-- you are already connected to the correct staging database (e.g. via
+-- wrangler.toml [env.staging] and wrangler --env staging).
 --
--- If this fails, it means either:
--- 1. You're running against production (CRITICAL - DO NOT PROCEED)
--- 2. You forgot the --env staging flag
--- 3. The ENVIRONMENT var isn't set in wrangler.toml [env.staging.vars]
+-- If you see unexpected data here, STOP and verify that:
+-- 1. You're not accidentally connected to production.
+-- 2. You're using the correct wrangler environment/credentials.
 --
--- This is intentionally designed to fail-safe: if the check can't verify
--- it's staging, the script will not execute.
+-- This check is informational only; it does not prevent execution.
 -- ============================================================================
-
--- Create a temporary validation table to check environment
-CREATE TEMPORARY TABLE IF NOT EXISTS _staging_validation (
-    is_staging INTEGER DEFAULT 0
-);
-
--- Note: SQLite in D1 doesn't support raising custom errors directly,
--- so we use a constraint violation to halt execution if not staging.
--- The script will fail here if ENVIRONMENT != 'staging'
-
--- Verify we're in staging by checking that a staging-specific condition is true
--- This will cause a constraint violation if not in staging environment
--- (The actual environment check happens at the wrangler level via --env staging)
 
 -- For D1/SQLite, we rely on the wrangler command including --env staging
 -- which ensures we're targeting the tuvix-staging database, not tuvix production.
