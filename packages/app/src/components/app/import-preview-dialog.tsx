@@ -37,7 +37,7 @@ type ImportPreviewDialogProps = {
   existingCategories: ModelsCategory[];
   onConfirm: (
     selectedUrls: string[],
-    categorySelections: Record<string, FeedCategorySelection>,
+    categorySelections: Record<string, FeedCategorySelection>
   ) => void;
   isImporting: boolean;
 };
@@ -51,7 +51,7 @@ export function ImportPreviewDialog({
   isImporting,
 }: ImportPreviewDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(feeds.map((f) => f.url)),
+    new Set(feeds.map((f) => f.url))
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedFeeds, setExpandedFeeds] = useState<Set<string>>(new Set());
@@ -62,7 +62,7 @@ export function ImportPreviewDialog({
     Record<string, ModelsCategory[]>
   >({});
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState<string | null>(
-    null,
+    null
   );
   const processedUrlsRef = useRef<Set<string>>(new Set());
 
@@ -93,7 +93,7 @@ export function ImportPreviewDialog({
             const existing = existingCategories.find(
               (category) =>
                 category.name &&
-                category.name.toLowerCase() === suggested.name.toLowerCase(),
+                category.name.toLowerCase() === suggested.name.toLowerCase()
             );
             return existing?.id;
           })
@@ -119,7 +119,7 @@ export function ImportPreviewDialog({
       feed.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       feed.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (feed.folder &&
-        feed.folder.toLowerCase().includes(searchQuery.toLowerCase())),
+        feed.folder.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const toggleFeed = (url: string) => {
@@ -153,7 +153,7 @@ export function ImportPreviewDialog({
         newCategoryNames: [],
       };
       const selectedCategoryIds = current.selectedCategoryIds.includes(
-        categoryId,
+        categoryId
       )
         ? current.selectedCategoryIds.filter((id) => id !== categoryId)
         : [...current.selectedCategoryIds, categoryId];
@@ -191,7 +191,7 @@ export function ImportPreviewDialog({
         [feedUrl]: {
           ...current,
           newCategoryNames: current.newCategoryNames.filter(
-            (n) => n !== categoryName,
+            (n) => n !== categoryName
           ),
         },
       };
@@ -218,7 +218,7 @@ export function ImportPreviewDialog({
       acc[folder].push(feed);
       return acc;
     },
-    {} as Record<string, OPMLFeed[]>,
+    {} as Record<string, OPMLFeed[]>
   );
 
   return (
@@ -460,13 +460,13 @@ export function ImportPreviewDialog({
                                     onAddNewCategory={(categoryName) =>
                                       handleAddNewCategory(
                                         feed.url,
-                                        categoryName,
+                                        categoryName
                                       )
                                     }
                                     onRemoveNewCategory={(categoryName) =>
                                       handleRemoveNewCategory(
                                         feed.url,
-                                        categoryName,
+                                        categoryName
                                       )
                                     }
                                     isLoadingSuggestions={

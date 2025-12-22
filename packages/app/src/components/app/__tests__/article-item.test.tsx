@@ -150,7 +150,7 @@ describe("ArticleItem (non-audio)", () => {
     render(<ArticleItem article={mockArticle} />);
 
     expect(
-      screen.getByText("This is a test article description"),
+      screen.getByText("This is a test article description")
     ).toBeInTheDocument();
   });
 
@@ -164,7 +164,7 @@ describe("ArticleItem (non-audio)", () => {
     expect(window.open).toHaveBeenCalledWith(
       "https://example.com/article",
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   });
 });

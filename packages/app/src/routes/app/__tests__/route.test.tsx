@@ -80,7 +80,7 @@ describe("App Route beforeLoad", () => {
 
     // Expect the beforeLoad to throw a redirect
     await expect(
-      routeModule.Route.options.beforeLoad({ context: mockContext } as any),
+      routeModule.Route.options.beforeLoad({ context: mockContext } as any)
     ).rejects.toThrow("redirect:/");
   });
 
@@ -92,7 +92,7 @@ describe("App Route beforeLoad", () => {
     };
 
     await expect(
-      routeModule.Route.options.beforeLoad({ context: mockContext } as any),
+      routeModule.Route.options.beforeLoad({ context: mockContext } as any)
     ).rejects.toThrow("redirect:/");
   });
 

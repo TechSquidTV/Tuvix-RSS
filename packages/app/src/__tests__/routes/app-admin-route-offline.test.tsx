@@ -52,7 +52,7 @@ describe("Admin Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
 
@@ -68,7 +68,7 @@ describe("Admin Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
 
       // Reset navigator.onLine
@@ -85,7 +85,7 @@ describe("Admin Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
 
@@ -93,7 +93,7 @@ describe("Admin Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: { user: null } as any } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
 
@@ -129,7 +129,7 @@ describe("Admin Route - Offline Navigation", () => {
               } as any,
             },
           },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/app");
     });
 
@@ -147,7 +147,7 @@ describe("Admin Route - Offline Navigation", () => {
               } as any,
             },
           },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/app");
     });
   });
@@ -168,7 +168,7 @@ describe("Admin Route - Offline Navigation", () => {
               } as any,
             },
           },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/app");
     });
 
@@ -177,7 +177,7 @@ describe("Admin Route - Offline Navigation", () => {
       await expect(
         routeModule.Route.options.beforeLoad?.({
           context: { auth: { session: null } },
-        } as any),
+        } as any)
       ).rejects.toThrow("redirect:/");
     });
   });

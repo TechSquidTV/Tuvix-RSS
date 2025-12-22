@@ -131,7 +131,7 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
           /^https:\/\/api\.tuvix\.app/, // Production API
           /^https:\/\/api\.tuvix\.dev/, // Development API
           /^http:\/\/localhost:3001/, // Local development
-          /^https:\/\/.*\.workers\.dev/, // Cloudflare Workers (any subdomain)
+          /^https:\/\/.*\.workers\.dev/ // Cloudflare Workers (any subdomain)
         );
       }
 
@@ -188,7 +188,7 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
     try {
       Sentry.captureMessage(
         "Sentry test message - initialization complete",
-        "info",
+        "info"
       );
     } catch {
       // Sentry not available - silently ignore
@@ -196,7 +196,7 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
   }
 } else {
   console.warn(
-    "⚠️ Sentry DSN not configured. Set VITE_SENTRY_DSN to enable error tracking.",
+    "⚠️ Sentry DSN not configured. Set VITE_SENTRY_DSN to enable error tracking."
   );
 }
 
@@ -253,6 +253,6 @@ if (!rootElement.innerHTML) {
           </AudioContextProvider>
         </TRPCProvider>
       </Sentry.ErrorBoundary>
-    </StrictMode>,
+    </StrictMode>
   );
 }

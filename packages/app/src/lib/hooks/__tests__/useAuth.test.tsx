@@ -110,7 +110,7 @@ describe("useAuth", () => {
     mockGetSession.mockReset();
     mockGetSession.mockResolvedValue({ data: { user: { id: 1 } } });
     vi.mocked(useRouter).mockReturnValue(
-      mockRouter as unknown as ReturnType<typeof useRouter>,
+      mockRouter as unknown as ReturnType<typeof useRouter>
     );
     vi.mocked(toast.success).mockImplementation(() => "1" as string | number);
     vi.mocked(toast.error).mockImplementation(() => "1" as string | number);
@@ -492,7 +492,7 @@ describe("useAuth", () => {
             flow: "registration",
           }),
           level: "error",
-        }),
+        })
       );
     });
 
@@ -515,7 +515,7 @@ describe("useAuth", () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith(
-        "Registration is currently disabled. Please contact an administrator.",
+        "Registration is currently disabled. Please contact an administrator."
       );
     });
 
@@ -543,7 +543,7 @@ describe("useAuth", () => {
             flow: "registration",
           }),
           level: "error",
-        }),
+        })
       );
     });
 
@@ -566,7 +566,7 @@ describe("useAuth", () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith(
-        "Registration is currently disabled. Please contact an administrator.",
+        "Registration is currently disabled. Please contact an administrator."
       );
     });
   });

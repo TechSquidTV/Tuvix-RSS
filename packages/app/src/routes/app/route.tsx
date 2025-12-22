@@ -84,7 +84,7 @@ export const Route = createFileRoute("/app")({
         } catch {
           // If settings fetch fails, default to allowing bypass
           console.warn(
-            "Failed to fetch admin bypass setting, defaulting to true",
+            "Failed to fetch admin bypass setting, defaulting to true"
           );
         }
       }
@@ -122,7 +122,7 @@ export const Route = createFileRoute("/app")({
 
         // Log non-redirect HTTP errors
         const responseError = new Error(
-          `HTTP ${error.status} ${error.statusText}`,
+          `HTTP ${error.status} ${error.statusText}`
         );
         Sentry.captureException(responseError, {
           tags: {
@@ -143,7 +143,7 @@ export const Route = createFileRoute("/app")({
 
         console.warn(
           `Failed to check email verification status: HTTP ${error.status} ${error.statusText}`,
-          error,
+          error
         );
       } else {
         // Log other verification check failures to Sentry

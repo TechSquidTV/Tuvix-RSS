@@ -219,7 +219,7 @@ async function generateIcons() {
   const recoloredSvg = await createRecoloredSvg(
     logoPath,
     LOGO_PRIMARY_COLOR,
-    LOGO_SECONDARY_COLOR,
+    LOGO_SECONDARY_COLOR
   );
   console.log("  ✓ Logo recolored with sign-in page theme\n");
 
@@ -244,7 +244,7 @@ async function generateIcons() {
         recoloredSvg,
         join(iconsDir, name),
         size,
-        bgColor,
+        bgColor
       );
       console.log(`  ✓ ${name} (${size}x${size}, 80% safe zone)`);
     } catch (error) {
@@ -269,7 +269,7 @@ async function generateIcons() {
     await generateFavicon(
       recoloredSvg,
       join(publicDir, "favicon.ico"),
-      bgColor,
+      bgColor
     );
     console.log("  ✓ favicon.ico (multi-size PNG format)");
   } catch (error) {

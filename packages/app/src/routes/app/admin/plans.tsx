@@ -145,7 +145,7 @@ function AdminPlans() {
         : parseInt(formData.maxCategories),
       apiRateLimitPerMinute: parseInt(formData.apiRateLimitPerMinute),
       publicFeedRateLimitPerMinute: parseInt(
-        formData.publicFeedRateLimitPerMinute,
+        formData.publicFeedRateLimitPerMinute
       ),
       priceCents: parseInt(formData.priceCents || "0"),
       features: formData.features || null,
@@ -165,7 +165,7 @@ function AdminPlans() {
         : parseInt(formData.maxCategories),
       apiRateLimitPerMinute: parseInt(formData.apiRateLimitPerMinute),
       publicFeedRateLimitPerMinute: parseInt(
-        formData.publicFeedRateLimitPerMinute,
+        formData.publicFeedRateLimitPerMinute
       ),
       priceCents: parseInt(formData.priceCents || "0"),
       features: formData.features || null,

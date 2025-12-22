@@ -74,7 +74,7 @@ function SheetContent({
           side === "left" && "h-full w-[350px] border-r",
           side === "top" && "w-full h-[350px] border-b",
           side === "bottom" && "w-full h-[350px] border-t",
-          className,
+          className
         )}
         {...props}
       >

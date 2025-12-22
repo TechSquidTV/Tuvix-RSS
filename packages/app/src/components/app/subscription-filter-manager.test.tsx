@@ -72,7 +72,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     expect(screen.getByText(/content filters/i)).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     const toggle = screen.getByRole("switch");
@@ -108,12 +108,12 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Initially collapsed - no Add Filter button visible
     expect(
-      screen.queryByRole("button", { name: /add filter/i }),
+      screen.queryByRole("button", { name: /add filter/i })
     ).not.toBeInTheDocument();
 
     // Click to expand
@@ -125,7 +125,7 @@ describe("SubscriptionFilterManager", () => {
     // Now the content should be visible
     await waitFor(() => {
       expect(
-        screen.getByText(/filter articles from this feed/i),
+        screen.getByText(/filter articles from this feed/i)
       ).toBeInTheDocument();
     });
   });
@@ -141,7 +141,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={true}
         filterMode="include"
-      />,
+      />
     );
 
     // Should show filter count in header
@@ -155,7 +155,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -178,7 +178,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -205,7 +205,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand and open add form
@@ -241,7 +241,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand and open add form
@@ -251,7 +251,7 @@ describe("SubscriptionFilterManager", () => {
     // Change match type to regex - find the select by its text content context
     const matchTypeSelects = screen.getAllByRole("combobox");
     const matchTypeSelect = matchTypeSelects.find((select) =>
-      select.querySelector('option[value="regex"]'),
+      select.querySelector('option[value="regex"]')
     );
     expect(matchTypeSelect).toBeDefined();
     await user.selectOptions(matchTypeSelect!, "regex");
@@ -282,7 +282,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -300,7 +300,7 @@ describe("SubscriptionFilterManager", () => {
     // Should show edit form
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /update/i }),
+        screen.getByRole("button", { name: /update/i })
       ).toBeInTheDocument();
     });
   });
@@ -323,7 +323,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -355,7 +355,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={true}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -384,7 +384,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand the section
@@ -406,7 +406,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={true}
         filterMode="include"
-      />,
+      />
     );
 
     // Now mode selector should be visible
@@ -422,7 +422,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand and open add form
@@ -446,7 +446,7 @@ describe("SubscriptionFilterManager", () => {
         subscriptionId={1}
         filterEnabled={false}
         filterMode="include"
-      />,
+      />
     );
 
     // Expand and open add form
@@ -464,13 +464,13 @@ describe("SubscriptionFilterManager", () => {
     // Form should be closed
     await waitFor(() => {
       expect(
-        screen.queryByPlaceholderText(/enter pattern to match/i),
+        screen.queryByPlaceholderText(/enter pattern to match/i)
       ).not.toBeInTheDocument();
     });
 
     // Add Filter button should be visible again
     expect(
-      screen.getByRole("button", { name: /add filter/i }),
+      screen.getByRole("button", { name: /add filter/i })
     ).toBeInTheDocument();
   });
 });

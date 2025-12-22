@@ -148,11 +148,7 @@ describe("useAudioProgressRestore", () => {
     };
 
     const { result } = renderHook(() =>
-      useAudioProgressRestore(
-        1,
-        "https://example.com/audio.mp3",
-        audioProgress,
-      ),
+      useAudioProgressRestore(1, "https://example.com/audio.mp3", audioProgress)
     );
 
     act(() => {
@@ -162,7 +158,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      1200,
+      1200
     );
   });
 
@@ -174,11 +170,7 @@ describe("useAudioProgressRestore", () => {
     };
 
     const { result } = renderHook(() =>
-      useAudioProgressRestore(
-        1,
-        "https://example.com/audio.mp3",
-        audioProgress,
-      ),
+      useAudioProgressRestore(1, "https://example.com/audio.mp3", audioProgress)
     );
 
     act(() => {
@@ -189,7 +181,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      undefined,
+      undefined
     );
   });
 
@@ -201,11 +193,7 @@ describe("useAudioProgressRestore", () => {
     };
 
     const { result } = renderHook(() =>
-      useAudioProgressRestore(
-        1,
-        "https://example.com/audio.mp3",
-        audioProgress,
-      ),
+      useAudioProgressRestore(1, "https://example.com/audio.mp3", audioProgress)
     );
 
     // First play - should restore
@@ -216,7 +204,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      1200,
+      1200
     );
 
     mockPlayAudio.mockClear();
@@ -229,7 +217,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      undefined,
+      undefined
     );
   });
 
@@ -248,11 +236,7 @@ describe("useAudioProgressRestore", () => {
     vi.mocked(audioContext.useAudio).mockReturnValue(mockAudio as any);
 
     const { result, rerender } = renderHook(() =>
-      useAudioProgressRestore(
-        1,
-        "https://example.com/audio.mp3",
-        audioProgress,
-      ),
+      useAudioProgressRestore(1, "https://example.com/audio.mp3", audioProgress)
     );
 
     // First play
@@ -263,7 +247,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      1200,
+      1200
     );
 
     mockPlayAudio.mockClear();
@@ -288,7 +272,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      1200,
+      1200
     );
   });
 
@@ -300,7 +284,7 @@ describe("useAudioProgressRestore", () => {
     };
 
     const { result } = renderHook(() =>
-      useAudioProgressRestore(1, null, audioProgress),
+      useAudioProgressRestore(1, null, audioProgress)
     );
 
     act(() => {
@@ -312,7 +296,7 @@ describe("useAudioProgressRestore", () => {
 
   it("should play from beginning if no audioProgress", () => {
     const { result } = renderHook(() =>
-      useAudioProgressRestore(1, "https://example.com/audio.mp3", null),
+      useAudioProgressRestore(1, "https://example.com/audio.mp3", null)
     );
 
     act(() => {
@@ -322,7 +306,7 @@ describe("useAudioProgressRestore", () => {
     expect(mockPlayAudio).toHaveBeenCalledWith(
       1,
       "https://example.com/audio.mp3",
-      undefined,
+      undefined
     );
   });
 });

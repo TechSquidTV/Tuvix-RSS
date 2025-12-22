@@ -87,7 +87,7 @@ describe("ArticleItem", () => {
 
     expect(screen.getByText("Test Article Title")).toBeInTheDocument();
     expect(
-      screen.getByText("This is a test article description"),
+      screen.getByText("This is a test article description")
     ).toBeInTheDocument();
     expect(screen.getByText("Test Source")).toBeInTheDocument();
     expect(screen.getByText("Test Author")).toBeInTheDocument();
@@ -144,7 +144,7 @@ describe("ArticleItem", () => {
       const link = screen.getByRole("link", { name: "Comments" });
       expect(link).toHaveAttribute(
         "href",
-        "https://news.ycombinator.com/item?id=12345",
+        "https://news.ycombinator.com/item?id=12345"
       );
     });
 
@@ -169,7 +169,7 @@ describe("ArticleItem", () => {
       expect(window.open).not.toHaveBeenCalledWith(
         "https://example.com/article",
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -194,7 +194,7 @@ describe("ArticleItem", () => {
       expect(window.open).not.toHaveBeenCalledWith(
         "https://example.com/article",
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -208,11 +208,11 @@ describe("ArticleItem", () => {
 
       expect(screen.getByRole("link", { name: "Link One" })).toHaveAttribute(
         "href",
-        "https://one.com",
+        "https://one.com"
       );
       expect(screen.getByRole("link", { name: "Link Two" })).toHaveAttribute(
         "href",
-        "https://two.com",
+        "https://two.com"
       );
     });
 
@@ -248,7 +248,7 @@ describe("ArticleItem", () => {
         description: "Safe text", // Backend would have removed the script tag
       };
       const { container } = render(
-        <ArticleItem article={articleSanitizedByBackend} />,
+        <ArticleItem article={articleSanitizedByBackend} />
       );
 
       // Verify no script tags in rendered output
@@ -265,7 +265,7 @@ describe("ArticleItem", () => {
       render(<ArticleItem article={plainTextArticle} />);
 
       expect(
-        screen.getByText("Just plain text without any HTML"),
+        screen.getByText("Just plain text without any HTML")
       ).toBeInTheDocument();
     });
   });
@@ -341,7 +341,7 @@ describe("ArticleItem", () => {
     expect(window.open).toHaveBeenCalledWith(
       "https://example.com/article",
       "_blank",
-      "noopener,noreferrer",
+      "noopener,noreferrer"
     );
   });
 
@@ -416,7 +416,7 @@ describe("ArticleItem", () => {
 
     // Mobile layout should not have "Open Link" button
     expect(
-      screen.queryByRole("button", { name: /open link/i }),
+      screen.queryByRole("button", { name: /open link/i })
     ).not.toBeInTheDocument();
   });
 });

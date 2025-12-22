@@ -59,7 +59,7 @@ describe("useArticles", () => {
       () => useArticles({ unread: true, limit: 10 }),
       {
         wrapper: createWrapper(),
-      },
+      }
     );
 
     expect(result.current).toHaveProperty("data");
@@ -163,10 +163,10 @@ describe("useMarkArticleRead", () => {
         // Either success or error toast should be called
         expect(
           vi.mocked(toast.success).mock.calls.length +
-            vi.mocked(toast.error).mock.calls.length,
+            vi.mocked(toast.error).mock.calls.length
         ).toBeGreaterThan(0);
       },
-      { timeout: 3000 },
+      { timeout: 3000 }
     );
   });
 
@@ -333,10 +333,10 @@ describe("useMarkAllRead", () => {
         // Either success or error toast should be called
         expect(
           vi.mocked(toast.success).mock.calls.length +
-            vi.mocked(toast.error).mock.calls.length,
+            vi.mocked(toast.error).mock.calls.length
         ).toBeGreaterThan(0);
       },
-      { timeout: 3000 },
+      { timeout: 3000 }
     );
   });
 
@@ -356,10 +356,10 @@ describe("useMarkAllRead", () => {
         // Either success or error toast should be called
         expect(
           vi.mocked(toast.success).mock.calls.length +
-            vi.mocked(toast.error).mock.calls.length,
+            vi.mocked(toast.error).mock.calls.length
         ).toBeGreaterThan(0);
       },
-      { timeout: 3000 },
+      { timeout: 3000 }
     );
   });
 });
@@ -384,7 +384,7 @@ describe("deduplicateArticlesData", () => {
   const createPage = (
     items: ReturnType<typeof createArticle>[],
     total = items.length,
-    hasMore = false,
+    hasMore = false
   ) => ({
     items,
     total,
@@ -440,7 +440,7 @@ describe("deduplicateArticlesData", () => {
       expect(result).toBeNull();
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Invalid data structure",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -451,7 +451,7 @@ describe("deduplicateArticlesData", () => {
       expect(result).toBeUndefined();
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Invalid data structure",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -464,7 +464,7 @@ describe("deduplicateArticlesData", () => {
       expect(result).toEqual(data);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Invalid data structure",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -477,7 +477,7 @@ describe("deduplicateArticlesData", () => {
       expect(result).toEqual(data);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Invalid data structure",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -494,7 +494,7 @@ describe("deduplicateArticlesData", () => {
       expect(result.pages[0].total).toBe(0);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -510,7 +510,7 @@ describe("deduplicateArticlesData", () => {
       expect(result.pages[0].items).toEqual([]);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -527,7 +527,7 @@ describe("deduplicateArticlesData", () => {
       expect(result.pages[0].total).toBe(0);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 

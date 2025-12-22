@@ -178,7 +178,7 @@ function RateLimitsMonitor() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ),
+                    )
                   )}
                 </TableBody>
               </Table>

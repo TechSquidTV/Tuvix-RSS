@@ -52,7 +52,7 @@ describe("RegisterForm", () => {
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /create account/i }),
+      screen.getByRole("button", { name: /create account/i })
     ).toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/username must be at least 3 characters/i),
+        screen.getByText(/username must be at least 3 characters/i)
       ).toBeInTheDocument();
     });
   });
@@ -81,7 +81,7 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/username must not exceed 30 characters/i),
+        screen.getByText(/username must not exceed 30 characters/i)
       ).toBeInTheDocument();
     });
   });
@@ -98,7 +98,7 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/must be a valid email address/i),
+        screen.getByText(/must be a valid email address/i)
       ).toBeInTheDocument();
     });
   });
@@ -115,7 +115,7 @@ describe("RegisterForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/password must be at least 8 characters/i),
+        screen.getByText(/password must be at least 8 characters/i)
       ).toBeInTheDocument();
     });
   });

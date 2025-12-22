@@ -14,7 +14,7 @@ function parseDatasetValue(value: string | null): DataStateValue {
 function useDataState<T extends HTMLElement = HTMLElement>(
   key: string,
   forwardedRef?: React.Ref<T | null>,
-  onChange?: (value: DataStateValue) => void,
+  onChange?: (value: DataStateValue) => void
 ): [DataStateValue, React.RefObject<T | null>] {
   const localRef = React.useRef<T | null>(null);
   React.useImperativeHandle(forwardedRef, () => localRef.current as T);

@@ -21,7 +21,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={50}>
           <div data-testid="child">Child content</div>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByTestId("child")).toBeInTheDocument();
@@ -31,7 +31,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={50}>
           <ScrubBarTimeLabel time={50} />
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByText("0:50")).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack data-testid="track">
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const track = screen.getByTestId("track");
@@ -78,7 +78,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack data-testid="track">
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const track = screen.getByTestId("track");
@@ -100,7 +100,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack data-testid="track">
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const track = screen.getByTestId("track");
@@ -118,7 +118,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack data-testid="track">
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const track = screen.getByTestId("track");
@@ -138,7 +138,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const progressBar = container.querySelector(".bg-primary");
@@ -151,7 +151,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const progressBar = container.querySelector(".bg-primary");
@@ -164,7 +164,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const progressBar = container.querySelector(".bg-primary");
@@ -177,7 +177,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const progressBar = container.querySelector(".bg-primary");
@@ -192,7 +192,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarThumb />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       const thumb = container.querySelector(".bg-primary");
@@ -205,7 +205,7 @@ describe("ScrubBar", () => {
           <ScrubBarTrack>
             <ScrubBarProgress />
           </ScrubBarTrack>
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       // Thumb should not be rendered if not current audio
@@ -219,7 +219,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={0}>
           <ScrubBarTimeLabel time={125} />
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByText("2:05")).toBeInTheDocument();
@@ -229,7 +229,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={0}>
           <ScrubBarTimeLabel time={0} />
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByText("0:00")).toBeInTheDocument();
@@ -239,7 +239,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={0}>
           <ScrubBarTimeLabel time={65} />
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByText("1:05")).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe("ScrubBar", () => {
       render(
         <ScrubBarContainer duration={100} value={0}>
           <ScrubBarTimeLabel time={42} format={customFormat} />
-        </ScrubBarContainer>,
+        </ScrubBarContainer>
       );
 
       expect(screen.getByText("42s")).toBeInTheDocument();
@@ -270,7 +270,7 @@ describe("ScrubBar", () => {
               <ScrubBarProgress />
             </ScrubBarTrack>
           </ScrubBarContainer>
-        </div>,
+        </div>
       );
 
       const track = screen.getByTestId("track");

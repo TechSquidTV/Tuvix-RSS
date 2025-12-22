@@ -4,7 +4,7 @@
  */
 export function formatDistanceToNow(
   date: Date,
-  options?: { addSuffix?: boolean },
+  options?: { addSuffix?: boolean }
 ): string {
   const rtf = new Intl.RelativeTimeFormat("en", {
     numeric: "auto",

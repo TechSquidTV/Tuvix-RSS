@@ -24,7 +24,7 @@ export function CategoryMultiSelect({
   disabled = false,
 }: CategoryMultiSelectProps) {
   const selectedCategories = categories.filter((cat) =>
-    selectedIds.includes(cat.id),
+    selectedIds.includes(cat.id)
   );
 
   const handleToggle = (categoryId: number, checked: boolean) => {

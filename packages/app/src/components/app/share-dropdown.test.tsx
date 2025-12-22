@@ -64,7 +64,7 @@ describe("ShareDropdown", () => {
       });
 
       expect(
-        screen.getByRole("button", { name: /share/i }),
+        screen.getByRole("button", { name: /share/i })
       ).toBeInTheDocument();
     });
 
@@ -101,7 +101,7 @@ describe("ShareDropdown", () => {
       });
 
       expect(
-        screen.getByRole("button", { name: /copy link/i }),
+        screen.getByRole("button", { name: /copy link/i })
       ).toBeInTheDocument();
     });
 
@@ -138,7 +138,7 @@ describe("ShareDropdown", () => {
       });
 
       expect(
-        screen.getByRole("button", { name: /share/i }),
+        screen.getByRole("button", { name: /share/i })
       ).toBeInTheDocument();
     });
 
@@ -185,7 +185,7 @@ describe("ShareDropdown", () => {
 
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("mailto:?subject="),
-        "_blank",
+        "_blank"
       );
     });
 
@@ -201,7 +201,7 @@ describe("ShareDropdown", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("twitter.com/intent/tweet"),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -217,7 +217,7 @@ describe("ShareDropdown", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("reddit.com/submit"),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -233,7 +233,7 @@ describe("ShareDropdown", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("news.ycombinator.com/submitlink"),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -249,7 +249,7 @@ describe("ShareDropdown", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("mastodon.social/share"),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
 
@@ -265,7 +265,7 @@ describe("ShareDropdown", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("bsky.app/intent/compose"),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     });
   });
@@ -361,7 +361,7 @@ describe("ShareDropdown", () => {
         <ShareDropdown url={mockUrl} title={mockTitle} variant="outline" />,
         {
           wrapper: createWrapper(),
-        },
+        }
       );
 
       const button = screen.getByRole("button", { name: /share/i });
@@ -377,7 +377,7 @@ describe("ShareDropdown", () => {
         />,
         {
           wrapper: createWrapper(),
-        },
+        }
       );
 
       const button = screen.getByRole("button", { name: /share/i });

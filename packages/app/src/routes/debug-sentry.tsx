@@ -31,7 +31,7 @@ function DebugSentryPage() {
       const eventId = await Sentry.captureException(error);
       console.log("Sentry captureException called, event ID:", eventId);
       setLastError(
-        `Error captured and sent to Sentry! Event ID: ${eventId || "unknown"}`,
+        `Error captured and sent to Sentry! Event ID: ${eventId || "unknown"}`
       );
     }
   };
@@ -43,7 +43,7 @@ function DebugSentryPage() {
     console.log("Triggering unhandled error...");
     setTimeout(() => {
       const error = new Error(
-        "Test Unhandled Error - This simulates an unhandled error",
+        "Test Unhandled Error - This simulates an unhandled error"
       );
       console.log("Throwing unhandled error:", error);
       throw error;
@@ -72,7 +72,7 @@ function DebugSentryPage() {
       async () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         setLastSuccess("Transaction created and sent to Sentry!");
-      },
+      }
     );
   };
 
@@ -82,7 +82,7 @@ function DebugSentryPage() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
       const response = await fetch(
-        `${apiUrl.replace("/trpc", "")}/debug-sentry`,
+        `${apiUrl.replace("/trpc", "")}/debug-sentry`
       );
 
       // Handle non-JSON responses (e.g., 404 HTML)
@@ -90,12 +90,12 @@ function DebugSentryPage() {
       if (!contentType?.includes("application/json")) {
         if (response.status === 404) {
           setLastError(
-            "Backend debug endpoint not found. This endpoint is only available in Cloudflare Workers runtime.",
+            "Backend debug endpoint not found. This endpoint is only available in Cloudflare Workers runtime."
           );
         } else {
           const text = await response.text();
           setLastError(
-            `Backend returned non-JSON response (${response.status}): ${text.substring(0, 100)}`,
+            `Backend returned non-JSON response (${response.status}): ${text.substring(0, 100)}`
           );
         }
         return;
@@ -105,7 +105,7 @@ function DebugSentryPage() {
 
       if (response.ok) {
         setLastSuccess(
-          `Backend test completed: ${data.message || JSON.stringify(data)}`,
+          `Backend test completed: ${data.message || JSON.stringify(data)}`
         );
       } else {
         // The endpoint returns 500 for test errors, which is expected
@@ -119,11 +119,11 @@ function DebugSentryPage() {
       // Handle JSON parsing errors
       if (error instanceof SyntaxError) {
         setLastError(
-          "Backend returned invalid JSON. The endpoint may not be available in this runtime.",
+          "Backend returned invalid JSON. The endpoint may not be available in this runtime."
         );
       } else {
         setLastError(
-          `Backend test error: ${error instanceof Error ? error.message : String(error)}`,
+          `Backend test error: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

@@ -81,7 +81,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
       // When sidebar is expanded, allow normal accordion behavior
     },
-    [state, setOpen],
+    [state, setOpen]
   );
 
   // Creates a handler for accordion value changes that prevents changes when sidebar is collapsed
@@ -91,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         setAccordionValues((prev) => ({ ...prev, [key]: value }));
       }
     },
-    [state],
+    [state]
   );
 
   const handleSubscriptionsAccordionChange =
@@ -112,9 +112,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ? categories
         .filter(
           (
-            category,
+            category
           ): category is typeof category & { id: number; name: string } =>
-            category.id !== undefined && category.name !== undefined,
+            category.id !== undefined && category.name !== undefined
         )
         .slice(0, 10)
     : [];
@@ -208,7 +208,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           (
                             sub: NonNullable<
                               typeof subscriptionsData
-                            >["items"][number],
+                            >["items"][number]
                           ) => {
                             const subscriptionTitle =
                               sub.customTitle ||
@@ -251,7 +251,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             );
-                          },
+                          }
                         )}
 
                         {/* View More - Always show like categories does */}

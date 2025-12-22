@@ -24,7 +24,7 @@ export type InfiniteArticlesData = {
  * Exported for testing
  */
 export function deduplicateArticlesData(
-  data: InfiniteArticlesData,
+  data: InfiniteArticlesData
 ): InfiniteArticlesData {
   // Defensive check: ensure data and pages exist
   if (!data?.pages || !Array.isArray(data.pages)) {
@@ -128,7 +128,7 @@ export const useInfiniteArticles = (filters?: {
       staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for this long
       // Deduplicate articles by ID to prevent duplicate keys in render
       select: deduplicateArticlesData,
-    },
+    }
   );
 
   return result;
@@ -174,11 +174,11 @@ export const useMarkArticleRead = () => {
             pages: old.pages.map((page) => ({
               ...page,
               items: page.items.map((article) =>
-                article.id === id ? { ...article, read: true } : article,
+                article.id === id ? { ...article, read: true } : article
               ),
             })),
           };
-        },
+        }
       );
 
       return { previousData };
@@ -223,11 +223,11 @@ export const useMarkArticleUnread = () => {
             pages: old.pages.map((page) => ({
               ...page,
               items: page.items.map((article) =>
-                article.id === id ? { ...article, read: false } : article,
+                article.id === id ? { ...article, read: false } : article
               ),
             })),
           };
-        },
+        }
       );
 
       return { previousData };
@@ -271,11 +271,11 @@ export const useSaveArticle = () => {
             pages: old.pages.map((page) => ({
               ...page,
               items: page.items.map((article) =>
-                article.id === id ? { ...article, saved: true } : article,
+                article.id === id ? { ...article, saved: true } : article
               ),
             })),
           };
-        },
+        }
       );
 
       return { previousData };
@@ -319,11 +319,11 @@ export const useUnsaveArticle = () => {
             pages: old.pages.map((page) => ({
               ...page,
               items: page.items.map((article) =>
-                article.id === id ? { ...article, saved: false } : article,
+                article.id === id ? { ...article, saved: false } : article
               ),
             })),
           };
-        },
+        }
       );
 
       return { previousData };
@@ -368,7 +368,7 @@ export const useMarkAllRead = () => {
     onSuccess: (data) => {
       utils.articles.list.invalidate();
       toast.success(
-        `${data.updated} article${data.updated === 1 ? "" : "s"} marked as read`,
+        `${data.updated} article${data.updated === 1 ? "" : "s"} marked as read`
       );
     },
     onError: () => {

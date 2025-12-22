@@ -36,7 +36,7 @@ export function getTheme(themeId: ThemeId): ThemeConfig {
   if (themeId === "system") {
     // System theme resolves to light or dark based on OS preference
     const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
+      "(prefers-color-scheme: dark)"
     ).matches;
     return prefersDark ? themes.dark : themes.light;
   }

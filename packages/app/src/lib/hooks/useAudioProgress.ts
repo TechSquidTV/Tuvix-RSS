@@ -84,7 +84,7 @@ export function useAudioProgressSync(articleId: number) {
           position: Math.floor(currentTime),
           duration: duration > 0 ? Math.floor(duration) : undefined,
         });
-      },
+      }
     );
   }, [
     isCurrentAudio,
@@ -133,7 +133,7 @@ export function useAudioProgressSync(articleId: number) {
 export function useAudioProgressRestore(
   articleId: number,
   audioUrl: string | null,
-  audioProgress: { position: number; duration: number | null } | null,
+  audioProgress: { position: number; duration: number | null } | null
 ) {
   const { playAudio, currentAudioId } = useAudio();
   const hasRestored = useRef(false);

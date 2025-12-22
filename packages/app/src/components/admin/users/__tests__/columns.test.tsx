@@ -85,7 +85,7 @@ describe("Admin Users Columns - Copy ID", () => {
           getValue: (key: string) => mockUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -111,7 +111,7 @@ describe("Admin Users Columns - Copy ID", () => {
           getValue: (key: string) => mockUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -141,7 +141,7 @@ describe("Admin Users Columns - Copy ID", () => {
           getValue: (key: string) => mockUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -171,7 +171,7 @@ describe("Admin Users Columns - Copy ID", () => {
           getValue: (key: string) => mockUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -186,7 +186,7 @@ describe("Admin Users Columns - Copy ID", () => {
       // Copy ID should appear in the DOM before Change Plan
       expect(
         copyId.compareDocumentPosition(changePlan) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
+          Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
     });
   });
@@ -204,7 +204,7 @@ describe("Admin Users Columns - Copy ID", () => {
           getValue: (key: string) => mockUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -285,7 +285,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
           getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -311,7 +311,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
           getValue: (key: string) => verifiedUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -321,7 +321,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
     // Check that Resend Verification Email menu item does NOT exist
     await waitFor(() => {
       expect(
-        screen.queryByText("Resend Verification Email"),
+        screen.queryByText("Resend Verification Email")
       ).not.toBeInTheDocument();
     });
   });
@@ -339,7 +339,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
           getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu
@@ -369,7 +369,7 @@ describe("Admin Users Columns - Resend Verification Email", () => {
           getValue: (key: string) => unverifiedUser[key as keyof AdminUser],
         }}
       />,
-      { wrapper: createWrapper() },
+      { wrapper: createWrapper() }
     );
 
     // Open the dropdown menu

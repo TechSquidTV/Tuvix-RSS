@@ -54,7 +54,7 @@ export function AudioPlayer({
   const { play } = useAudioProgressRestore(
     articleId,
     audioUrl,
-    audioProgress ?? null,
+    audioProgress ?? null
   );
 
   const handlePlayPause = () => {
@@ -90,7 +90,7 @@ export function AudioPlayer({
         size="icon"
         className={cn(
           "h-10 w-10 shrink-0 rounded-full",
-          isCurrentlyPlaying && "text-primary",
+          isCurrentlyPlaying && "text-primary"
         )}
         onClick={handlePlayPause}
         disabled={isLoading}

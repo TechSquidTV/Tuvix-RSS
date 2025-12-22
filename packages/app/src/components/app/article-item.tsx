@@ -181,7 +181,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
           "group bg-card text-card-foreground border border-border hover:bg-accent/50 transition-colors",
           isRead && "opacity-60",
           isMobile && "cursor-pointer",
-          className,
+          className
         )}
         onClick={handleCardClick}
       >
@@ -208,7 +208,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                     ? article.publishedAt
                     : article.publishedAt instanceof Date
                       ? article.publishedAt.toISOString()
-                      : undefined,
+                      : undefined
                 )}
               </span>
             </div>
@@ -222,7 +222,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                     ? article.publishedAt
                     : article.publishedAt instanceof Date
                       ? article.publishedAt.toISOString()
-                      : undefined,
+                      : undefined
                 )}
               </span>
             </div>
@@ -249,7 +249,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                     // Use only vertical padding to increase tap area without causing text overlap
                     "[&_a]:inline-block [&_a]:py-1.5",
                     // Desktop: Normal inline links
-                    "sm:[&_a]:inline sm:[&_a]:py-0",
+                    "sm:[&_a]:inline sm:[&_a]:py-0"
                   )}
                   // SECURITY: Safe to use dangerouslySetInnerHTML here because descriptions are
                   // sanitized at ingestion via sanitize-html library (packages/api/src/services/rss-fetcher.ts:689)
@@ -266,7 +266,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
                   alt={article.title || "Article thumbnail"}
                   className={cn(
                     "object-cover rounded-lg",
-                    isMobile ? "w-full h-48" : "w-32 h-32",
+                    isMobile ? "w-full h-48" : "w-32 h-32"
                   )}
                   onError={(e) => {
                     // Hide image if it fails to load
@@ -283,13 +283,13 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
         <ItemFooter
           className={cn(
             "flex items-center pt-3 border-t",
-            isMobile ? "flex-col gap-2" : "justify-between",
+            isMobile ? "flex-col gap-2" : "justify-between"
           )}
         >
           <div
             className={cn(
               "flex items-center gap-2",
-              isMobile && "w-full justify-between",
+              isMobile && "w-full justify-between"
             )}
           >
             <Button
@@ -298,7 +298,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
               className={cn(
                 "h-8 gap-1.5",
                 isMobile && "flex-1",
-                isRead && "text-primary",
+                isRead && "text-primary"
               )}
               onClick={handleRead}
               disabled={markRead.isPending || markUnread.isPending}
@@ -318,7 +318,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
               className={cn(
                 "h-8 gap-1.5",
                 isMobile && "flex-1",
-                isSaved && "text-primary",
+                isSaved && "text-primary"
               )}
               onClick={handleSave}
               disabled={saveArticle.isPending || unsaveArticle.isPending}

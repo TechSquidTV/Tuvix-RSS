@@ -33,7 +33,7 @@ interface SubscriptionPlanCardProps {
 }
 
 function getPlanBadgeVariant(
-  planId: string,
+  planId: string
 ): "default" | "secondary" | "outline" | "destructive" {
   switch (planId) {
     case "free":

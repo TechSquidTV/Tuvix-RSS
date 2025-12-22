@@ -108,7 +108,7 @@ export function SubscriptionFilterManager({
         filterEnabled: enabled,
       });
     },
-    [subscriptionId, updateSubscription],
+    [subscriptionId, updateSubscription]
   );
 
   // Handle filter mode change
@@ -119,7 +119,7 @@ export function SubscriptionFilterManager({
         filterMode: mode as "include" | "exclude",
       });
     },
-    [subscriptionId, updateSubscription],
+    [subscriptionId, updateSubscription]
   );
 
   // Validate regex pattern
@@ -140,7 +140,7 @@ export function SubscriptionFilterManager({
 
       return null;
     },
-    [],
+    []
   );
 
   // Handle pattern change with validation
@@ -150,7 +150,7 @@ export function SubscriptionFilterManager({
       const error = validatePattern(pattern, formData.match_type);
       setRegexError(error);
     },
-    [formData.match_type, validatePattern],
+    [formData.match_type, validatePattern]
   );
 
   // Handle match type change with validation
@@ -160,7 +160,7 @@ export function SubscriptionFilterManager({
       const error = validatePattern(formData.pattern, matchType);
       setRegexError(error);
     },
-    [formData.pattern, validatePattern],
+    [formData.pattern, validatePattern]
   );
 
   // Reset form
@@ -252,7 +252,7 @@ export function SubscriptionFilterManager({
         // Error handled by hook
       }
     },
-    [deleteFilter],
+    [deleteFilter]
   );
 
   // Handle cancel
@@ -344,7 +344,7 @@ export function SubscriptionFilterManager({
                   key={filter.id}
                   className={cn(
                     "border rounded-md p-3 space-y-2",
-                    editingFilterId === filter.id && "ring-2 ring-primary",
+                    editingFilterId === filter.id && "ring-2 ring-primary"
                   )}
                 >
                   {editingFilterId === filter.id ? (
@@ -459,7 +459,7 @@ export function SubscriptionFilterManager({
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {MATCH_TYPE_OPTIONS.find(
-                              (m) => m.value === filter.matchType,
+                              (m) => m.value === filter.matchType
                             )?.label || filter.matchType}
                           </span>
                           {filter.caseSensitive && (

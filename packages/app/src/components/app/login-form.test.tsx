@@ -61,7 +61,7 @@ describe("LoginForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Username or email is required"),
+        screen.getByText("Username or email is required")
       ).toBeInTheDocument();
       expect(screen.getByText("Password is required")).toBeInTheDocument();
     });

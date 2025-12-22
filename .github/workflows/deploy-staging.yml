@@ -1,0 +1,256 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy (e.g., main, feature/xyz, PR branch)"
+        required: true
+        default: "main"
+        type: string
+      seed_data:
+        description: "Seed test data after deployment?"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 10.19.0
+  NODE_VERSION: "20"
+
+jobs:
+  deploy-api:
+    name: Deploy API to Staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    env:
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
+
+      - name: Type check API
+        run: pnpm run type-check:api
+
+      - name: Run API tests
+        run: pnpm run test:api
+
+      - name: Build API
+        run: pnpm run build:api
+
+      - name: Create wrangler.toml with staging database ID
+        uses: ./.github/actions/substitute-d1-database-id
+        with:
+          d1-database-id: ${{ secrets.STAGING_D1_DATABASE_ID }}
+
+      - name: Get staging worker name
+        id: worker-name
+        run: |
+          cd packages/api
+          WORKER_NAME=$(grep -A1 '^\[env\.staging\]' wrangler.toml | grep 'name' | cut -d'"' -f2)
+          echo "name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "Staging Worker: $WORKER_NAME"
+
+      - name: Get deployment version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.branch }}-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deployment version: $VERSION"
+
+      - name: Set Sentry Release (Staging)
+        if: env.SENTRY_DSN != ''
+        run: |
+          cd packages/api
+          echo "${{ steps.version.outputs.version }}" | pnpm exec wrangler secret put SENTRY_RELEASE --env staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy API to Cloudflare Workers (Staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/api
+          command: deploy --env staging
+          packageManager: pnpm
+
+      - name: Output staging API URL
+        run: |
+          API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
+          echo "API URL: $API_URL"
+          echo "## Staging API Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: $API_URL" >> $GITHUB_STEP_SUMMARY
+
+      - name: Wipe staging database
+        working-directory: packages/api
+        run: |
+          echo "🗑️  Wiping staging database clean..."
+          pnpm exec wrangler d1 execute tuvix-staging --remote --file=scripts/wipe-staging.sql --env staging
+          echo "✅ Staging database wiped"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Prepare fresh migrations
+        working-directory: packages/api
+        run: |
+          echo "📦 Preparing migrations..."
+          mkdir -p migrations
+          cp drizzle/*.sql migrations/ 2>/dev/null || true
+          if [ ! "$(ls -A migrations 2>/dev/null)" ]; then
+            echo "::error::No migration files found in drizzle/ directory"
+            exit 1
+          fi
+          echo "✅ Prepared $(ls migrations/*.sql | wc -l) migration file(s)"
+
+      - name: Apply fresh migrations to staging
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/api
+          command: d1 migrations apply tuvix-staging --remote --env staging
+          packageManager: pnpm
+
+      - name: Cleanup migrations folder
+        if: always()
+        working-directory: packages/api
+        run: rm -rf migrations
+
+      - name: Seed test data
+        if: ${{ github.event.inputs.seed_data == 'true' }}
+        working-directory: packages/api
+        run: |
+          echo "🌱 Seeding test data..."
+          pnpm exec wrangler d1 execute tuvix-staging --remote --file=scripts/seed-staging.sql --env staging
+          echo "✅ Test data seeded"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-app:
+    name: Deploy App to Staging
+    runs-on: ubuntu-latest
+    needs: [deploy-api]
+    environment:
+      name: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Type check App
+        run: pnpm run type-check:app
+
+      - name: Run App tests
+        run: pnpm run test:app
+
+      - name: Get deployment version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.branch }}-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deployment version: $VERSION"
+
+      - name: Build App for Staging
+        env:
+          VITE_API_URL: ${{ secrets.STAGING_VITE_API_URL }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.version }}
+          VITE_SENTRY_ENVIRONMENT: "staging"
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: |
+          echo "🔍 Building staging app..."
+          echo "API URL: $VITE_API_URL"
+          echo "Version: $VITE_APP_VERSION"
+          pnpm run build:app
+
+      - name: Deploy App to Cloudflare Pages (Staging)
+        id: deploy-app
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy packages/app/dist --project-name=${{ secrets.STAGING_CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=staging
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          packageManager: pnpm
+
+      - name: Output staging app URL
+        run: |
+          APP_URL="https://${{ secrets.STAGING_CLOUDFLARE_PAGES_PROJECT_NAME }}.pages.dev"
+          echo "App URL: $App_URL"
+          echo "## Staging App Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: $APP_URL" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-api, deploy-app]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🎭 Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.deploy-api.result }}" == "success" ]; then
+            echo "| API | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| API | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.deploy-app.result }}" == "success" ]; then
+            echo "| App | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| App | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Database" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Wiped clean" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Migrations applied fresh" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.seed_data }}" == "true" ]; then
+            echo "- ✅ Test data seeded" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⏭️  Test data not seeded" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️  **Note**: Staging database was wiped clean before this deployment" >> $GITHUB_STEP_SUMMARY

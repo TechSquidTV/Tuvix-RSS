@@ -168,12 +168,12 @@ describe("NavUser", () => {
       <NavUser user={undefined} isLoading={false} />,
       {
         wrapper: SidebarWrapper,
-      },
+      }
     );
 
     // The component returns null when there's no user, so there should be minimal content
     expect(
-      container.querySelector('[data-slot="sidebar-menu"]'),
+      container.querySelector('[data-slot="sidebar-menu"]')
     ).not.toBeInTheDocument();
   });
 
@@ -207,7 +207,7 @@ describe("NavUser", () => {
     // Logout dialog should appear
     await waitFor(() => {
       expect(
-        screen.getByText("Are you sure you want to log out?"),
+        screen.getByText("Are you sure you want to log out?")
       ).toBeInTheDocument();
     });
   });

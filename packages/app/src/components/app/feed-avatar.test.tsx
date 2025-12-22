@@ -60,7 +60,7 @@ describe("FeedAvatar", () => {
 
   it("should apply custom className", () => {
     const { container } = render(
-      <FeedAvatar feedName="Tech" className="custom-class" />,
+      <FeedAvatar feedName="Tech" className="custom-class" />
     );
 
     const avatar = container.querySelector(".custom-class");
@@ -69,23 +69,23 @@ describe("FeedAvatar", () => {
 
   it("should generate consistent colors for same feed names", () => {
     const { container: container1 } = render(
-      <FeedAvatar feedName="SameName" />,
+      <FeedAvatar feedName="SameName" />
     );
     const { container: container2 } = render(
-      <FeedAvatar feedName="SameName" />,
+      <FeedAvatar feedName="SameName" />
     );
 
     const fallback1 = container1.querySelector('[style*="hsl"]');
     const fallback2 = container2.querySelector('[style*="hsl"]');
 
     expect(fallback1?.getAttribute("style")).toBe(
-      fallback2?.getAttribute("style"),
+      fallback2?.getAttribute("style")
     );
   });
 
   it("should render AvatarImage when iconUrl is provided", () => {
     const { container } = render(
-      <FeedAvatar feedName="Tech" iconUrl="https://example.com/icon.png" />,
+      <FeedAvatar feedName="Tech" iconUrl="https://example.com/icon.png" />
     );
 
     // AvatarImage renders when there's an iconUrl
@@ -96,7 +96,7 @@ describe("FeedAvatar", () => {
 
   it("should render AvatarImage when iconPath is provided", () => {
     const { container } = render(
-      <FeedAvatar feedName="Tech" iconPath="test-feed/icon.png" />,
+      <FeedAvatar feedName="Tech" iconPath="test-feed/icon.png" />
     );
 
     // AvatarImage should be rendered when iconPath is provided
@@ -106,7 +106,7 @@ describe("FeedAvatar", () => {
 
   it("should render AvatarImage when feedUrl is provided", () => {
     const { container } = render(
-      <FeedAvatar feedName="Tech" feedUrl="https://example.com/feed.xml" />,
+      <FeedAvatar feedName="Tech" feedUrl="https://example.com/feed.xml" />
     );
 
     // AvatarImage should be rendered when feedUrl is provided (uses DuckDuckGo API)

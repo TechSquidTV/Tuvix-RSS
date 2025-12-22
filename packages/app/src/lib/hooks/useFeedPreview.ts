@@ -33,6 +33,6 @@ export function useFeedPreview(url: string | null) {
 
         return result;
       },
-    },
+    }
   );
 }

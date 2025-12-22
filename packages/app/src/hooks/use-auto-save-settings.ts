@@ -14,7 +14,7 @@ const SERVER_MANAGED_FIELDS = new Set(["updatedAt", "createdAt", "userId"]);
  * Filters out server-managed fields from an object
  */
 function excludeServerManagedFields<T extends Record<string, unknown>>(
-  obj: T,
+  obj: T
 ): Partial<T> {
   const filtered: Partial<T> = {};
   Object.keys(obj).forEach((key) => {
@@ -81,7 +81,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>({
 
     // Check if any user-editable value actually changed from the loaded settings
     const hasChanges = Object.keys(userEditableFormData).some(
-      (key) => userEditableFormData[key] !== userEditableSettings[key],
+      (key) => userEditableFormData[key] !== userEditableSettings[key]
     );
 
     if (hasChanges) {

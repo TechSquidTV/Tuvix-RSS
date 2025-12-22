@@ -91,11 +91,11 @@ describe("TRPCProvider - Offline Configuration", () => {
       // Should add event listeners
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "online",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "offline",
-        expect.any(Function),
+        expect.any(Function)
       );
 
       // Should remove on unmount
@@ -103,11 +103,11 @@ describe("TRPCProvider - Offline Configuration", () => {
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "online",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "offline",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 

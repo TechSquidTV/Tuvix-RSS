@@ -67,6 +67,36 @@ RUNTIME = "cloudflare"
 # EMAIL_FROM = "noreply@yourdomain.com"
 # BASE_URL = "https://yourdomain.com"
 
+# Plan-specific API rate limit bindings
+[[ratelimits]]
+name = "FREE_API_RATE_LIMIT"
+# User-defined identifier - choose any unique positive integer
+namespace_id = "1003"
+# Free plan: 60 requests per minute
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "PRO_API_RATE_LIMIT"
+# User-defined identifier - choose any unique positive integer
+namespace_id = "1004"
+# Pro plan: 180 requests per minute
+simple = { limit = 180, period = 60 }
+
+[[ratelimits]]
+name = "ENTERPRISE_API_RATE_LIMIT"
+# User-defined identifier - choose any unique positive integer
+namespace_id = "1005"
+# Enterprise/admin plan: 600 requests per minute
+simple = { limit = 600, period = 60 }
+
+# Public Feed rate limiting (unchanged - still uses single binding)
+[[ratelimits]]
+name = "FEED_RATE_LIMIT"
+# User-defined identifier - choose any unique positive integer
+namespace_id = "1002"
+# High limit - actual limits enforced per user via getUserLimits()
+simple = { limit = 10000, period = 60 }
+
 # Cron trigger - polling interval (every 1 minute for faster feed rotation)
 # Actual fetch/prune timing is controlled by global_settings table
 [triggers]
@@ -94,3 +124,46 @@ head_sampling_rate = 1  # 1 = 100% sampling (adjust for high-traffic: 0.1 = 10%,
 # Other users: Update to match your Sentry integration name or remove to disable external routing
 destinations = ["sentry-traces"]
 persist = true  # Store traces in Cloudflare dashboard for viewing
+
+# ============================================================================
+# Staging Environment Configuration
+# ============================================================================
+# Deploy with: wrangler deploy --env staging
+# Uses separate D1 database that gets wiped clean on each deployment
+# ============================================================================
+[env.staging]
+name = "tuvix-api-staging"
+
+[env.staging.vars]
+RUNTIME = "cloudflare"
+ENVIRONMENT = "staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "tuvix-staging"
+database_id = "${D1_DATABASE_ID}"
+
+# Staging rate limits (same as production for testing)
+[[env.staging.ratelimits]]
+name = "FREE_API_RATE_LIMIT"
+namespace_id = "2003"
+simple = { limit = 60, period = 60 }
+
+[[env.staging.ratelimits]]
+name = "PRO_API_RATE_LIMIT"
+namespace_id = "2004"
+simple = { limit = 180, period = 60 }
+
+[[env.staging.ratelimits]]
+name = "ENTERPRISE_API_RATE_LIMIT"
+namespace_id = "2005"
+simple = { limit = 600, period = 60 }
+
+[[env.staging.ratelimits]]
+name = "FEED_RATE_LIMIT"
+namespace_id = "2002"
+simple = { limit = 10000, period = 60 }
+
+# Staging cron (same as production)
+[env.staging.triggers]
+crons = ["*/1 * * * *"]

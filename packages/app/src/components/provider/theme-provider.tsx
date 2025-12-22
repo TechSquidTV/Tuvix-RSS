@@ -45,7 +45,7 @@ function applyThemeVariables(themeId: ThemeId) {
   // Apply button radius if specified, otherwise use regular radius
   root.style.setProperty(
     "--button-radius",
-    theme.radius.button || theme.radius.value,
+    theme.radius.button || theme.radius.value
   );
   root.style.setProperty("--font-sans", theme.fonts.sans);
   root.style.setProperty("--font-mono", theme.fonts.mono);
@@ -58,17 +58,17 @@ function applyThemeVariables(themeId: ThemeId) {
   root.style.setProperty("--popover", theme.colors.popover);
   root.style.setProperty(
     "--popover-foreground",
-    theme.colors.popoverForeground,
+    theme.colors.popoverForeground
   );
   root.style.setProperty("--primary", theme.colors.primary);
   root.style.setProperty(
     "--primary-foreground",
-    theme.colors.primaryForeground,
+    theme.colors.primaryForeground
   );
   root.style.setProperty("--secondary", theme.colors.secondary);
   root.style.setProperty(
     "--secondary-foreground",
-    theme.colors.secondaryForeground,
+    theme.colors.secondaryForeground
   );
   root.style.setProperty("--muted", theme.colors.muted);
   root.style.setProperty("--muted-foreground", theme.colors.mutedForeground);
@@ -86,17 +86,17 @@ function applyThemeVariables(themeId: ThemeId) {
   root.style.setProperty("--sidebar", theme.colors.sidebar);
   root.style.setProperty(
     "--sidebar-foreground",
-    theme.colors.sidebarForeground,
+    theme.colors.sidebarForeground
   );
   root.style.setProperty("--sidebar-primary", theme.colors.sidebarPrimary);
   root.style.setProperty(
     "--sidebar-primary-foreground",
-    theme.colors.sidebarPrimaryForeground,
+    theme.colors.sidebarPrimaryForeground
   );
   root.style.setProperty("--sidebar-accent", theme.colors.sidebarAccent);
   root.style.setProperty(
     "--sidebar-accent-foreground",
-    theme.colors.sidebarAccentForeground,
+    theme.colors.sidebarAccentForeground
   );
   root.style.setProperty("--sidebar-border", theme.colors.sidebarBorder);
   root.style.setProperty("--sidebar-ring", theme.colors.sidebarRing);
@@ -167,7 +167,7 @@ export function ThemeProvider({
       "material",
       "minimal",
       "hackernews",
-      "win95",
+      "win95"
     );
     // Also remove any other potential theme classes that might exist
     availableThemeIds.forEach((themeId) => {

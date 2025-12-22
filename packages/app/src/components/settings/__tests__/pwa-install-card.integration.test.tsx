@@ -78,7 +78,7 @@ describe("PWAInstallCard Integration Tests", () => {
 
       // Initially should show "not supported" since no beforeinstallprompt yet
       expect(
-        screen.getByText(/PWA installation not available in this browser/i),
+        screen.getByText(/PWA installation not available in this browser/i)
       ).toBeInTheDocument();
 
       // Simulate browser firing beforeinstallprompt event
@@ -101,7 +101,7 @@ describe("PWAInstallCard Integration Tests", () => {
       });
 
       const beforeInstallPromptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(beforeInstallPromptEvent, {
         prompt: mockPrompt,
@@ -114,13 +114,13 @@ describe("PWAInstallCard Integration Tests", () => {
       // Wait for component to update to installable state
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /install app/i }),
+          screen.getByRole("button", { name: /install app/i })
         ).toBeInTheDocument();
       });
 
       // Verify we're now in installable state with benefits list
       expect(
-        screen.getByText(/Read saved articles offline, anytime/i),
+        screen.getByText(/Read saved articles offline, anytime/i)
       ).toBeInTheDocument();
 
       // User clicks install button
@@ -160,15 +160,15 @@ describe("PWAInstallCard Integration Tests", () => {
 
       // Verify installed state UI
       expect(
-        screen.getByText("TuvixRSS is installed as an app"),
+        screen.getByText("TuvixRSS is installed as an app")
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Offline access to saved articles/i),
+        screen.getByText(/Offline access to saved articles/i)
       ).toBeInTheDocument();
 
       // Install button should no longer be present
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
 
@@ -197,7 +197,7 @@ describe("PWAInstallCard Integration Tests", () => {
       });
 
       const beforeInstallPromptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(beforeInstallPromptEvent, {
         prompt: mockPrompt,
@@ -209,7 +209,7 @@ describe("PWAInstallCard Integration Tests", () => {
       // Wait for install button
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /install app/i }),
+          screen.getByRole("button", { name: /install app/i })
         ).toBeInTheDocument();
       });
 
@@ -236,7 +236,7 @@ describe("PWAInstallCard Integration Tests", () => {
       // Should show "not supported" since beforeinstallprompt won't fire again
       await waitFor(() => {
         expect(
-          screen.getByText(/PWA installation not available in this browser/i),
+          screen.getByText(/PWA installation not available in this browser/i)
         ).toBeInTheDocument();
       });
 
@@ -255,7 +255,7 @@ describe("PWAInstallCard Integration Tests", () => {
         .mockRejectedValue(new Error("Prompt already called"));
 
       const beforeInstallPromptEvent = new Event(
-        "beforeinstallprompt",
+        "beforeinstallprompt"
       ) as BeforeInstallPromptEvent;
       Object.assign(beforeInstallPromptEvent, {
         prompt: mockPrompt,
@@ -267,7 +267,7 @@ describe("PWAInstallCard Integration Tests", () => {
       // Wait for install button
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /install app/i }),
+          screen.getByRole("button", { name: /install app/i })
         ).toBeInTheDocument();
       });
 
@@ -280,17 +280,17 @@ describe("PWAInstallCard Integration Tests", () => {
       // Wait for error toast
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          "Failed to show install prompt. Please try again.",
+          "Failed to show install prompt. Please try again."
         );
       });
 
       // After error, hook clears state and button is removed (status becomes "not-supported")
       await waitFor(() => {
         expect(
-          screen.queryByRole("button", { name: /install app/i }),
+          screen.queryByRole("button", { name: /install app/i })
         ).not.toBeInTheDocument();
         expect(
-          screen.getByText(/PWA installation not available in this browser/i),
+          screen.getByText(/PWA installation not available in this browser/i)
         ).toBeInTheDocument();
       });
     });
@@ -313,12 +313,12 @@ describe("PWAInstallCard Integration Tests", () => {
       // Should immediately show installed state
       expect(screen.getByText("Installed")).toBeInTheDocument();
       expect(
-        screen.getByText("TuvixRSS is installed as an app"),
+        screen.getByText("TuvixRSS is installed as an app")
       ).toBeInTheDocument();
 
       // Should not show install button
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
 
@@ -336,12 +336,12 @@ describe("PWAInstallCard Integration Tests", () => {
       // Should show iOS instructions
       expect(screen.getByText("Install on iOS")).toBeInTheDocument();
       expect(
-        screen.getByText(/Tap the.*Share button in Safari's toolbar/i),
+        screen.getByText(/Tap the.*Share button in Safari's toolbar/i)
       ).toBeInTheDocument();
 
       // Should not show install button (iOS doesn't support programmatic install)
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
   });
@@ -356,11 +356,11 @@ describe("PWAInstallCard Integration Tests", () => {
       // Should have added event listeners
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "beforeinstallprompt",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "appinstalled",
-        expect.any(Function),
+        expect.any(Function)
       );
 
       // Unmount component
@@ -369,11 +369,11 @@ describe("PWAInstallCard Integration Tests", () => {
       // Should have removed event listeners
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "beforeinstallprompt",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "appinstalled",
-        expect.any(Function),
+        expect.any(Function)
       );
 
       addEventListenerSpy.mockRestore();

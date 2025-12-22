@@ -27,7 +27,7 @@ describe("getStrictContext", () => {
     render(
       <Provider value="test-value">
         <Consumer />
-      </Provider>,
+      </Provider>
     );
 
     expect(screen.getByTestId("value").textContent).toBe("test-value");
@@ -54,7 +54,7 @@ describe("getStrictContext", () => {
     render(
       <Provider value={{ name: "test", count: 42 }}>
         <Consumer />
-      </Provider>,
+      </Provider>
     );
 
     expect(screen.getByTestId("name").textContent).toBe("test");
@@ -73,7 +73,7 @@ describe("getStrictContext", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => render(<Consumer />)).toThrow(
-      "useContext must be used within MyContext",
+      "useContext must be used within MyContext"
     );
 
     consoleSpy.mockRestore();
@@ -90,7 +90,7 @@ describe("getStrictContext", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => render(<Consumer />)).toThrow(
-      "useContext must be used within a Provider",
+      "useContext must be used within a Provider"
     );
 
     consoleSpy.mockRestore();

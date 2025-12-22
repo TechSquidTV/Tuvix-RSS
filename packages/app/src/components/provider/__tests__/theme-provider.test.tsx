@@ -66,7 +66,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <div data-testid="child">Child</div>
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider defaultTheme="light">
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     expect(screen.getByTestId("current-theme").textContent).toBe("light");
@@ -88,7 +88,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider storageKey="test-theme">
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     expect(localStorageMock.getItem).toHaveBeenCalledWith("test-theme");
@@ -98,7 +98,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     const darkButton = screen.getByText("Set Dark");
@@ -109,7 +109,7 @@ describe("ThemeProvider", () => {
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
       "vite-ui-theme",
-      "dark",
+      "dark"
     );
   });
 
@@ -117,7 +117,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider defaultTheme="dark">
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     expect(document.documentElement.classList.contains("dark")).toBe(true);
@@ -139,7 +139,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider defaultTheme="system">
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     // When system prefers dark and theme is "system", dark class should be applied
@@ -150,7 +150,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     const invalidButton = screen.getByText("Set Invalid");
@@ -162,7 +162,7 @@ describe("ThemeProvider", () => {
     // Invalid themes should fallback to light
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
       "vite-ui-theme",
-      "light",
+      "light"
     );
   });
 });
@@ -172,7 +172,7 @@ describe("useTheme", () => {
     render(
       <ThemeProvider>
         <TestComponent />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
 
     // Verify the hook works correctly

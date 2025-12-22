@@ -142,7 +142,7 @@ function CategoriesPage() {
   const [editColor, setEditColor] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
-    null,
+    null
   );
   const [createFeedDialogOpen, setCreateFeedDialogOpen] = useState(false);
   const [feedCategory, setFeedCategory] = useState<Category | null>(null);
@@ -152,7 +152,7 @@ function CategoriesPage() {
 
   // Check for associated feed when deleting
   const { data: associatedFeed } = useFeedByCategoryId(
-    categoryToDelete?.id ?? 0,
+    categoryToDelete?.id ?? 0
   );
 
   const handleEditClick = (category: Category) => {
@@ -309,7 +309,7 @@ function CategoriesPage() {
                                     id: number;
                                     name: string;
                                     color?: string;
-                                  },
+                                  }
                                 )
                               }
                               aria-label={`Edit category ${category.name}`}
@@ -473,7 +473,7 @@ function CategoriesPage() {
                       .toLowerCase()
                       .replace(/[^a-z0-9-]/g, "-")
                       .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, ""),
+                      .replace(/^-|-$/g, "")
                   )
                 }
                 placeholder="my-feed"

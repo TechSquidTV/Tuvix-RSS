@@ -35,7 +35,7 @@ export function SubscriptionCategorySelector({
   // Ensure existingCategories is always an array (memoized to avoid recreating callback)
   const categoriesArray = useMemo(
     () => (Array.isArray(existingCategories) ? existingCategories : []),
-    [existingCategories],
+    [existingCategories]
   );
 
   const handleAddNewCategory = useCallback(() => {
@@ -50,7 +50,7 @@ export function SubscriptionCategorySelector({
 
     // Check if it matches an existing category
     const matchingCategory = categoriesArray.find(
-      (c) => c.name && c.name.toLowerCase() === trimmed.toLowerCase(),
+      (c) => c.name && c.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (matchingCategory && matchingCategory.id !== undefined) {
       // Select the existing category instead
@@ -76,17 +76,17 @@ export function SubscriptionCategorySelector({
         handleAddNewCategory();
       }
     },
-    [handleAddNewCategory],
+    [handleAddNewCategory]
   );
 
   const filteredExistingCategories = categoriesArray.filter(
     (category) =>
-      category.id !== undefined && !selectedCategoryIds.includes(category.id),
+      category.id !== undefined && !selectedCategoryIds.includes(category.id)
   );
 
   // Sort categories to put suggested ones first (visually distinct)
   const suggestedCategoryNames = new Set(
-    suggestedCategories.map((s) => s.name.toLowerCase()),
+    suggestedCategories.map((s) => s.name.toLowerCase())
   );
   const sortedExistingCategories = [...filteredExistingCategories].sort(
     (a, b) => {
@@ -97,7 +97,7 @@ export function SubscriptionCategorySelector({
       if (aIsSuggested && !bIsSuggested) return -1;
       if (!aIsSuggested && bIsSuggested) return 1;
       return 0;
-    },
+    }
   );
 
   const totalSelected = selectedCategoryIds.length + newCategoryNames.length;
@@ -189,7 +189,7 @@ export function SubscriptionCategorySelector({
                 const matchingCategory = categoriesArray.find(
                   (c) =>
                     c.name &&
-                    c.name.toLowerCase() === suggestion.name.toLowerCase(),
+                    c.name.toLowerCase() === suggestion.name.toLowerCase()
                 );
                 const isSelected =
                   matchingCategory && matchingCategory.id !== undefined
@@ -218,7 +218,7 @@ export function SubscriptionCategorySelector({
                       "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                       isSelected
                         ? "bg-primary text-primary-foreground shadow-sm border-2 border-primary"
-                        : "border-2 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary text-foreground",
+                        : "border-2 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary text-foreground"
                     )}
                     title={
                       isSelected
@@ -306,7 +306,7 @@ export function SubscriptionCategorySelector({
                       ? "bg-primary text-primary-foreground shadow-sm border-2 border-primary"
                       : isSuggested
                         ? "border-2 border-primary/50 bg-background hover:bg-primary/10 hover:border-primary text-foreground"
-                        : "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent-foreground/20",
+                        : "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent-foreground/20"
                   )}
                   title={
                     isSelected

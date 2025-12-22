@@ -42,7 +42,7 @@ export function SwipeableItem({
     <div
       className={cn(
         "relative overflow-hidden rounded-md w-full max-w-full",
-        className,
+        className
       )}
     >
       {/* Red glow background layer with dynamic gradient */}

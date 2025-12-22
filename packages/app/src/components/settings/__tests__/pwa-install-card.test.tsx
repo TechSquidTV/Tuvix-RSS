@@ -41,7 +41,7 @@ describe("PWAInstallCard", () => {
 
       expect(screen.getByText("Installed")).toBeInTheDocument();
       expect(
-        screen.getByText("TuvixRSS is installed as an app"),
+        screen.getByText("TuvixRSS is installed as an app")
       ).toBeInTheDocument();
     });
 
@@ -49,16 +49,16 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByText(/Offline access to saved articles/i),
+        screen.getByText(/Offline access to saved articles/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Faster loading and app-like performance/i),
+        screen.getByText(/Faster loading and app-like performance/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/System integration - RSS links open directly/i),
+        screen.getByText(/System integration - RSS links open directly/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Quick access from your home screen or dock/i),
+        screen.getByText(/Quick access from your home screen or dock/i)
       ).toBeInTheDocument();
     });
 
@@ -66,7 +66,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
   });
@@ -89,7 +89,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByRole("button", { name: /install app/i }),
+        screen.getByRole("button", { name: /install app/i })
       ).toBeInTheDocument();
     });
 
@@ -97,13 +97,13 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByText(/Read saved articles offline/i),
+        screen.getByText(/Read saved articles offline/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Native app-like speed and instant loading/i),
+        screen.getByText(/Native app-like speed and instant loading/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Become your default RSS reader/i),
+        screen.getByText(/Become your default RSS reader/i)
       ).toBeInTheDocument();
     });
 
@@ -126,7 +126,7 @@ describe("PWAInstallCard", () => {
       // Use delayed mock to observe loading state before it clears
       mockPromptInstall.mockImplementation(
         () =>
-          new Promise((resolve) => setTimeout(() => resolve("accepted"), 50)),
+          new Promise((resolve) => setTimeout(() => resolve("accepted"), 50))
       );
 
       render(<PWAInstallCard />);
@@ -174,7 +174,7 @@ describe("PWAInstallCard", () => {
 
       expect(screen.getByText("Install on iOS")).toBeInTheDocument();
       expect(
-        screen.getByText(/Follow these steps to install TuvixRSS/i),
+        screen.getByText(/Follow these steps to install TuvixRSS/i)
       ).toBeInTheDocument();
     });
 
@@ -182,13 +182,13 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByText(/Tap the.*Share button in Safari's toolbar/i),
+        screen.getByText(/Tap the.*Share button in Safari's toolbar/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Scroll down and tap "Add to Home Screen"/i),
+        screen.getByText(/Scroll down and tap "Add to Home Screen"/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Tap "Add" in the top right corner/i),
+        screen.getByText(/Tap "Add" in the top right corner/i)
       ).toBeInTheDocument();
     });
 
@@ -196,7 +196,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
 
@@ -205,8 +205,8 @@ describe("PWAInstallCard", () => {
 
       expect(
         screen.getByText(
-          /Once installed, you'll enjoy offline access, faster performance/i,
-        ),
+          /Once installed, you'll enjoy offline access, faster performance/i
+        )
       ).toBeInTheDocument();
     });
   });
@@ -229,7 +229,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByText(/PWA installation not available in this browser/i),
+        screen.getByText(/PWA installation not available in this browser/i)
       ).toBeInTheDocument();
     });
 
@@ -237,7 +237,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.getByText(/Chrome or Edge on desktop/i),
+        screen.getByText(/Chrome or Edge on desktop/i)
       ).toBeInTheDocument();
       expect(screen.getByText(/Safari on iOS\/macOS/i)).toBeInTheDocument();
       expect(screen.getByText(/Chrome on Android/i)).toBeInTheDocument();
@@ -247,7 +247,7 @@ describe("PWAInstallCard", () => {
       render(<PWAInstallCard />);
 
       expect(
-        screen.queryByRole("button", { name: /install app/i }),
+        screen.queryByRole("button", { name: /install app/i })
       ).not.toBeInTheDocument();
     });
   });
@@ -271,7 +271,7 @@ describe("PWAInstallCard", () => {
 
       expect(screen.getByText("Progressive Web App")).toBeInTheDocument();
       expect(
-        screen.getByText("Install TuvixRSS for the best experience"),
+        screen.getByText("Install TuvixRSS for the best experience")
       ).toBeInTheDocument();
     });
   });

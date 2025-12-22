@@ -29,7 +29,7 @@ describe("useMediaQuery", () => {
               mediaQueryListeners.set(query, []);
             }
             mediaQueryListeners.get(query)!.push(listener);
-          },
+          }
         ),
         removeEventListener: vi.fn(
           (event: string, listener: (e: MediaQueryListEvent) => void) => {
@@ -38,7 +38,7 @@ describe("useMediaQuery", () => {
             if (index > -1) {
               listeners.splice(index, 1);
             }
-          },
+          }
         ),
         dispatchEvent: vi.fn(),
       })),
@@ -90,10 +90,10 @@ describe("useMediaQuery", () => {
     mediaQueryMatches.set("(min-width: 1024px)", false);
 
     const { result: result1 } = renderHook(() =>
-      useMediaQuery("(min-width: 640px)"),
+      useMediaQuery("(min-width: 640px)")
     );
     const { result: result2 } = renderHook(() =>
-      useMediaQuery("(min-width: 1024px)"),
+      useMediaQuery("(min-width: 1024px)")
     );
 
     expect(result1.current).toBe(true);
@@ -109,7 +109,7 @@ describe("useMediaQuery", () => {
       ({ query }) => useMediaQuery(query),
       {
         initialProps: { query: "(min-width: 768px)" },
-      },
+      }
     );
 
     expect(result.current).toBe(false);

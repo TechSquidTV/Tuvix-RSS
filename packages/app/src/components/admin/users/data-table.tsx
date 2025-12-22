@@ -34,11 +34,11 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange?: (
     updaterOrValue:
       | PaginationState
-      | ((old: PaginationState) => PaginationState),
+      | ((old: PaginationState) => PaginationState)
   ) => void;
   sorting?: SortingState;
   onSortingChange?: (
-    updaterOrValue: SortingState | ((old: SortingState) => SortingState),
+    updaterOrValue: SortingState | ((old: SortingState) => SortingState)
   ) => void;
 }
 
@@ -53,10 +53,10 @@ export function DataTable<TData, TValue>({
   onSortingChange,
 }: DataTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>(
-    [],
+    []
   );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
+    []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -121,7 +121,7 @@ export function DataTable<TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext(),
+                            header.getContext()
                           )}
                     </TableHead>
                   );
@@ -140,7 +140,7 @@ export function DataTable<TData, TValue>({
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext(),
+                        cell.getContext()
                       )}
                     </TableCell>
                   ))}

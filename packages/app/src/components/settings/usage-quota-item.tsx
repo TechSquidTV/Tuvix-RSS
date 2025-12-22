@@ -86,7 +86,7 @@ export function UsageQuotaItem({
               isAtLimit && "[&_[data-slot=progress-indicator]]:bg-red-500",
               isNearLimit &&
                 !isAtLimit &&
-                "[&_[data-slot=progress-indicator]]:bg-yellow-500",
+                "[&_[data-slot=progress-indicator]]:bg-yellow-500"
             )}
           />
           {isAtLimit && (

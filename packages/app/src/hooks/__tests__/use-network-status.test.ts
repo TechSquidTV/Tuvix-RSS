@@ -165,7 +165,7 @@ describe("useNetworkStatus", () => {
 
         // Get the change listener that was registered
         const changeListener = connection.addEventListener.mock.calls.find(
-          (call) => call[0] === "change",
+          (call) => call[0] === "change"
         )?.[1];
 
         if (changeListener) {
@@ -188,22 +188,22 @@ describe("useNetworkStatus", () => {
 
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "online",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         "offline",
-        expect.any(Function),
+        expect.any(Function)
       );
 
       unmount();
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "online",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "offline",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
   });

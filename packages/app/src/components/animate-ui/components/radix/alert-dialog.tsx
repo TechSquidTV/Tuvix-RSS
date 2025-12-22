@@ -58,7 +58,7 @@ function AlertDialogContent({ className, ...props }: AlertDialogContentProps) {
       <AlertDialogContentPrimitive
         className={cn(
           "bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg sm:max-w-lg",
-          className,
+          className
         )}
         {...props}
       />
@@ -84,7 +84,7 @@ function AlertDialogFooter({ className, ...props }: AlertDialogFooterProps) {
     <AlertDialogFooterPrimitive
       className={cn(
         "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
+        className
       )}
       {...props}
     />

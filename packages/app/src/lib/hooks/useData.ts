@@ -187,7 +187,7 @@ export const useCreateSubscriptionWithRefetch = () => {
         if (data?.pages) {
           for (const page of data.pages) {
             initialCount += page.items.filter(
-              (item) => item.source.id === sourceId,
+              (item) => item.source.id === sourceId
             ).length;
           }
         }
@@ -230,9 +230,9 @@ export const useCreateSubscriptionWithRefetch = () => {
                 page.items.reduce(
                   (itemTotal, item) =>
                     itemTotal + (item.source.id === sourceId ? 1 : 0),
-                  0,
+                  0
                 ),
-              0,
+              0
             )
           );
         }, 0);
@@ -242,7 +242,7 @@ export const useCreateSubscriptionWithRefetch = () => {
           const newArticles = currentCount - initialCount;
           stopPolling();
           toast.success(
-            `Loaded ${newArticles} new article${newArticles === 1 ? "" : "s"}`,
+            `Loaded ${newArticles} new article${newArticles === 1 ? "" : "s"}`
           );
           return;
         }
@@ -282,14 +282,14 @@ export const useCreateSubscriptionWithRefetch = () => {
         // Schedule next poll only after current poll completes
         pollIntervalRef.current = setTimeout(
           poll,
-          POLL_INTERVAL_MS,
+          POLL_INTERVAL_MS
         ) as NodeJS.Timeout;
       };
 
       // Start first poll
       pollIntervalRef.current = setTimeout(
         poll,
-        POLL_INTERVAL_MS,
+        POLL_INTERVAL_MS
       ) as NodeJS.Timeout;
     } catch (error) {
       // Reset polling state if subscription creation fails
