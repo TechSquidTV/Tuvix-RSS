@@ -87,5 +87,3 @@ DROP TABLE IF EXISTS global_settings;
 DROP TABLE IF EXISTS d1_migrations;
 DROP TABLE IF EXISTS __drizzle_migrations;
 
--- Vacuum to reclaim space
-VACUUM;
