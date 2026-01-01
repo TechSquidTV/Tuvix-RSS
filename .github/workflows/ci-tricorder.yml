@@ -130,7 +130,7 @@ jobs:
         run: pnpm --filter @tuvixrss/tricorder test:coverage
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tricorder-coverage
           path: packages/tricorder/coverage
@@ -178,7 +178,7 @@ jobs:
           echo "✅ Package is ready for publishing"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tricorder-dist
           path: packages/tricorder/dist

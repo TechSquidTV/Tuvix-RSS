@@ -100,7 +100,7 @@ jobs:
           npm pack --dry-run
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tricorder-dist
           path: packages/tricorder/dist
