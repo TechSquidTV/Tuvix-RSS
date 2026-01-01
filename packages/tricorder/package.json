@@ -56,7 +56,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "feedsmith": "^2.6.0",
+    "feedsmith": "^2.8.0",
     "sanitize-html": "^2.17.0"
   },
   "devDependencies": {
