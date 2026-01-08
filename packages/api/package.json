@@ -42,7 +42,7 @@
     "email:preview": "pnpm exec email dev --dir src/services/email-templates"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.1.0",
+    "@ai-sdk/openai": "^3.0.7",
     "@hono/node-server": "^1.19.6",
     "@hono/trpc-server": "^0.4.1",
     "@react-email/components": "^1.0.1",
