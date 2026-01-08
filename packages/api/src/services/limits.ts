@@ -457,3 +457,54 @@ export async function recalculateUsage(
     })
     .where(eq(schema.usageStats.userId, userId));
 }
+/**
+ * Check if user has access to AI-powered features
+ *
+ * Checks:
+ * 1. Global AI feature flag in settings
+ * 2. User's plan (must be pro or enterprise)
+ * 3. Environment configuration (must have API key)
+ *
+ * @param db Database connection
+ * @param userId User ID
+ * @param env Environment bindings
+ * @returns Access status and reason if denied
+ */
+export async function checkAiFeatureAccess(
+  db: Database,
+  userId: number,
+  env: { OPENAI_API_KEY?: string }
+): Promise<{ allowed: boolean; reason?: string }> {
+  // 1. Check global setting
+  const { getGlobalSettings } = await import('@/services/global-settings');
+  const globalSettings = await getGlobalSettings(db);
+
+  if (!globalSettings.aiEnabled) {
+    return { allowed: false, reason: 'AI features are disabled by administrator' };
+  }
+
+  // 2. Check API key
+  if (!env.OPENAI_API_KEY) {
+    return { allowed: false, reason: 'AI service not configured (missing API key)' };
+  }
+
+  // 3. Check user plan
+  const [user] = await db
+    .select()
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+    .limit(1);
+
+  if (!user) {
+    return { allowed: false, reason: 'User not found' };
+  }
+
+  const planId = user.plan || 'free';
+  const AI_ENABLED_PLANS = ['pro', 'enterprise'];
+
+  if (!AI_ENABLED_PLANS.includes(planId)) {
+    return { allowed: false, reason: 'AI features require a Pro or Enterprise plan' };
+  }
+
+  return { allowed: true };
+}

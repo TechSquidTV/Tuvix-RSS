@@ -42,6 +42,7 @@
     "email:preview": "pnpm exec email dev --dir src/services/email-templates"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.1.0",
     "@hono/node-server": "^1.19.6",
     "@hono/trpc-server": "^0.4.1",
     "@react-email/components": "^1.0.1",
@@ -49,6 +50,7 @@
     "@sentry/node": "^10.26.0",
     "@trpc/server": "^11.7.2",
     "@tuvixrss/tricorder": "workspace:*",
+    "ai": "^6.0.19",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.4.1",
     "better-sqlite3": "^12.4.6",
