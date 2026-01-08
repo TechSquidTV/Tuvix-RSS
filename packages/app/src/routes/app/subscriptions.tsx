@@ -181,7 +181,8 @@ function SubscriptionsPage() {
           if (newToSelect.length === 0) return prev;
 
           toast.success(
-            `✨ AI auto-applied ${newToSelect.length} ${newToSelect.length === 1 ? "category" : "categories"
+            `✨ AI auto-applied ${newToSelect.length} ${
+              newToSelect.length === 1 ? "category" : "categories"
             }`,
             {
               duration: 3000,
@@ -1228,7 +1229,7 @@ function SubscriptionsPage() {
                                 {filter.field === "any"
                                   ? "Any"
                                   : filter.field.charAt(0).toUpperCase() +
-                                  filter.field.slice(1)}{" "}
+                                    filter.field.slice(1)}{" "}
                                 {filter.matchType === "contains"
                                   ? "contains"
                                   : filter.matchType === "exact"

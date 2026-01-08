@@ -294,8 +294,9 @@ export const subscriptionsRouter = router({
 
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: `This domain has been blocked by administrators.${reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
-              }`,
+            message: `This domain has been blocked by administrators.${
+              reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
+            }`,
           });
         }
       }
@@ -502,8 +503,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-            Array.isArray(feedData.links) &&
-            feedData.links[0]?.href
+              Array.isArray(feedData.links) &&
+              feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -547,10 +548,10 @@ export const subscriptionsRouter = router({
           feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-              typeof feedData.image === "object" &&
-              feedData.image !== null &&
-              "url" in feedData.image &&
-              typeof feedData.image.url === "string"
+            typeof feedData.image === "object" &&
+            feedData.image !== null &&
+            "url" in feedData.image &&
+            typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -1252,8 +1253,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-            Array.isArray(feedData.links) &&
-            feedData.links[0]?.href
+              Array.isArray(feedData.links) &&
+              feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -1294,10 +1295,10 @@ export const subscriptionsRouter = router({
           const feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-              typeof feedData.image === "object" &&
-              feedData.image !== null &&
-              "url" in feedData.image &&
-              typeof feedData.image.url === "string"
+            typeof feedData.image === "object" &&
+            feedData.image !== null &&
+            "url" in feedData.image &&
+            typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -2038,8 +2039,8 @@ export const subscriptionsRouter = router({
                     "link" in feedData && feedData.link
                       ? feedData.link
                       : "links" in feedData &&
-                        Array.isArray(feedData.links) &&
-                        feedData.links[0]?.href
+                          Array.isArray(feedData.links) &&
+                          feedData.links[0]?.href
                         ? feedData.links[0].href
                         : undefined;
 
