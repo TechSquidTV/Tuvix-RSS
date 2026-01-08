@@ -713,9 +713,7 @@ function SubscriptionsPage() {
             {/* Category Selector - Shows after preview */}
             {feedPreview.isSuccess && feedPreview.data && (
               <SubscriptionCategorySelector
-                suggestedCategories={
-                  feedPreview.data.suggestedCategories || []
-                }
+                suggestedCategories={feedPreview.data.suggestedCategories || []}
                 existingCategories={existingCategories}
                 selectedCategoryIds={selectedCategoryIds}
                 newCategoryNames={newCategoryNames}
@@ -723,8 +721,12 @@ function SubscriptionsPage() {
                 onAddNewCategory={handleAddNewCategory}
                 onRemoveNewCategory={handleRemoveNewCategory}
                 isLoadingSuggestions={feedPreview.isLoading}
-                aiMatchedCategoryIds={feedPreview.data.aiSuggestions?.matchedCategoryIds}
-                aiNewCategorySuggestions={feedPreview.data.aiSuggestions?.newCategories}
+                aiMatchedCategoryIds={
+                  feedPreview.data.aiSuggestions?.matchedCategoryIds
+                }
+                aiNewCategorySuggestions={
+                  feedPreview.data.aiSuggestions?.newCategories
+                }
               />
             )}
 
@@ -1222,7 +1224,7 @@ function SubscriptionsPage() {
                                 {filter.field === "any"
                                   ? "Any"
                                   : filter.field.charAt(0).toUpperCase() +
-                                  filter.field.slice(1)}{" "}
+                                    filter.field.slice(1)}{" "}
                                 {filter.matchType === "contains"
                                   ? "contains"
                                   : filter.matchType === "exact"

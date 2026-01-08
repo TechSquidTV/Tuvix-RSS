@@ -476,16 +476,22 @@ export async function checkAiFeatureAccess(
   env: { OPENAI_API_KEY?: string }
 ): Promise<{ allowed: boolean; reason?: string }> {
   // 1. Check global setting
-  const { getGlobalSettings } = await import('@/services/global-settings');
+  const { getGlobalSettings } = await import("@/services/global-settings");
   const globalSettings = await getGlobalSettings(db);
 
   if (!globalSettings.aiEnabled) {
-    return { allowed: false, reason: 'AI features are disabled by administrator' };
+    return {
+      allowed: false,
+      reason: "AI features are disabled by administrator",
+    };
   }
 
   // 2. Check API key
   if (!env.OPENAI_API_KEY) {
-    return { allowed: false, reason: 'AI service not configured (missing API key)' };
+    return {
+      allowed: false,
+      reason: "AI service not configured (missing API key)",
+    };
   }
 
   // 3. Check user plan
@@ -496,14 +502,17 @@ export async function checkAiFeatureAccess(
     .limit(1);
 
   if (!user) {
-    return { allowed: false, reason: 'User not found' };
+    return { allowed: false, reason: "User not found" };
   }
 
-  const planId = user.plan || 'free';
-  const AI_ENABLED_PLANS = ['pro', 'enterprise'];
+  const planId = user.plan || "free";
+  const AI_ENABLED_PLANS = ["pro", "enterprise"];
 
   if (!AI_ENABLED_PLANS.includes(planId)) {
-    return { allowed: false, reason: 'AI features require a Pro or Enterprise plan' };
+    return {
+      allowed: false,
+      reason: "AI features require a Pro or Enterprise plan",
+    };
   }
 
   return { allowed: true };

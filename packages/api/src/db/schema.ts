@@ -535,7 +535,9 @@ export const globalSettings = sqliteTable("global_settings", {
   lastTokenCleanupAt: integer("last_token_cleanup_at", { mode: "timestamp" }),
 
   // AI features
-  aiEnabled: integer("ai_enabled", { mode: "boolean" }).notNull().default(false),
+  aiEnabled: integer("ai_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
 
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()

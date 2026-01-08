@@ -163,8 +163,8 @@ export function SubscriptionCategorySelector({
           </div>
           {aiMatchedCategoryIds.length > 0 && (
             <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-primary animate-in fade-in slide-in-from-left-1 duration-500">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
-              ✨ AI applied {aiMatchedCategoryIds.length} existing categories
+              <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />✨ AI
+              applied {aiMatchedCategoryIds.length} existing categories
             </div>
           )}
         </div>
