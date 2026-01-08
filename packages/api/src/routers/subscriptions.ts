@@ -294,9 +294,8 @@ export const subscriptionsRouter = router({
 
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: `This domain has been blocked by administrators.${
-              reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
-            }`,
+            message: `This domain has been blocked by administrators.${reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
+              }`,
           });
         }
       }
@@ -503,8 +502,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
+            Array.isArray(feedData.links) &&
+            feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -548,10 +547,10 @@ export const subscriptionsRouter = router({
           feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-            typeof feedData.image === "object" &&
-            feedData.image !== null &&
-            "url" in feedData.image &&
-            typeof feedData.image.url === "string"
+              typeof feedData.image === "object" &&
+              feedData.image !== null &&
+              "url" in feedData.image &&
+              typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -1253,8 +1252,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
+            Array.isArray(feedData.links) &&
+            feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -1295,10 +1294,10 @@ export const subscriptionsRouter = router({
           const feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-            typeof feedData.image === "object" &&
-            feedData.image !== null &&
-            "url" in feedData.image &&
-            typeof feedData.image.url === "string"
+              typeof feedData.image === "object" &&
+              feedData.image !== null &&
+              "url" in feedData.image &&
+              typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -1422,19 +1421,19 @@ export const subscriptionsRouter = router({
             const entryCategories: string[] = [];
             const entryTitles: string[] = [];
 
-            // Cast feedData to access entries safely
-            const feedWithEntries = feedData as {
+            // Cast feedData to access items/entries safely (handles RSS, Atom, RDF)
+            const feedWithItems = feedData as {
               entries?: Array<{ title?: string; categories?: unknown[] }>;
+              items?: Array<{ title?: string; categories?: unknown[] }>;
             };
 
-            if (
-              feedWithEntries.entries &&
-              Array.isArray(feedWithEntries.entries)
-            ) {
-              for (const entry of feedWithEntries.entries.slice(0, 10)) {
-                entryTitles.push(entry.title || "");
-                if (entry.categories && Array.isArray(entry.categories)) {
-                  for (const cat of entry.categories) {
+            const items = feedWithItems.entries || feedWithItems.items || [];
+
+            if (Array.isArray(items)) {
+              for (const item of items.slice(0, 10)) {
+                entryTitles.push(item.title || "");
+                if (item.categories && Array.isArray(item.categories)) {
+                  for (const cat of item.categories) {
                     const catName = extractCategoryName(cat);
                     if (catName) entryCategories.push(catName);
                   }
@@ -2039,8 +2038,8 @@ export const subscriptionsRouter = router({
                     "link" in feedData && feedData.link
                       ? feedData.link
                       : "links" in feedData &&
-                          Array.isArray(feedData.links) &&
-                          feedData.links[0]?.href
+                        Array.isArray(feedData.links) &&
+                        feedData.links[0]?.href
                         ? feedData.links[0].href
                         : undefined;
 

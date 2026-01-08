@@ -180,9 +180,13 @@ function SubscriptionsPage() {
 
           if (newToSelect.length === 0) return prev;
 
-          toast.success(`✨ AI auto-applied ${newToSelect.length} categories`, {
-            duration: 3000,
-          });
+          toast.success(
+            `✨ AI auto-applied ${newToSelect.length} ${newToSelect.length === 1 ? "category" : "categories"
+            }`,
+            {
+              duration: 3000,
+            }
+          );
 
           const next = [...prev];
           newToSelect.forEach((id: number) => {
@@ -1224,7 +1228,7 @@ function SubscriptionsPage() {
                                 {filter.field === "any"
                                   ? "Any"
                                   : filter.field.charAt(0).toUpperCase() +
-                                    filter.field.slice(1)}{" "}
+                                  filter.field.slice(1)}{" "}
                                 {filter.matchType === "contains"
                                   ? "contains"
                                   : filter.matchType === "exact"
