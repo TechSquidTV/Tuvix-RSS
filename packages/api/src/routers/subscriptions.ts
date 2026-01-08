@@ -1033,6 +1033,12 @@ export const subscriptionsRouter = router({
         siteUrl: z.string().optional(),
         iconUrl: z.string().optional(),
         suggestedCategories: z.array(CategorySuggestionSchema),
+        aiSuggestions: z
+          .object({
+            matchedCategoryIds: z.array(z.number()),
+            newCategories: z.array(z.string()),
+          })
+          .optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1391,6 +1397,77 @@ export const subscriptionsRouter = router({
         siteUrl,
         iconUrl,
         suggestedCategories: suggestedCategories.slice(0, 10), // Top 10 suggestions
+        aiSuggestions: await Sentry.startSpan(
+          { name: "ai.getSuggestions", op: "ai.categorize" },
+          async () => {
+            const { checkAiFeatureAccess } = await import("@/services/limits");
+            const { suggestCategories } =
+              await import("@/services/ai-category-suggester");
+
+            const env = ctx.env as { OPENAI_API_KEY?: string };
+            const access = await checkAiFeatureAccess(ctx.db, userId, env);
+
+            if (!access.allowed) {
+              return undefined;
+            }
+
+            // Get user's existing categories to match against
+            const userCategories = await ctx.db
+              .select()
+              .from(schema.categories)
+              .where(eq(schema.categories.userId, userId))
+              .orderBy(schema.categories.name);
+
+            // Extract entry metadata for AI context
+            const entryCategories: string[] = [];
+            const entryTitles: string[] = [];
+
+            // Cast feedData to access items/entries safely (handles RSS, Atom, RDF)
+            const feedWithItems = feedData as {
+              entries?: Array<{ title?: string; categories?: unknown[] }>;
+              items?: Array<{ title?: string; categories?: unknown[] }>;
+            };
+
+            const items = feedWithItems.entries || feedWithItems.items || [];
+
+            if (Array.isArray(items)) {
+              for (const item of items.slice(0, 10)) {
+                entryTitles.push(item.title || "");
+                if (item.categories && Array.isArray(item.categories)) {
+                  for (const cat of item.categories) {
+                    const catName = extractCategoryName(cat);
+                    if (catName) entryCategories.push(catName);
+                  }
+                }
+              }
+            }
+
+            if (!env.OPENAI_API_KEY) {
+              return undefined;
+            }
+
+            const aiResult = await suggestCategories(
+              {
+                title: title || "",
+                description: description || undefined,
+                siteUrl: siteUrl || undefined,
+                feedCategories: Array.from(categoryMap.keys()),
+                entryCategories,
+                entryTitles,
+              },
+              userCategories.map((c) => ({
+                id: c.id,
+                name: c.name,
+              })),
+              env.OPENAI_API_KEY
+            );
+
+            return {
+              matchedCategoryIds: aiResult.matchedCategoryIds,
+              newCategories: aiResult.newCategorySuggestions,
+            };
+          }
+        ),
       };
     }),
 

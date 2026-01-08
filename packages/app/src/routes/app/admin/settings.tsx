@@ -230,6 +230,27 @@ function AdminSettings() {
           />
         </CardContent>
       </Card>
+
+      {/* AI Features */}
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Features</CardTitle>
+          <CardDescription>
+            Enable AI-powered features (requires OPENAI_API_KEY)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <SettingsToggle
+            id="aiEnabled"
+            label="Enable AI Features"
+            description="Smart category suggestions and other AI-powered tools"
+            checked={formData.aiEnabled}
+            onCheckedChange={(checked) =>
+              setFormData({ ...formData, aiEnabled: checked })
+            }
+          />
+        </CardContent>
+      </Card>
     </SettingsPageLayout>
   );
 }

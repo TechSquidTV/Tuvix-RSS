@@ -12,6 +12,10 @@ export interface FeedPreview {
   siteUrl?: string;
   iconUrl?: string;
   suggestedCategories?: CategorySuggestion[];
+  aiSuggestions?: {
+    matchedCategoryIds: number[];
+    newCategories: string[];
+  };
 }
 
 export function useFeedPreview(url: string | null) {

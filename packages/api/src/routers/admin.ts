@@ -93,6 +93,7 @@ const globalSettingsOutputSchema = z.object({
   passwordResetTokenExpiryHours: z.number(),
   fetchIntervalMinutes: z.number(),
   pruneDays: z.number(),
+  aiEnabled: z.boolean(),
   lastRssFetchAt: z.date().nullable(),
   lastPruneAt: z.date().nullable(),
   updatedAt: z.date(),
@@ -206,6 +207,7 @@ function formatGlobalSettings(
     passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
     fetchIntervalMinutes: settings.fetchIntervalMinutes,
     pruneDays: settings.pruneDays,
+    aiEnabled: settings.aiEnabled,
     lastRssFetchAt: settings.lastRssFetchAt,
     lastPruneAt: settings.lastPruneAt,
     updatedAt: settings.updatedAt,
@@ -961,6 +963,7 @@ export const adminRouter = router({
             passwordResetTokenExpiryHours: 1,
             fetchIntervalMinutes: 60,
             pruneDays: 30,
+            aiEnabled: false,
           })
           .returning();
 
@@ -997,6 +1000,7 @@ export const adminRouter = router({
           .optional(),
         fetchIntervalMinutes: z.number().int().min(5).max(1440).optional(),
         pruneDays: z.number().int().min(0).max(365).optional(),
+        aiEnabled: z.boolean().optional(),
       })
     )
     .output(z.object({ success: z.boolean() }))
@@ -1031,6 +1035,7 @@ export const adminRouter = router({
       if (input.fetchIntervalMinutes !== undefined)
         updates.fetchIntervalMinutes = input.fetchIntervalMinutes;
       if (input.pruneDays !== undefined) updates.pruneDays = input.pruneDays;
+      if (input.aiEnabled !== undefined) updates.aiEnabled = input.aiEnabled;
 
       if (existing) {
         // Update existing settings
@@ -1053,6 +1058,7 @@ export const adminRouter = router({
             input.passwordResetTokenExpiryHours ?? 1,
           fetchIntervalMinutes: input.fetchIntervalMinutes ?? 60,
           pruneDays: input.pruneDays ?? 30,
+          aiEnabled: input.aiEnabled ?? false,
         });
       }
 

@@ -78,6 +78,13 @@
       "when": 1765500000000,
       "tag": "0010_add_last_token_cleanup_at",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1767813616227,
+      "tag": "0011_freezing_firebrand",
+      "breakpoints": true
     }
   ]
 }

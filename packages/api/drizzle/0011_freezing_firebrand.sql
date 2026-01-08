@@ -1,0 +1,1 @@
+ALTER TABLE `global_settings` ADD `ai_enabled` integer DEFAULT false NOT NULL;

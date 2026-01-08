@@ -16,6 +16,8 @@ interface SubscriptionCategorySelectorProps {
   onAddNewCategory: (categoryName: string) => void;
   onRemoveNewCategory: (categoryName: string) => void;
   isLoadingSuggestions?: boolean;
+  aiMatchedCategoryIds?: number[];
+  aiNewCategorySuggestions?: string[];
   className?: string;
 }
 
@@ -28,6 +30,8 @@ export function SubscriptionCategorySelector({
   onAddNewCategory,
   onRemoveNewCategory,
   isLoadingSuggestions = false,
+  aiMatchedCategoryIds = [],
+  aiNewCategorySuggestions = [],
   className,
 }: SubscriptionCategorySelectorProps) {
   const [newCategoryInput, setNewCategoryInput] = useState("");
@@ -130,19 +134,22 @@ export function SubscriptionCategorySelector({
           </label>
           <div className="flex flex-wrap gap-2 p-3 border-2 border-primary/20 rounded-lg bg-primary/5">
             {/* Selected existing categories */}
-            {selectedCategoryIds.map((categoryId) => {
-              const category = categoriesArray.find((c) => c.id === categoryId);
-              if (!category || !category.id) return null;
+            {selectedCategoryIds.map((selectedId) => {
+              const category = categoriesArray.find((c) => c.id === selectedId);
+              if (!category || category.id === undefined) return null;
+
+              const catId = category.id;
+
               return (
                 <CategoryBadge
-                  key={category.id}
+                  key={catId}
                   category={{
-                    id: category.id,
+                    id: catId,
                     name: category.name || "",
                     color: category.color,
                   }}
                   variant="default"
-                  onRemove={() => onToggleCategory(category.id)}
+                  onRemove={() => onToggleCategory(catId)}
                 />
               );
             })}
@@ -157,6 +164,12 @@ export function SubscriptionCategorySelector({
               />
             ))}
           </div>
+          {aiMatchedCategoryIds.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-primary animate-in fade-in slide-in-from-left-1 duration-500">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />✨ AI
+              found {aiMatchedCategoryIds.length} matching existing categories
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-4 border border-dashed rounded-lg bg-muted/30 text-center">
@@ -290,16 +303,18 @@ export function SubscriptionCategorySelector({
           </p>
           <div className="flex flex-wrap gap-1.5">
             {sortedExistingCategories.map((category) => {
-              if (!category.id) return null;
-              const isSelected = selectedCategoryIds.includes(category.id);
+              const catId = category.id;
+              if (catId === undefined) return null;
+
+              const isSelected = selectedCategoryIds.includes(catId);
               const isSuggested =
                 category.name &&
                 suggestedCategoryNames.has(category.name.toLowerCase());
               return (
                 <button
-                  key={category.id}
+                  key={catId}
                   type="button"
-                  onClick={() => onToggleCategory(category.id)}
+                  onClick={() => onToggleCategory(catId)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                     isSelected
@@ -329,7 +344,7 @@ export function SubscriptionCategorySelector({
                     <span
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleCategory(category.id);
+                        onToggleCategory(catId);
                       }}
                       className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5 transition-colors cursor-pointer inline-flex items-center justify-center"
                       title={`Remove "${category.name}"`}
@@ -340,7 +355,7 @@ export function SubscriptionCategorySelector({
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          onToggleCategory(category.id);
+                          onToggleCategory(catId);
                         }
                       }}
                     >
@@ -385,6 +400,35 @@ export function SubscriptionCategorySelector({
             Add
           </button>
         </div>
+
+        {/* AI New Category Suggestions */}
+        {!isLoadingSuggestions && aiNewCategorySuggestions.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              ✨ AI Suggests
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {aiNewCategorySuggestions.map((name) => {
+                const isSelected = newCategoryNames.includes(name);
+                if (isSelected) return null;
+
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => onAddNewCategory(name)}
+                    disabled={isOverLimit}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {newCategoryInput && newCategoryInput.length > 40 && (
           <p className="text-xs text-muted-foreground">
             {newCategoryInput.length}/50 characters

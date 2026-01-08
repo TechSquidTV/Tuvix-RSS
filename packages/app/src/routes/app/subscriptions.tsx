@@ -158,6 +158,55 @@ function SubscriptionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedUrl, looksLikeFeedUrl]);
 
+  // Track which feed URL we've already auto-categorized to avoid infinite loops or re-toasting
+  const autoCategorizedUrl = useRef<string | null>(null);
+
+  // Auto-apply AI suggested categories
+  useEffect(() => {
+    if (
+      feedPreview.isSuccess &&
+      feedPreview.data?.aiSuggestions &&
+      newSubUrl &&
+      autoCategorizedUrl.current !== newSubUrl
+    ) {
+      const { matchedCategoryIds } = feedPreview.data.aiSuggestions;
+
+      if (matchedCategoryIds.length > 0) {
+        setSelectedCategoryIds((prev) => {
+          // Filter out already selected ones to see if we're actually adding anything
+          const newToSelect = matchedCategoryIds.filter(
+            (id: number) => !prev.includes(id)
+          );
+
+          if (newToSelect.length === 0) return prev;
+
+          toast.success(
+            `✨ AI auto-applied ${newToSelect.length} ${
+              newToSelect.length === 1 ? "category" : "categories"
+            }`,
+            {
+              duration: 3000,
+            }
+          );
+
+          const next = [...prev];
+          newToSelect.forEach((id: number) => {
+            if (!next.includes(id)) next.push(id);
+          });
+          return next;
+        });
+      }
+      autoCategorizedUrl.current = newSubUrl;
+    }
+  }, [feedPreview.isSuccess, feedPreview.data, newSubUrl]);
+
+  // Reset auto-categorization tracker if URL clears
+  useEffect(() => {
+    if (!newSubUrl) {
+      autoCategorizedUrl.current = null;
+    }
+  }, [newSubUrl]);
+
   // Handle subscribe URL parameter
   useEffect(() => {
     if (search.subscribe) {
@@ -669,9 +718,7 @@ function SubscriptionsPage() {
             {/* Category Selector - Shows after preview */}
             {feedPreview.isSuccess && feedPreview.data && (
               <SubscriptionCategorySelector
-                suggestedCategories={
-                  feedPreview.data.suggested_categories || []
-                }
+                suggestedCategories={feedPreview.data.suggestedCategories || []}
                 existingCategories={existingCategories}
                 selectedCategoryIds={selectedCategoryIds}
                 newCategoryNames={newCategoryNames}
@@ -679,6 +726,12 @@ function SubscriptionsPage() {
                 onAddNewCategory={handleAddNewCategory}
                 onRemoveNewCategory={handleRemoveNewCategory}
                 isLoadingSuggestions={feedPreview.isLoading}
+                aiMatchedCategoryIds={
+                  feedPreview.data.aiSuggestions?.matchedCategoryIds
+                }
+                aiNewCategorySuggestions={
+                  feedPreview.data.aiSuggestions?.newCategories
+                }
               />
             )}
 
