@@ -534,6 +534,9 @@ export const globalSettings = sqliteTable("global_settings", {
   lastPruneAt: integer("last_prune_at", { mode: "timestamp" }),
   lastTokenCleanupAt: integer("last_token_cleanup_at", { mode: "timestamp" }),
 
+  // AI features
+  aiEnabled: integer("ai_enabled", { mode: "boolean" }).notNull().default(false),
+
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

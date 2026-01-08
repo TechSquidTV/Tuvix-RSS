@@ -32,6 +32,7 @@ export interface GlobalSettings {
   lastRssFetchAt: Date | null;
   lastPruneAt: Date | null;
   lastTokenCleanupAt: Date | null;
+  aiEnabled: boolean;
   updatedAt: Date;
   updatedBy: number | null;
 }
@@ -109,6 +110,7 @@ export async function getGlobalSettings(db: Database): Promise<GlobalSettings> {
     lastRssFetchAt: settings.lastRssFetchAt,
     lastPruneAt: settings.lastPruneAt,
     lastTokenCleanupAt: settings.lastTokenCleanupAt,
+    aiEnabled: settings.aiEnabled,
     updatedAt: settings.updatedAt,
     updatedBy: settings.updatedBy,
   };

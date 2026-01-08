@@ -93,6 +93,7 @@ const globalSettingsOutputSchema = z.object({
   passwordResetTokenExpiryHours: z.number(),
   fetchIntervalMinutes: z.number(),
   pruneDays: z.number(),
+  aiEnabled: z.boolean(),
   lastRssFetchAt: z.date().nullable(),
   lastPruneAt: z.date().nullable(),
   updatedAt: z.date(),
@@ -177,14 +178,14 @@ function transformAdminUser(
     },
     customLimits: customLimits
       ? {
-          maxSources: customLimits.maxSources,
-          maxPublicFeeds: customLimits.maxPublicFeeds,
-          maxCategories: customLimits.maxCategories,
-          // Rate limits are not customizable - they come from plan-specific bindings
-          apiRateLimitPerMinute: null,
-          publicFeedRateLimitPerMinute: null,
-          notes: customLimits.notes,
-        }
+        maxSources: customLimits.maxSources,
+        maxPublicFeeds: customLimits.maxPublicFeeds,
+        maxCategories: customLimits.maxCategories,
+        // Rate limits are not customizable - they come from plan-specific bindings
+        apiRateLimitPerMinute: null,
+        publicFeedRateLimitPerMinute: null,
+        notes: customLimits.notes,
+      }
       : null,
     rateLimitEnabled,
   };
@@ -206,6 +207,7 @@ function formatGlobalSettings(
     passwordResetTokenExpiryHours: settings.passwordResetTokenExpiryHours,
     fetchIntervalMinutes: settings.fetchIntervalMinutes,
     pruneDays: settings.pruneDays,
+    aiEnabled: settings.aiEnabled,
     lastRssFetchAt: settings.lastRssFetchAt,
     lastPruneAt: settings.lastPruneAt,
     updatedAt: settings.updatedAt,
@@ -361,21 +363,21 @@ export const adminRouter = router({
       const usageRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.usageStats)
-              .where(
-                sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.usageStats)
+            .where(
+              sql`${schema.usageStats.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       const customLimitsRecords =
         userIds.length > 0
           ? await ctx.db
-              .select()
-              .from(schema.userLimits)
-              .where(
-                sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
-              )
+            .select()
+            .from(schema.userLimits)
+            .where(
+              sql`${schema.userLimits.userId} IN (${sql.join(userIds, sql`, `)})`
+            )
           : [];
 
       // Create maps for quick lookup
@@ -997,6 +999,7 @@ export const adminRouter = router({
           .optional(),
         fetchIntervalMinutes: z.number().int().min(5).max(1440).optional(),
         pruneDays: z.number().int().min(0).max(365).optional(),
+        aiEnabled: z.boolean().optional(),
       })
     )
     .output(z.object({ success: z.boolean() }))
@@ -1031,6 +1034,7 @@ export const adminRouter = router({
       if (input.fetchIntervalMinutes !== undefined)
         updates.fetchIntervalMinutes = input.fetchIntervalMinutes;
       if (input.pruneDays !== undefined) updates.pruneDays = input.pruneDays;
+      if (input.aiEnabled !== undefined) updates.aiEnabled = input.aiEnabled;
 
       if (existing) {
         // Update existing settings
@@ -2051,13 +2055,13 @@ export const adminRouter = router({
 
       const updateData: {
         reason?:
-          | "illegal_content"
-          | "excessive_automation"
-          | "spam"
-          | "malware"
-          | "copyright_violation"
-          | "other"
-          | null;
+        | "illegal_content"
+        | "excessive_automation"
+        | "spam"
+        | "malware"
+        | "copyright_violation"
+        | "other"
+        | null;
         notes?: string | null;
         updatedAt: Date;
       } = {
