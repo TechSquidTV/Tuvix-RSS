@@ -134,19 +134,22 @@ export function SubscriptionCategorySelector({
           </label>
           <div className="flex flex-wrap gap-2 p-3 border-2 border-primary/20 rounded-lg bg-primary/5">
             {/* Selected existing categories */}
-            {selectedCategoryIds.map((categoryId) => {
-              const category = categoriesArray.find((c) => c.id === categoryId);
-              if (!category || !category.id) return null;
+            {selectedCategoryIds.map((selectedId) => {
+              const category = categoriesArray.find((c) => c.id === selectedId);
+              if (!category || category.id === undefined) return null;
+
+              const catId = category.id;
+
               return (
                 <CategoryBadge
-                  key={category.id}
+                  key={catId}
                   category={{
-                    id: category.id!,
+                    id: catId,
                     name: category.name || "",
                     color: category.color,
                   }}
                   variant="default"
-                  onRemove={() => onToggleCategory(category.id!)}
+                  onRemove={() => onToggleCategory(catId)}
                 />
               );
             })}
@@ -300,16 +303,18 @@ export function SubscriptionCategorySelector({
           </p>
           <div className="flex flex-wrap gap-1.5">
             {sortedExistingCategories.map((category) => {
-              if (!category.id) return null;
-              const isSelected = selectedCategoryIds.includes(category.id);
+              const catId = category.id;
+              if (catId === undefined) return null;
+
+              const isSelected = selectedCategoryIds.includes(catId);
               const isSuggested =
                 category.name &&
                 suggestedCategoryNames.has(category.name.toLowerCase());
               return (
                 <button
-                  key={category.id}
+                  key={catId}
                   type="button"
-                  onClick={() => onToggleCategory(category.id!)}
+                  onClick={() => onToggleCategory(catId)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                     isSelected
@@ -339,7 +344,7 @@ export function SubscriptionCategorySelector({
                     <span
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleCategory(category.id!);
+                        onToggleCategory(catId);
                       }}
                       className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5 transition-colors cursor-pointer inline-flex items-center justify-center"
                       title={`Remove "${category.name}"`}
@@ -350,7 +355,7 @@ export function SubscriptionCategorySelector({
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          onToggleCategory(category.id!);
+                          onToggleCategory(catId);
                         }
                       }}
                     >
