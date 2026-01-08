@@ -27,6 +27,7 @@ interface UserCategory {
 interface CategorySuggestionResult {
   matchedCategoryIds: number[];
   newCategorySuggestions: string[];
+  status: "success" | "no_input" | "fail";
 }
 
 /**
@@ -46,22 +47,31 @@ export async function suggestCategories(
     try {
       // If we have no input signals, return empty
       if (!feedContext.title && feedContext.entryTitles.length === 0) {
-        return { matchedCategoryIds: [], newCategorySuggestions: [] };
+        return {
+          matchedCategoryIds: [],
+          newCategorySuggestions: [],
+          status: "no_input",
+        };
       }
 
       const { createOpenAI } = await import("@ai-sdk/openai");
       const openai = createOpenAI({ apiKey });
 
+      // Truncate titles to prevent token overflow (Comment 3)
+      const truncatedTitles = feedContext.entryTitles
+        .slice(0, 10)
+        .map((t) => (t.length > 100 ? t.substring(0, 97) + "..." : t));
+
       const systemPrompt = `You are an expert at categorizing content for an RSS reader.
 Your goal is to suggest relevant categories for a user's new RSS subscription.
 
 CONTEXT:
-Feed Title: ${feedContext.title}
-Feed Description: ${feedContext.description || "N/A"}
+Feed Title: ${feedContext.title.substring(0, 100)}
+Feed Description: ${(feedContext.description || "N/A").substring(0, 300)}
 Site URL: ${feedContext.siteUrl || "N/A"}
-Feed XML Categories: ${feedContext.feedCategories.join(", ") || "N/A"}
+Feed XML Categories: ${feedContext.feedCategories.join(", ").substring(0, 200) || "N/A"}
 Recent Article Titles:
-${feedContext.entryTitles.map((t) => `- ${t}`).join("\n")}
+${truncatedTitles.map((t) => `- ${t}`).join("\n")}
 
 USER'S EXISTING CATEGORIES:
 ${userCategories.map((c) => `- [${c.id}] ${c.name}`).join("\n")}
@@ -110,8 +120,11 @@ INSTRUCTIONS:
       });
 
       // Filter by confidence threshold (85%)
+      const existingCategoryIds = new Set(userCategories.map((c) => c.id));
       const matchedCategoryIds = object.existingMatches
-        .filter((m) => m.confidence >= 0.85)
+        .filter(
+          (m) => m.confidence >= 0.85 && existingCategoryIds.has(m.categoryId) // Validate returned IDs (Comment 8)
+        )
         .map((m) => m.categoryId);
 
       const newCategorySuggestions = object.newSuggestions
@@ -122,6 +135,7 @@ INSTRUCTIONS:
       return {
         matchedCategoryIds,
         newCategorySuggestions,
+        status: "success",
       };
     } catch (error) {
       console.error("[AI] Category suggestion failed:", error);
@@ -129,7 +143,11 @@ INSTRUCTIONS:
         tags: { flow: "ai_category_suggestion" },
         extra: { feedTitle: feedContext.title },
       });
-      return { matchedCategoryIds: [], newCategorySuggestions: [] };
+      return {
+        matchedCategoryIds: [],
+        newCategorySuggestions: [],
+        status: "fail", // Improved error reporting (Comment 7)
+      };
     }
   });
 }

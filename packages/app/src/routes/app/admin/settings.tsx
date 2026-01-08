@@ -236,7 +236,7 @@ function AdminSettings() {
         <CardHeader>
           <CardTitle>AI Features</CardTitle>
           <CardDescription>
-            Enable AI-powered features (requires GOOGLE_GENERATIVE_AI_API_KEY)
+            Enable AI-powered features (requires OPENAI_API_KEY)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

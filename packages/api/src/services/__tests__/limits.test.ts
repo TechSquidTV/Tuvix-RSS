@@ -10,6 +10,7 @@ import {
   checkPublicFeedLimit,
   checkCategoryLimit,
   checkLimit,
+  checkAiFeatureAccess,
   incrementSourceCount,
   decrementSourceCount,
   incrementPublicFeedCount,
@@ -454,6 +455,67 @@ describe("User Limits Service", () => {
       const usage = await getUserUsage(db, user.id);
       // Should count unique sources only
       expect(usage.sourceCount).toBe(1);
+    });
+  });
+
+  describe("checkAiFeatureAccess", () => {
+    it("should allow for pro/enterprise users with AI enabled and API key", async () => {
+      const { user } = await seedTestUser(db, { plan: "pro" });
+      await db
+        .update(schema.globalSettings)
+        .set({ aiEnabled: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const result = await checkAiFeatureAccess(db, user.id, {
+        OPENAI_API_KEY: "sk-test",
+      });
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should deny if global AI is disabled", async () => {
+      const { user } = await seedTestUser(db, { plan: "pro" });
+      await db
+        .update(schema.globalSettings)
+        .set({ aiEnabled: false })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const result = await checkAiFeatureAccess(db, user.id, {
+        OPENAI_API_KEY: "sk-test",
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("AI features are disabled by administrator");
+    });
+
+    it("should deny if API key is missing", async () => {
+      const { user } = await seedTestUser(db, { plan: "pro" });
+      await db
+        .update(schema.globalSettings)
+        .set({ aiEnabled: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const result = await checkAiFeatureAccess(db, user.id, {});
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("AI service not configured (missing API key)");
+    });
+
+    it("should deny if user is on free plan", async () => {
+      const { user } = await seedTestUser(db, { plan: "free" });
+      await db
+        .update(schema.globalSettings)
+        .set({ aiEnabled: true })
+        .where(eq(schema.globalSettings.id, 1));
+
+      const result = await checkAiFeatureAccess(db, user.id, {
+        OPENAI_API_KEY: "sk-test",
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe(
+        "AI features require a Pro or Enterprise plan"
+      );
     });
   });
 });

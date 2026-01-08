@@ -1442,6 +1442,10 @@ export const subscriptionsRouter = router({
               }
             }
 
+            if (!env.OPENAI_API_KEY) {
+              return undefined;
+            }
+
             const aiResult = await suggestCategories(
               {
                 title: title || "",
@@ -1455,7 +1459,7 @@ export const subscriptionsRouter = router({
                 id: c.id,
                 name: c.name,
               })),
-              env.OPENAI_API_KEY!
+              env.OPENAI_API_KEY
             );
 
             return {

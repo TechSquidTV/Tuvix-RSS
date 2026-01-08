@@ -172,28 +172,28 @@ function SubscriptionsPage() {
       const { matchedCategoryIds } = feedPreview.data.aiSuggestions;
 
       if (matchedCategoryIds.length > 0) {
-        // Filter out already selected ones to see if we're actually adding anything
-        const newToSelect = matchedCategoryIds.filter(
-          (id: number) => !selectedCategoryIds.includes(id)
-        );
+        setSelectedCategoryIds((prev) => {
+          // Filter out already selected ones to see if we're actually adding anything
+          const newToSelect = matchedCategoryIds.filter(
+            (id: number) => !prev.includes(id)
+          );
 
-        if (newToSelect.length > 0) {
-          setSelectedCategoryIds((prev) => {
-            const next = [...prev];
-            newToSelect.forEach((id: number) => {
-              if (!next.includes(id)) next.push(id);
-            });
-            return next;
-          });
+          if (newToSelect.length === 0) return prev;
 
           toast.success(`✨ AI auto-applied ${newToSelect.length} categories`, {
             duration: 3000,
           });
-        }
+
+          const next = [...prev];
+          newToSelect.forEach((id: number) => {
+            if (!next.includes(id)) next.push(id);
+          });
+          return next;
+        });
       }
       autoCategorizedUrl.current = newSubUrl;
     }
-  }, [feedPreview.isSuccess, feedPreview.data, newSubUrl, selectedCategoryIds]);
+  }, [feedPreview.isSuccess, feedPreview.data, newSubUrl]);
 
   // Reset auto-categorization tracker if URL clears
   useEffect(() => {
