@@ -294,9 +294,8 @@ export const subscriptionsRouter = router({
 
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: `This domain has been blocked by administrators.${
-              reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
-            }`,
+            message: `This domain has been blocked by administrators.${reasonDisplayName ? ` Reason: ${reasonDisplayName}` : ""
+              }`,
           });
         }
       }
@@ -503,8 +502,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
+            Array.isArray(feedData.links) &&
+            feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -548,10 +547,10 @@ export const subscriptionsRouter = router({
           feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-            typeof feedData.image === "object" &&
-            feedData.image !== null &&
-            "url" in feedData.image &&
-            typeof feedData.image.url === "string"
+              typeof feedData.image === "object" &&
+              feedData.image !== null &&
+              "url" in feedData.image &&
+              typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -1033,6 +1032,10 @@ export const subscriptionsRouter = router({
         siteUrl: z.string().optional(),
         iconUrl: z.string().optional(),
         suggestedCategories: z.array(CategorySuggestionSchema),
+        aiSuggestions: z.object({
+          matchedCategoryIds: z.array(z.number()),
+          newCategories: z.array(z.string()),
+        }).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1247,8 +1250,8 @@ export const subscriptionsRouter = router({
         "link" in feedData && feedData.link
           ? feedData.link
           : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
+            Array.isArray(feedData.links) &&
+            feedData.links[0]?.href
             ? feedData.links[0].href
             : undefined;
 
@@ -1289,10 +1292,10 @@ export const subscriptionsRouter = router({
           const feedIconUrl =
             itunesImage ||
             ("image" in feedData &&
-            typeof feedData.image === "object" &&
-            feedData.image !== null &&
-            "url" in feedData.image &&
-            typeof feedData.image.url === "string"
+              typeof feedData.image === "object" &&
+              feedData.image !== null &&
+              "url" in feedData.image &&
+              typeof feedData.image.url === "string"
               ? feedData.image.url
               : "icon" in feedData && typeof feedData.icon === "string"
                 ? feedData.icon
@@ -1391,6 +1394,61 @@ export const subscriptionsRouter = router({
         siteUrl,
         iconUrl,
         suggestedCategories: suggestedCategories.slice(0, 10), // Top 10 suggestions
+        aiSuggestions: await Sentry.startSpan(
+          { name: "ai.getSuggestions", op: "ai.categorize" },
+          async () => {
+            const { checkAiFeatureAccess } = await import("@/services/limits");
+            const { suggestCategories } = await import("@/services/ai-category-suggester");
+
+            const env = ctx.env as { OPENAI_API_KEY?: string };
+            const access = await checkAiFeatureAccess(ctx.db, userId, env);
+
+            if (!access.allowed) {
+              return undefined;
+            }
+
+            // Get user's existing categories to match against
+            const userCategories = await ctx.db
+              .select()
+              .from(schema.categories)
+              .where(eq(schema.categories.userId, userId))
+              .orderBy(schema.categories.name);
+
+            // Extract entry metadata for AI context
+            const entryCategories: string[] = [];
+            const entryTitles: string[] = [];
+
+            if ("entries" in feedData && Array.isArray(feedData.entries)) {
+              for (const entry of feedData.entries.slice(0, 10)) {
+                entryTitles.push(entry.title || "");
+                if (entry.categories && Array.isArray(entry.categories)) {
+                  for (const cat of entry.categories) {
+                    const catName = extractCategoryName(cat);
+                    if (catName) entryCategories.push(catName);
+                  }
+                }
+              }
+            }
+
+            const aiResult = await suggestCategories(
+              {
+                title: title || "",
+                description: description || undefined,
+                siteUrl: siteUrl || undefined,
+                feedCategories: Array.from(categoryMap.keys()),
+                entryCategories,
+                entryTitles,
+              },
+              userCategories.map((c: any) => ({ id: c.id, name: c.name })),
+              env.OPENAI_API_KEY!
+            );
+
+            return {
+              matchedCategoryIds: aiResult.matchedCategoryIds,
+              newCategories: aiResult.newCategorySuggestions,
+            };
+          }
+        ),
       };
     }),
 
@@ -1962,8 +2020,8 @@ export const subscriptionsRouter = router({
                     "link" in feedData && feedData.link
                       ? feedData.link
                       : "links" in feedData &&
-                          Array.isArray(feedData.links) &&
-                          feedData.links[0]?.href
+                        Array.isArray(feedData.links) &&
+                        feedData.links[0]?.href
                         ? feedData.links[0].href
                         : undefined;
 
