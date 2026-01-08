@@ -1032,10 +1032,12 @@ export const subscriptionsRouter = router({
         siteUrl: z.string().optional(),
         iconUrl: z.string().optional(),
         suggestedCategories: z.array(CategorySuggestionSchema),
-        aiSuggestions: z.object({
-          matchedCategoryIds: z.array(z.number()),
-          newCategories: z.array(z.string()),
-        }).optional(),
+        aiSuggestions: z
+          .object({
+            matchedCategoryIds: z.array(z.number()),
+            newCategories: z.array(z.string()),
+          })
+          .optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1398,7 +1400,8 @@ export const subscriptionsRouter = router({
           { name: "ai.getSuggestions", op: "ai.categorize" },
           async () => {
             const { checkAiFeatureAccess } = await import("@/services/limits");
-            const { suggestCategories } = await import("@/services/ai-category-suggester");
+            const { suggestCategories } =
+              await import("@/services/ai-category-suggester");
 
             const env = ctx.env as { OPENAI_API_KEY?: string };
             const access = await checkAiFeatureAccess(ctx.db, userId, env);
@@ -1418,8 +1421,16 @@ export const subscriptionsRouter = router({
             const entryCategories: string[] = [];
             const entryTitles: string[] = [];
 
-            if ("entries" in feedData && Array.isArray(feedData.entries)) {
-              for (const entry of feedData.entries.slice(0, 10)) {
+            // Cast feedData to access entries safely
+            const feedWithEntries = feedData as {
+              entries?: Array<{ title?: string; categories?: unknown[] }>;
+            };
+
+            if (
+              feedWithEntries.entries &&
+              Array.isArray(feedWithEntries.entries)
+            ) {
+              for (const entry of feedWithEntries.entries.slice(0, 10)) {
                 entryTitles.push(entry.title || "");
                 if (entry.categories && Array.isArray(entry.categories)) {
                   for (const cat of entry.categories) {
@@ -1439,7 +1450,10 @@ export const subscriptionsRouter = router({
                 entryCategories,
                 entryTitles,
               },
-              userCategories.map((c: any) => ({ id: c.id, name: c.name })),
+              userCategories.map((c) => ({
+                id: c.id,
+                name: c.name,
+              })),
               env.OPENAI_API_KEY!
             );
 
