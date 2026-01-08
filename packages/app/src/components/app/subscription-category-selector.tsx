@@ -16,6 +16,8 @@ interface SubscriptionCategorySelectorProps {
   onAddNewCategory: (categoryName: string) => void;
   onRemoveNewCategory: (categoryName: string) => void;
   isLoadingSuggestions?: boolean;
+  aiMatchedCategoryIds?: number[];
+  aiNewCategorySuggestions?: string[];
   className?: string;
 }
 
@@ -28,6 +30,8 @@ export function SubscriptionCategorySelector({
   onAddNewCategory,
   onRemoveNewCategory,
   isLoadingSuggestions = false,
+  aiMatchedCategoryIds = [],
+  aiNewCategorySuggestions = [],
   className,
 }: SubscriptionCategorySelectorProps) {
   const [newCategoryInput, setNewCategoryInput] = useState("");
@@ -137,12 +141,12 @@ export function SubscriptionCategorySelector({
                 <CategoryBadge
                   key={category.id}
                   category={{
-                    id: category.id,
+                    id: category.id!,
                     name: category.name || "",
                     color: category.color,
                   }}
                   variant="default"
-                  onRemove={() => onToggleCategory(category.id)}
+                  onRemove={() => onToggleCategory(category.id!)}
                 />
               );
             })}
@@ -157,6 +161,12 @@ export function SubscriptionCategorySelector({
               />
             ))}
           </div>
+          {aiMatchedCategoryIds.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium text-primary animate-in fade-in slide-in-from-left-1 duration-500">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
+              ✨ AI applied {aiMatchedCategoryIds.length} existing categories
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-4 border border-dashed rounded-lg bg-muted/30 text-center">
@@ -299,7 +309,7 @@ export function SubscriptionCategorySelector({
                 <button
                   key={category.id}
                   type="button"
-                  onClick={() => onToggleCategory(category.id)}
+                  onClick={() => onToggleCategory(category.id!)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                     isSelected
@@ -340,7 +350,7 @@ export function SubscriptionCategorySelector({
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          onToggleCategory(category.id);
+                          onToggleCategory(category.id!);
                         }
                       }}
                     >
@@ -385,6 +395,35 @@ export function SubscriptionCategorySelector({
             Add
           </button>
         </div>
+
+        {/* AI New Category Suggestions */}
+        {!isLoadingSuggestions && aiNewCategorySuggestions.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              ✨ AI Suggests
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {aiNewCategorySuggestions.map((name) => {
+                const isSelected = newCategoryNames.includes(name);
+                if (isSelected) return null;
+
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => onAddNewCategory(name)}
+                    disabled={isOverLimit}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {newCategoryInput && newCategoryInput.length > 40 && (
           <p className="text-xs text-muted-foreground">
             {newCategoryInput.length}/50 characters
