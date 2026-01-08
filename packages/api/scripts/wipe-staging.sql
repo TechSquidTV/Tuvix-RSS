@@ -87,5 +87,6 @@ DROP TABLE IF EXISTS global_settings;
 DROP TABLE IF EXISTS d1_migrations;
 DROP TABLE IF EXISTS __drizzle_migrations;
 
--- Vacuum to reclaim space
-VACUUM;
+-- Note: VACUUM cannot run inside a transaction (SQLite limitation)
+-- D1/Wrangler wraps SQL file execution in a transaction, so we skip VACUUM here.
+-- Space will be reclaimed automatically by SQLite over time.
