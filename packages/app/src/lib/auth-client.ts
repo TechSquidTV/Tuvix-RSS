@@ -16,14 +16,13 @@ const baseURL = viteApiUrl
   ? new URL(viteApiUrl).origin
   : "http://localhost:3001"; // Default to API server in development
 
-// Debug logging in development
-if (import.meta.env.DEV) {
-  console.log("🔧 Better Auth Client Configuration:", {
-    VITE_API_URL: viteApiUrl,
-    baseURL,
-    mode: import.meta.env.MODE,
-  });
-}
+// Debug logging (always enabled for debugging cross-domain issues)
+console.log("🔧 Better Auth Client Configuration:", {
+  VITE_API_URL: viteApiUrl,
+  baseURL,
+  mode: import.meta.env.MODE,
+  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "development",
+});
 
 export const authClient = createAuthClient({
   baseURL,

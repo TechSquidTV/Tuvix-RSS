@@ -86,6 +86,16 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       }
     : {};
 
+  // Log Better Auth configuration (for debugging cross-domain issues)
+  console.log("🔧 Better Auth Configuration:", {
+    apiUrl,
+    frontendUrl,
+    trustedOrigins,
+    hasCookieDomain: !!env.COOKIE_DOMAIN,
+    cookieDomain: env.COOKIE_DOMAIN || "(not set)",
+    crossSubDomainEnabled: !!env.COOKIE_DOMAIN,
+  });
+
   return betterAuth({
     database: drizzleAdapter(database, {
       provider: "sqlite",

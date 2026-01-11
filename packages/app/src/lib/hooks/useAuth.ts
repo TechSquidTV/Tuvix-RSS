@@ -26,20 +26,36 @@ const navigateAfterAuth = async (
   router: ReturnType<typeof useRouter>
 ): Promise<void> => {
   try {
+    console.log("[Auth] 🔄 Starting post-login navigation...");
+
     // Get fresh session from Better Auth
-    await authClient.getSession();
+    console.log("[Auth] 📡 Fetching fresh session from API...");
+    const sessionResult = await authClient.getSession();
+    console.log("[Auth] ✅ Session fetch result:", {
+      hasData: !!sessionResult?.data,
+      hasUser: !!sessionResult?.data?.user,
+      userId: sessionResult?.data?.user?.id,
+      hasSession: !!sessionResult?.data?.session,
+    });
+
+    // Log cookies for debugging
+    console.log("[Auth] 🍪 Current cookies:", document.cookie);
 
     // Invalidate router to force root beforeLoad to re-run with fresh session
+    console.log("[Auth] 🔄 Invalidating router...");
     await router.invalidate({ sync: true });
 
     // Navigate to articles page
     // Email verification can be checked on protected routes
+    console.log("[Auth] 🚀 Navigating to /app/articles...");
     await router.navigate({
       to: "/app/articles",
       search: { category_id: undefined, subscription_id: undefined },
     });
+    console.log("[Auth] ✅ Navigation completed successfully");
   } catch (error) {
-    console.error("Navigation failed:", error);
+    console.error("[Auth] ❌ Navigation failed:", error);
+    console.log("[Auth] 🔄 Falling back to hard navigation...");
     // Fallback to hard navigation
     window.location.href = "/app/articles";
   }
@@ -55,8 +71,10 @@ export const useLogin = () => {
   const mutate = async (values: { username: string; password: string }) => {
     setIsPending(true);
     try {
+      console.log("[Auth] 🔐 Starting login...");
       // Detect if input is email or username
       const isEmail = values.username.includes("@");
+      console.log("[Auth] 📧 Login type:", isEmail ? "email" : "username");
 
       let result;
       if (isEmail) {
@@ -71,17 +89,24 @@ export const useLogin = () => {
         });
       }
 
+      console.log("[Auth] 📥 Login result:", {
+        hasError: !!result.error,
+        hasData: !!result.data,
+        dataKeys: result.data ? Object.keys(result.data) : [],
+      });
+
       if (result.error) {
-        console.error("Login error:", result.error);
+        console.error("[Auth] ❌ Login error:", result.error);
         toast.error(result.error.message || "Invalid credentials");
         return;
       }
 
+      console.log("[Auth] ✅ Login successful!");
       toast.success("Welcome back!");
       await queryClient.invalidateQueries();
       await navigateAfterAuth(router);
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("[Auth] ❌ Login exception:", error);
       toast.error((error as Error).message || "Invalid credentials");
     } finally {
       setIsPending(false);
