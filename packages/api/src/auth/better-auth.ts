@@ -139,8 +139,20 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       ipAddress: {
         ipAddressHeaders: ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"],
       },
-      // Cross-subdomain cookies configuration
+      // Cross-subdomain cookies configuration (for subdomains like auth.example.com and app.example.com)
       ...crossSubDomainConfig,
+      // Cross-domain cookie attributes (for completely different domains)
+      // Required when frontend and API are on different domains (e.g., staging.tuvix.app vs tuvix-api-staging.cf-93e.workers.dev)
+      // Only set these if we're NOT using cross-subdomain cookies (different use case)
+      ...(env.COOKIE_DOMAIN
+        ? {}
+        : {
+            defaultCookieAttributes: {
+              sameSite: "none" as const,
+              secure: true,
+              partitioned: true, // New browser standards mandate this for foreign cookies
+            },
+          }),
     },
     emailAndPassword: {
       enabled: true,

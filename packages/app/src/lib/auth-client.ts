@@ -26,6 +26,11 @@ console.log("🔧 Better Auth Client Configuration:", {
 
 export const authClient = createAuthClient({
   baseURL,
+  // CRITICAL: Include credentials (cookies) in cross-origin requests
+  // Required when API and frontend are on different domains (e.g., staging.tuvix.app vs tuvix-api-staging.cf-93e.workers.dev)
+  fetchOptions: {
+    credentials: "include",
+  },
   plugins: [
     // Custom session plugin for type inference
     // This ensures TypeScript knows about the banned field we added via customSession
