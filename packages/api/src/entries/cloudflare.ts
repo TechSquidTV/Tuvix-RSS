@@ -119,7 +119,10 @@ export default Sentry.withSentry((env: Env) => {
   // Add Vercel AI SDK integration for automatic AI span tracking
   // Captures token usage, model info, latency, and errors from AI SDK calls
   // Note: Input/output recording is controlled via experimental_telemetry in AI SDK calls
-  config.integrations = [Sentry.vercelAIIntegration()];
+  config.integrations = [
+    ...(config.integrations || []),
+    Sentry.vercelAIIntegration(),
+  ];
 
   // Log Sentry initialization in development
   const environment = (env.SENTRY_ENVIRONMENT ||
