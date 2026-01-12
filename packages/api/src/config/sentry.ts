@@ -73,6 +73,10 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
     // Enable logs for better debugging
     enableLogs: true,
 
+    // Send default PII (request headers, IP) for better context
+    // Safe to enable because we filter sensitive fields via beforeSend callbacks
+    sendDefaultPii: true,
+
     // Debug mode (verbose logging - useful for development)
     debug: environment === "development",
 

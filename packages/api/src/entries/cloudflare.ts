@@ -123,7 +123,14 @@ export default Sentry.withSentry((env: Env) => {
   const existingIntegrations = Array.isArray(config.integrations)
     ? (config.integrations as unknown[])
     : [];
-  config.integrations = [...existingIntegrations, Sentry.vercelAIIntegration()];
+  config.integrations = [
+    ...existingIntegrations,
+    Sentry.vercelAIIntegration(),
+    // Automatically capture console.log, console.warn, and console.error as logs
+    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+    // Hono error capturing integration (enabled by default, but explicit for clarity)
+    Sentry.honoIntegration(),
+  ];
 
   // Log Sentry initialization in development
   const environment = (env.SENTRY_ENVIRONMENT ||
@@ -135,6 +142,9 @@ export default Sentry.withSentry((env: Env) => {
       release: config.release,
       hasDsn: !!config.dsn,
       aiTracking: true,
+      consoleLogging: true,
+      httpTracing: true,
+      trpcTracing: true,
     });
   }
 
