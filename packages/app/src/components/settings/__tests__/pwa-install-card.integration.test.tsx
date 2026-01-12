@@ -156,7 +156,11 @@ describe("PWAInstallCard Integration Tests", () => {
       });
 
       // Verify success toast was shown
-      expect(toast.success).toHaveBeenCalledWith("App installed successfully!");
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "App installed successfully!"
+        );
+      });
 
       // Verify installed state UI
       expect(
