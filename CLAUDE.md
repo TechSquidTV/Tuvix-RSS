@@ -155,12 +155,14 @@ Access check: `packages/api/src/services/limits.ts:checkAiFeatureAccess()`
 ### Configuration
 
 **Local Development (Docker/Node.js):**
+
 ```env
 # Add to .env
 OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
 ```
 
 **Cloudflare Workers (Production/Staging):**
+
 ```bash
 # Use wrangler CLI to set secret
 cd packages/api
@@ -182,11 +184,13 @@ AI calls are automatically tracked by Sentry via the `vercelAIIntegration`:
 - **Input/Output**: Captured when `experimental_telemetry.recordInputs/recordOutputs` is enabled
 
 **Configuration:**
+
 - Node.js: `packages/api/src/entries/node.ts` (Sentry.init with vercelAIIntegration)
 - Cloudflare: `packages/api/src/entries/cloudflare.ts` (withSentry config)
 - AI calls: Include `experimental_telemetry` with `functionId` for better tracking
 
 **Example:**
+
 ```typescript
 const result = await generateObject({
   model: openai("gpt-4o-mini"),
