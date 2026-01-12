@@ -39,10 +39,15 @@ export function createHonoApp(config: HonoAppConfig) {
   });
 
   // CORS middleware (must be before routes)
+  const corsOrigins = getCorsOrigins(config.env);
+  console.log("🔧 CORS Configuration:", {
+    origins: corsOrigins,
+    credentials: true,
+  });
   app.use(
     "*",
     cors({
-      origin: getCorsOrigins(config.env),
+      origin: corsOrigins,
       credentials: true,
       allowMethods: ["GET", "POST", "OPTIONS"],
       allowHeaders: [
@@ -155,9 +160,22 @@ export function createHonoApp(config: HonoAppConfig) {
 
   // BetterAuth routes
   app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+    const path = c.req.path;
+    const origin = c.req.header("origin");
+    console.log(`[Auth] 📥 ${c.req.method} ${path} from origin: ${origin}`);
+
     const { createAuth } = await import("../auth/better-auth");
     const auth = createAuth(c.get("env"));
-    return auth.handler(c.req.raw);
+    const response = await auth.handler(c.req.raw);
+
+    // Log response headers (especially Set-Cookie)
+    const setCookieHeader = response.headers.get("set-cookie");
+    if (setCookieHeader) {
+      console.log(`[Auth] 🍪 Setting cookies:`, setCookieHeader);
+    }
+
+    console.log(`[Auth] 📤 Response status: ${response.status}`);
+    return response;
   });
 
   // tRPC routes using @hono/trpc-server middleware
