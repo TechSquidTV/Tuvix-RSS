@@ -64,14 +64,11 @@ export function createHonoApp(config: HonoAppConfig) {
           "http.url": c.req.url,
         },
       },
-      async () => {
+      async (span) => {
         await next();
 
-        // Add response status to span
-        const currentSpan = Sentry.getActiveSpan?.();
-        if (currentSpan) {
-          currentSpan.setAttribute("http.status_code", c.res.status);
-        }
+        // Add response status to span using the provided span parameter
+        span.setAttribute("http.status_code", c.res.status);
       }
     );
   });
