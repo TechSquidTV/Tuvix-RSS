@@ -43,7 +43,9 @@ const routeModule = await import("../../routes/app/admin/route");
 describe("Admin Route - Offline Navigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    if (typeof localStorage.clear === "function") {
+      localStorage.clear();
+    }
   });
 
   describe("network error handling", () => {

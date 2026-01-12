@@ -107,7 +107,9 @@ const routeModule = await import("../../routes/app/route");
 describe("App Route - Offline Navigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    if (typeof localStorage.clear === "function") {
+      localStorage.clear();
+    }
 
     // Reset mocks
     mockCheckVerificationStatus.mockResolvedValue({

@@ -76,6 +76,12 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
     // Debug mode (verbose logging - useful for development)
     debug: environment === "development",
 
+    // Vercel AI SDK integration for automatic AI span tracking
+    // Captures token usage, model info, latency, and errors from AI SDK calls
+    // Note: Integration setup is handled differently for Cloudflare Workers vs Node.js
+    // For Cloudflare, integrations are configured in the entry point via withSentry
+    enableAIIntegration: true,
+
     /**
      * beforeSendMetric callback
      *
