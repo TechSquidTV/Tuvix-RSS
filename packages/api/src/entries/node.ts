@@ -68,9 +68,15 @@ if (env.SENTRY_DSN) {
           recordInputs: true, // Safe: only used for pro/enterprise users with opt-in
           recordOutputs: true, // Captures structured category suggestions
         }),
+        // Automatically capture console.log, console.warn, and console.error as logs
+        Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+        // Hono error capturing integration
+        Sentry.honoIntegration(),
       ],
     });
-    console.log("✅ Sentry initialized (with metrics and AI tracking enabled)");
+    console.log(
+      "✅ Sentry initialized (metrics, AI tracking, console logging, HTTP tracing, tRPC tracing enabled)"
+    );
   }
 }
 

@@ -125,6 +125,15 @@ await Sentry.startSpan(
 // Metrics
 Sentry.metrics.count("api.request", 1, { attributes: { endpoint: "/users" } });
 Sentry.metrics.distribution("response_time", 150, { unit: "millisecond" });
+
+// Structured logging
+Sentry.logger.info("User subscribed to feed", { feedId: "123", userId: "456" });
+Sentry.logger.warn("Rate limit approaching", { current: 95, limit: 100 });
+Sentry.logger.error("Failed to fetch feed", { url: feed.url, error: err.message });
+
+// Parameterized logs (recommended - makes values searchable)
+const username = "john_doe";
+Sentry.logger.info(Sentry.logger.fmt`User '${username}' logged in`);
 ```
 
 ### `startSpan` Behavior
@@ -298,6 +307,47 @@ Ensure `vitest.config.ts` has the Sentry alias configured before other `@/utils`
 
 In Node.js/tests, metrics are no-ops. They only work in Cloudflare Workers with a valid `SENTRY_DSN`.
 
+## Structured Logging
+
+Sentry structured logs are enabled via `enableLogs: true` in the Sentry config.
+
+### Log Levels
+
+Six log levels available: `trace`, `debug`, `info`, `warn`, `error`, `fatal`
+
+```typescript
+Sentry.logger.trace("Entering function", { step: "init" });
+Sentry.logger.debug("Cache miss", { key: "user:123" });
+Sentry.logger.info("User action completed", { action: "subscribe" });
+Sentry.logger.warn("Rate limit approaching", { current: 95, limit: 100 });
+Sentry.logger.error("Operation failed", { error: err.message });
+Sentry.logger.fatal("Critical system failure", { component: "database" });
+```
+
+### Parameterized Logs
+
+Use `Sentry.logger.fmt` for searchable parameter values:
+
+```typescript
+const user = "john_doe";
+const action = "subscribed";
+Sentry.logger.info(Sentry.logger.fmt`User '${user}' ${action} to feed`);
+
+// Automatically creates searchable attributes:
+// - message.template: "User %s %s to feed"
+// - message.parameter.0: "john_doe"
+// - message.parameter.1: "subscribed"
+```
+
+### Viewing Logs
+
+1. Navigate to **Explore → Logs** in Sentry UI
+2. Filter by service, environment, level, or attributes
+3. Search by message text or parameter values
+4. Correlate logs with errors and traces
+
+**See:** [Sentry Logging Guide](../sentry-logging-guide.md) for complete documentation
+
 ## Best Practices
 
 1. **Always use the wrapper**: Import from `@/utils/sentry`, never directly from SDK
@@ -305,3 +355,6 @@ In Node.js/tests, metrics are no-ops. They only work in Cloudflare Workers with 
 3. **Use spans for async operations**: Wrap database queries, API calls, etc.
 4. **Add breadcrumbs for debugging**: They help trace issues in production
 5. **Tag errors appropriately**: Use `tags` for filtering, `extra` for context
+6. **Use appropriate log levels**: Don't log everything as `error`
+7. **Add context with attributes**: More searchable than string interpolation
+8. **Use parameterized logs**: Better for analysis and alerting

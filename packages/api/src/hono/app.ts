@@ -38,6 +38,41 @@ export function createHonoApp(config: HonoAppConfig) {
     await next();
   });
 
+  // Sentry HTTP tracing middleware
+  // Creates spans for all HTTP requests with proper transaction names
+  app.use("*", async (c, next) => {
+    const Sentry = c.get("sentry");
+    const env = c.get("env");
+
+    // Only create spans if Sentry is configured
+    if (!Sentry || !env.SENTRY_DSN) {
+      return await next();
+    }
+
+    // Create transaction name from method and path
+    const method = c.req.method;
+    const path = c.req.path;
+
+    // Use Sentry.startSpan to create a trace for this HTTP request
+    return await Sentry.startSpan(
+      {
+        name: `${method} ${path}`,
+        op: "http.server",
+        attributes: {
+          "http.method": method,
+          "http.route": path,
+          "http.url": c.req.url,
+        },
+      },
+      async (span) => {
+        await next();
+
+        // Add response status to span using the provided span parameter
+        span.setAttribute("http.status_code", c.res.status);
+      }
+    );
+  });
+
   // CORS middleware (must be before routes)
   const corsOrigins = getCorsOrigins(config.env);
   console.log("🔧 CORS Configuration:", {

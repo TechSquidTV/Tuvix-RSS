@@ -56,37 +56,33 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 
 /**
- * Sentry tRPC middleware (optional)
+ * Sentry tRPC middleware
  * Creates spans and improves error capturing for tRPC handlers
  * See: https://docs.sentry.io/platforms/javascript/guides/cloudflare/configuration/integrations/trpc
  *
- * The middleware is created at module load time, but will only create spans
- * if Sentry is initialized (checked internally by Sentry).
+ * Uses build-time aliased @/utils/sentry which resolves to:
+ * - @sentry/cloudflare in Workers
+ * - @sentry/node in Node.js
+ * - noop in tests
  */
-let sentryMiddleware: ReturnType<typeof t.middleware> | null = null;
-try {
-  // Try to import Sentry and create middleware
-  // This will work in Cloudflare Workers where @sentry/cloudflare is available
-  // In Node.js, this will fail gracefully and we'll continue without it
-  const SentryModule = await import("@sentry/cloudflare");
-  if (SentryModule.trpcMiddleware) {
-    sentryMiddleware = t.middleware(
-      SentryModule.trpcMiddleware({
-        attachRpcInput: true, // Include RPC input in error context for debugging
+const baseProcedure = (() => {
+  // Check if Sentry has trpcMiddleware (available in Cloudflare and Node.js)
+  if (typeof Sentry.trpcMiddleware === "function") {
+    const sentryMiddleware = t.middleware(
+      Sentry.trpcMiddleware({
+        attachRpcInput: true, // Include RPC input in spans and error context
       })
     );
+    return t.procedure.use(sentryMiddleware);
   }
-} catch {
-  // Sentry not available (e.g., in Node.js environment or not installed)
-  // Continue without Sentry middleware - it's optional
-  sentryMiddleware = null;
-}
 
-// Base procedure with Sentry middleware if available
-// The middleware will only create spans if Sentry is initialized at runtime
-export const publicProcedure = sentryMiddleware
-  ? t.procedure.use(sentryMiddleware)
-  : t.procedure;
+  // Fallback to base procedure if trpcMiddleware not available (e.g., in tests)
+  return t.procedure;
+})();
+
+// Export as publicProcedure for compatibility
+// All procedures will now inherit Sentry tracing
+export const publicProcedure = baseProcedure;
 
 /**
  * Helper function to get cached user record
@@ -251,11 +247,13 @@ const isAuthedWithoutVerification = t.middleware(async ({ ctx, next }) => {
 });
 
 // Protected procedure - requires authentication
-export const protectedProcedure = t.procedure.use(isAuthed);
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const protectedProcedure = baseProcedure.use(isAuthed);
 
 // Protected procedure without email verification check
 // Use this for endpoints that unverified users need (e.g., checkVerificationStatus, resendVerificationEmail)
-export const protectedProcedureWithoutVerification = t.procedure.use(
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const protectedProcedureWithoutVerification = baseProcedure.use(
   isAuthedWithoutVerification
 );
 
@@ -346,7 +344,8 @@ const isAdmin = t.middleware(async ({ ctx, next }) => {
 });
 
 // Admin procedure - requires authentication and admin role
-export const adminProcedure = t.procedure.use(isAdmin);
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const adminProcedure = baseProcedure.use(isAdmin);
 
 /**
  * Rate limiting middleware
