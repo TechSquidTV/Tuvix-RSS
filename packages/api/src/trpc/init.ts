@@ -247,11 +247,13 @@ const isAuthedWithoutVerification = t.middleware(async ({ ctx, next }) => {
 });
 
 // Protected procedure - requires authentication
-export const protectedProcedure = t.procedure.use(isAuthed);
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const protectedProcedure = baseProcedure.use(isAuthed);
 
 // Protected procedure without email verification check
 // Use this for endpoints that unverified users need (e.g., checkVerificationStatus, resendVerificationEmail)
-export const protectedProcedureWithoutVerification = t.procedure.use(
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const protectedProcedureWithoutVerification = baseProcedure.use(
   isAuthedWithoutVerification
 );
 
@@ -342,7 +344,8 @@ const isAdmin = t.middleware(async ({ ctx, next }) => {
 });
 
 // Admin procedure - requires authentication and admin role
-export const adminProcedure = t.procedure.use(isAdmin);
+// Uses baseProcedure to inherit Sentry tracing middleware
+export const adminProcedure = baseProcedure.use(isAdmin);
 
 /**
  * Rate limiting middleware
