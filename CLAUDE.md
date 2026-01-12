@@ -132,6 +132,82 @@ STAGING_CLOUDFLARE_PAGES_PROJECT_NAME  # Staging Pages project name
 - **Security audit logging**: All auth events logged to `security_audit_log` table
 - **Rate limiting**: Cloudflare Workers rate limit API per plan tier
 
+## AI Features Configuration
+
+TuvixRSS includes optional AI-powered features using OpenAI and the Vercel AI SDK.
+
+### Features
+
+- **AI Category Suggestions**: Automatically suggests feed categories based on feed metadata and recent articles
+- **Model**: GPT-4o-mini (via `@ai-sdk/openai`)
+- **Location**: `packages/api/src/services/ai-category-suggester.ts`
+
+### Feature Access Control
+
+AI features are **triple-gated** for security and cost control:
+
+1. **Global Setting**: `aiEnabled` flag in `global_settings` table (admin-controlled via admin dashboard)
+2. **User Plan**: Only Pro or Enterprise plan users have access
+3. **Environment**: `OPENAI_API_KEY` must be configured
+
+Access check: `packages/api/src/services/limits.ts:checkAiFeatureAccess()`
+
+### Configuration
+
+**Local Development (Docker/Node.js):**
+```env
+# Add to .env
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+```
+
+**Cloudflare Workers (Production/Staging):**
+```bash
+# Use wrangler CLI to set secret
+cd packages/api
+npx wrangler secret put OPENAI_API_KEY
+# Enter: sk-proj-xxxxxxxxxxxxx
+```
+
+**GitHub Actions (CI/CD):**
+Add `OPENAI_API_KEY` to repository secrets for production deployments.
+
+### Sentry Instrumentation
+
+AI calls are automatically tracked by Sentry via the `vercelAIIntegration`:
+
+- **Token usage**: Tracked automatically by AI SDK telemetry
+- **Latency**: Per-call duration metrics
+- **Model info**: Model name and version
+- **Errors**: AI SDK errors and failures
+- **Input/Output**: Captured when `experimental_telemetry.recordInputs/recordOutputs` is enabled
+
+**Configuration:**
+- Node.js: `packages/api/src/entries/node.ts` (Sentry.init with vercelAIIntegration)
+- Cloudflare: `packages/api/src/entries/cloudflare.ts` (withSentry config)
+- AI calls: Include `experimental_telemetry` with `functionId` for better tracking
+
+**Example:**
+```typescript
+const result = await generateObject({
+  model: openai("gpt-4o-mini"),
+  // ... schema and prompts
+  experimental_telemetry: {
+    isEnabled: true,
+    functionId: "ai.suggestCategories",
+    recordInputs: true,
+    recordOutputs: true,
+  },
+});
+```
+
+### Best Practices
+
+1. **Always check access**: Use `checkAiFeatureAccess()` before calling AI services
+2. **Graceful degradation**: Return `undefined` if AI is unavailable (don't error)
+3. **Add telemetry**: Include `experimental_telemetry` in all AI SDK calls
+4. **Function IDs**: Use descriptive `functionId` for easier tracking in Sentry
+5. **Cost awareness**: AI features are gated to Pro/Enterprise to manage costs
+
 ## Observability with Sentry
 
 TuvixRSS uses Sentry for comprehensive observability: error tracking, performance monitoring, and custom metrics.

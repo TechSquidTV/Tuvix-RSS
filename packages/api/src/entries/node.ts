@@ -62,9 +62,15 @@ if (env.SENTRY_DSN) {
           ignoreIncomingRequestBody: (url) => url.includes("/trpc"),
         }),
         Sentry.nativeNodeFetchIntegration(),
+        // Vercel AI SDK integration for automatic AI span tracking
+        // Captures token usage, model info, latency, and errors from AI SDK calls
+        Sentry.vercelAIIntegration({
+          recordInputs: true, // Safe: only used for pro/enterprise users with opt-in
+          recordOutputs: true, // Captures structured category suggestions
+        }),
       ],
     });
-    console.log("✅ Sentry initialized (with metrics enabled)");
+    console.log("✅ Sentry initialized (with metrics and AI tracking enabled)");
   }
 }
 

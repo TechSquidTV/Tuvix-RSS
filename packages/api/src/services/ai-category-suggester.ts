@@ -117,6 +117,14 @@ INSTRUCTIONS:
         prompt:
           "Based on the provided context, suggest relevant categories for this RSS feed.",
         system: systemPrompt,
+        // Enable Sentry AI SDK telemetry for automatic span tracking
+        // Captures token usage, model info, latency, and errors
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: "ai.suggestCategories",
+          recordInputs: true, // Safe: only captures feed metadata, not user PII
+          recordOutputs: true, // Captures structured category suggestions
+        },
       });
 
       // Filter by confidence threshold (85%)

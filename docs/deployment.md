@@ -295,6 +295,11 @@ ADMIN_PASSWORD=<secure-password>
 # RESEND_API_KEY=re_xxxxxxxxx
 # EMAIL_FROM=noreply@yourdomain.com
 
+# Optional: AI Features (requires Pro or Enterprise plan)
+# OpenAI API key for AI-powered category suggestions
+# Get your API key from: https://platform.openai.com/api-keys
+# OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+
 # Optional: Customize fetch behavior
 FETCH_INTERVAL_MINUTES=60  # How often to fetch RSS feeds
 ```
@@ -661,6 +666,12 @@ npx wrangler secret put BASE_URL
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put EMAIL_FROM
 npx wrangler secret put BASE_URL
+
+# AI Features (requires Pro or Enterprise plan)
+# OpenAI API key for AI-powered category suggestions
+# Get your API key from: https://platform.openai.com/api-keys
+npx wrangler secret put OPENAI_API_KEY
+# Enter: sk-proj-xxxxxxxxxxxxx
 
 # Cross-subdomain cookies (if frontend/API on different subdomains)
 npx wrangler secret put COOKIE_DOMAIN
