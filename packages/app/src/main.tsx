@@ -36,6 +36,7 @@ declare module "@tanstack/react-router" {
 // Initialize Sentry AFTER router is created (so we can include router integration)
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
+
   const environment =
     import.meta.env.VITE_SENTRY_ENVIRONMENT ||
     import.meta.env.MODE ||
