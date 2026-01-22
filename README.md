@@ -40,7 +40,7 @@ The docker-compose.yml works with both pre-built images and source builds:
 
 ```bash
 # Create directory and download files
-mkdir TuvixRSS && cd TuvixRSS
+mkdir Tuvix-RSS && cd Tuvix-RSS
 curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/env.example
 cp env.example .env

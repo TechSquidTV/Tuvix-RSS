@@ -140,8 +140,8 @@ TuvixRSS uses **Better Auth** for authentication, which manages user sessions vi
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/TuvixRSS.git
-cd TuvixRSS
+git clone https://github.com/TechSquidTV/Tuvix-RSS.git
+cd Tuvix-RSS
 
 # Copy environment file
 cp .env.example .env
@@ -274,7 +274,7 @@ The docker-compose.yml supports both pre-built images and source builds. Choose 
 
 ```bash
 # On your production server
-mkdir TuvixRSS && cd TuvixRSS
+mkdir Tuvix-RSS && cd Tuvix-RSS
 
 # Download docker-compose and env files
 curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/docker-compose.yml
@@ -287,10 +287,10 @@ vim .env  # Configure your environment
 
 ```bash
 # Set version in .env file
-echo "VERSION=v0.6.1" >> .env
+echo "VERSION=v0.7.0" >> .env
 
 # Or export temporarily
-export VERSION=v0.6.1
+export VERSION=v0.7.0
 
 # Pull images and start
 docker compose pull
@@ -302,7 +302,7 @@ docker compose up -d
 ```bash
 # Verify health
 curl http://localhost:3001/health
-curl http://localhost:5173/health
+curl http://localhost:5173/health  # app container listens on 8080, exposed on host as 5173
 
 # Monitor logs
 docker compose logs -f
@@ -379,7 +379,7 @@ docker compose up -d
 
 # Verify health
 curl http://localhost:3001/health
-curl http://localhost:5173/health
+curl http://localhost:5173/health  # app container listens on 8080, exposed on host as 5173
 
 # Monitor logs
 docker compose logs -f
@@ -493,7 +493,7 @@ services:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/trpc}
         - VITE_APP_VERSION=${VITE_APP_VERSION:-docker}
     ports:
-      - "5173:80"
+      - "5173:8080"
     depends_on:
       api:
         condition: service_healthy

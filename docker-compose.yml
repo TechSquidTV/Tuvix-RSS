@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/techsquidtv/tuvixrss/api:${VERSION:-latest}
+    image: ghcr.io/techsquidtv/tuvix-rss/api:${VERSION:-latest}
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
@@ -46,7 +46,7 @@ services:
       - tuvix-network
 
   app:
-    image: ghcr.io/techsquidtv/tuvixrss/app:${VERSION:-latest}
+    image: ghcr.io/techsquidtv/tuvix-rss/app:${VERSION:-latest}
     build:
       context: .
       dockerfile: ./packages/app/Dockerfile

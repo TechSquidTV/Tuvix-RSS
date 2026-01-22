@@ -8,6 +8,7 @@ echo "Building TuvixRSS Docker images..."
 echo "Version: $VERSION"
 
 # Export for docker-compose
+export VERSION="$VERSION"
 export VITE_APP_VERSION="$VERSION"
 
 # Build images
