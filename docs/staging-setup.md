@@ -85,6 +85,10 @@ wrangler secret put EMAIL_FROM --name tuvix-api-staging --env staging
 # When prompted, enter the full base URL of your staging app (e.g. https://staging.yourdomain.com)
 wrangler secret put BASE_URL --name tuvix-api-staging --env staging
 
+# Sentry DSN (required for backend error tracking and tracing)
+# When prompted, enter your Sentry DSN from the tuvix-api project
+wrangler secret put SENTRY_DSN --name tuvix-api-staging --env staging
+
 # Sentry release (will be set automatically by deployment workflow)
 # When prompted, enter the staging release identifier (if you choose to set this manually)
 # wrangler secret put SENTRY_RELEASE --name tuvix-api-staging --env staging

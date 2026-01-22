@@ -175,22 +175,67 @@ export function createHonoApp(config: HonoAppConfig) {
     return c.json({ status: "ok", runtime: c.get("runtime") });
   });
 
-  // Debug Sentry
+  // Debug Sentry - comprehensive diagnostics
   app.get("/debug-sentry", (c) => {
     const env = c.get("env");
     const sentry = c.get("sentry");
     const runtime = c.get("runtime");
 
+    const diagnostics = {
+      runtime,
+      sentryConfigured: !!env.SENTRY_DSN,
+      sentryDsnLength: env.SENTRY_DSN?.length || 0,
+      sentryDsnPrefix: env.SENTRY_DSN?.substring(0, 20) || "not set",
+      sentryExists: !!sentry,
+      sentryMethods: sentry
+        ? Object.keys(sentry)
+            .filter(
+              (k) =>
+                typeof (sentry as Record<string, unknown>)[k] === "function"
+            )
+            .slice(0, 10)
+        : [],
+      environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV || "unknown",
+      allEnvKeys: Object.keys(env).filter(
+        (k) => !k.includes("SECRET") && !k.includes("KEY")
+      ),
+    };
+
     if (!env.SENTRY_DSN) {
-      return c.json({ message: "Sentry not configured" });
+      return c.json({
+        status: "error",
+        message: "Sentry DSN not configured",
+        diagnostics,
+      });
     }
 
-    const testError = new Error("Test Sentry error!");
-    const eventId = sentry.captureException(testError, {
-      tags: { test: "debug-sentry", runtime },
-    });
+    // Try to capture an exception
+    try {
+      const testError = new Error("Test Sentry error from debug endpoint!");
+      const eventId = sentry.captureException(testError, {
+        tags: { test: "debug-sentry", runtime },
+      });
 
-    return c.json({ error: "Test error", eventId, runtime }, 500);
+      return c.json(
+        {
+          status: "success",
+          message: "Test error and log sent to Sentry",
+          eventId,
+          diagnostics,
+        },
+        500
+      );
+    } catch (error) {
+      return c.json(
+        {
+          status: "error",
+          message: "Failed to send test error",
+          error: error instanceof Error ? error.message : String(error),
+          diagnostics,
+        },
+        500
+      );
+    }
   });
 
   // BetterAuth routes
