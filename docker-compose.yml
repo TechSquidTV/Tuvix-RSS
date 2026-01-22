@@ -1,9 +1,9 @@
 services:
   api:
+    image: ghcr.io/techsquidtv/tuvixrss/api:${VERSION:-latest}
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
-    pull_policy: build
     container_name: tuvix-api
     restart: unless-stopped
     ports:
@@ -46,12 +46,13 @@ services:
       - tuvix-network
 
   app:
+    image: ghcr.io/techsquidtv/tuvixrss/app:${VERSION:-latest}
     build:
       context: .
       dockerfile: ./packages/app/Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/trpc}
-    pull_policy: build
+        - VITE_APP_VERSION=${VITE_APP_VERSION:-docker}
     container_name: tuvix-app
     restart: unless-stopped
     ports:

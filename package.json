@@ -24,7 +24,7 @@
     "dev:api": "cd packages/api && pnpm run dev",
     "dev:app": "cd packages/app && pnpm run dev",
     "dev": "concurrently \"pnpm:dev:api\" \"pnpm:dev:app\"",
-    "docker:build": "docker compose build",
+    "docker:build": "bash scripts/docker-build.sh",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:up": "docker compose up -d",

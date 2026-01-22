@@ -259,7 +259,73 @@ pnpm run pre-check
 
 ### Production Deployment
 
-#### 1. Server Setup
+The docker-compose.yml supports both pre-built images and source builds. Choose your preferred method:
+
+#### Option 1: Pre-built Images (Recommended)
+
+**Advantages:**
+
+- ✅ No build step required (faster deployment)
+- ✅ Version tag embedded in image (shows in settings)
+- ✅ Multi-arch support (amd64 & arm64)
+- ✅ Consistent builds across environments
+
+**Setup:**
+
+```bash
+# On your production server
+mkdir TuvixRSS && cd TuvixRSS
+
+# Download docker-compose and env files
+curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/env.example
+cp env.example .env
+vim .env  # Configure your environment
+```
+
+**Pin to a specific version (recommended for production):**
+
+```bash
+# Set version in .env file
+echo "VERSION=v0.6.1" >> .env
+
+# Or export temporarily
+export VERSION=v0.6.1
+
+# Pull images and start
+docker compose pull
+docker compose up -d
+```
+
+**Deploy:**
+
+```bash
+# Verify health
+curl http://localhost:3001/health
+curl http://localhost:5173/health
+
+# Monitor logs
+docker compose logs -f
+```
+
+**Updates:**
+
+```bash
+# Update to new version
+export VERSION=v0.7.0  # Or update in .env
+docker compose pull
+docker compose up -d
+```
+
+#### Option 2: Build from Source
+
+**Advantages:**
+
+- ✅ Full control over build process
+- ✅ Can modify code before deployment
+- ✅ No external registry dependencies
+
+**Setup:**
 
 ```bash
 # On your production server
@@ -304,7 +370,7 @@ ADMIN_PASSWORD=<secure-password>
 FETCH_INTERVAL_MINUTES=60  # How often to fetch RSS feeds
 ```
 
-#### 2. Deploy
+**Deploy:**
 
 ```bash
 # Build and start
@@ -319,7 +385,15 @@ curl http://localhost:5173/health
 docker compose logs -f
 ```
 
-#### 3. Database Backups
+**Note:** When building from source, the version displayed in settings will default to "docker". To show the git version, set `VITE_APP_VERSION` before building:
+
+```bash
+# Set version to git tag
+export VITE_APP_VERSION=$(git describe --tags --always)
+docker compose build
+```
+
+#### Database Backups
 
 ```bash
 # Backup database
@@ -329,14 +403,32 @@ docker compose exec api cp /app/data/tuvix.db /app/data/backup-$(date +%Y%m%d).d
 cp ./data/tuvix.db ./data/backup-$(date +%Y%m%d).db
 ```
 
-#### 4. Updates
+#### Updates
+
+**For Pre-built Images:**
+
+```bash
+# Update version
+export VERSION=v0.7.0  # Or update in .env
+
+# Pull and restart
+docker compose pull
+docker compose up -d
+```
+
+**For Source Builds:**
 
 ```bash
 # Pull latest code
 git pull origin main
 
+# Or checkout specific release
+git fetch --tags
+git checkout v0.7.0
+
 # Rebuild and restart
 docker compose down
+export VITE_APP_VERSION=$(git describe --tags --always)
 docker compose build
 docker compose up -d
 
@@ -365,7 +457,8 @@ docker compose up -d
 - Multi-stage build with nginx
 - Build context: monorepo root (not `packages/app`)
 - Copies workspace files (`pnpm-workspace.yaml`, root `pnpm-lock.yaml`)
-- Accepts VITE_API_URL build arg
+- Accepts VITE_API_URL build arg (API endpoint for frontend)
+- Accepts VITE_APP_VERSION build arg (version displayed in settings, defaults to "docker")
 - SPA routing support
 - Static asset caching
 - Health check on /health endpoint
@@ -398,12 +491,20 @@ services:
       dockerfile: ./packages/app/Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/trpc}
+        - VITE_APP_VERSION=${VITE_APP_VERSION:-docker}
     ports:
       - "5173:80"
     depends_on:
       api:
         condition: service_healthy
 ```
+
+**Build Arguments:**
+
+- `VITE_API_URL`: The API endpoint (defaults to `http://localhost:3001/trpc`)
+- `VITE_APP_VERSION`: Version string shown in settings page (defaults to `docker`)
+  - Can be set to git commit SHA: `VITE_APP_VERSION=$(git rev-parse --short HEAD)`
+  - Or a version tag: `VITE_APP_VERSION=v1.2.3`
 
 ### Monitoring & Troubleshooting
 

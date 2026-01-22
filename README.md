@@ -32,9 +32,35 @@ Tuvix supports two deployment methods:
 
 See the **[Deployment Guide](./docs/deployment.md)** for detailed instructions.
 
-> **📦 Docker Images Coming Soon:** Pre-built container images will be published to a container registry once the project reaches a stable release. For now, use the Dockerfiles and docker-compose scripts included in the repository.
-
 ### Quick Start (Docker)
+
+The docker-compose.yml works with both pre-built images and source builds:
+
+**Option 1: Pre-built Images (Recommended - Fast)**
+
+```bash
+# Create directory and download files
+mkdir TuvixRSS && cd TuvixRSS
+curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/TechSquidTV/Tuvix-RSS/main/env.example
+cp env.example .env
+
+# Edit .env and configure:
+# 1. BETTER_AUTH_SECRET (generate: openssl rand -base64 32)
+# 2. Admin credentials (ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD)
+nano .env
+
+# Pin to specific version (optional)
+export VERSION=v0.6.1  # Or use 'latest' for newest
+
+# Pull images and start
+docker compose pull
+docker compose up -d
+
+# Access at http://localhost:5173
+```
+
+**Option 2: Build from Source**
 
 > **⚠️ Use a Release:** The `main` branch contains active development and is not guaranteed to be stable. Always use the latest release for self-hosting.
 
@@ -54,6 +80,14 @@ cp env.example .env
 # Edit .env and configure:
 # 1. BETTER_AUTH_SECRET (generate: openssl rand -base64 32)
 # 2. ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD (for your admin user)
+nano .env
+
+# Build and start (includes git version in settings)
+pnpm run docker:build
+docker compose up -d
+
+# Or build without version script
+docker compose build
 docker compose up -d
 ```
 
