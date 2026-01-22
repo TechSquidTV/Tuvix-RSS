@@ -189,11 +189,11 @@ export function createHonoApp(config: HonoAppConfig) {
       sentryExists: !!sentry,
       sentryMethods: sentry
         ? Object.keys(sentry)
-          .filter(
-            (k) =>
-              typeof (sentry as Record<string, unknown>)[k] === "function"
-          )
-          .slice(0, 10)
+            .filter(
+              (k) =>
+                typeof (sentry as Record<string, unknown>)[k] === "function"
+            )
+            .slice(0, 10)
         : [],
       environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV || "unknown",
       allEnvKeys: Object.keys(env).filter(
