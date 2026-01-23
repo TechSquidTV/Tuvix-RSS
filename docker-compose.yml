@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
-    pull_policy: build
+    pull_policy: missing
     container_name: tuvix-api
     restart: unless-stopped
     ports:
@@ -48,7 +48,7 @@ services:
 
   app:
     image: ghcr.io/techsquidtv/tuvix-rss/app:${VERSION:-latest}
-    pull_policy: build
+    pull_policy: missing
     build:
       context: .
       dockerfile: ./packages/app/Dockerfile
