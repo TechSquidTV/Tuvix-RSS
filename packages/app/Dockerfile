@@ -23,9 +23,11 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY packages/app ./packages/app
 
-# Build argument for API URL
+# Build arguments
 ARG VITE_API_URL=http://localhost:3001/trpc
+ARG VITE_APP_VERSION
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 
 # Build the application
 RUN pnpm --filter @tuvixrss/app build
