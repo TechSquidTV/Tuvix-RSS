@@ -38,8 +38,9 @@ export function createHonoApp(config: HonoAppConfig) {
     await next();
   });
 
-  // Sentry HTTP tracing middleware
-  // Creates spans for all HTTP requests with proper transaction names
+  // Distributed tracing middleware
+  // Manually extracts sentry-trace and baggage headers to continue traces from frontend
+  // Required per https://docs.sentry.io/platforms/javascript/guides/cloudflare/tracing/distributed-tracing/custom-instrumentation
   app.use("*", async (c, next) => {
     const Sentry = c.get("sentry");
     const env = c.get("env");
@@ -49,28 +50,30 @@ export function createHonoApp(config: HonoAppConfig) {
       return await next();
     }
 
-    // Create transaction name from method and path
-    const method = c.req.method;
-    const path = c.req.path;
+    // Extract distributed tracing headers sent by frontend
+    const sentryTrace = c.req.header("sentry-trace");
+    const baggage = c.req.header("baggage");
 
-    // Use Sentry.startSpan to create a trace for this HTTP request
-    return await Sentry.startSpan(
-      {
-        name: `${method} ${path}`,
-        op: "http.server",
-        attributes: {
-          "http.method": method,
-          "http.route": path,
-          "http.url": c.req.url,
+    // Continue trace from frontend (or start new trace if no headers)
+    return await Sentry.continueTrace({ sentryTrace, baggage }, async () => {
+      // Create HTTP server span within the continued trace
+      return await Sentry.startSpan(
+        {
+          name: `${c.req.method} ${c.req.path}`,
+          op: "http.server",
+          attributes: {
+            "http.method": c.req.method,
+            "http.route": c.req.path,
+            "http.url": c.req.url,
+          },
         },
-      },
-      async (span) => {
-        await next();
-
-        // Add response status to span using the provided span parameter
-        span.setAttribute("http.status_code", c.res.status);
-      }
-    );
+        async (span) => {
+          await next();
+          // Add response status after request completes
+          span.setAttribute("http.status_code", c.res.status);
+        }
+      );
+    });
   });
 
   // CORS middleware (must be before routes)
