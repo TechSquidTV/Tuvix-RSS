@@ -292,7 +292,11 @@ echo "VERSION=v0.7.0" >> .env
 # Or export temporarily
 export VERSION=v0.7.0
 
-# Pull images and start
+# Create data directory with proper permissions
+# The container runs as uid 1001, so the directory must be writable
+mkdir data
+chmod 777 data  # Or: chown 1001:1001 data
+
 docker compose pull
 docker compose up -d
 ```
