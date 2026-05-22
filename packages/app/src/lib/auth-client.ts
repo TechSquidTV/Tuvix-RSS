@@ -12,9 +12,20 @@ import type { createAuth } from "@tuvixrss/api";
 // Better Auth needs to point to the API server, not the frontend
 // VITE_API_URL is like "http://localhost:3001/trpc", so we extract the origin
 const viteApiUrl = import.meta.env.VITE_API_URL;
-const baseURL = viteApiUrl
-  ? new URL(viteApiUrl).origin
-  : "http://localhost:3001"; // Default to API server in development
+const resolveAuthBaseURL = (apiUrl: string | undefined): string => {
+  if (!apiUrl) {
+    return "http://localhost:3001"; // Default to API server in development
+  }
+
+  const fallbackOrigin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:3001";
+
+  return new URL(apiUrl, fallbackOrigin).origin;
+};
+
+const baseURL = resolveAuthBaseURL(viteApiUrl);
 
 // Debug logging (always enabled for debugging cross-domain issues)
 console.log("🔧 Better Auth Client Configuration:", {
