@@ -162,6 +162,7 @@ export const useCreateSubscriptionWithRefetch = () => {
 
     // Stop any existing polling (synchronously to prevent race conditions)
     stopPolling();
+    isExecutingRef.current = true;
 
     // Set polling state immediately to prevent race conditions from rapid clicks
     setIsPolling(true);

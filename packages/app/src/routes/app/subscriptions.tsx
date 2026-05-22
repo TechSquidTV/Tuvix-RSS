@@ -61,6 +61,14 @@ export const Route = createFileRoute("/app/subscriptions")({
   }),
 });
 
+type InitialFilterField =
+  | "title"
+  | "content"
+  | "description"
+  | "author"
+  | "any";
+type InitialFilterMatchType = "contains" | "exact" | "regex";
+
 function SubscriptionsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -72,6 +80,8 @@ function SubscriptionsPage() {
   const feedDiscovery = useFeedDiscovery();
   const { data: existingCategories = [] } = useCategories();
   const utils = trpc.useUtils();
+  const createSubscriptionFilter =
+    trpc.subscriptions.createFilter.useMutation();
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -97,8 +107,8 @@ function SubscriptionsPage() {
   );
   const [initialFilters, setInitialFilters] = useState<
     Array<{
-      field: string;
-      matchType: string;
+      field: InitialFilterField;
+      matchType: InitialFilterMatchType;
       pattern: string;
       caseSensitive: boolean;
     }>
@@ -298,6 +308,33 @@ function SubscriptionsPage() {
       return;
     }
 
+    if (filterEnabled) {
+      const incompleteFilter = initialFilters.some((filter) => {
+        return !filter.pattern.trim();
+      });
+
+      if (incompleteFilter) {
+        toast.error("Complete all filter patterns before adding");
+        return;
+      }
+
+      const invalidRegex = initialFilters.find((filter) => {
+        if (filter.matchType !== "regex") return false;
+
+        try {
+          new RegExp(filter.pattern);
+          return false;
+        } catch {
+          return true;
+        }
+      });
+
+      if (invalidRegex) {
+        toast.error(`Invalid regex pattern: ${invalidRegex.pattern}`);
+        return;
+      }
+    }
+
     try {
       // Create subscription
       const subscription = await createSubscription.mutateAsync({
@@ -313,15 +350,23 @@ function SubscriptionsPage() {
 
       // If filters are configured, set them up
       if (filterEnabled && initialFilters.length > 0 && subscription?.id) {
-        // Update subscription to enable filters
         await updateSubscription.mutateAsync({
           id: subscription.id,
           filterEnabled: true,
           filterMode: filterMode,
         });
 
-        // Create each filter - note: temporarily disabled until we have direct filter creation access
-        // This will be handled by the filter manager UI after subscription creation
+        await Promise.all(
+          initialFilters.map((filter) =>
+            createSubscriptionFilter.mutateAsync({
+              subscriptionId: subscription.id,
+              field: filter.field,
+              matchType: filter.matchType,
+              pattern: filter.pattern.trim(),
+              caseSensitive: filter.caseSensitive,
+            })
+          )
+        );
       }
 
       // Clear form
@@ -351,6 +396,7 @@ function SubscriptionsPage() {
     initialFilters,
     createSubscription,
     updateSubscription,
+    createSubscriptionFilter,
     feedPreview,
     feedDiscovery,
   ]);
@@ -800,7 +846,8 @@ function SubscriptionsPage() {
                               const newFilters = [...initialFilters];
                               const filterToUpdate = newFilters[index];
                               if (filterToUpdate) {
-                                filterToUpdate.field = e.target.value;
+                                filterToUpdate.field = e.target
+                                  .value as InitialFilterField;
                                 setInitialFilters(newFilters);
                               }
                             }}
@@ -823,7 +870,8 @@ function SubscriptionsPage() {
                               const newFilters = [...initialFilters];
                               const filterToUpdate = newFilters[index];
                               if (filterToUpdate) {
-                                filterToUpdate.matchType = e.target.value;
+                                filterToUpdate.matchType = e.target
+                                  .value as InitialFilterMatchType;
                                 setInitialFilters(newFilters);
                               }
                             }}
@@ -930,7 +978,9 @@ function SubscriptionsPage() {
               onClick={handleAdd}
               disabled={
                 createSubscription.isPending ||
+                createSubscriptionFilter.isPending ||
                 !newSubUrl ||
+                (filterEnabled && initialFilters.some((f) => !f.pattern)) ||
                 (!feedPreview.data && discoveredFeeds.length > 1)
               }
             >

@@ -197,6 +197,7 @@ export const useMarkArticleRead = () => {
     onSuccess: () => {
       // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success("Marked as read");
     },
   });
@@ -245,6 +246,7 @@ export const useMarkArticleUnread = () => {
     onSuccess: () => {
       // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success("Marked as unread");
     },
   });
@@ -293,6 +295,7 @@ export const useSaveArticle = () => {
     onSuccess: () => {
       // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success("Article saved");
     },
   });
@@ -341,6 +344,7 @@ export const useUnsaveArticle = () => {
     onSuccess: () => {
       // Invalidate all article list queries to ensure filtered views are updated
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success("Article unsaved");
     },
   });
@@ -353,6 +357,7 @@ export const useBulkMarkRead = () => {
   return trpc.articles.bulkMarkRead.useMutation({
     onSuccess: (data) => {
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success(`${data.updated} articles updated`);
     },
     onError: () => {
@@ -367,6 +372,7 @@ export const useMarkAllRead = () => {
   return trpc.articles.markAllRead.useMutation({
     onSuccess: (data) => {
       utils.articles.list.invalidate();
+      utils.articles.getCounts.invalidate();
       toast.success(
         `${data.updated} article${data.updated === 1 ? "" : "s"} marked as read`
       );
