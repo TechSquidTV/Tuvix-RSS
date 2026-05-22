@@ -49,10 +49,9 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
   const saveArticle = useSaveArticle();
   const unsaveArticle = useUnsaveArticle();
 
-  // Local state for optimistic updates - initialize from article state
-  const [isSaved, setIsSaved] = useState(article.saved || false);
-  const [isRead, setIsRead] = useState(article.read || false);
   const [isDragging, setIsDragging] = useState(false);
+  const isSaved = article.saved || false;
+  const isRead = article.read || false;
 
   // Check if this is an audio article (after all hooks)
   if (article.audioUrl) {
@@ -64,10 +63,8 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
     e.stopPropagation();
     if (article.id) {
       if (isRead) {
-        setIsRead(false);
         markUnread.mutate({ id: article.id });
       } else {
-        setIsRead(true);
         markRead.mutate({ id: article.id });
       }
     }
@@ -77,10 +74,8 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
     e.stopPropagation();
     if (article.id) {
       if (isSaved) {
-        setIsSaved(false);
         unsaveArticle.mutate({ id: article.id });
       } else {
-        setIsSaved(true);
         saveArticle.mutate({ id: article.id });
       }
     }
@@ -137,10 +132,8 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
         setIsDragging(true);
         if (article.id) {
           if (isRead) {
-            setIsRead(false);
             markUnread.mutate({ id: article.id });
           } else {
-            setIsRead(true);
             markRead.mutate({ id: article.id });
           }
         }
@@ -150,7 +143,6 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
       onSwipeLeft={() => {
         setIsDragging(true);
         if (article.id) {
-          setIsSaved(!isSaved);
           if (isSaved) {
             unsaveArticle.mutate({ id: article.id });
           } else {

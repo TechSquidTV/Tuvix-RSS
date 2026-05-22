@@ -349,59 +349,31 @@ export const articlesRouter = router({
         );
         total = uniqueArticleIds.size;
       } else {
-        // FILTERED PATH: Has subscription filters, must fetch more and filter
-        // NOTE: Cursor-based pagination is incompatible with post-query filtering
-        // because the cursor represents items seen by frontend (after filtering),
-        // but the backend offset operates on items before filtering.
-        // We ONLY use offset-based pagination here to avoid skipping articles.
-        const fetchLimit = Math.max(limit * 3, 100);
+        // FILTERED PATH: Has subscription filters, must scan in bounded
+        // database chunks and apply the cursor after in-memory filtering.
+        // Aggressive filters can reject most rows, so a one-shot fetch limit
+        // can falsely produce an empty later page even when matches exist.
+        const filteredOffset = cursor ?? offset;
+        const targetVisibleCount = filteredOffset + limit + 1;
+        const chunkSize = Math.max(limit * 3, 100);
+        const filteredResults: ArticleWithSubscription[] = [];
+        let scannedRowCount = 0;
 
         // Always order by publishedAt for chronological feed
-        let paginationQuery = queryBuilder.orderBy(
+        const paginationQuery = queryBuilder.orderBy(
           desc(schema.articles.publishedAt)
         );
 
-        // IMPORTANT: Only use explicit offset parameter, ignore cursor
-        // When subscription filters are active, cursor values don't align with database offsets
-        if (offset > 0) {
-          paginationQuery = paginationQuery.offset(offset);
-        }
-
-        const results = await withQueryMetrics(
-          "articles.list",
-          async () => paginationQuery.limit(fetchLimit),
-          {
-            "db.table": "articles",
-            "db.operation": "select",
-            "db.user_id": userId,
-            "db.has_category_filter": !!input.categoryId,
-            "db.has_subscription_filter": !!input.subscriptionId,
-            "db.has_read_filter": input.read !== undefined,
-            "db.has_saved_filter": input.saved !== undefined,
-            "db.has_subscription_filters": true,
-            "db.use_cursor": !!cursor,
-          }
-        );
-
-        // Transform results
-        const transformedResults = results.map(transformArticleRow);
-
-        // Load filters for subscriptions that have filtering enabled
-        const subscriptionIdsWithFilters = new Set<number>();
-        transformedResults.forEach((article) => {
-          if (article._subscription.filterEnabled) {
-            subscriptionIdsWithFilters.add(article._subscription.id);
-          }
-        });
-
-        // Batch load all filters for these subscriptions
+        // Batch load all filters for the user's filtered subscriptions once.
         const filtersBySubscription = new Map<
           number,
           (typeof schema.subscriptionFilters.$inferSelect)[]
         >();
+        const subscriptionIdsWithFilters = subscriptionsWithFilters.map(
+          (subscription) => subscription.id
+        );
 
-        if (subscriptionIdsWithFilters.size > 0) {
-          const subscriptionIdsArray = Array.from(subscriptionIdsWithFilters);
+        if (subscriptionIdsWithFilters.length > 0) {
           const filters = await withQueryMetrics(
             "articles.list.loadFilters",
             async () =>
@@ -411,13 +383,13 @@ export const articlesRouter = router({
                 .where(
                   inArray(
                     schema.subscriptionFilters.subscriptionId,
-                    subscriptionIdsArray
+                    subscriptionIdsWithFilters
                   )
                 ),
             {
               "db.table": "subscription_filters",
               "db.operation": "select",
-              "db.subscription_count": subscriptionIdsArray.length,
+              "db.subscription_count": subscriptionIdsWithFilters.length,
             }
           );
 
@@ -430,35 +402,74 @@ export const articlesRouter = router({
           });
         }
 
-        // Apply subscription filters
-        const filteredResults = transformedResults.filter((article) => {
-          if (!article._subscription.filterEnabled) {
-            // No filtering enabled for this subscription
-            return true;
+        while (filteredResults.length < targetVisibleCount) {
+          let chunkQuery = paginationQuery;
+          if (scannedRowCount > 0) {
+            chunkQuery = chunkQuery.offset(scannedRowCount);
           }
 
-          const filters =
-            filtersBySubscription.get(article._subscription.id) || [];
-          return matchesSubscriptionFilters(
-            article,
-            filters,
-            article._subscription.filterMode
+          const results = await withQueryMetrics(
+            "articles.list.filteredChunk",
+            async () => chunkQuery.limit(chunkSize),
+            {
+              "db.table": "articles",
+              "db.operation": "select",
+              "db.user_id": userId,
+              "db.has_category_filter": !!input.categoryId,
+              "db.has_subscription_filter": !!input.subscriptionId,
+              "db.has_read_filter": input.read !== undefined,
+              "db.has_saved_filter": input.saved !== undefined,
+              "db.has_subscription_filters": true,
+              "db.use_cursor": !!cursor,
+              "db.filtered_offset": filteredOffset,
+              "db.chunk_offset": scannedRowCount,
+              "db.chunk_size": chunkSize,
+            }
           );
-        });
+
+          if (results.length === 0) {
+            break;
+          }
+
+          const transformedResults = results.map(transformArticleRow);
+          const matchingResults = transformedResults.filter((article) => {
+            if (!article._subscription.filterEnabled) {
+              // No filtering enabled for this subscription
+              return true;
+            }
+
+            const filters =
+              filtersBySubscription.get(article._subscription.id) || [];
+            return matchesSubscriptionFilters(
+              article,
+              filters,
+              article._subscription.filterMode
+            );
+          });
+
+          filteredResults.push(...matchingResults);
+          scannedRowCount += results.length;
+
+          if (results.length < chunkSize) {
+            break;
+          }
+        }
 
         // Remove the internal _subscription field before returning
         const cleanedResults = filteredResults.map(
           ({ _subscription, ...article }) => article
         );
 
+        const visibleResults = cleanedResults.slice(filteredOffset);
+
         // Check if we have more than requested (for hasMore)
-        hasMore = cleanedResults.length > limit;
+        hasMore = visibleResults.length > limit;
 
         // Return only the requested number of items
-        paginatedResults = cleanedResults.slice(0, limit);
+        paginatedResults = visibleResults.slice(0, limit);
 
         // Total is approximate when subscription filters are active
-        total = cleanedResults.length + offset;
+        total = filteredOffset + visibleResults.length;
       }
 
       return {

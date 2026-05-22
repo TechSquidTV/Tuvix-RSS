@@ -354,6 +354,24 @@ describe("ArticleItem", () => {
     expect(itemElement).toBeInTheDocument();
   });
 
+  it("updates read and saved controls when article props change", () => {
+    const { rerender } = render(<ArticleItem article={mockArticle} />);
+
+    expect(
+      screen.getByRole("button", { name: /mark read/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeInTheDocument();
+
+    rerender(
+      <ArticleItem article={{ ...mockArticle, read: true, saved: true }} />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /mark unread/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /saved/i })).toBeInTheDocument();
+  });
+
   it("displays article image when imageUrl is provided", () => {
     render(<ArticleItem article={mockArticle} />);
 

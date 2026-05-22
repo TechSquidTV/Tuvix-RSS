@@ -606,6 +606,41 @@ describe("Articles Router - Subscription Filters", () => {
       expect(page2.items).toHaveLength(3);
       expect(page2.items.every((a) => a.title.includes("Match"))).toBe(true);
     });
+
+    it("should continue scanning when aggressive filters skip the first chunk", async () => {
+      await db.insert(schema.subscriptionFilters).values({
+        subscriptionId: testSubscription2.id,
+        field: "title",
+        matchType: "contains",
+        pattern: "needle",
+        caseSensitive: false,
+      });
+
+      const totalArticles = 160;
+      for (let i = 0; i < totalArticles; i++) {
+        await db.insert(schema.articles).values({
+          sourceId: testSource2.id,
+          guid: `aggressive-filter-${i}`,
+          title: i === 0 || i === 150 ? `Needle ${i}` : `Noise ${i}`,
+          description: "Test description",
+          content: "Test content",
+          author: "Test Author",
+          publishedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, totalArticles - i)),
+        });
+      }
+
+      const caller = createCaller();
+
+      const page1 = await caller.list({ limit: 1, cursor: 0 });
+      expect(page1.items).toHaveLength(1);
+      expect(page1.items[0].title).toBe("Needle 0");
+      expect(page1.hasMore).toBe(true);
+
+      const page2 = await caller.list({ limit: 1, cursor: 1 });
+      expect(page2.items).toHaveLength(1);
+      expect(page2.items[0].title).toBe("Needle 150");
+      expect(page2.hasMore).toBe(false);
+    });
   });
 
   describe("Category Filtering", () => {
