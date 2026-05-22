@@ -20,8 +20,11 @@ COPY packages/tricorder/package.json ./packages/tricorder/
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Copy source code. The app imports API types through the workspace package,
+# and the API package references tricorder types during TypeScript checking.
 COPY packages/app ./packages/app
+COPY packages/api ./packages/api
+COPY packages/tricorder ./packages/tricorder
 
 # Build arguments
 ARG VITE_API_URL=http://localhost:3001/trpc
