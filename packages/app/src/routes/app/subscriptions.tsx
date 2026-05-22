@@ -303,8 +303,8 @@ function SubscriptionsPage() {
       const subscription = await createSubscription.mutateAsync({
         url: newSubUrl,
         customTitle: newSubTitle || undefined,
-        iconUrl: feedPreview.data?.icon_url,
-        iconType: feedPreview.data?.icon_url ? "auto" : "none",
+        iconUrl: feedPreview.data?.iconUrl,
+        iconType: "auto",
         categoryIds:
           selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
         newCategoryNames:
