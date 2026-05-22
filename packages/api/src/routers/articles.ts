@@ -349,23 +349,17 @@ export const articlesRouter = router({
         );
         total = uniqueArticleIds.size;
       } else {
-        // FILTERED PATH: Has subscription filters, must fetch more and filter
-        // NOTE: Cursor-based pagination is incompatible with post-query filtering
-        // because the cursor represents items seen by frontend (after filtering),
-        // but the backend offset operates on items before filtering.
-        // We ONLY use offset-based pagination here to avoid skipping articles.
-        const fetchLimit = Math.max(limit * 3, 100);
+        // FILTERED PATH: Has subscription filters, must fetch more and filter.
+        // The cursor sent by the frontend represents the number of already
+        // rendered articles, so apply it after filtering instead of as a raw
+        // database offset.
+        const filteredOffset = cursor ?? offset;
+        const fetchLimit = Math.max((filteredOffset + limit + 1) * 3, 100);
 
         // Always order by publishedAt for chronological feed
         let paginationQuery = queryBuilder.orderBy(
           desc(schema.articles.publishedAt)
         );
-
-        // IMPORTANT: Only use explicit offset parameter, ignore cursor
-        // When subscription filters are active, cursor values don't align with database offsets
-        if (offset > 0) {
-          paginationQuery = paginationQuery.offset(offset);
-        }
 
         const results = await withQueryMetrics(
           "articles.list",
@@ -380,6 +374,7 @@ export const articlesRouter = router({
             "db.has_saved_filter": input.saved !== undefined,
             "db.has_subscription_filters": true,
             "db.use_cursor": !!cursor,
+            "db.filtered_offset": filteredOffset,
           }
         );
 
@@ -451,14 +446,16 @@ export const articlesRouter = router({
           ({ _subscription, ...article }) => article
         );
 
+        const visibleResults = cleanedResults.slice(filteredOffset);
+
         // Check if we have more than requested (for hasMore)
-        hasMore = cleanedResults.length > limit;
+        hasMore = visibleResults.length > limit;
 
         // Return only the requested number of items
-        paginatedResults = cleanedResults.slice(0, limit);
+        paginatedResults = visibleResults.slice(0, limit);
 
         // Total is approximate when subscription filters are active
-        total = cleanedResults.length + offset;
+        total = filteredOffset + visibleResults.length;
       }
 
       return {
