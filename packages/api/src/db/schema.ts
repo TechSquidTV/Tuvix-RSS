@@ -135,6 +135,9 @@ export const sources = sqliteTable(
     }).default("auto"),
     iconUpdatedAt: integer("icon_updated_at", { mode: "timestamp" }),
     lastFetched: integer("last_fetched", { mode: "timestamp" }),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    lastErrorAt: integer("last_error_at", { mode: "timestamp" }),
+    fetchDisabledAt: integer("fetch_disabled_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -146,6 +149,7 @@ export const sources = sqliteTable(
     index("idx_sources_url").on(table.url),
     index("idx_sources_icon_url").on(table.iconUrl),
     index("idx_sources_last_fetched").on(table.lastFetched),
+    index("idx_sources_fetch_disabled_at").on(table.fetchDisabledAt),
   ]
 );
 

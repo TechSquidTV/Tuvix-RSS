@@ -10,7 +10,7 @@ import { parseFeed } from "feedsmith";
 import type { Rss, Atom, Rdf, Json } from "@/types/feed";
 import type { Database } from "@/db/client";
 import * as schema from "@/db/schema";
-import { and, eq, inArray, or, isNull, lt } from "drizzle-orm";
+import { and, eq, inArray, or, isNull, lt, sql } from "drizzle-orm";
 import { extractOgImage } from "@/utils/og-image-fetcher";
 import {
   sanitizeHtml,
@@ -57,6 +57,12 @@ const LIMITS = {
 const STALENESS_DEFAULTS = {
   thresholdMinutes: 30, // Process feeds older than 30 minutes
   batchSize: 20, // Feeds per batch (optimized for D1 query limits)
+} as const;
+
+/** Circuit breaker configuration for persistently-failing feeds */
+const CIRCUIT_BREAKER = {
+  failureThreshold: 10, // Disable feed after this many consecutive failures
+  cooldownHours: 24,    // Re-enable disabled feeds after this many hours
 } as const;
 
 // =============================================================================
@@ -116,17 +122,30 @@ function buildStalenessWhereClause(staleThreshold: Date) {
 }
 
 /**
- * Get stale sources that need fetching
+ * Get stale sources that need fetching, skipping circuit-broken feeds
+ * unless their cooldown period has elapsed.
  */
 async function getStaleSources(
   db: Database,
   staleThreshold: Date,
   limit: number
 ) {
+  const cooldownCutoff = new Date(
+    Date.now() - CIRCUIT_BREAKER.cooldownHours * 60 * 60 * 1000
+  );
+
+  // Include sources that are:
+  //   (a) not disabled (fetchDisabledAt IS NULL), OR
+  //   (b) disabled but cooldown has elapsed (fetchDisabledAt < cooldownCutoff)
+  const notDisabledOrCooledDown = or(
+    isNull(schema.sources.fetchDisabledAt),
+    lt(schema.sources.fetchDisabledAt, cooldownCutoff)
+  );
+
   return await db
     .select()
     .from(schema.sources)
-    .where(buildStalenessWhereClause(staleThreshold))
+    .where(and(buildStalenessWhereClause(staleThreshold), notDisabledOrCooledDown))
     .orderBy(schema.sources.lastFetched)
     .limit(limit);
 }
@@ -469,6 +488,41 @@ export async function fetchSingleFeed(
           domain: extractDomain(feedUrl) || "unknown",
         });
 
+        // Circuit breaker: increment consecutive failure count and disable
+        // the source if it exceeds the threshold.
+        try {
+          const now = new Date();
+          // Increment consecutive_failures atomically and fetch new value
+          const updated = await db
+            .update(schema.sources)
+            .set({
+              consecutiveFailures: sql`${schema.sources.consecutiveFailures} + 1`,
+              lastErrorAt: now,
+              lastFetched: now, // Advance lastFetched so the source isn't immediately re-queued
+            })
+            .where(eq(schema.sources.id, sourceId))
+            .returning({ consecutiveFailures: schema.sources.consecutiveFailures });
+
+          const newCount = updated[0]?.consecutiveFailures ?? 0;
+
+          if (newCount >= CIRCUIT_BREAKER.failureThreshold) {
+            await db
+              .update(schema.sources)
+              .set({ fetchDisabledAt: now })
+              .where(eq(schema.sources.id, sourceId));
+
+            console.warn(
+              `⚡ Circuit breaker opened for source ${sourceId} (${feedUrl}) after ${newCount} consecutive failures`
+            );
+            emitCounter("rss.feed_circuit_broken", 1, {
+              domain: extractDomain(feedUrl) || "unknown",
+            });
+          }
+        } catch (dbError) {
+          // Don't let failure tracking errors mask the original fetch error
+          console.error("Failed to update failure tracking for source:", sourceId, dbError);
+        }
+
         // Error already captured in specific places, re-throw
         throw error;
       }
@@ -552,19 +606,26 @@ async function updateSourceMetadata(
     updates.iconUpdatedAt = new Date();
   }
 
+  // Always reset circuit breaker on a successful fetch
+  const circuitBreakerReset: Partial<typeof schema.sources.$inferInsert> = {
+    consecutiveFailures: 0,
+    lastErrorAt: null,
+    fetchDisabledAt: null,
+  };
+
   // Only update if we have something to update (beyond lastFetched)
   if (Object.keys(updates).length > 1) {
     await db
       .update(schema.sources)
-      .set(updates)
+      .set({ ...updates, ...circuitBreakerReset })
       .where(eq(schema.sources.id, sourceId));
     return true;
   }
 
-  // Just update lastFetched
+  // Just update lastFetched and reset circuit breaker
   await db
     .update(schema.sources)
-    .set({ lastFetched: new Date() })
+    .set({ lastFetched: new Date(), ...circuitBreakerReset })
     .where(eq(schema.sources.id, sourceId));
   return false;
 }
