@@ -26,7 +26,7 @@ import * as Sentry from "@sentry/react";
 export const Route = createFileRoute("/app")({
   beforeLoad: async ({ context }) => {
     // Get session from router context (already fetched in root)
-    const session = context.auth.session;
+    const session = context.auth?.session ?? null;
     console.debug("App route beforeLoad - session from context:", session);
 
     // Redirect if no session

@@ -8,7 +8,7 @@ import { useCurrentUser } from "@/lib/hooks/useAuth";
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
     // Check if user is already logged in via context
-    if (context.auth.session?.user) {
+    if (context.auth?.session?.user) {
       throw redirect({
         to: "/app/articles",
         search: { category_id: undefined, subscription_id: undefined },

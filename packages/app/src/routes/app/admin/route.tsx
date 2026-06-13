@@ -3,7 +3,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/app/admin")({
   beforeLoad: async ({ context }) => {
     // Get session from router context (inherited from /app route)
-    const session = context.auth.session;
+    const session = context.auth?.session ?? null;
 
     if (!session?.user) {
       throw redirect({ to: "/" });

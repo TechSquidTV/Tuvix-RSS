@@ -18,7 +18,7 @@ import { ErrorBoundaryFallback } from "./components/error-boundary-fallback";
 // Create a new router instance
 const router = createRouter({
   routeTree,
-  context: undefined! as RouterContext,
+  context: { auth: { session: null } } satisfies RouterContext,
   defaultPreload: "intent",
   defaultStaleTime: 5000,
   scrollRestoration: true,
