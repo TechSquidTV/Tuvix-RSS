@@ -20,15 +20,6 @@ import { createWrapper } from "@/test/test-utils";
 // Mock dependencies first
 vi.mock("@tanstack/react-router");
 vi.mock("sonner");
-vi.mock("@tanstack/react-query", async () => {
-  const actual = await vi.importActual("@tanstack/react-query");
-  return {
-    ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: vi.fn().mockResolvedValue(undefined),
-    }),
-  };
-});
 
 // Create mock functions using vi.hoisted() to ensure they're available in vi.mock
 const {
@@ -38,6 +29,8 @@ const {
   mockSignInUsername,
   mockSignUpEmail,
   mockSignOut,
+  mockInvalidateQueries,
+  mockClearQueries,
 } = vi.hoisted(() => {
   return {
     mockUseSession: vi.fn(),
@@ -46,6 +39,19 @@ const {
     mockSignInUsername: vi.fn(),
     mockSignUpEmail: vi.fn(),
     mockSignOut: vi.fn(),
+    mockInvalidateQueries: vi.fn(),
+    mockClearQueries: vi.fn(),
+  };
+});
+
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: mockInvalidateQueries,
+      clear: mockClearQueries,
+    }),
   };
 });
 
@@ -95,6 +101,15 @@ type MockSessionResult = {
   error: Error | null;
 };
 
+const expectCalledBefore = (
+  first: ReturnType<typeof vi.fn>,
+  second: ReturnType<typeof vi.fn>
+) => {
+  expect(first.mock.invocationCallOrder[0]).toBeLessThan(
+    second.mock.invocationCallOrder[0]
+  );
+};
+
 describe("useAuth", () => {
   const mockRouter: MockRouter = {
     navigate: vi.fn().mockResolvedValue(undefined),
@@ -108,7 +123,11 @@ describe("useAuth", () => {
     mockSignUpEmail.mockReset();
     mockSignOut.mockReset();
     mockGetSession.mockReset();
+    mockInvalidateQueries.mockReset();
+    mockClearQueries.mockReset();
     mockGetSession.mockResolvedValue({ data: { user: { id: 1 } } });
+    mockInvalidateQueries.mockResolvedValue(undefined);
+    mockClearQueries.mockReturnValue(undefined);
     vi.mocked(useRouter).mockReturnValue(
       mockRouter as unknown as ReturnType<typeof useRouter>
     );
@@ -242,6 +261,7 @@ describe("useAuth", () => {
         to: "/app/articles",
         search: { category_id: undefined, subscription_id: undefined },
       });
+      expect(mockRouter.invalidate).toHaveBeenCalledWith({ sync: true });
     });
 
     it("should handle successful login with email", async () => {
@@ -266,6 +286,56 @@ describe("useAuth", () => {
         password: "password",
       });
       expect(toast.success).toHaveBeenCalledWith("Welcome back!");
+      expect(mockRouter.invalidate).toHaveBeenCalledWith({ sync: true });
+    });
+
+    it("should refresh session state before navigating after login", async () => {
+      mockSignInUsername.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "testuser",
+          password: "password",
+        });
+      });
+
+      expectCalledBefore(mockSignInUsername, mockInvalidateQueries);
+      expectCalledBefore(mockInvalidateQueries, mockRouter.invalidate);
+      expectCalledBefore(mockRouter.invalidate, mockRouter.navigate);
+      expect(mockRouter.navigate).toHaveBeenCalledWith({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
+    });
+
+    it("should trim username or email before login", async () => {
+      mockSignInEmail.mockResolvedValue({
+        data: { user: { id: 1 } },
+        error: null,
+      });
+
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate({
+          username: "  test@example.com  ",
+          password: "password",
+        });
+      });
+
+      expect(mockSignInEmail).toHaveBeenCalledWith({
+        email: "test@example.com",
+        password: "password",
+      });
     });
 
     it("should set isPending to true during login and false after", async () => {
@@ -595,6 +665,24 @@ describe("useAuth", () => {
 
       expect(mockSignOut).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Logged out");
+      expect(mockRouter.invalidate).toHaveBeenCalledWith({ sync: true });
+      expect(mockRouter.navigate).toHaveBeenCalledWith({ to: "/" });
+    });
+
+    it("should clear stale session state before navigating home on logout", async () => {
+      mockSignOut.mockResolvedValue({ error: null });
+
+      const { result } = renderHook(() => useLogout(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.mutate();
+      });
+
+      expectCalledBefore(mockSignOut, mockClearQueries);
+      expectCalledBefore(mockClearQueries, mockRouter.invalidate);
+      expectCalledBefore(mockRouter.invalidate, mockRouter.navigate);
       expect(mockRouter.navigate).toHaveBeenCalledWith({ to: "/" });
     });
 

@@ -84,6 +84,12 @@ describe("App Route beforeLoad", () => {
     ).rejects.toThrow("redirect:/");
   });
 
+  it("redirects when auth context is missing", async () => {
+    await expect(
+      routeModule.Route.options.beforeLoad({ context: {} } as any)
+    ).rejects.toThrow("redirect:/");
+  });
+
   it("redirects when session exists but no user", async () => {
     const mockContext = {
       auth: {

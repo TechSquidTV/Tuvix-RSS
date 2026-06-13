@@ -27,14 +27,11 @@ export const Route = createFileRoute("/app")({
   beforeLoad: async ({ context }) => {
     // Get session from router context (already fetched in root)
     const session = context.auth?.session ?? null;
-    console.debug("App route beforeLoad - session from context:", session);
 
     // Redirect if no session
     if (!session?.user) {
-      console.debug("No user in session, redirecting to /");
       throw redirect({ to: "/" });
     }
-    console.debug("Session check passed, allowing navigation");
 
     // Skip API validation if offline - session is cached
     if (!navigator.onLine) {

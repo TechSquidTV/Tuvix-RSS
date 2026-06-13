@@ -99,15 +99,20 @@ function RootErrorComponent({ error }: { error: Error }) {
 export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async () => {
     // Fetch session once at root level
-    console.log("[Root] 🔄 beforeLoad: Fetching session...");
+    if (import.meta.env.DEV) {
+      console.log("[Root] Fetching session...");
+    }
+
     try {
       const sessionResult = await authClient.getSession();
-      console.log("[Root] ✅ Session result:", {
-        hasData: !!sessionResult?.data,
-        hasUser: !!sessionResult?.data?.user,
-        userId: sessionResult?.data?.user?.id,
-        hasSession: !!sessionResult?.data?.session,
-      });
+      if (import.meta.env.DEV) {
+        console.log("[Root] Session result:", {
+          hasData: !!sessionResult?.data,
+          hasUser: !!sessionResult?.data?.user,
+          userId: sessionResult?.data?.user?.id,
+          hasSession: !!sessionResult?.data?.session,
+        });
+      }
 
       // Set Sentry user context for Session Replay identification (non-PII)
       if (sessionResult?.data?.user?.id) {
@@ -139,7 +144,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
       // Fail open - allow navigation without session
       // The individual route guards will handle redirects
-      console.warn("[Root] ❌ Failed to fetch session at root level:", error);
+      console.warn("[Root] Failed to fetch session at root level:", error);
       return {
         auth: {
           session: null,

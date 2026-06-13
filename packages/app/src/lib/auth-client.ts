@@ -27,13 +27,14 @@ const resolveAuthBaseURL = (apiUrl: string | undefined): string => {
 
 const baseURL = resolveAuthBaseURL(viteApiUrl);
 
-// Debug logging (always enabled for debugging cross-domain issues)
-console.log("🔧 Better Auth Client Configuration:", {
-  VITE_API_URL: viteApiUrl,
-  baseURL,
-  mode: import.meta.env.MODE,
-  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "development",
-});
+if (import.meta.env.DEV) {
+  console.log("Better Auth Client Configuration:", {
+    VITE_API_URL: viteApiUrl,
+    baseURL,
+    mode: import.meta.env.MODE,
+    environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "development",
+  });
+}
 
 export const authClient = createAuthClient({
   baseURL,
