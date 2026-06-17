@@ -77,8 +77,8 @@ if (dsn && typeof dsn === "string" && dsn.trim().length > 0) {
     ],
 
     // Performance tracing
-    // Set to 1.0 in development/staging, lower in production
-    tracesSampleRate: environment === "production" ? 0.1 : 1.0,
+    // Set to 100% in all environments for complete observability
+    tracesSampleRate: 1.0,
 
     // Session replay
     // Capture ALL sessions in development/staging for debugging

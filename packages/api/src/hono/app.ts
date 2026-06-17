@@ -38,44 +38,6 @@ export function createHonoApp(config: HonoAppConfig) {
     await next();
   });
 
-  // Distributed tracing middleware
-  // Manually extracts sentry-trace and baggage headers to continue traces from frontend
-  // Required per https://docs.sentry.io/platforms/javascript/guides/cloudflare/tracing/distributed-tracing/custom-instrumentation
-  app.use("*", async (c, next) => {
-    const Sentry = c.get("sentry");
-    const env = c.get("env");
-
-    // Only create spans if Sentry is configured
-    if (!Sentry || !env.SENTRY_DSN) {
-      return await next();
-    }
-
-    // Extract distributed tracing headers sent by frontend
-    const sentryTrace = c.req.header("sentry-trace");
-    const baggage = c.req.header("baggage");
-
-    // Continue trace from frontend (or start new trace if no headers)
-    return await Sentry.continueTrace({ sentryTrace, baggage }, async () => {
-      // Create HTTP server span within the continued trace
-      return await Sentry.startSpan(
-        {
-          name: `${c.req.method} ${c.req.path}`,
-          op: "http.server",
-          attributes: {
-            "http.method": c.req.method,
-            "http.route": c.req.path,
-            "http.url": c.req.url,
-          },
-        },
-        async (span) => {
-          await next();
-          // Add response status after request completes
-          span.setAttribute("http.status_code", c.res.status);
-        }
-      );
-    });
-  });
-
   // CORS middleware (must be before routes)
   const corsOrigins = getCorsOrigins(config.env);
   console.log("🔧 CORS Configuration:", {
