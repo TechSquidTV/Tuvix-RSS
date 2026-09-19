@@ -1,4 +1,5 @@
-import { Table } from "@tanstack/react-table";
+import type { DataTableFeatures } from "./table-features";
+import { ReactTable } from "@tanstack/react-table";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -6,16 +7,16 @@ import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
 import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 
-interface DataTableToolbarProps<TData> {
-  table: Table<TData>;
+interface DataTableToolbarProps<TData extends object> {
+  table: ReactTable<DataTableFeatures, TData>;
   disableFilters?: boolean;
 }
 
-export function DataTableToolbar<TData>({
+export function DataTableToolbar<TData extends object>({
   table,
   disableFilters = false,
 }: DataTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
+  const isFiltered = table.state.columnFilters.length > 0;
 
   return (
     <div className="flex items-center justify-between">

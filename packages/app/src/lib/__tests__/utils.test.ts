@@ -37,10 +37,13 @@ describe("Utils", () => {
   });
 
   describe("getPublicBaseUrl", () => {
-    it("should return window.location.origin in browser environment", () => {
+    it("should return the API origin for public feeds", () => {
       const result = getPublicBaseUrl();
-      expect(typeof result).toBe("string");
-      expect(result.length).toBeGreaterThan(0);
+      const apiUrl =
+        import.meta.env.VITE_PUBLIC_URL ||
+        import.meta.env.VITE_API_URL ||
+        "http://localhost:3001/trpc";
+      expect(result).toBe(new URL(apiUrl, window.location.origin).origin);
     });
 
     it("should return a URL string", () => {

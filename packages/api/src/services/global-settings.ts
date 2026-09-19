@@ -8,12 +8,11 @@
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { eq } from "drizzle-orm";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 
 // Generic database type that works with both D1 and better-sqlite3
 type Database =
-  | DrizzleD1Database<typeof schema>
-  | BetterSQLite3Database<typeof schema>;
+  DrizzleD1Database<typeof schema> | BetterSQLite3Database<typeof schema>;
 
 /**
  * Global settings type

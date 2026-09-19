@@ -24,7 +24,7 @@ describe("useMediaQuery", () => {
         addListener: vi.fn(),
         removeListener: vi.fn(),
         addEventListener: vi.fn(
-          (event: string, listener: (e: MediaQueryListEvent) => void) => {
+          (_event: string, listener: (e: MediaQueryListEvent) => void) => {
             if (!mediaQueryListeners.has(query)) {
               mediaQueryListeners.set(query, []);
             }
@@ -32,7 +32,7 @@ describe("useMediaQuery", () => {
           }
         ),
         removeEventListener: vi.fn(
-          (event: string, listener: (e: MediaQueryListEvent) => void) => {
+          (_event: string, listener: (e: MediaQueryListEvent) => void) => {
             const listeners = mediaQueryListeners.get(query) || [];
             const index = listeners.indexOf(listener);
             if (index > -1) {

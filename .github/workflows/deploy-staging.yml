@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PNPM_VERSION: 10.19.0
-  NODE_VERSION: "20"
+  PNPM_VERSION: 12.4.2
+  NODE_VERSION: "24"
 
 jobs:
   deploy-api:
@@ -32,7 +32,7 @@ jobs:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.branch }}
 
@@ -83,24 +83,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy API to Cloudflare Workers (Staging)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: packages/api
-          command: deploy --env staging
-          packageManager: pnpm
-
-      - name: Output staging API URL
-        run: |
-          API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
-          echo "API URL: $API_URL"
-          echo "## Staging API Deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: $API_URL" >> $GITHUB_STEP_SUMMARY
-
       - name: Wipe staging database
         working-directory: packages/api
         run: |
@@ -124,7 +106,7 @@ jobs:
           echo "✅ Prepared $(ls migrations/*.sql | wc -l) migration file(s)"
 
       - name: Apply fresh migrations to staging
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -148,6 +130,24 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Deploy API to Cloudflare Workers (Staging)
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/api
+          command: deploy --env staging
+          packageManager: pnpm
+
+      - name: Output staging API URL
+        run: |
+          API_URL="https://${{ steps.worker-name.outputs.name }}.workers.dev"
+          echo "API URL: $API_URL"
+          echo "## Staging API Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: $API_URL" >> $GITHUB_STEP_SUMMARY
+
   deploy-app:
     name: Deploy App to Staging
     runs-on: ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
       name: staging
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.branch }}
 
@@ -165,6 +165,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Build Tricorder
+        run: pnpm run build:tricorder
 
       - name: Type check App
         run: pnpm run type-check:app
@@ -193,7 +196,7 @@ jobs:
 
       - name: Deploy App to Cloudflare Pages (Staging)
         id: deploy-app
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -204,7 +207,7 @@ jobs:
       - name: Output staging app URL
         run: |
           APP_URL="https://${{ secrets.STAGING_CLOUDFLARE_PAGES_PROJECT_NAME }}.pages.dev"
-          echo "App URL: $App_URL"
+          echo "App URL: $APP_URL"
           echo "## Staging App Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
@@ -217,7 +220,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Deployment Summary
         run: |

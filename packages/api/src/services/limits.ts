@@ -11,12 +11,11 @@
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { eq, and, inArray } from "drizzle-orm";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 
 // Generic database type that works with both D1 and better-sqlite3
 type Database =
-  | DrizzleD1Database<typeof schema>
-  | BetterSQLite3Database<typeof schema>;
+  DrizzleD1Database<typeof schema> | BetterSQLite3Database<typeof schema>;
 
 // ============================================================================
 // TYPES
@@ -476,7 +475,7 @@ export async function checkAiFeatureAccess(
   env: { OPENAI_API_KEY?: string }
 ): Promise<{ allowed: boolean; reason?: string }> {
   // 1. Check global setting
-  const { getGlobalSettings } = await import("@/services/global-settings");
+  const { getGlobalSettings } = await import("@api/services/global-settings");
   const globalSettings = await getGlobalSettings(db);
 
   if (!globalSettings.aiEnabled) {

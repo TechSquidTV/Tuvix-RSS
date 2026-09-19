@@ -11,8 +11,8 @@ import {
   seedTestUser,
   seedTestSource,
   seedTestSubscription,
-} from "@/test/setup";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { articlesRouter } from "../articles";
 import { eq } from "drizzle-orm";
 
@@ -631,12 +631,15 @@ describe("Articles Router - Subscription Filters", () => {
 
       const caller = createCaller();
 
-      const page1 = await caller.list({ limit: 1, cursor: 0 });
+      const page1 = await caller.list({ limit: 1 });
       expect(page1.items).toHaveLength(1);
       expect(page1.items[0].title).toBe("Needle 0");
       expect(page1.hasMore).toBe(true);
 
-      const page2 = await caller.list({ limit: 1, cursor: 1 });
+      const page2 = await caller.list({
+        limit: 1,
+        cursor: page1.nextCursor ?? undefined,
+      });
       expect(page2.items).toHaveLength(1);
       expect(page2.items[0].title).toBe("Needle 150");
       expect(page2.hasMore).toBe(false);

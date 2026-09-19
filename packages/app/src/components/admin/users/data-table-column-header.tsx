@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from "./table-features";
 import { Column } from "@tanstack/react-table";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
@@ -5,14 +6,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface DataTableColumnHeaderProps<
-  TData,
+  TData extends object,
   TValue,
 > extends React.HTMLAttributes<HTMLDivElement> {
-  column: Column<TData, TValue>;
+  column: Column<DataTableFeatures, TData, TValue>;
   title: string;
 }
 
-export function DataTableColumnHeader<TData, TValue>({
+export function DataTableColumnHeader<TData extends object, TValue>({
   column,
   title,
   className,

@@ -67,7 +67,7 @@ export function UsageQuotaItem({
                 isAtLimit
                   ? "destructive"
                   : isNearLimit
-                    ? "warning"
+                    ? "outline"
                     : "secondary"
               }
               className="text-xs"

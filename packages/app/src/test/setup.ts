@@ -1,4 +1,4 @@
-import { cleanup } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { expect } from "vitest";
@@ -8,6 +8,13 @@ expect.extend(matchers);
 
 // Cleanup after each test case (e.g., clearing jsdom)
 afterEach(() => {
+  // Release focus before removing its node. Otherwise jsdom can retain the
+  // detached focus target and emit a window blur when the next test focuses a
+  // menu, which Radix correctly interprets as leaving the browser window.
+  act(() => {
+    if (document.activeElement instanceof HTMLElement)
+      document.activeElement.blur();
+  });
   cleanup();
 });
 

@@ -19,33 +19,33 @@ import {
   like,
   type SQL,
 } from "drizzle-orm";
-import { router, adminProcedure } from "@/trpc/init";
-import * as schema from "@/db/schema";
+import { router, adminProcedure } from "@api/trpc/init";
+import * as schema from "@api/db/schema";
 import {
   getUserLimits,
   getUserUsage,
   recalculateUsage,
-} from "@/services/limits";
+} from "@api/services/limits";
 import {
   createPaginatedSchema,
   withUndefinedAsEmpty,
   paginationInputSchema,
   createPaginatedResponse,
-} from "@/types/pagination";
-import { validatePlanExists, getAllPlans } from "@/services/plans";
+} from "@api/types/pagination";
+import { validatePlanExists, getAllPlans } from "@api/services/plans";
 import {
   titleValidator,
   descriptionValidator,
   domainValidator,
-} from "@/types/validators";
-import { normalizeDomain } from "@/utils/domain-checker";
-import { chunkArray, D1_MAX_PARAMETERS } from "@/db/utils";
-import { withQueryMetrics } from "@/utils/db-metrics";
-import { aggregateByDay, calculateStartDate } from "@/utils/admin-metrics";
-import { createAuth } from "@/auth/better-auth";
-import { getGlobalSettings } from "@/services/global-settings";
-import { logSecurityEvent } from "@/auth/security";
-import * as Sentry from "@/utils/sentry";
+} from "@api/types/validators";
+import { normalizeDomain } from "@api/utils/domain-checker";
+import { chunkArray, D1_MAX_PARAMETERS } from "@api/db/utils";
+import { withQueryMetrics } from "@api/utils/db-metrics";
+import { aggregateByDay, calculateStartDate } from "@api/utils/admin-metrics";
+import { createAuth } from "@api/auth/better-auth";
+import { getGlobalSettings } from "@api/services/global-settings";
+import { logSecurityEvent } from "@api/auth/security";
+import * as Sentry from "@api/utils/sentry";
 
 // ============================================================================
 // SHARED SCHEMAS AND CONSTANTS
@@ -2285,9 +2285,9 @@ export const adminRouter = router({
       const { fetchAllFeeds } = await import("../services/rss-fetcher");
 
       // Import Sentry (optional - gracefully handle if unavailable)
-      let Sentry: typeof import("@/utils/sentry") | null = null;
+      let Sentry: typeof import("@api/utils/sentry") | null = null;
       try {
-        Sentry = await import("@/utils/sentry");
+        Sentry = await import("@api/utils/sentry");
       } catch (error) {
         console.warn(
           "Sentry unavailable, continuing without monitoring:",

@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
 import { getGlobalSettings } from "../global-settings";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Global Settings Service", () => {

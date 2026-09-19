@@ -5,10 +5,10 @@
  * Plugins (username, admin, customSession) automatically extend these types.
  *
  * These types are extracted from the Auth type returned by createAuth().
- * Import Auth from @/auth/better-auth and use these helper types.
+ * Import Auth from @api/auth/better-auth and use these helper types.
  */
 
-import type { Auth } from "@/auth/better-auth";
+import type { Auth } from "@api/auth/better-auth";
 
 /**
  * Helper type to extract $Infer types from Auth instance

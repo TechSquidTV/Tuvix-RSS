@@ -7,13 +7,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-interface ExtendedNavigator extends Navigator {
-  standalone?: boolean;
-  getInstalledRelatedApps?: () => Promise<
-    Array<{ platform: string; url?: string; id?: string }>
-  >;
-}
-
 interface ExtendedWindow extends Window {
   MSStream?: unknown;
 }
@@ -21,13 +14,9 @@ interface ExtendedWindow extends Window {
 describe("usePWAInstall", () => {
   let mockMatchMedia: ReturnType<typeof vi.fn>;
   let mockGetInstalledRelatedApps: ReturnType<typeof vi.fn>;
-  let originalNavigator: Navigator;
-  let originalWindow: Window & typeof globalThis;
 
   beforeEach(() => {
     // Store originals
-    originalNavigator = global.navigator;
-    originalWindow = global.window;
 
     // Mock matchMedia
     mockMatchMedia = vi.fn().mockReturnValue({

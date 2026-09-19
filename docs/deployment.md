@@ -2,6 +2,8 @@
 
 This guide covers development and release processes for both Docker Compose and Cloudflare (Workers + Pages) deployments.
 
+For the next release, follow the [release checklist](release-checklist.md), including migrations 0012–0014, upgrade rehearsal, coordinated API/frontend deployment, and recovery checks.
+
 ## Table of Contents
 
 - [TuvixRSS Deployment Guide](#tuvixrss-deployment-guide)
@@ -107,7 +109,7 @@ Both deployments share the same codebase with runtime-specific adapters.
 
 | Feature       | Docker Compose          | Cloudflare Workers                     |
 | ------------- | ----------------------- | -------------------------------------- |
-| Runtime       | Node.js 20+             | Cloudflare Workers                     |
+| Runtime       | Node.js 24+             | Cloudflare Workers                     |
 | Database      | SQLite (better-sqlite3) | D1 (Cloudflare's SQLite)               |
 | Cron          | node-cron               | Workers Scheduled Events               |
 | Rate Limiting | Disabled                | Cloudflare Workers rate limit bindings |
@@ -450,7 +452,7 @@ docker compose up -d
 - Multi-stage build (builder + production)
 - Build context: monorepo root (not `packages/api`)
 - Copies workspace files (`pnpm-workspace.yaml`, root `pnpm-lock.yaml`)
-- Installs pnpm 10.19.0
+- Installs pnpm 12.3.4
 - Installs dependencies for all needed packages (api + tricorder)
 - Runs migrations on startup
 - Exposes port 3001
@@ -574,7 +576,7 @@ docker compose up -d
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - pnpm
 - Cloudflare account ([Sign up](https://dash.cloudflare.com/sign-up))
 - Wrangler CLI (`npm install -g wrangler` or use `npx wrangler`)
@@ -797,7 +799,7 @@ npx wrangler secret put SENTRY_RELEASE
 
 #### Step 4: Database Migrations
 
-**Note:** For first deployment, run migrations BEFORE deploying. For subsequent deployments, migrations can run before or after deployment (CI/CD runs them after deployment).
+**Note:** Apply database migrations before deploying the API. CI/CD uses this order so new code can rely on the updated schema. Review migrations for compatibility with the currently running version before release.
 
 ```bash
 cd packages/api
@@ -1439,8 +1441,8 @@ feature branch → PR → main → [Manual Deploy to Production]
 2. Runs type checks and tests for API
 3. Builds API
 4. Creates `wrangler.toml` from `wrangler.example.toml` and substitutes `D1_DATABASE_ID`
-5. Deploys API to Cloudflare Workers
-6. Runs database migrations (after successful API deployment)
+5. Runs database migrations
+6. Deploys API to Cloudflare Workers after migrations succeed
 7. Runs type checks and tests for App
 8. Builds App (with `VITE_API_URL` from secrets)
 9. Deploys App to Cloudflare Pages (after API deployment succeeds)
@@ -1524,8 +1526,8 @@ Configure these in **Settings → Environments → production → Secrets**:
    - Runs type checks and tests for API
    - Builds API
    - Substitutes `D1_DATABASE_ID` in `wrangler.toml` using `envsubst`
-   - Deploys API to Cloudflare Workers
-   - Runs database migrations (after API deployment succeeds)
+   - Runs database migrations
+   - Deploys API to Cloudflare Workers after migrations succeed
    - Runs type checks and tests for App
    - Builds App with `VITE_API_URL` from secrets
    - Deploys App to Cloudflare Pages (only after API deployment succeeds)
@@ -1649,7 +1651,7 @@ Configure these in **Settings → Environments → production → Secrets**:
 - Verify `D1_DATABASE_ID` secret is set correctly (workflow will fail if missing)
 - If migrations fail with error code 7403: API token lacks D1 permissions or database belongs to different account
 - Review Cloudflare dashboard for errors
-- Ensure database migrations completed successfully (runs after API deployment)
+- Ensure database migrations completed successfully (runs before API deployment)
 - Check that worker name in `wrangler.toml` matches your Cloudflare Worker
 
 **Coverage Not Showing:**

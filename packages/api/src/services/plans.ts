@@ -1,5 +1,5 @@
-import type { Database } from "@/db/client";
-import * as schema from "@/db/schema";
+import type { Database } from "@api/db/client";
+import * as schema from "@api/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 /**

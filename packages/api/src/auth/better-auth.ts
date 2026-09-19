@@ -10,22 +10,24 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
 import { customSession } from "better-auth/plugins";
-import { createAuthMiddleware } from "better-auth/api";
-import { createDatabase } from "@/db/client";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { initializeNewUser } from "@api/services/user-init";
+import { enforceAuthRateLimit } from "@api/auth/rate-limit";
+import { createDatabase } from "@api/db/client";
 import {
   sendWelcomeEmail,
   sendPasswordResetEmail,
   sendVerificationEmail,
-} from "@/services/email";
-import { logSecurityEvent } from "@/auth/security";
-import { getGlobalSettings } from "@/services/global-settings";
-import { getClientIp, getUserAgent, extractHeaders } from "@/auth/security";
+} from "@api/services/email";
+import { logSecurityEvent } from "@api/auth/security";
+import { getGlobalSettings } from "@api/services/global-settings";
+import { getClientIp, getUserAgent, extractHeaders } from "@api/auth/security";
 import { eq } from "drizzle-orm";
-import * as schema from "@/db/schema";
-import type { Env } from "@/types";
-import type { BetterAuthUser } from "@/types/better-auth";
-import * as Sentry from "@/utils/sentry";
-import { emitCounter, emitDistribution } from "@/utils/metrics";
+import * as schema from "@api/db/schema";
+import type { Env } from "@api/types";
+import type { BetterAuthUser } from "@api/types/better-auth";
+import * as Sentry from "@api/utils/sentry";
+import { emitCounter, emitDistribution } from "@api/utils/metrics";
 
 /**
  * Create Better Auth instance
@@ -118,13 +120,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       enabled: false,
     },
     session: {
-      // Cookie cache reduces DB queries by storing session data in a signed cookie
-      // This replaces the React Query 15-minute staleTime optimization on the client
-      cookieCache: {
-        enabled: true,
-        maxAge: 15 * 60, // 15 minutes cache duration (in seconds)
-        strategy: "compact", // Most efficient: base64url + HMAC-SHA256
-      },
+      cookieCache: { enabled: false },
       // Session expires after 7 days (Better Auth default)
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       // Update session expiration every 24 hours when used
@@ -133,7 +129,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
     advanced: {
       // Use integer IDs to match existing schema
       database: {
-        useNumberId: true,
+        generateId: "serial",
       },
       // Configure IP address headers for Cloudflare
       ipAddress: {
@@ -279,61 +275,60 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       }),
       // Custom session plugin - includes banned status in session
       customSession(async ({ user, session }) => {
-        // Fetch banned status from database
-        // Note: This queries on every session check, but sessions are cached client-side
-        try {
-          const result = await database
-            .select()
-            .from(schema.user)
-            .where(eq(schema.user.id, Number(user.id)))
-            .limit(1);
-
-          const banned = result[0]?.banned ?? false;
-
-          return {
-            user: {
-              ...user,
-              banned,
-            },
-            session,
-          };
-        } catch (error) {
-          // Log error to Sentry but don't block session creation
-          Sentry.captureException(error, {
-            tags: {
-              component: "better-auth",
-              operation: "custom-session",
-            },
-            extra: {
-              userId: user.id,
-            },
+        const [record] = await database
+          .select()
+          .from(schema.user)
+          .where(eq(schema.user.id, Number(user.id)))
+          .limit(1);
+        if (!record)
+          throw new APIError("UNAUTHORIZED", {
+            message: "User no longer exists",
           });
-
-          // Fail open - return session without banned status
-          console.error("Failed to fetch user banned status:", error);
-          return {
-            user: {
-              ...user,
-              banned: false,
-            },
-            session,
-          };
-        }
+        return {
+          user: {
+            ...user,
+            username: record.username,
+            role: record.role,
+            plan: record.plan,
+            banned: record.banned ?? false,
+          },
+          session,
+        };
       }),
     ],
-    // Additional fields for custom user data
-    additionalFields: {
-      plan: {
-        type: "string",
-        required: false,
-        defaultValue: "free",
-        input: false, // Not editable via auth API
+    user: {
+      additionalFields: {
+        plan: {
+          type: "string",
+          required: false,
+          defaultValue: "free",
+          input: false,
+        },
       },
     },
-    // Rate limiting disabled - using custom rate limiting system instead
-    rateLimit: {
-      enabled: false,
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            await initializeNewUser(
+              database,
+              Number(user.id),
+              env.ALLOW_FIRST_USER_ADMIN !== "false"
+            );
+            const [record] = await database
+              .select()
+              .from(schema.user)
+              .where(eq(schema.user.id, Number(user.id)))
+              .limit(1);
+            if (record)
+              Object.assign(user, { role: record.role, plan: record.plan });
+          },
+        },
+      },
     },
+    // All credential endpoints, including server-side calls, share the atomic
+    // database limiter in the before hook below.
+    rateLimit: { enabled: false },
     // Email verification configuration
     emailVerification: {
       sendVerificationEmail: async ({ user, token }, _request) => {
@@ -551,34 +546,23 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
       sendOnSignUp: true, // Callback checks requireEmailVerification setting dynamically
       autoSignInAfterVerification: true,
       expiresIn: 3600, // 1 hour
-      // Redirect to frontend after successful verification
-      callbackURL: frontendUrl,
     },
     // Hooks for security audit logging and welcome emails
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        // Check if registration is disabled before processing sign-up
-        if (ctx.path.startsWith("/sign-up")) {
-          try {
-            const settings = await getCachedSettings();
-            if (!settings.allowRegistration) {
-              // Return error response to prevent registration
-              return {
-                status: 403,
-                body: JSON.stringify({
-                  error: {
-                    message: "Registration is currently disabled",
-                  },
-                }),
-              };
-            }
-          } catch (error) {
-            // If we can't check settings, allow registration (fail open for availability)
-            console.error("Failed to check registration settings:", error);
+        if (
+          /^\/(sign-in|sign-up|request-password-reset|reset-password|send-verification-email|change-password)(\/|$)/.test(
+            ctx.path
+          )
+        ) {
+          const settings = await getCachedSettings();
+          await enforceAuthRateLimit(database, ctx.headers, settings);
+          if (ctx.path.startsWith("/sign-up") && !settings.allowRegistration) {
+            throw new APIError("FORBIDDEN", {
+              message: "Registration is currently disabled",
+            });
           }
         }
-        // Continue with the request
-        return;
       }),
       after: createAuthMiddleware(async (ctx) => {
         // Handle sign-up events
@@ -866,7 +850,7 @@ export function createAuth(env: Env, db?: ReturnType<typeof createDatabase>) {
 
           // Try to find user by email from request body
           try {
-            const body = ctx.context.body as { email?: string } | undefined;
+            const body = ctx.body as { email?: string } | undefined;
             const email = body?.email;
             if (email && typeof email === "string") {
               const [userRecord] = await database

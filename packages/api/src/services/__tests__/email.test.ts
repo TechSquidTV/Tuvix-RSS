@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../email";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 // Mock Resend - use hoisted to create shared mock function
 const { mockSend } = vi.hoisted(() => {
@@ -27,7 +27,8 @@ vi.mock("resend", () => {
 });
 
 // Mock react-email render
-vi.mock("react-email", () => ({
+vi.mock("react-email", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-email")>()),
   render: vi.fn().mockResolvedValue("<html>test</html>"),
 }));
 

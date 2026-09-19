@@ -58,26 +58,9 @@ function ArticlesPage() {
   const markAllRead = useMarkAllRead();
   const { data: userSettings } = useUserSettings();
 
-  // Create separate refs for each tab to avoid conflicts with tab visibility
-  const { ref: refAll, inView: inViewAll } = useInView({
+  const { ref: paginationRef, inView } = useInView({
     threshold: 0,
     rootMargin: "400px",
-    triggerOnce: false,
-  });
-  const { ref: refUnread, inView: inViewUnread } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
-    triggerOnce: false,
-  });
-  const { ref: refRead, inView: inViewRead } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
-    triggerOnce: false,
-  });
-  const { ref: refSaved, inView: inViewSaved } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
-    triggerOnce: false,
   });
 
   const [showFirstTimeTooltip, setShowFirstTimeTooltip] = useState(() => {
@@ -89,17 +72,6 @@ function ArticlesPage() {
     return userSettings?.defaultFilter || "all";
   });
 
-  // Determine which tab's inView to use based on active filter
-  const inView =
-    activeFilter === "all"
-      ? inViewAll
-      : activeFilter === "unread"
-        ? inViewUnread
-        : activeFilter === "read"
-          ? inViewRead
-          : activeFilter === "saved"
-            ? inViewSaved
-            : false;
   const [markAllDialogOpen, setMarkAllDialogOpen] = useState(false);
   const [markOldDialogOpen, setMarkOldDialogOpen] = useState(false);
 
@@ -150,6 +122,9 @@ function ArticlesPage() {
     isFetchingNextPage,
     isLoading,
     isError,
+    isFetchNextPageError,
+    refetch,
+    isRefetching,
   } = useInfiniteArticles(filters);
 
   // Mark tooltip as seen when shown
@@ -280,6 +255,7 @@ function ArticlesPage() {
       inView &&
       hasNextPage &&
       !isFetchingNextPage &&
+      !isFetchNextPageError &&
       !isFetchingRef.current
     ) {
       isFetchingRef.current = true;
@@ -287,7 +263,13 @@ function ArticlesPage() {
         isFetchingRef.current = false;
       });
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [
+    inView,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  ]);
 
   const handleFilterChange = (value: string) => {
     // Mark that user manually changed the filter
@@ -358,17 +340,27 @@ function ArticlesPage() {
         </div>
       )}
 
-      {isError && (
+      {isError && !data && (
         <Alert role="alert" className="text-center py-12">
           <AlertTitle>Error loading articles</AlertTitle>
           <AlertDescription>
             Failed to load articles. Please try again.
+            <Button
+              variant="outline"
+              onClick={() => void refetch()}
+              disabled={isRefetching}
+            >
+              <RefreshCw
+                className={isRefetching ? "animate-spin size-4" : "size-4"}
+              />
+              Try again
+            </Button>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Only show "add subscriptions" empty state if there are NO articles across ALL filters */}
-      {!isLoading && !isError && allCount === 0 && (
+      {!isLoading && !isError && counts?.all === 0 && articles.length === 0 && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -380,234 +372,170 @@ function ArticlesPage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Link to="/app/subscriptions" search={{ subscribe: undefined }}>
-              <Button>Add Subscriptions</Button>
-            </Link>
+            <Button asChild>
+              <Link to="/app/subscriptions" search={{ subscribe: undefined }}>
+                Add Subscriptions
+              </Link>
+            </Button>
           </EmptyContent>
         </Empty>
       )}
 
       {/* Show tabs if there are ANY articles (even if current filter is empty) */}
-      {!isLoading && !isError && allCount > 0 && (
-        <Tabs value={activeFilter} onValueChange={handleFilterChange}>
-          {/* Filter Tabs */}
-          <div className="w-full flex flex-col sm:flex-row items-center sm:justify-between gap-4">
-            <div className="w-full sm:w-auto overflow-x-auto scrollbar-hide">
-              <TabsList>
-                <TabsTrigger value="all">
-                  All
-                  {allCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {allCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="unread">
-                  Unread
-                  {unreadCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="read">
-                  Read
-                  {readCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {readCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="saved">
-                  Saved
-                  {savedCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {savedCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+      {!isLoading &&
+        (!isError || !!data) &&
+        (counts?.all !== 0 || articles.length > 0) && (
+          <Tabs value={activeFilter} onValueChange={handleFilterChange}>
+            {/* Filter Tabs */}
+            <div className="w-full flex flex-col sm:flex-row items-center sm:justify-between gap-4">
+              <div className="w-full sm:w-auto overflow-x-auto scrollbar-hide">
+                <TabsList>
+                  <TabsTrigger value="all">
+                    All
+                    {allCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {allCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="unread">
+                    Unread
+                    {unreadCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="read">
+                    Read
+                    {readCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {readCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="saved">
+                    Saved
+                    {savedCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {savedCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Bulk Actions */}
+              {unreadCount > 0 && (
+                <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap justify-center sm:justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Mark articles older than 3 days as read"
+                    onClick={handleMarkOldRead}
+                    disabled={markAllRead.isPending}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Mark old as read</span>
+                    <span className="sm:hidden">Old</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Mark all articles as read"
+                    onClick={handleMarkAllRead}
+                    disabled={markAllRead.isPending}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Mark all as read</span>
+                    <span className="sm:hidden">All</span>
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Bulk Actions */}
-            {unreadCount > 0 && (
-              <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap justify-center sm:justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkOldRead}
-                  disabled={markAllRead.isPending}
-                  className="flex-1 sm:flex-none"
-                >
-                  <Clock className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Mark old as read</span>
-                  <span className="sm:hidden">Old</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkAllRead}
-                  disabled={markAllRead.isPending}
-                  className="flex-1 sm:flex-none"
-                >
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Mark all as read</span>
-                  <span className="sm:hidden">All</span>
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <TabsContents>
-            <TabsContent value="all">
-              {articles.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Inbox className="size-12" />
-                    </EmptyMedia>
-                    <EmptyTitle>No articles</EmptyTitle>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <AnimatedArticleList
-                  articles={articles}
-                  newArticleIds={newArticleIds}
-                >
-                  {/* Infinite scroll trigger */}
-                  <div ref={refAll} className="flex justify-center py-4">
-                    {isFetchingNextPage && (
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="animate-spin size-4" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading more articles...
-                        </span>
-                      </div>
-                    )}
-                    {!hasNextPage && articles.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        No more articles
-                      </span>
-                    )}
-                  </div>
-                </AnimatedArticleList>
-              )}
-            </TabsContent>
-
-            <TabsContent value="unread">
-              {articles.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Inbox className="size-12" />
-                    </EmptyMedia>
-                    <EmptyTitle>No unread articles</EmptyTitle>
-                    <EmptyDescription>You're all caught up!</EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <AnimatedArticleList
-                  articles={articles}
-                  newArticleIds={newArticleIds}
-                >
-                  {/* Infinite scroll trigger */}
-                  <div ref={refUnread} className="flex justify-center py-4">
-                    {isFetchingNextPage && (
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="animate-spin size-4" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading more articles...
-                        </span>
-                      </div>
-                    )}
-                    {!hasNextPage && articles.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        No more articles
-                      </span>
-                    )}
-                  </div>
-                </AnimatedArticleList>
-              )}
-            </TabsContent>
-
-            <TabsContent value="read">
-              {articles.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Inbox className="size-12" />
-                    </EmptyMedia>
-                    <EmptyTitle>No read articles</EmptyTitle>
-                    <EmptyDescription>
-                      Articles you've read will appear here
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <AnimatedArticleList
-                  articles={articles}
-                  newArticleIds={newArticleIds}
-                >
-                  {/* Infinite scroll trigger */}
-                  <div ref={refRead} className="flex justify-center py-4">
-                    {isFetchingNextPage && (
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="animate-spin size-4" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading more articles...
-                        </span>
-                      </div>
-                    )}
-                    {!hasNextPage && articles.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        No more articles
-                      </span>
-                    )}
-                  </div>
-                </AnimatedArticleList>
-              )}
-            </TabsContent>
-
-            <TabsContent value="saved">
-              {articles.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Inbox className="size-12" />
-                    </EmptyMedia>
-                    <EmptyTitle>No saved articles</EmptyTitle>
-                    <EmptyDescription>
-                      Save articles to read them later
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <AnimatedArticleList
-                  articles={articles}
-                  newArticleIds={newArticleIds}
-                >
-                  {/* Infinite scroll trigger */}
-                  <div ref={refSaved} className="flex justify-center py-4">
-                    {isFetchingNextPage && (
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="animate-spin size-4" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading more articles...
-                        </span>
-                      </div>
-                    )}
-                    {!hasNextPage && articles.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        No more articles
-                      </span>
-                    )}
-                  </div>
-                </AnimatedArticleList>
-              )}
-            </TabsContent>
-          </TabsContents>
-        </Tabs>
-      )}
+            <TabsContents>
+              {[
+                {
+                  value: "all",
+                  title: "No articles",
+                  description: null,
+                },
+                {
+                  value: "unread",
+                  title: "No unread articles",
+                  description: "You're all caught up!",
+                },
+                {
+                  value: "read",
+                  title: "No read articles",
+                  description: "Articles you've read will appear here",
+                },
+                {
+                  value: "saved",
+                  title: "No saved articles",
+                  description: "Save articles to read them later",
+                },
+              ].map((tab) => (
+                <TabsContent key={tab.value} value={tab.value}>
+                  {activeFilter === tab.value &&
+                    (articles.length === 0 ? (
+                      <Empty>
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Inbox className="size-12" />
+                          </EmptyMedia>
+                          <EmptyTitle>{tab.title}</EmptyTitle>
+                          {tab.description && (
+                            <EmptyDescription>
+                              {tab.description}
+                            </EmptyDescription>
+                          )}
+                        </EmptyHeader>
+                      </Empty>
+                    ) : (
+                      <AnimatedArticleList
+                        articles={articles}
+                        newArticleIds={newArticleIds}
+                      >
+                        <div
+                          ref={paginationRef}
+                          className="flex justify-center py-4"
+                          aria-live="polite"
+                        >
+                          {hasNextPage && !isFetchingNextPage && (
+                            <Button
+                              variant="outline"
+                              onClick={() => void fetchNextPage()}
+                            >
+                              {isFetchNextPageError
+                                ? "Retry loading more articles"
+                                : "Load more articles"}
+                            </Button>
+                          )}
+                          {isFetchingNextPage && (
+                            <div className="flex items-center gap-2">
+                              <RefreshCw className="animate-spin size-4" />
+                              <span className="text-sm text-muted-foreground">
+                                Loading more articles...
+                              </span>
+                            </div>
+                          )}
+                          {!hasNextPage && (
+                            <span className="text-sm text-muted-foreground">
+                              No more articles
+                            </span>
+                          )}
+                        </div>
+                      </AnimatedArticleList>
+                    ))}
+                </TabsContent>
+              ))}
+            </TabsContents>
+          </Tabs>
+        )}
 
       {/* Mark All Read Confirmation Dialog */}
       <ResponsiveAlertDialog

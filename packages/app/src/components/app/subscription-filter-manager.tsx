@@ -247,12 +247,12 @@ export function SubscriptionFilterManager({
   const handleDelete = useCallback(
     async (filterId: number) => {
       try {
-        await deleteFilter.mutateAsync(filterId);
+        await deleteFilter.mutateAsync({ subscriptionId, filterId });
       } catch {
         // Error handled by hook
       }
     },
-    [deleteFilter]
+    [deleteFilter, subscriptionId]
   );
 
   // Handle cancel

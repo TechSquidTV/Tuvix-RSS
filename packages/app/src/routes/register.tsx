@@ -16,7 +16,10 @@ function RegisterPage() {
   // Redirect to app if user is already logged in
   useEffect(() => {
     if (!isPending && user) {
-      navigate({ to: "/app/articles", search: { category_id: undefined } });
+      navigate({
+        to: "/app/articles",
+        search: { category_id: undefined, subscription_id: undefined },
+      });
     }
   }, [isPending, user, navigate]);
 

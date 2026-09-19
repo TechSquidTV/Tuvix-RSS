@@ -19,7 +19,7 @@ const mockEnv = {
 const { mockCaptureException, mockStartSpan } = vi.hoisted(() => {
   return {
     mockCaptureException: vi.fn().mockResolvedValue("test-event-id"),
-    mockStartSpan: vi.fn().mockImplementation(async (options, callback) => {
+    mockStartSpan: vi.fn().mockImplementation(async (_options, callback) => {
       return await callback();
     }),
   };
@@ -46,7 +46,7 @@ describe("DebugSentryPage", () => {
     vi.clearAllMocks();
     // Reset mock implementations
     mockCaptureException.mockResolvedValue("test-event-id");
-    mockStartSpan.mockImplementation(async (options, callback) => {
+    mockStartSpan.mockImplementation(async (_options, callback) => {
       return await callback();
     });
 
@@ -328,7 +328,7 @@ describe("DebugSentryPage - Error Messages", () => {
     vi.clearAllMocks();
     // Reset mock implementations
     mockCaptureException.mockResolvedValue("test-event-id");
-    mockStartSpan.mockImplementation(async (options, callback) => {
+    mockStartSpan.mockImplementation(async (_options, callback) => {
       return await callback();
     });
 

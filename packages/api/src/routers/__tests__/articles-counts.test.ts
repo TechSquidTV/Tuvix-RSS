@@ -6,14 +6,15 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { eq } from "drizzle-orm";
 import {
   createTestDb,
   cleanupTestDb,
   seedTestUser,
   seedTestSource,
   seedTestSubscription,
-} from "@/test/setup";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { articlesRouter } from "../articles";
 
 describe("Articles Router - getCounts", () => {
@@ -45,9 +46,9 @@ describe("Articles Router - getCounts", () => {
     return articlesRouter.createCaller({
       db,
       user: { userId: testUser.id, username: "testuser", role: "user" },
-      env: {} as any,
+      env: { SKIP_RATE_LIMIT: "true" },
       headers: {},
-      req: {} as any,
+      req: new Request("http://localhost/trpc"),
     });
   }
 
@@ -63,6 +64,48 @@ describe("Articles Router - getCounts", () => {
 
     await db.insert(schema.articles).values(articles);
   }
+
+  it.each(["include", "exclude"] as const)(
+    "counts only visible articles across chunks with %s filters",
+    async (filterMode) => {
+      await createArticles(250);
+      const [subscription] = await db.select().from(schema.subscriptions);
+      await db
+        .update(schema.subscriptions)
+        .set({ filterEnabled: true, filterMode })
+        .where(eq(schema.subscriptions.id, subscription!.id));
+      await db.insert(schema.subscriptionFilters).values({
+        subscriptionId: subscription!.id,
+        field: "title",
+        matchType: "exact",
+        pattern: "Article 1",
+      });
+      const [article] = await db
+        .select()
+        .from(schema.articles)
+        .where(eq(schema.articles.title, "Article 1"));
+      await db.insert(schema.userArticleStates).values({
+        userId: testUser.id,
+        articleId: article!.id,
+        read: true,
+        saved: true,
+      });
+      const counts = await createCaller().getCounts({});
+      expect(counts).toEqual(
+        filterMode === "include"
+          ? { all: 1, read: 1, unread: 0, saved: 1 }
+          : { all: 249, read: 0, unread: 249, saved: 0 }
+      );
+      const list = await createCaller().list({ limit: 100 });
+      expect(
+        list.items.every((item) =>
+          filterMode === "include"
+            ? item.title === "Article 1"
+            : item.title !== "Article 1"
+        )
+      ).toBe(true);
+    }
+  );
 
   describe("Basic Counts", () => {
     it("should return zero counts when no articles exist", async () => {

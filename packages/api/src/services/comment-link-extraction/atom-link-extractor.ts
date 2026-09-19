@@ -8,7 +8,7 @@
 import type {
   CommentLinkExtractor,
   ExtractedCommentLink,
-  FeedItem,
+  ParsedFeedItem,
 } from "./types";
 
 /**
@@ -19,13 +19,13 @@ import type {
 export class AtomLinkExtractor implements CommentLinkExtractor {
   readonly priority = 20; // Second priority - standard format
 
-  canHandle(item: FeedItem): boolean {
+  canHandle(item: ParsedFeedItem): boolean {
     return (
       "links" in item && Array.isArray(item.links) && item.links.length > 0
     );
   }
 
-  extract(item: FeedItem): ExtractedCommentLink | null {
+  extract(item: ParsedFeedItem): ExtractedCommentLink | null {
     if ("links" in item && Array.isArray(item.links)) {
       const commentLink = item.links.find((link) => {
         const rel = link.rel?.toLowerCase();

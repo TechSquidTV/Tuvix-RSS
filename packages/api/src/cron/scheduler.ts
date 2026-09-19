@@ -8,8 +8,8 @@
 
 import cron from "node-cron";
 import { executeScheduledTasks } from "./executor";
-import { createDatabase } from "@/db/client";
-import type { Env } from "@/types";
+import { createDatabase } from "@api/db/client";
+import type { Env } from "@api/types";
 
 /**
  * Initialize cron jobs for Node.js runtime
@@ -48,7 +48,9 @@ export async function initCronJobs(env: Env): Promise<void> {
 
   console.log("✅ Cron scheduler initialized (polling every minute)");
   console.log("   Tasks run based on timestamps in global_settings:");
-  console.log("   - RSS fetch: based on fetchIntervalMinutes setting");
+  console.log(
+    "   - RSS batches: every minute; per-feed refresh uses fetchIntervalMinutes"
+  );
   console.log("   - Article prune: every 24 hours");
   console.log("   - Token cleanup: every 7 days");
 

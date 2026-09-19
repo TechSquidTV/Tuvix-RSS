@@ -4,4 +4,4 @@
  * Exported validator functions.
  */
 
-export { createFeedValidator } from "./feed-validator";
+export { createFeedValidator } from "./feed-validator.js";

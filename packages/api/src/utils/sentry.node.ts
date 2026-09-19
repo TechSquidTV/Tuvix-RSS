@@ -4,7 +4,7 @@
  * This file re-exports all Sentry functionality from @sentry/node.
  * It's used in local Docker development builds.
  *
- * Build-time aliasing in tsup.config.ts routes imports of "@/utils/sentry"
+ * Build-time aliasing in tsup.config.ts routes imports of "@api/utils/sentry"
  * to this file for Node.js builds.
  *
  * Note: Sentry must be initialized in the entry point (entries/node.ts)

@@ -5,12 +5,12 @@
  * to look up podcast metadata and extract the RSS feed URL.
  */
 
-import { isSubdomainOf } from "../utils/domain-matcher";
+import { isSubdomainOf } from "../utils/domain-matcher.js";
 import type {
   DiscoveryContext,
   DiscoveryService,
   DiscoveredFeed,
-} from "../core/types";
+} from "../core/types.js";
 
 /**
  * iTunes Search API response types
@@ -125,7 +125,7 @@ export class AppleDiscoveryService implements DiscoveryService {
 
       // Call iTunes Search API
       const apiUrl = `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`;
-      const response = await fetch(apiUrl, {
+      const response = await context.fetch(apiUrl, {
         headers: {
           "User-Agent": "TuvixRSS/1.0",
         },

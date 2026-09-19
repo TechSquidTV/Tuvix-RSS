@@ -7,10 +7,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { executeScheduledTasks } from "../executor";
-import { createTestDb, cleanupTestDb } from "@/test/setup";
-import * as schema from "@/db/schema";
+import { createTestDb, cleanupTestDb } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 // Mock handlers
 vi.mock("../handlers", () => ({
@@ -20,7 +20,7 @@ vi.mock("../handlers", () => ({
 }));
 
 // Mock metrics
-vi.mock("@/utils/metrics", () => ({
+vi.mock("@api/utils/metrics", () => ({
   emitCounter: vi.fn(),
 }));
 
@@ -75,7 +75,7 @@ describe("Cron Executor", () => {
 
       const result = await executeScheduledTasks(env, db);
 
-      expect(handleRSSFetch).toHaveBeenCalledWith(env);
+      expect(handleRSSFetch).toHaveBeenCalledWith(env, 60);
       expect(handleArticlePrune).toHaveBeenCalledWith(env);
       expect(handleTokenCleanup).toHaveBeenCalledWith(env);
 
@@ -87,11 +87,11 @@ describe("Cron Executor", () => {
     });
 
     it("should skip RSS fetch when interval not elapsed", async () => {
-      // Set lastRssFetchAt to recent time (5 minutes ago)
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      // Do not run a second batch within the same minute.
+      const recentBatch = new Date(Date.now() - 15 * 1000);
       await db
         .update(schema.globalSettings)
-        .set({ lastRssFetchAt: fiveMinutesAgo })
+        .set({ lastRssFetchAt: recentBatch })
         .where(eq(schema.globalSettings.id, 1));
 
       const { handleRSSFetch } = await import("../handlers");
@@ -115,7 +115,7 @@ describe("Cron Executor", () => {
 
       const result = await executeScheduledTasks(env, db);
 
-      expect(handleRSSFetch).toHaveBeenCalledWith(env);
+      expect(handleRSSFetch).toHaveBeenCalledWith(env, 60);
       expect(result.rssFetch.executed).toBe(true);
     });
 
@@ -199,30 +199,30 @@ describe("Cron Executor", () => {
       expect(settings?.lastTokenCleanupAt).not.toBeNull();
     });
 
-    it("should respect fetchIntervalMinutes setting", async () => {
+    it("drains another batch before the per-feed refresh interval elapses", async () => {
       // Set fetch interval to 30 minutes
       await db
         .update(schema.globalSettings)
         .set({ fetchIntervalMinutes: 30 })
         .where(eq(schema.globalSettings.id, 1));
 
-      // Set lastRssFetchAt to 35 minutes ago (should trigger)
-      const thirtyFiveMinutesAgo = new Date(Date.now() - 35 * 60 * 1000);
+      // Queue progress must continue despite the 30-minute per-feed interval.
+      const previousBatch = new Date(Date.now() - 2 * 60 * 1000);
       await db
         .update(schema.globalSettings)
-        .set({ lastRssFetchAt: thirtyFiveMinutesAgo })
+        .set({ lastRssFetchAt: previousBatch })
         .where(eq(schema.globalSettings.id, 1));
 
       const { handleRSSFetch } = await import("../handlers");
 
       const result = await executeScheduledTasks(env, db);
 
-      expect(handleRSSFetch).toHaveBeenCalled();
+      expect(handleRSSFetch).toHaveBeenCalledWith(env, 30);
       expect(result.rssFetch.executed).toBe(true);
     });
 
     it("should emit metrics for executed tasks", async () => {
-      const { emitCounter } = await import("@/utils/metrics");
+      const { emitCounter } = await import("@api/utils/metrics");
 
       await executeScheduledTasks(env, db);
 
@@ -251,7 +251,7 @@ describe("Cron Executor", () => {
         })
         .where(eq(schema.globalSettings.id, 1));
 
-      const { emitCounter } = await import("@/utils/metrics");
+      const { emitCounter } = await import("@api/utils/metrics");
 
       await executeScheduledTasks(env, db);
 

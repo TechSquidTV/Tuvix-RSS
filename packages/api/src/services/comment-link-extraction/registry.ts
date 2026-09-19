@@ -5,8 +5,8 @@
  * Extractors are executed in priority order (lower priority = higher priority).
  */
 
-import * as Sentry from "@/utils/sentry";
-import type { CommentLinkExtractor, FeedItem } from "./types";
+import * as Sentry from "@api/utils/sentry";
+import type { CommentLinkExtractor, ParsedFeedItem } from "./types";
 
 /**
  * Comment Link Extraction Registry
@@ -37,7 +37,7 @@ export class CommentLinkRegistry {
    * @param item - Feed item to extract from
    * @returns Extracted comment link URL, or null if none found
    */
-  extract(item: FeedItem): string | null {
+  extract(item: ParsedFeedItem): string | null {
     const itemTitle = "title" in item ? (item.title as string) : "Unknown";
 
     // Try each extractor in priority order

@@ -1,11 +1,12 @@
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * Favicon Fetcher Service
  *
  * Discovers and fetches favicons from multiple sources with fallback strategies.
  */
 
-import { emitCounter, withTiming } from "@/utils/metrics";
-import { extractDomain } from "@/utils/domain-checker";
+import { emitCounter, withTiming } from "@api/utils/metrics";
+import { extractDomain } from "@api/utils/domain-checker";
 
 // Maximum icon size: 2MB
 const MAX_ICON_SIZE = 2 * 1024 * 1024;
@@ -133,7 +134,7 @@ async function isValidIcon(iconUrl: string): Promise<boolean> {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
   try {
-    const response = await fetch(iconUrl, {
+    const response = await safeFetch(iconUrl, {
       method: "HEAD",
       signal: controller.signal,
       headers: {

@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from "./table-features";
 import * as React from "react";
 import { Column } from "@tanstack/react-table";
 import { Check, PlusCircle } from "lucide-react";
@@ -21,8 +22,8 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 
-interface DataTableFacetedFilterProps<TData, TValue> {
-  column?: Column<TData, TValue>;
+interface DataTableFacetedFilterProps<TData extends object, TValue> {
+  column?: Column<DataTableFeatures, TData, TValue>;
   title?: string;
   options: {
     label: string;
@@ -31,7 +32,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
   }[];
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData extends object, TValue>({
   column,
   title,
   options,

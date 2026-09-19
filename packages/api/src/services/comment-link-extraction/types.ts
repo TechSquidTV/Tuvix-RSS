@@ -4,16 +4,8 @@
  * Types and interfaces for the extensible comment link extraction system.
  */
 
-import type { Rss, Atom, Rdf, Json } from "feedsmith/types";
-
-/**
- * Union type representing any feed item from supported feed formats
- */
-export type FeedItem =
-  | Rss.Item<string>
-  | Atom.Entry<string>
-  | Rdf.Item<string>
-  | Json.Item<string>;
+import type { ParsedFeedItem } from "@api/types/feed";
+export type { ParsedFeedItem } from "@api/types/feed";
 
 /**
  * Extracted comment link result
@@ -38,7 +30,7 @@ export interface CommentLinkExtractor {
    * @param item - The feed item to check
    * @returns True if this extractor can handle the item
    */
-  canHandle(item: FeedItem): boolean;
+  canHandle(item: ParsedFeedItem): boolean;
 
   /**
    * Extract comment link from the given feed item.
@@ -46,7 +38,7 @@ export interface CommentLinkExtractor {
    * @param item - The feed item to extract from
    * @returns Extracted comment link, or null if none found
    */
-  extract(item: FeedItem): ExtractedCommentLink | null;
+  extract(item: ParsedFeedItem): ExtractedCommentLink | null;
 
   /**
    * Execution priority (lower = higher priority).

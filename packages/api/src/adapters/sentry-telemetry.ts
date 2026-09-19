@@ -4,7 +4,7 @@
  * Implements TelemetryAdapter interface for Sentry observability.
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 import type { TelemetryAdapter } from "@tuvixrss/tricorder";
 
 /**

@@ -6,9 +6,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createTestDb, cleanupTestDb, seedGlobalSettings } from "@/test/setup";
+import {
+  createTestDb,
+  cleanupTestDb,
+  seedGlobalSettings,
+} from "@api/test/setup";
 import { authRouter } from "../auth";
-import { createAuth } from "@/auth/better-auth";
+import { createAuth } from "@api/auth/better-auth";
 
 describe("Auth Login - Username and Email Support", () => {
   let db!: NonNullable<ReturnType<typeof createTestDb>>;

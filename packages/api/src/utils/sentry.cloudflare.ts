@@ -4,7 +4,7 @@
  * This file re-exports all Sentry functionality from @sentry/cloudflare.
  * It's used in production Cloudflare Workers builds.
  *
- * Build-time aliasing in tsup.config.ts routes imports of "@/utils/sentry"
+ * Build-time aliasing in tsup.config.ts routes imports of "@api/utils/sentry"
  * to either this file (Cloudflare) or sentry.noop.ts (Node.js/tests).
  */
 

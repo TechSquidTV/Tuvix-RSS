@@ -6,15 +6,15 @@
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { router, rateLimitedProcedure } from "@/trpc/init";
-import * as schema from "@/db/schema";
+import { router, rateLimitedProcedure } from "@api/trpc/init";
+import * as schema from "@api/db/schema";
 import {
   selectUserSettingsSchema,
   updateUserSettingsSchema,
-} from "@/db/schemas.zod";
-import { getUserUsage, getUserLimits } from "@/services/limits";
-import type { Database } from "@/db/client";
-import { withUndefinedAsEmpty } from "@/types/pagination";
+} from "@api/db/schemas.zod";
+import { getUserUsage, getUserLimits } from "@api/services/limits";
+import type { Database } from "@api/db/client";
+import { withUndefinedAsEmpty } from "@api/types/pagination";
 
 // ============================================================================
 // HELPERS

@@ -1,3 +1,6 @@
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { transformer } from "@/lib/api/transformer";
+import { createFetchWithCredentials } from "@/lib/api/query-options";
 import {
   createFileRoute,
   Link,
@@ -42,8 +45,6 @@ export const Route = createFileRoute("/app")({
     try {
       // Create a tRPC caller for server-side check
       // Note: In beforeLoad, we need to use the tRPC client directly
-      const { createTRPCClient, httpBatchLink } = await import("@trpc/client");
-      const { transformer } = await import("@/lib/api/transformer");
       const apiUrl = import.meta.env.VITE_API_URL || "/trpc";
 
       const client = createTRPCClient<AppRouter>({
@@ -51,16 +52,7 @@ export const Route = createFileRoute("/app")({
           httpBatchLink({
             url: apiUrl,
             transformer,
-            // Include cookies for authentication
-            fetch: (url, options) => {
-              return fetch(url, {
-                ...options,
-                credentials: "include",
-                headers: {
-                  ...options?.headers, // Preserve Sentry trace headers
-                },
-              });
-            },
+            fetch: createFetchWithCredentials,
           }),
         ],
       });

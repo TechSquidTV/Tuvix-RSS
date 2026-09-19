@@ -7,11 +7,11 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import superjson from "superjson";
-import * as schema from "@/db/schema";
-import { checkLimit, getUserLimits } from "@/services/limits";
-import { checkApiRateLimit } from "@/services/rate-limiter";
-import { getGlobalSettings } from "@/services/global-settings";
-import * as Sentry from "@/utils/sentry";
+import * as schema from "@api/db/schema";
+import { checkLimit, getUserLimits } from "@api/services/limits";
+import { checkApiRateLimit } from "@api/services/rate-limiter";
+import { getGlobalSettings } from "@api/services/global-settings";
+import * as Sentry from "@api/utils/sentry";
 import type { Context } from "./context";
 
 // Initialize tRPC with context and SuperJSON transformer
@@ -60,7 +60,7 @@ export const router = t.router;
  * Creates spans and improves error capturing for tRPC handlers
  * See: https://docs.sentry.io/platforms/javascript/guides/cloudflare/configuration/integrations/trpc
  *
- * Uses build-time aliased @/utils/sentry which resolves to:
+ * Uses build-time aliased @api/utils/sentry which resolves to:
  * - @sentry/cloudflare in Workers
  * - @sentry/node in Node.js
  * - noop in tests
@@ -70,7 +70,7 @@ const baseProcedure = (() => {
   if (typeof Sentry.trpcMiddleware === "function") {
     const sentryMiddleware = t.middleware(
       Sentry.trpcMiddleware({
-        attachRpcInput: true, // Include RPC input in spans and error context
+        attachRpcInput: false, // Include RPC input in spans and error context
       })
     );
     return t.procedure.use(sentryMiddleware);
@@ -160,16 +160,19 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Check email verification requirement (admin users bypass this check)
-  if (ctx.user.role !== "admin") {
-    const settings = await getGlobalSettings(ctx.db);
-    if (settings.requireEmailVerification && !userRecord.emailVerified) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message:
-          "Email verification required. Please check your email for a verification link.",
-      });
-    }
+  const settings = await getGlobalSettings(ctx.db);
+  const verificationBypass =
+    userRecord.role === "admin" && settings.adminBypassEmailVerification;
+  if (
+    settings.requireEmailVerification &&
+    !userRecord.emailVerified &&
+    !verificationBypass
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Email verification required. Please check your email for a verification link.",
+    });
   }
 
   // Update lastSeenAt (throttled to once every 5 minutes)
@@ -328,7 +331,7 @@ const isAdmin = t.middleware(async ({ ctx, next }) => {
   }
 
   // Check admin role from Better Auth session
-  if (ctx.user.role !== "admin") {
+  if (userRecord.role !== "admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Admin access required",

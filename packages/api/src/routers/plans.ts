@@ -8,10 +8,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
-import { router, publicProcedure, adminProcedure } from "@/trpc/init";
-import { getAllPlans, getPlanById } from "@/services/plans";
-import * as schema from "@/db/schema";
-import { withUndefinedAsEmpty } from "@/types/pagination";
+import { router, publicProcedure, adminProcedure } from "@api/trpc/init";
+import { getAllPlans, getPlanById } from "@api/services/plans";
+import * as schema from "@api/db/schema";
+import { withUndefinedAsEmpty } from "@api/types/pagination";
 
 export const plansRouter = router({
   /**

@@ -13,15 +13,15 @@
  */
 
 import { Resend } from "resend";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 import {
   PasswordResetEmail,
   WelcomeEmail,
   VerificationEmail,
 } from "./email-templates";
 import type React from "react";
-import * as Sentry from "@/utils/sentry";
-import { emitCounter, withTiming } from "@/utils/metrics";
+import * as Sentry from "@api/utils/sentry";
+import { emitCounter, withTiming } from "@api/utils/metrics";
 
 // ============================================================================
 // TYPES

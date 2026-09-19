@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
 import { TRPCError } from "@trpc/server";
-import { appRouter } from "@/trpc/router";
-import { createContext } from "@/trpc/context";
-import type { Env } from "@/types";
-import type { BetterAuthUser, BetterAuthSession } from "@/types/better-auth";
+import { appRouter } from "@api/trpc/router";
+import { createContext } from "@api/trpc/context";
+import type { Env } from "@api/types";
+import type { BetterAuthUser, BetterAuthSession } from "@api/types/better-auth";
 import type * as SentryNode from "@sentry/node";
 import type * as SentryCloudflare from "@sentry/cloudflare";
 
@@ -64,7 +64,7 @@ export function createHonoApp(config: HonoAppConfig) {
           attributes: {
             "http.method": c.req.method,
             "http.route": c.req.path,
-            "http.url": c.req.url,
+            "http.url": `${new URL(c.req.url).origin}${c.req.path}`,
           },
         },
         async (span) => {
@@ -166,7 +166,10 @@ export function createHonoApp(config: HonoAppConfig) {
 
     return c.json(
       {
-        error: err.message || "Internal server error",
+        error:
+          status >= 500 && env.NODE_ENV !== "development"
+            ? "Internal server error"
+            : err.message || "Internal server error",
         ...(env.NODE_ENV === "development" && { stack: err.stack }),
       },
       status
@@ -181,6 +184,7 @@ export function createHonoApp(config: HonoAppConfig) {
   // Debug Sentry - comprehensive diagnostics
   app.get("/debug-sentry", (c) => {
     const env = c.get("env");
+    if (env.NODE_ENV !== "development") return c.notFound();
     const sentry = c.get("sentry");
     const runtime = c.get("runtime");
 
@@ -251,12 +255,6 @@ export function createHonoApp(config: HonoAppConfig) {
     const auth = createAuth(c.get("env"));
     const response = await auth.handler(c.req.raw);
 
-    // Log response headers (especially Set-Cookie)
-    const setCookieHeader = response.headers.get("set-cookie");
-    if (setCookieHeader) {
-      console.log(`[Auth] 🍪 Setting cookies:`, setCookieHeader);
-    }
-
     console.log(`[Auth] 📤 Response status: ${response.status}`);
     return response;
   });
@@ -270,8 +268,11 @@ export function createHonoApp(config: HonoAppConfig) {
       router: appRouter,
       // Cast to our typed Variables context - safe because this middleware runs
       // after our context-setting middleware above
-      createContext: (_opts, c) =>
-        createContext(c as unknown as Parameters<typeof createContext>[0]),
+      createContext: (opts, c) =>
+        createContext(
+          c as Parameters<typeof createContext>[0],
+          opts.resHeaders
+        ),
       onError: ({ error, type, path }) => {
         console.error("❌ tRPC Error:", { type, path, error });
         // Note: Error capturing is handled in errorFormatter in trpc/init.ts
@@ -282,43 +283,7 @@ export function createHonoApp(config: HonoAppConfig) {
   // Public RSS feeds
   app.get("/public/:username/:slug", async (c) => {
     const { username, slug } = c.req.param();
-    const env = c.get("env");
-    const { getUserLimits } = await import("../services/limits");
-    const { checkPublicFeedRateLimit } =
-      await import("../services/rate-limiter");
-    const schema = await import("../db/schema");
-    const { sql, eq, and } = await import("drizzle-orm");
-
     const ctx = await createContext(c);
-
-    // Find user
-    const [user] = await ctx.db
-      .select()
-      .from(schema.user)
-      .where(
-        sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${username}`
-      )
-      .limit(1);
-
-    if (!user) {
-      return c.json({ error: "User not found" }, 404);
-    }
-
-    // Rate limiting
-    const limits = await getUserLimits(ctx.db, user.id);
-    const rateLimitResult = await checkPublicFeedRateLimit(
-      env,
-      user.id,
-      user.plan || "free",
-      limits.publicFeedRateLimitPerMinute
-    );
-
-    if (!rateLimitResult.allowed) {
-      return c.json(
-        { error: "Rate limit exceeded", limit: rateLimitResult.limit },
-        429
-      );
-    }
 
     // Get feed XML
     let xml: string;
@@ -332,34 +297,11 @@ export function createHonoApp(config: HonoAppConfig) {
       if (error instanceof TRPCError && error.code === "NOT_FOUND") {
         return c.json({ error: error.message || "Feed not found" }, 404);
       }
+      if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") {
+        return c.json({ error: error.message }, 429);
+      }
       // Re-throw other errors to be handled by the generic error handler
       throw error;
-    }
-
-    // Log access (awaited to ensure completion)
-    const [feed] = await ctx.db
-      .select()
-      .from(schema.feeds)
-      .where(and(eq(schema.feeds.userId, user.id), eq(schema.feeds.slug, slug)))
-      .limit(1);
-
-    if (feed) {
-      const clientIP =
-        c.req.header("cf-connecting-ip") ||
-        c.req.header("x-forwarded-for") ||
-        "unknown";
-
-      try {
-        await ctx.db.insert(schema.publicFeedAccessLog).values({
-          feedId: feed.id,
-          ipAddress: clientIP,
-          userAgent: c.req.header("user-agent") || null,
-          accessedAt: new Date(),
-        });
-      } catch (error) {
-        // Log but don't fail the feed request
-        console.error("Failed to log feed access:", error);
-      }
     }
 
     c.header("Content-Type", "application/rss+xml; charset=utf-8");

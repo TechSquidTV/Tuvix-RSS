@@ -8,13 +8,13 @@
 
 import type { Context as HonoContext } from "hono";
 import { fromNodeHeaders } from "better-auth/node";
-import { createDatabase } from "@/db/client";
-import { createAuth } from "@/auth/better-auth";
-import type { AuthUser } from "@/types";
-import type { BetterAuthUser } from "@/types/better-auth";
-import type { UserLimits } from "@/services/limits";
-import type * as schema from "@/db/schema";
-import type { Variables } from "@/hono/app";
+import { createDatabase } from "@api/db/client";
+import { createAuth } from "@api/auth/better-auth";
+import type { AuthUser } from "@api/types";
+import type { BetterAuthUser } from "@api/types/better-auth";
+import type { UserLimits } from "@api/services/limits";
+import type * as schema from "@api/db/schema";
+import type { Variables } from "@api/hono/app";
 
 /**
  * Request-scoped cache to prevent N+1 queries
@@ -35,7 +35,8 @@ export interface RequestCache {
  * - Request metadata from Hono context
  */
 export const createContext = async (
-  c: HonoContext<{ Variables: Variables }>
+  c: HonoContext<{ Variables: Variables }>,
+  responseHeaders?: Headers
 ) => {
   const env = c.get("env");
   const req = c.req.raw;
@@ -44,7 +45,7 @@ export const createContext = async (
   const db = createDatabase(env);
 
   // Get Better Auth instance
-  const auth = createAuth(env);
+  const auth = createAuth(env, db);
 
   // Extract and verify Better Auth session (if present)
   let user: AuthUser | null = null;
@@ -113,7 +114,11 @@ export const createContext = async (
     headers,
     req,
     cache,
+    responseHeaders,
   };
 };
 
-export type Context = Awaited<ReturnType<typeof createContext>>;
+export type Context = Omit<
+  Awaited<ReturnType<typeof createContext>>,
+  "responseHeaders"
+> & { responseHeaders?: Headers };

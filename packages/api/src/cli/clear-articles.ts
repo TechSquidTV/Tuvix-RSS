@@ -11,7 +11,7 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { sql } from "drizzle-orm";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { resolve } from "path";
 import { existsSync } from "fs";
 

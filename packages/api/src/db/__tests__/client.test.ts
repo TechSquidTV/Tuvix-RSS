@@ -4,7 +4,7 @@
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { createDatabase } from "../client";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 import Database from "better-sqlite3";
 import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";

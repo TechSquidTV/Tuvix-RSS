@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import { getBaseUrl } from "../base-url";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 describe("getBaseUrl", () => {
   it("should use BASE_URL from environment if set", () => {

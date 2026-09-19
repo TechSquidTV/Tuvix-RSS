@@ -734,12 +734,13 @@ See [Rate Limiting Guide](./rate-limiting.md) for complete documentation.
 Users are limited in how many public feeds they can create based on their plan.
 
 **Default Limits**:
-| Plan | Max Public Feeds |
-|------|------------------|
-| Free | 3 |
-| Pro | 10 |
-| Enterprise | 50 |
-| Custom | Admin-defined |
+
+| Plan       | Max Public Feeds |
+| ---------- | ---------------- |
+| Free       | 3                |
+| Pro        | 10               |
+| Enterprise | 50               |
+| Custom     | Admin-defined    |
 
 ### Limit Enforcement
 

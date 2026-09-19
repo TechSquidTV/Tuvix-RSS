@@ -6,24 +6,29 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, inArray, lt } from "drizzle-orm";
-import { router, rateLimitedProcedure } from "@/trpc/init";
-import { articleWithSourceSchema } from "@/db/schemas.zod";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { router, rateLimitedProcedure } from "@api/trpc/init";
+import { articleWithSourceSchema } from "@api/db/schemas.zod";
 import {
   createPaginatedSchema,
+  articleCursorSchema,
+  type ArticleCursor,
   paginationInputSchema,
   withUndefinedAsEmpty,
-} from "@/types/pagination";
+} from "@api/types/pagination";
 import {
   buildArticlesBaseQuery,
+  afterArticleCursor,
   applyCategoryFilter,
   buildArticlesWhereConditions,
 } from "./articles-helpers";
-import * as schema from "@/db/schema";
-import { D1_MAX_PARAMETERS, chunkArray, executeBatch } from "@/db/utils";
-import { upsertArticleState } from "@/db/helpers";
-import { withQueryMetrics } from "@/utils/db-metrics";
-import * as Sentry from "@/utils/sentry";
+import * as schema from "@api/db/schema";
+import { executeBatch } from "@api/db/utils";
+import { upsertArticleState } from "@api/db/helpers";
+import { matchesSubscriptionFilters } from "@api/services/article-filters";
+import { fetchSubscriptionFilters } from "@api/db/transformers";
+import { withQueryMetrics } from "@api/utils/db-metrics";
+import * as Sentry from "@api/utils/sentry";
 
 /**
  * Helper function to transform database row to article output
@@ -88,94 +93,6 @@ function transformArticleRow(row: {
  */
 type ArticleWithSubscription = ReturnType<typeof transformArticleRow>;
 
-/**
- * Check if an article matches a single filter
- */
-function matchesFilter(
-  article: ArticleWithSubscription,
-  filter: typeof schema.subscriptionFilters.$inferSelect
-): boolean {
-  const fieldValue = (() => {
-    switch (filter.field) {
-      case "title":
-        return article.title ?? "";
-      case "description":
-        return article.description ?? "";
-      case "content":
-        return article.content ?? "";
-      case "author":
-        return article.author ?? "";
-      case "any":
-        return [
-          article.title ?? "",
-          article.description ?? "",
-          article.content ?? "",
-          article.author ?? "",
-        ].join(" ");
-      default:
-        return "";
-    }
-  })();
-
-  // If field value is empty/null and pattern is not empty, no match
-  if (!fieldValue && filter.pattern) {
-    return false;
-  }
-
-  const searchText = filter.caseSensitive
-    ? fieldValue
-    : fieldValue.toLowerCase();
-  const pattern = filter.caseSensitive
-    ? filter.pattern
-    : filter.pattern.toLowerCase();
-
-  switch (filter.matchType) {
-    case "contains":
-      return searchText.includes(pattern);
-    case "exact":
-      return searchText === pattern;
-    case "regex": {
-      try {
-        const regex = new RegExp(
-          filter.pattern,
-          filter.caseSensitive ? "" : "i"
-        );
-        return regex.test(fieldValue);
-      } catch {
-        // Invalid regex - skip this filter
-        return false;
-      }
-    }
-    default:
-      return false;
-  }
-}
-
-/**
- * Check if an article matches subscription filters
- */
-function matchesSubscriptionFilters(
-  article: ArticleWithSubscription,
-  filters: (typeof schema.subscriptionFilters.$inferSelect)[],
-  filterMode: "include" | "exclude"
-): boolean {
-  // If no filters exist but filtering is enabled, exclude the article
-  // (This matches the Go implementation behavior)
-  if (filters.length === 0) {
-    return false;
-  }
-
-  const hasMatch = filters.some((filter) => matchesFilter(article, filter));
-
-  if (filterMode === "include") {
-    // Include mode: article must match at least one filter
-    return hasMatch;
-  } else {
-    // Exclude mode: article must not match any filter
-    return !hasMatch;
-  }
-}
-
 export const articlesRouter = router({
   /**
    * List articles from user's subscriptions with filters
@@ -183,7 +100,8 @@ export const articlesRouter = router({
   list: rateLimitedProcedure
     .input(
       withUndefinedAsEmpty(
-        paginationInputSchema.extend({
+        paginationInputSchema.omit({ cursor: true }).extend({
+          cursor: articleCursorSchema.optional(),
           categoryId: z.number().optional(),
           subscriptionId: z.number().optional(),
           read: z.boolean().optional(),
@@ -191,7 +109,11 @@ export const articlesRouter = router({
         })
       )
     )
-    .output(createPaginatedSchema(articleWithSourceSchema))
+    .output(
+      createPaginatedSchema(articleWithSourceSchema).extend({
+        nextCursor: articleCursorSchema.nullable(),
+      })
+    )
     .query(async ({ ctx, input }) => {
       const { userId } = ctx.user;
 
@@ -247,13 +169,15 @@ export const articlesRouter = router({
       if (!hasSubscriptionFilters) {
         // EFFICIENT PATH: No subscription filters, use direct database pagination
         // Always order by publishedAt for chronological feed
-        let paginationQuery = queryBuilder.orderBy(
-          desc(schema.articles.publishedAt)
-        );
+        let paginationQuery = queryBuilder
+          .where(
+            and(...conditions, cursor ? afterArticleCursor(cursor) : undefined)
+          )
+          .orderBy(desc(schema.articles.publishedAt), desc(schema.articles.id));
 
-        // Use cursor OR offset (cursor takes precedence for infinite scroll)
-        // Frontend sends cursor as cumulative item count (50, 100, 150...)
-        const effectiveOffset = cursor ?? offset;
+        // Explicit offsets serve numbered pages; infinite scrolling uses a
+        // stable ordering key so changes to earlier rows cannot shift pages.
+        const effectiveOffset = cursor ? 0 : offset;
 
         if (effectiveOffset > 0) {
           paginationQuery = paginationQuery.offset(effectiveOffset);
@@ -290,45 +214,14 @@ export const articlesRouter = router({
 
         // Calculate total count (accurate since no subscription filtering)
         // Build COUNT query with same JOINs and WHERE as main query
-        let countQuery = ctx.db
-          .select()
-          .from(schema.articles)
-          .innerJoin(
-            schema.sources,
-            eq(schema.articles.sourceId, schema.sources.id)
-          )
-          .innerJoin(
-            schema.subscriptions,
-            and(
-              eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-              eq(schema.subscriptions.userId, userId)
-            )
-          )
-          .leftJoin(
-            schema.userArticleStates,
-            and(
-              eq(schema.userArticleStates.articleId, schema.articles.id),
-              eq(schema.userArticleStates.userId, userId)
-            )
-          )
-          .$dynamic();
+        let countQuery = buildArticlesBaseQuery(ctx.db, userId);
 
         // Apply category filter if needed
         if (input.categoryId) {
-          countQuery = countQuery.innerJoin(
-            schema.subscriptionCategories,
-            and(
-              eq(
-                schema.subscriptionCategories.subscriptionId,
-                schema.subscriptions.id
-              ),
-              eq(schema.subscriptionCategories.categoryId, input.categoryId)
-            )
-          );
+          countQuery = applyCategoryFilter(countQuery, input.categoryId);
         }
 
         // Apply same WHERE conditions
-        const conditions = buildArticlesWhereConditions(input);
         if (conditions.length > 0) {
           countQuery = countQuery.where(and(...conditions));
         }
@@ -336,77 +229,47 @@ export const articlesRouter = router({
         // Execute count query and count unique article IDs
         const countResults = await withQueryMetrics(
           "articles.list.count",
-          async () => await countQuery,
+          async () =>
+            await ctx.db.all<{ total: number }>(
+              sql`SELECT COUNT(DISTINCT id) AS total FROM (${countQuery})`
+            ),
           {
             "db.table": "articles",
             "db.operation": "count",
           }
         );
 
-        // Count unique article IDs (needed because JOINs can create duplicates)
-        const uniqueArticleIds = new Set(
-          countResults.map((r) => r.articles.id)
-        );
-        total = uniqueArticleIds.size;
+        total = countResults[0]?.total ?? 0;
       } else {
         // FILTERED PATH: Has subscription filters, must scan in bounded
         // database chunks and apply the cursor after in-memory filtering.
         // Aggressive filters can reject most rows, so a one-shot fetch limit
         // can falsely produce an empty later page even when matches exist.
-        const filteredOffset = cursor ?? offset;
+        const filteredOffset = cursor ? 0 : offset;
         const targetVisibleCount = filteredOffset + limit + 1;
         const chunkSize = Math.max(limit * 3, 100);
         const filteredResults: ArticleWithSubscription[] = [];
         let scannedRowCount = 0;
+        let scanCursor: ArticleCursor | undefined = cursor;
 
         // Always order by publishedAt for chronological feed
         const paginationQuery = queryBuilder.orderBy(
-          desc(schema.articles.publishedAt)
+          desc(schema.articles.publishedAt),
+          desc(schema.articles.id)
         );
 
-        // Batch load all filters for the user's filtered subscriptions once.
-        const filtersBySubscription = new Map<
-          number,
-          (typeof schema.subscriptionFilters.$inferSelect)[]
-        >();
-        const subscriptionIdsWithFilters = subscriptionsWithFilters.map(
-          (subscription) => subscription.id
+        const filtersBySubscription = await fetchSubscriptionFilters(
+          ctx.db,
+          subscriptionsWithFilters.map((subscription) => subscription.id)
         );
-
-        if (subscriptionIdsWithFilters.length > 0) {
-          const filters = await withQueryMetrics(
-            "articles.list.loadFilters",
-            async () =>
-              ctx.db
-                .select()
-                .from(schema.subscriptionFilters)
-                .where(
-                  inArray(
-                    schema.subscriptionFilters.subscriptionId,
-                    subscriptionIdsWithFilters
-                  )
-                ),
-            {
-              "db.table": "subscription_filters",
-              "db.operation": "select",
-              "db.subscription_count": subscriptionIdsWithFilters.length,
-            }
-          );
-
-          // Group filters by subscription ID
-          filters.forEach((filter) => {
-            const existing =
-              filtersBySubscription.get(filter.subscriptionId) || [];
-            existing.push(filter);
-            filtersBySubscription.set(filter.subscriptionId, existing);
-          });
-        }
 
         while (filteredResults.length < targetVisibleCount) {
-          let chunkQuery = paginationQuery;
-          if (scannedRowCount > 0) {
-            chunkQuery = chunkQuery.offset(scannedRowCount);
-          }
+          const chunkQuery = paginationQuery.where(
+            and(
+              ...conditions,
+              scanCursor ? afterArticleCursor(scanCursor) : undefined
+            )
+          );
 
           const results = await withQueryMetrics(
             "articles.list.filteredChunk",
@@ -449,6 +312,12 @@ export const articlesRouter = router({
 
           filteredResults.push(...matchingResults);
           scannedRowCount += results.length;
+          const lastScanned = results.at(-1)?.articles;
+          if (lastScanned)
+            scanCursor = {
+              publishedAt: lastScanned.publishedAt,
+              id: lastScanned.id,
+            };
 
           if (results.length < chunkSize) {
             break;
@@ -472,10 +341,15 @@ export const articlesRouter = router({
         total = filteredOffset + visibleResults.length;
       }
 
+      const lastArticle = paginatedResults.at(-1);
       return {
         items: paginatedResults,
         total,
         hasMore,
+        nextCursor:
+          hasMore && lastArticle
+            ? { publishedAt: lastArticle.publishedAt, id: lastArticle.id }
+            : null,
       };
     }),
 
@@ -779,45 +653,16 @@ export const articlesRouter = router({
         return { updated: 0 };
       }
 
-      // Get existing states to preserve 'saved' flags
-      // Batch the query to avoid exceeding D1's 100-parameter limit
-      // Note: WHERE clause has userId (1 param) + inArray (batch.length params)
-      // So chunk size must be D1_MAX_PARAMETERS - 1 to stay within limit
-      const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
-        [];
-
-      const batches: number[][] = chunkArray<number>(
-        input.articleIds,
-        D1_MAX_PARAMETERS - 1
-      );
-
-      for (const batch of batches) {
-        const batchStates = await ctx.db
-          .select()
-          .from(schema.userArticleStates)
-          .where(
-            and(
-              eq(schema.userArticleStates.userId, userId),
-              inArray(schema.userArticleStates.articleId, batch)
-            )
-          );
-        existingStates.push(...batchStates);
-      }
-
-      // Create a map for quick lookup
-      const stateMap = new Map(
-        existingStates.map((s) => [s.articleId, s.saved])
-      );
-
-      // Batch operations: D1 supports batch(), better-sqlite3 requires sequential
-      const statements = input.articleIds.map((articleId) =>
+      const articleIds = [...new Set(input.articleIds)];
+      // Conflicts update only read; SQLite retains saved and audio fields.
+      const statements = articleIds.map((articleId) =>
         ctx.db
           .insert(schema.userArticleStates)
           .values({
             userId,
             articleId,
             read: input.read,
-            saved: stateMap.get(articleId) ?? false,
+            saved: false,
           })
           .onConflictDoUpdate({
             target: [
@@ -864,12 +709,11 @@ export const articlesRouter = router({
         }
       );
 
-      return { updated: input.articleIds.length };
+      return { updated: articleIds.length };
     }),
 
   /**
    * Mark all articles as read (optionally filter by age)
-   * Limited to 1000 articles per operation to prevent performance issues
    */
   markAllRead: rateLimitedProcedure
     .input(
@@ -881,124 +725,21 @@ export const articlesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
 
-      // Build query to get all article IDs from user's subscriptions
-      let queryBuilder = ctx.db
-        .select()
-        .from(schema.articles)
-        .innerJoin(
-          schema.subscriptions,
-          and(
-            eq(schema.articles.sourceId, schema.subscriptions.sourceId),
-            eq(schema.subscriptions.userId, userId)
-          )
-        )
-        .$dynamic();
-
-      // Filter by age if provided
-      if (input.olderThanDays) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - input.olderThanDays);
-        queryBuilder = queryBuilder.where(
-          lt(schema.articles.publishedAt, cutoffDate)
-        );
-      }
-
-      // Limit to 1000 articles to prevent performance issues
-      const MAX_BULK_UPDATE = 1000;
-      const articles = await queryBuilder.limit(MAX_BULK_UPDATE);
-      const articleIds = articles.map((a) => a.articles.id);
-
-      if (articleIds.length === 0) {
-        return { updated: 0 };
-      }
-
-      // Get existing states to preserve 'saved' flags
-      // Batch the query to avoid exceeding D1's 100-parameter limit
-      // Note: WHERE clause has userId (1 param) + inArray (batch.length params)
-      // So chunk size must be D1_MAX_PARAMETERS - 1 to stay within limit
-      const existingStates: (typeof schema.userArticleStates.$inferSelect)[] =
-        [];
-
-      const batches: number[][] = chunkArray<number>(
-        articleIds,
-        D1_MAX_PARAMETERS - 1
-      );
-
-      for (const batch of batches) {
-        const batchStates = await ctx.db
-          .select()
-          .from(schema.userArticleStates)
-          .where(
-            and(
-              eq(schema.userArticleStates.userId, userId),
-              inArray(schema.userArticleStates.articleId, batch)
-            )
-          );
-        existingStates.push(...batchStates);
-      }
-
-      // Create a map for quick lookup
-      const stateMap = new Map(
-        existingStates.map((s) => [s.articleId, s.saved])
-      );
-
-      // Batch operations: D1 supports batch(), better-sqlite3 requires sequential
-      const statements = articleIds.map((articleId) =>
-        ctx.db
-          .insert(schema.userArticleStates)
-          .values({
-            userId,
-            articleId,
-            read: true,
-            saved: stateMap.get(articleId) ?? false,
-          })
-          .onConflictDoUpdate({
-            target: [
-              schema.userArticleStates.userId,
-              schema.userArticleStates.articleId,
-            ],
-            set: {
-              read: true,
-              updatedAt: new Date(),
-            },
-          })
-      );
-
-      // Wrap batch execution in Sentry span for monitoring
-      await Sentry.startSpan(
-        {
-          op: "db.batch",
-          name: "Mark All Articles Read",
-          attributes: {
-            "db.batch_size": statements.length,
-            "db.operation": "mark_all_read",
-            "db.user_id": userId,
-            "filter.older_than_days": input.olderThanDays ?? "none",
-          },
-        },
-        async (span) => {
-          try {
-            await executeBatch(ctx.db, statements);
-            span.setStatus({ code: 1, message: "ok" });
-          } catch (error) {
-            span.setStatus({ code: 2, message: "batch failed" });
-            Sentry.captureException(error, {
-              tags: {
-                operation: "mark_all_read",
-                batch_size: statements.length.toString(),
-              },
-              extra: {
-                userId,
-                articleCount: articleIds.length,
-                olderThanDays: input.olderThanDays,
-              },
-            });
-            throw error;
-          }
-        }
-      );
-
-      return { updated: articleIds.length };
+      const cutoff =
+        input.olderThanDays !== undefined
+          ? sql`AND a.published_at < ${Math.floor((Date.now() - input.olderThanDays * 86_400_000) / 1000)}`
+          : sql``;
+      const result = await ctx.db.all<{ articleId: number }>(sql`
+        INSERT INTO user_article_states (user_id, article_id, read, updated_at)
+        SELECT DISTINCT ${userId}, a.id, 1, ${Math.floor(Date.now() / 1000)}
+        FROM articles a JOIN subscriptions s ON s.source_id = a.source_id
+        WHERE s.user_id = ${userId} ${cutoff}
+          AND NOT EXISTS (SELECT 1 FROM user_article_states state
+            WHERE state.user_id = ${userId} AND state.article_id = a.id AND state.read = 1)
+        ON CONFLICT (user_id, article_id) DO UPDATE SET read = 1, updated_at = excluded.updated_at
+        RETURNING article_id AS articleId
+      `);
+      return { updated: result.length };
     }),
 
   /**
@@ -1018,62 +759,80 @@ export const articlesRouter = router({
     .query(async ({ ctx, input }) => {
       const userId = ctx.user.userId;
 
-      // Helper to execute count query efficiently
-      const executeCount = async (additionalFilters?: {
-        read?: boolean;
-        saved?: boolean;
-      }) => {
-        // Use buildArticlesBaseQuery - same JOINs as main query
-        let baseQuery = buildArticlesBaseQuery(ctx.db, userId);
+      const subscriptionsWithFilters = await ctx.db
+        .select()
+        .from(schema.subscriptions)
+        .where(
+          and(
+            eq(schema.subscriptions.userId, userId),
+            eq(schema.subscriptions.filterEnabled, true),
+            input.subscriptionId === undefined
+              ? undefined
+              : eq(schema.subscriptions.id, input.subscriptionId)
+          )
+        );
 
-        // Apply category filter if provided
-        if (input.categoryId) {
-          baseQuery = applyCategoryFilter(baseQuery, input.categoryId);
+      let query = buildArticlesBaseQuery(ctx.db, userId);
+      if (input.categoryId)
+        query = applyCategoryFilter(query, input.categoryId);
+      const conditions = buildArticlesWhereConditions(input);
+      if (conditions.length > 0) query = query.where(and(...conditions));
+
+      if (subscriptionsWithFilters.length === 0) {
+        // Aggregate inside SQLite/D1 rather than transferring article bodies.
+        const [counts] = await withQueryMetrics(
+          "articles.counts",
+          async () =>
+            ctx.db.all<{
+              all: number;
+              unread: number;
+              read: number;
+              saved: number;
+            }>(sql`
+            SELECT COUNT(DISTINCT id) AS "all",
+              COUNT(DISTINCT CASE WHEN COALESCE(read, 0) = 0 THEN id END) AS unread,
+              COUNT(DISTINCT CASE WHEN read = 1 THEN id END) AS read,
+              COUNT(DISTINCT CASE WHEN saved = 1 THEN id END) AS saved
+            FROM (${query})
+          `),
+          { "db.operation": "count", "db.user_id": userId }
+        );
+        return counts ?? { all: 0, unread: 0, read: 0, saved: 0 };
+      }
+
+      // Regex/content filters must use the same matcher as the article list.
+      // Scan once in bounded chunks instead of loading the feed four times.
+      const filters = await fetchSubscriptionFilters(
+        ctx.db,
+        subscriptionsWithFilters.map(({ id }) => id)
+      );
+      const counts = { all: 0, unread: 0, read: 0, saved: 0 };
+      const seen = new Set<number>();
+      const chunkSize = 200;
+      for (let offset = 0; ; offset += chunkSize) {
+        const rows = await query
+          .orderBy(desc(schema.articles.id))
+          .limit(chunkSize)
+          .offset(offset);
+        for (const row of rows) {
+          if (seen.has(row.articles.id)) continue;
+          if (
+            row.subscriptions.filterEnabled &&
+            !matchesSubscriptionFilters(
+              row.articles,
+              filters.get(row.subscriptions.id) ?? [],
+              row.subscriptions.filterMode
+            )
+          )
+            continue;
+          seen.add(row.articles.id);
+          counts.all++;
+          if (row.user_article_states?.read) counts.read++;
+          else counts.unread++;
+          if (row.user_article_states?.saved) counts.saved++;
         }
-
-        // Build WHERE conditions
-        const conditions = buildArticlesWhereConditions({
-          subscriptionId: input.subscriptionId,
-          ...additionalFilters,
-        });
-
-        if (conditions.length > 0) {
-          baseQuery = baseQuery.where(and(...conditions));
-        }
-
-        // Execute and count unique article IDs
-        const results = await baseQuery;
-        return new Set(results.map((r) => r.articles.id)).size;
-      };
-
-      // Execute all counts in parallel
-      const [allCount, unreadCount, readCount, savedCount] = await Promise.all([
-        withQueryMetrics("articles.counts.all", () => executeCount(), {
-          "db.operation": "count",
-          "db.user_id": userId,
-        }),
-        withQueryMetrics(
-          "articles.counts.unread",
-          () => executeCount({ read: false }),
-          { "db.operation": "count", "db.user_id": userId }
-        ),
-        withQueryMetrics(
-          "articles.counts.read",
-          () => executeCount({ read: true }),
-          { "db.operation": "count", "db.user_id": userId }
-        ),
-        withQueryMetrics(
-          "articles.counts.saved",
-          () => executeCount({ saved: true }),
-          { "db.operation": "count", "db.user_id": userId }
-        ),
-      ]);
-
-      return {
-        all: allCount,
-        unread: unreadCount,
-        read: readCount,
-        saved: savedCount,
-      };
+        if (rows.length < chunkSize) break;
+      }
+      return counts;
     }),
 });

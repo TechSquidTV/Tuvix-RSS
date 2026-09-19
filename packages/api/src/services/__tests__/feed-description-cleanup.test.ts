@@ -1,3 +1,4 @@
+import { createFeedResponse } from "@api/test/mocks";
 /**
  * Feed Description Cleanup Tests
  *
@@ -6,8 +7,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createTestDb, cleanupTestDb, seedTestSource } from "@/test/setup";
-import * as schema from "@/db/schema";
+import { createTestDb, cleanupTestDb, seedTestSource } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { fetchSingleFeed } from "../rss-fetcher";
 
 // Mock fetch globally
@@ -59,12 +60,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -88,12 +90,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -120,12 +123,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -154,12 +158,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -191,12 +196,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -223,12 +229,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -255,12 +262,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -286,12 +294,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -320,12 +329,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -349,12 +359,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -380,12 +391,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -412,12 +424,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 
@@ -459,12 +472,13 @@ describe("Feed Description Cleanup", () => {
           </channel>
         </rss>`;
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "application/rss+xml" }),
-        text: async () => feedXml,
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createFeedResponse(
+          feedXml,
+          undefined,
+          new Headers({ "content-type": "application/rss+xml" })
+        ) as Response
+      );
 
       await fetchSingleFeed(testSourceId, "https://test.example.com/feed", db);
 

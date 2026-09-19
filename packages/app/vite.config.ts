@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       tanstackRouter({
         target: "react",
-        autoCodeSplitting: true,
+        routeFileIgnorePattern: "(?:__tests__|\\.(?:test|spec)\\.)",
+        autoCodeSplitting: mode !== "test",
       }),
       react(),
       tailwindcss(),
@@ -47,21 +48,6 @@ export default defineConfig(({ mode }) => {
                   maxEntries: 10,
                   maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
                 },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              urlPattern: /\/api\/.*/i,
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "api-cache",
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 5, // 5 minutes
-                },
-                networkTimeoutSeconds: 10,
                 cacheableResponse: {
                   statuses: [0, 200],
                 },
@@ -115,8 +101,11 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
-        "@tuvixrss/api": path.resolve(__dirname, "../api/src/index.ts"),
+        "@": path.resolve(import.meta.dirname, "./src"),
+        "@tuvixrss/api": path.resolve(
+          import.meta.dirname,
+          "../api/src/index.ts"
+        ),
       },
     },
     server: {
@@ -125,6 +114,26 @@ export default defineConfig(({ mode }) => {
         "/public": {
           target: "http://localhost:3001",
           changeOrigin: true,
+        },
+      },
+    },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: "react",
+                test: /\/node_modules\/(?:react|react-dom|scheduler)\//,
+                priority: 20,
+              },
+              {
+                name: "sentry",
+                test: /\/node_modules\/@sentry\//,
+                priority: 10,
+              },
+            ],
+          },
         },
       },
     },

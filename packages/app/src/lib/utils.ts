@@ -5,29 +5,31 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Get the public base URL for generating absolute URLs (public feeds, etc.)
- *
- * Priority:
- * 1. VITE_PUBLIC_URL environment variable (if set at build time)
- * 2. window.location.origin (fallback for development)
- *
- * This ensures consistency with server-side BASE_URL configuration
- * and allows override for custom domains, CDNs, or different environments.
- *
- * @returns Base URL string (e.g., "https://app.example.com")
- */
+/** Resolve public RSS URLs against the API that serves them. */
 export function getPublicBaseUrl(): string {
-  // Use VITE_PUBLIC_URL if set (build-time environment variable)
-  if (import.meta.env.VITE_PUBLIC_URL) {
-    return import.meta.env.VITE_PUBLIC_URL;
-  }
+  const origin =
+    typeof window === "undefined"
+      ? "http://localhost:3001"
+      : window.location.origin;
+  const apiUrl =
+    import.meta.env.VITE_PUBLIC_URL ||
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:3001/trpc";
+  const url = new URL(apiUrl, origin);
+  url.pathname = url.pathname.replace(/\/trpc\/?$/, "");
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
 
-  // Fallback to window.location.origin (works in browser, not SSR)
-  if (typeof window !== "undefined") {
-    return window.location.origin;
+/** Open publisher links without allowing executable URL schemes. */
+export function openArticleLink(link: string | null): void {
+  if (!link) return;
+  try {
+    const url = new URL(link);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return;
+    window.open(url.href, "_blank", "noopener,noreferrer");
+  } catch {
+    // Malformed publisher URLs are not navigable.
   }
-
-  // SSR fallback (shouldn't happen in this SPA, but good to have)
-  return "http://localhost:5173";
 }

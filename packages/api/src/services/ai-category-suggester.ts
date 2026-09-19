@@ -7,8 +7,8 @@
 
 import { generateObject } from "ai";
 import { z } from "zod";
-import * as Sentry from "@/utils/sentry";
-import { withTiming } from "@/utils/metrics";
+import * as Sentry from "@api/utils/sentry";
+import { withTiming } from "@api/utils/metrics";
 
 interface FeedContext {
   title: string;

@@ -16,7 +16,7 @@ import {
   checkApiRateLimit,
   checkPublicFeedRateLimit,
 } from "../rate-limiter";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 describe("Rate Limiter Service", () => {
   let env: Env;

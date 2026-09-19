@@ -163,11 +163,12 @@ wrangler deploy
 **Configuration**: Based on user's subscription plan
 
 **Default Limits by Plan**:
-| Plan | Requests per Minute | Binding |
-|------|---------------------|---------|
-| Free | 60 | `FREE_API_RATE_LIMIT` |
-| Pro | 180 | `PRO_API_RATE_LIMIT` |
-| Enterprise/Admin | 600 | `ENTERPRISE_API_RATE_LIMIT` |
+
+| Plan             | Requests per Minute | Binding                     |
+| ---------------- | ------------------- | --------------------------- |
+| Free             | 60                  | `FREE_API_RATE_LIMIT`       |
+| Pro              | 180                 | `PRO_API_RATE_LIMIT`        |
+| Enterprise/Admin | 600                 | `ENTERPRISE_API_RATE_LIMIT` |
 
 **Endpoints Protected**: All authenticated tRPC procedures
 
@@ -186,12 +187,13 @@ wrangler deploy
 **Configuration**: Based on feed owner's plan
 
 **Default Limits by Plan**:
-| Plan | Requests per Minute |
-|------|---------------------|
-| Free | ~17 |
-| Pro | ~167 |
-| Enterprise | ~1,667 |
-| Custom | Admin-defined |
+
+| Plan       | Requests per Minute |
+| ---------- | ------------------- |
+| Free       | ~17                 |
+| Pro        | ~167                |
+| Enterprise | ~1,667              |
+| Custom     | Admin-defined       |
 
 **Key Features**:
 

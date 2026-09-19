@@ -142,12 +142,7 @@ Add to `ThemeId` type in `types.ts`:
 
 ```typescript
 export type ThemeId =
-  | "light"
-  | "dark"
-  | "nord"
-  | "material"
-  | "my-theme"
-  | "system";
+  "light" | "dark" | "nord" | "material" | "my-theme" | "system";
 ```
 
 ### Step 4: Add Theme Metadata

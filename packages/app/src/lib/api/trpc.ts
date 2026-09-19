@@ -5,3 +5,8 @@ import type { inferRouterOutputs } from "@trpc/server";
 export const trpc = createTRPCReact<AppRouter>();
 
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
+
+export type Category = Pick<
+  RouterOutputs["categories"]["list"][number],
+  "id" | "name" | "color"
+>;

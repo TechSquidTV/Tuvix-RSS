@@ -1,3 +1,4 @@
+import { createFeedResponse } from "@api/test/mocks";
 /**
  * RSS Fetcher Test - iTunes Podcast Image Extraction
  *
@@ -7,8 +8,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { parseFeed } from "feedsmith";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
-import * as schema from "@/db/schema";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchSingleFeed } from "../rss-fetcher";
 
@@ -188,14 +189,13 @@ describe("RSS Fetcher - iTunes Podcast Images", () => {
 </rss>`;
 
     globalThis.fetch = async () => {
-      return {
-        ok: true,
-        status: 200,
-        headers: new Headers({
+      return createFeedResponse(
+        mockFeed,
+        undefined,
+        new Headers({
           "content-type": "application/rss+xml",
-        }),
-        text: async () => mockFeed,
-      } as Response;
+        })
+      ) as Response;
     };
 
     // Fetch the feed

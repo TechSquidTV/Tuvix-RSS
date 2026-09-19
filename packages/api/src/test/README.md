@@ -57,7 +57,7 @@ src/
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
 import { someFunction } from "./your-module";
 
 describe("someFunction", () => {
@@ -95,7 +95,7 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedTestPlan,
-} from "@/test/setup";
+} from "@api/test/setup";
 
 // Create in-memory test database
 const db = createTestDb();
@@ -114,7 +114,7 @@ cleanupTestDb(db);
 #### Helpers
 
 ```typescript
-import { generateTestEmail, expectError, mockConsole } from "@/test/helpers";
+import { generateTestEmail, expectError, mockConsole } from "@api/test/helpers";
 
 // Generate unique test data
 const email = generateTestEmail("mytest");
@@ -137,7 +137,7 @@ import {
   mockFetchRssFeed,
   MOCK_RSS_FEED,
   MOCK_BETTER_AUTH_SECRET,
-} from "@/test/mocks";
+} from "@api/test/mocks";
 
 // Mock fetch for RSS feeds
 global.fetch = mockFetchRssFeed();

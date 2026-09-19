@@ -9,7 +9,7 @@ import type {
   DiscoveryContext,
   DiscoveryService,
   DiscoveredFeed,
-} from "../core/types";
+} from "../core/types.js";
 
 const FETCH_TIMEOUT = 5000;
 
@@ -168,7 +168,7 @@ export class RedditDiscoveryService implements DiscoveryService {
     try {
       const aboutUrl = `https://old.reddit.com/r/${subreddit}/about.json`;
 
-      const response = await fetch(aboutUrl, {
+      const response = await context.fetch(aboutUrl, {
         signal: controller.signal,
         headers: {
           "User-Agent":

@@ -3,13 +3,13 @@ process.env.RUNTIME = "nodejs";
 
 import * as Sentry from "@sentry/node";
 import { serve } from "@hono/node-server";
-import { createHonoApp } from "@/hono/app";
-import { runMigrationsIfNeeded } from "@/db/migrate-local";
-import { initCronJobs } from "@/cron/scheduler";
-import { initializeAdmin } from "@/services/admin-init";
-import { createDatabase } from "@/db/client";
-import { getSentryConfig } from "@/config/sentry";
-import type { Env } from "@/types";
+import { createHonoApp } from "@api/hono/app";
+import { runMigrationsIfNeeded } from "@api/db/migrate-local";
+import { initCronJobs } from "@api/cron/scheduler";
+import { initializeAdmin } from "@api/services/admin-init";
+import { createDatabase } from "@api/db/client";
+import { getSentryConfig } from "@api/config/sentry";
+import type { Env } from "@api/types";
 
 // Load environment
 const env: Env = {
@@ -20,7 +20,10 @@ const env: Env = {
   CORS_ORIGIN: process.env.CORS_ORIGIN,
   NODE_ENV: process.env.NODE_ENV,
   BASE_URL: process.env.BASE_URL,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || process.env.BASE_URL,
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+  API_URL: process.env.API_URL,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  TRUST_PROXY_HEADERS: process.env.TRUST_PROXY_HEADERS,
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM,
@@ -105,6 +108,8 @@ void (async () => {
       .then((result) => {
         if (result.created) {
           console.log(`✅ ${result.message}`);
+        } else if (result.message.startsWith("Failed")) {
+          console.error(`❌ ${result.message}`);
         }
       })
       .catch((error) => {
@@ -113,11 +118,34 @@ void (async () => {
 
     // Start server
     const port = parseInt(env.PORT || "3001", 10);
-    serve({ fetch: app.fetch, port }, () => {
-      console.log(`🚀 Hono Server (Node.js) on http://localhost:${port}`);
-      console.log(`📊 Health: http://localhost:${port}/health`);
-      console.log(`🔌 tRPC: http://localhost:${port}/trpc`);
-    });
+    serve(
+      {
+        fetch: (request, bindings) => {
+          // Proxy headers are attacker-controlled on a directly exposed Node API.
+          if (env.TRUST_PROXY_HEADERS === "true")
+            return app.fetch(request, bindings);
+          const headers = new Headers(request.headers);
+          for (const name of [
+            "cf-connecting-ip",
+            "x-real-ip",
+            "x-forwarded-for",
+            "x-client-ip",
+          ])
+            headers.delete(name);
+          headers.set(
+            "x-real-ip",
+            bindings.incoming.socket.remoteAddress ?? "unidentified"
+          );
+          return app.fetch(new Request(request, { headers }), bindings);
+        },
+        port,
+      },
+      () => {
+        console.log(`🚀 Hono Server (Node.js) on http://localhost:${port}`);
+        console.log(`📊 Health: http://localhost:${port}/health`);
+        console.log(`🔌 tRPC: http://localhost:${port}/trpc`);
+      }
+    );
   } catch (error) {
     console.error("❌ Failed to start:", error);
     process.exit(1);

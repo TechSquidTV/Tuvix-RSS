@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
   Sheet as SheetPrimitive,
   SheetTrigger as SheetTriggerPrimitive,

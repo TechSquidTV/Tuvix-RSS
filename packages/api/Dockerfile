@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Install pnpm
-RUN npm install -g pnpm@10.19.0
+RUN npm install -g pnpm@12.4.2
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -31,7 +31,7 @@ RUN pnpm --filter @tuvixrss/api build
 
 # Use pnpm deploy to create a self-contained production package
 # This properly resolves workspace dependencies and includes only prod deps
-# --legacy flag required for pnpm v10 without inject-workspace-packages
+# Use the deploy mode for workspaces linked with symlinks instead of injected copies.
 RUN pnpm --filter @tuvixrss/api deploy /app/deploy --prod --legacy
 
 # Copy built artifacts to deploy directory
@@ -39,7 +39,7 @@ RUN cp -r /app/packages/api/dist /app/deploy/dist && \
     cp -r /app/packages/api/drizzle /app/deploy/drizzle
 
 # Production stage
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Create non-root user FIRST (before any files to avoid permission layer bloat)
 RUN addgroup -g 1001 -S nodejs && \

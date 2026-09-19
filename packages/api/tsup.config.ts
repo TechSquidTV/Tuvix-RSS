@@ -7,7 +7,7 @@ export default defineConfig({
     "db/migrate-local": "src/db/migrate-local.ts",
   },
   format: ["esm"],
-  target: "node20",
+  target: "node24",
   platform: "node",
   outDir: "dist",
   clean: true,
@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   splitting: false,
   treeshake: true,
-  // BUILD-TIME ALIAS: Route @/utils/sentry to sentry.node.ts (which wraps @sentry/node)
+  // BUILD-TIME ALIAS: Route @api/utils/sentry to sentry.node.ts (which wraps @sentry/node)
   // This replaces runtime detection with build-time SDK selection.
   // - Node.js builds: sentry.node.ts → @sentry/node (via this config)
   // - Cloudflare Workers: sentry.cloudflare.ts → @sentry/cloudflare (via wrangler)
@@ -33,7 +33,14 @@ export default defineConfig({
   esbuildOptions(options) {
     options.alias = {
       ...options.alias,
-      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.node.ts"),
+      "@api/utils/http-transport": path.resolve(
+        import.meta.dirname,
+        "./src/utils/http-transport.node.ts"
+      ),
+      "@api/utils/sentry": path.resolve(
+        import.meta.dirname,
+        "./src/utils/sentry.node.ts"
+      ),
     };
   },
 });

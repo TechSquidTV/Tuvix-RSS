@@ -24,7 +24,7 @@ export function getColorForCategory(categoryName: string): string {
   for (let i = 0; i < categoryName.length; i++) {
     hash += categoryName.charCodeAt(i);
   }
-  return CATEGORY_COLOR_PALETTE[hash % CATEGORY_COLOR_PALETTE.length];
+  return CATEGORY_COLOR_PALETTE[hash % CATEGORY_COLOR_PALETTE.length]!;
 }
 
 /**

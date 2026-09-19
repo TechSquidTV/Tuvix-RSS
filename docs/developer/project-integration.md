@@ -888,9 +888,7 @@ Content-Type: application/json
 [
   {
     "result": {
-      "data": [
-        /* articles */
-      ]
+      "data": [/* articles */]
     }
   },
   {

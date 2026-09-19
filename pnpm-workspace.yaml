@@ -1,2 +1,15 @@
 packages:
   - "packages/*"
+
+# Build only the native dependencies used by this workspace.
+allowBuilds:
+  "@swc/core": true
+  "bcrypt": true
+  "better-sqlite3": true
+  "esbuild": true
+  "msw": true
+  "sharp": true
+  "workerd": true
+
+overrides:
+  esbuild: ">=0.28.1"

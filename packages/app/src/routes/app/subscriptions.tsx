@@ -1,3 +1,4 @@
+import { FeedHealthStatus } from "@/components/app/feed-health-status";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   useSubscriptions,
@@ -62,16 +63,26 @@ export const Route = createFileRoute("/app/subscriptions")({
 });
 
 type InitialFilterField =
-  | "title"
-  | "content"
-  | "description"
-  | "author"
-  | "any";
+  "title" | "content" | "description" | "author" | "any";
 type InitialFilterMatchType = "contains" | "exact" | "regex";
+
+function parseSubscribeUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function SubscriptionsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const subscribeUrl = parseSubscribeUrl(search.subscribe);
+  const [handledSubscribe, setHandledSubscribe] = useState(search.subscribe);
   const { data: subscriptionsData, isLoading, isError } = useSubscriptions();
   const subscriptions = subscriptionsData?.items || [];
   const createSubscription = useCreateSubscriptionWithRefetch();
@@ -87,10 +98,13 @@ function SubscriptionsPage() {
   const [editValue, setEditValue] = useState("");
   const [editCategoryIds, setEditCategoryIds] = useState<number[]>([]);
   const [editNewCategories, setEditNewCategories] = useState<string[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newSubUrl, setNewSubUrl] = useState("");
+  const [showAddForm, setShowAddForm] = useState(!!subscribeUrl);
+  const [newSubUrl, setNewSubUrl] = useState(subscribeUrl ?? "");
   const [newSubTitle, setNewSubTitle] = useState("");
-  const [discoveredFeeds, setDiscoveredFeeds] = useState<DiscoveredFeed[]>([]);
+  const [discoveryResult, setDiscoveryResult] = useState<{
+    url: string;
+    feeds: DiscoveredFeed[];
+  } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] = useState<
     number | null
@@ -141,118 +155,96 @@ function SubscriptionsPage() {
   // Use query-based preview (auto-fetches when URL is valid)
   const feedPreview = useFeedPreview(looksLikeFeedUrl ? debouncedUrl : null);
 
-  // Auto-discover feeds when URL looks like a website (not direct feed)
+  const { mutate: discoverFeeds } = feedDiscovery;
+  const discoveredFeeds =
+    !looksLikeFeedUrl &&
+    newSubUrl === debouncedUrl &&
+    discoveryResult?.url === debouncedUrl
+      ? discoveryResult.feeds
+      : [];
+
   useEffect(() => {
-    if (debouncedUrl && debouncedUrl.startsWith("http") && !looksLikeFeedUrl) {
-      // Website URL - attempt discovery
-      feedDiscovery.mutate(
+    let active = true;
+    if (
+      debouncedUrl === newSubUrl &&
+      debouncedUrl.startsWith("http") &&
+      !looksLikeFeedUrl
+    ) {
+      discoverFeeds(
         { url: debouncedUrl },
         {
           onSuccess: (feeds: DiscoveredFeed[]) => {
-            setDiscoveredFeeds(feeds);
-
-            // If only one feed found, auto-select it
+            if (!active) return;
+            setDiscoveryResult({ url: debouncedUrl, feeds });
             const [feed] = feeds;
             if (feed && feeds.length === 1) setNewSubUrl(feed.url);
           },
           onError: () => {
-            setDiscoveredFeeds([]);
+            if (active) setDiscoveryResult(null);
           },
         }
       );
-    } else {
-      // Clear discovered feeds when URL is empty, invalid, or looks like a feed
-      setDiscoveredFeeds([]);
     }
-    // Only depend on the actual values that should trigger discovery, not the mutation objects
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedUrl, looksLikeFeedUrl]);
+    return () => {
+      active = false;
+    };
+  }, [debouncedUrl, newSubUrl, looksLikeFeedUrl, discoverFeeds]);
 
-  // Track which feed URL we've already auto-categorized to avoid infinite loops or re-toasting
-  const autoCategorizedUrl = useRef<string | null>(null);
+  const [autoCategorization, setAutoCategorization] = useState<{
+    url: string;
+    count: number;
+  } | null>(null);
 
-  // Auto-apply AI suggested categories
+  // Adjust local form state only when a new, current preview arrives.
+  if (!newSubUrl && autoCategorization) {
+    setAutoCategorization(null);
+  } else if (
+    feedPreview.isSuccess &&
+    feedPreview.data?.aiSuggestions &&
+    newSubUrl &&
+    newSubUrl === debouncedUrl &&
+    autoCategorization?.url !== newSubUrl
+  ) {
+    const newIds = feedPreview.data.aiSuggestions.matchedCategoryIds.filter(
+      (id) => !selectedCategoryIds.includes(id)
+    );
+    setAutoCategorization({ url: newSubUrl, count: newIds.length });
+    if (newIds.length)
+      setSelectedCategoryIds([...new Set([...selectedCategoryIds, ...newIds])]);
+  }
+
   useEffect(() => {
-    if (
-      feedPreview.isSuccess &&
-      feedPreview.data?.aiSuggestions &&
-      newSubUrl &&
-      autoCategorizedUrl.current !== newSubUrl
-    ) {
-      const { matchedCategoryIds } = feedPreview.data.aiSuggestions;
-
-      if (matchedCategoryIds.length > 0) {
-        setSelectedCategoryIds((prev) => {
-          // Filter out already selected ones to see if we're actually adding anything
-          const newToSelect = matchedCategoryIds.filter(
-            (id: number) => !prev.includes(id)
-          );
-
-          if (newToSelect.length === 0) return prev;
-
-          toast.success(
-            `✨ AI auto-applied ${newToSelect.length} ${
-              newToSelect.length === 1 ? "category" : "categories"
-            }`,
-            {
-              duration: 3000,
-            }
-          );
-
-          const next = [...prev];
-          newToSelect.forEach((id: number) => {
-            if (!next.includes(id)) next.push(id);
-          });
-          return next;
-        });
-      }
-      autoCategorizedUrl.current = newSubUrl;
+    if (autoCategorization?.count) {
+      const count = autoCategorization.count;
+      toast.success(
+        `✨ AI auto-applied ${count} ${count === 1 ? "category" : "categories"}`,
+        {
+          duration: 3000,
+          id: `auto-categories:${autoCategorization.url}`,
+        }
+      );
     }
-  }, [feedPreview.isSuccess, feedPreview.data, newSubUrl]);
+  }, [autoCategorization]);
 
-  // Reset auto-categorization tracker if URL clears
+  if (search.subscribe !== handledSubscribe) {
+    setHandledSubscribe(search.subscribe);
+    if (subscribeUrl) {
+      setShowAddForm(true);
+      setNewSubUrl(subscribeUrl);
+    }
+  }
+
   useEffect(() => {
-    if (!newSubUrl) {
-      autoCategorizedUrl.current = null;
-    }
-  }, [newSubUrl]);
-
-  // Handle subscribe URL parameter
-  useEffect(() => {
-    if (search.subscribe) {
-      try {
-        // Decode the URL
-        const url = decodeURIComponent(search.subscribe);
-
-        // Validate it's a proper URL
-        new URL(url);
-
-        // Pre-populate the form
-        setShowAddForm(true);
-        setNewSubUrl(url);
-
-        // Clear the parameter from URL (don't keep it in browser history)
-        navigate({
-          to: "/app/subscriptions",
-          search: { subscribe: undefined },
-          replace: true,
-        });
-
-        // Show helpful message
-        toast.info("Feed URL loaded - review and confirm subscription");
-      } catch {
-        // Invalid URL provided
-        toast.error("Invalid feed URL provided");
-
-        // Still clear the parameter
-        navigate({
-          to: "/app/subscriptions",
-          search: { subscribe: undefined },
-          replace: true,
-        });
-      }
-    }
-  }, [search.subscribe, navigate]);
+    if (!search.subscribe) return;
+    if (subscribeUrl)
+      toast.info("Feed URL loaded - review and confirm subscription");
+    else toast.error("Invalid feed URL provided");
+    void navigate({
+      to: "/app/subscriptions",
+      search: { subscribe: undefined },
+      replace: true,
+    });
+  }, [search.subscribe, subscribeUrl, navigate]);
 
   // Handle OPML files opened via File Handling API
   useEffect(() => {
@@ -373,7 +365,7 @@ function SubscriptionsPage() {
       setNewSubUrl("");
       setNewSubTitle("");
       setShowAddForm(false);
-      setDiscoveredFeeds([]);
+      setDiscoveryResult(null);
       setSelectedCategoryIds([]);
       setNewCategoryNames([]);
       setFilterEnabled(false);
@@ -420,7 +412,7 @@ function SubscriptionsPage() {
   const handleSelectFeed = useCallback((feed: DiscoveredFeed) => {
     setNewSubUrl(feed.url);
     // Clear discovery results to show preview
-    setDiscoveredFeeds([]);
+    setDiscoveryResult(null);
   }, []);
 
   const handleEdit = useCallback(
@@ -482,7 +474,7 @@ function SubscriptionsPage() {
     setShowAddForm(false);
     setNewSubUrl("");
     setNewSubTitle("");
-    setDiscoveredFeeds([]);
+    setDiscoveryResult(null);
     setSelectedCategoryIds([]);
     setNewCategoryNames([]);
     setFilterEnabled(false);
@@ -490,11 +482,6 @@ function SubscriptionsPage() {
     setInitialFilters([]);
     feedDiscovery.reset();
   }, [feedDiscovery]);
-
-  const formatDate = useCallback((dateString?: string) => {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleDateString();
-  }, []);
 
   // Import handlers
   const handleFileChange = useCallback(
@@ -1305,14 +1292,13 @@ function SubscriptionsPage() {
                       )}
                   </div>
 
+                  <div className="col-span-3">
+                    <FeedHealthStatus source={sub.source} />
+                  </div>
                   {/* Metadata row - Spans full width at bottom */}
                   <div className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
                     <span className="truncate max-w-full md:max-w-md">
                       {sub.source?.url}
-                    </span>
-                    <span className="hidden md:inline">•</span>
-                    <span className="whitespace-nowrap">
-                      Updated: {formatDate(sub.source?.lastFetched)}
                     </span>
                   </div>
                 </div>

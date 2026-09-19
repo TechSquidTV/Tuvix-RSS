@@ -8,7 +8,7 @@
  * Emits both Span Metrics (for detailed tracing) and Sentry Metrics (for dashboards).
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 import { emitCounter, emitDistribution } from "./metrics.js";
 
 /**

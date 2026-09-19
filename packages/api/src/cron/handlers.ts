@@ -1,3 +1,4 @@
+import { CRON_SCHEDULES } from "./schedules";
 /**
  * Cron Job Handlers (Portable)
  *
@@ -5,14 +6,14 @@
  * The scheduler (node-cron or Workers scheduled events) calls these.
  */
 
-import { createDatabase } from "@/db/client";
-import { fetchAllFeeds } from "@/services/rss-fetcher";
-import { getGlobalSettings } from "@/services/global-settings";
-import { inArray, lt, or, isNull, and, eq } from "drizzle-orm";
-import * as schema from "@/db/schema";
-import type { Env } from "@/types";
-import { D1_MAX_PARAMETERS, chunkArray } from "@/db/utils";
-import { emitCounter, withTiming } from "@/utils/metrics";
+import { createDatabase } from "@api/db/client";
+import { fetchAllFeeds } from "@api/services/rss-fetcher";
+import { getGlobalSettings } from "@api/services/global-settings";
+import { sql, inArray, lt, or, isNull, and, eq } from "drizzle-orm";
+import * as schema from "@api/db/schema";
+import type { Env } from "@api/types";
+import { D1_MAX_PARAMETERS, chunkArray } from "@api/db/utils";
+import { emitCounter, withTiming } from "@api/utils/metrics";
 
 /**
  * Fetch all RSS feeds
@@ -21,13 +22,16 @@ import { emitCounter, withTiming } from "@/utils/metrics";
  * - Node.js: node-cron scheduler (scheduler.ts)
  * - Workers: scheduled event (cloudflare.ts)
  */
-async function _handleRSSFetch(env: Env): Promise<void> {
+async function _handleRSSFetch(
+  env: Env,
+  stalenessThresholdMinutes: number
+): Promise<void> {
   console.log("🔄 Starting scheduled RSS fetch...");
 
   const db = createDatabase(env);
 
   try {
-    const result = await fetchAllFeeds(db);
+    const result = await fetchAllFeeds(db, { stalenessThresholdMinutes });
 
     console.log(`✅ RSS fetch completed:`, {
       processed: result.processedCount,
@@ -71,6 +75,12 @@ async function _handleTokenCleanup(env: Env): Promise<{
           .delete(schema.verification)
           .where(lt(schema.verification.expiresAt, new Date(cutoffTimestamp)))
           .returning();
+
+        await db
+          .delete(schema.authRateLimits)
+          .where(
+            sql`${schema.authRateLimits.windowStartedAt} < ${cutoffTimestamp} AND ${schema.authRateLimits.lockedUntil} < ${Date.now()}`
+          );
 
         const deletedCount = deletedTokens.length;
 
@@ -209,80 +219,45 @@ async function _handleArticlePrune(env: Env): Promise<{
   );
 }
 
-// Export wrapped versions with Sentry monitoring (Cloudflare only)
-// For Node.js, these will be used directly without monitoring
-export async function handleRSSFetch(env: Env): Promise<void> {
-  if (env.RUNTIME === "cloudflare" && env.SENTRY_DSN) {
-    try {
-      // Dynamic import for Cloudflare-only Sentry module
-      const Sentry = (await import("@sentry/cloudflare")) as {
-        withMonitor: (
-          name: string,
-          handler: () => Promise<void>,
-          options: { schedule: { type: string; value: string } }
-        ) => Promise<void>;
-      };
-      await Sentry.withMonitor("rss-fetch", () => _handleRSSFetch(env), {
-        schedule: { type: "crontab", value: "*/5 * * * *" },
-      });
-      return;
-    } catch {
-      // Sentry not available, use regular handler
-    }
+/** Import failures may disable monitoring; task failures must never rerun work. */
+async function runMonitored<T>(
+  env: Env,
+  name: keyof typeof CRON_SCHEDULES,
+  task: () => Promise<T>
+): Promise<T> {
+  if (env.RUNTIME !== "cloudflare" || !env.SENTRY_DSN) return task();
+  let sdk: typeof import("@sentry/cloudflare");
+  try {
+    sdk = await import("@sentry/cloudflare");
+  } catch {
+    return task();
   }
-  return _handleRSSFetch(env);
+  return sdk.withMonitor(name, task, {
+    schedule: {
+      type: "interval",
+      value: CRON_SCHEDULES[name].minutes,
+      unit: "minute",
+    },
+  });
 }
 
-export async function handleArticlePrune(env: Env): Promise<{
-  deletedCount: number;
-}> {
-  if (env.RUNTIME === "cloudflare" && env.SENTRY_DSN) {
-    try {
-      // Dynamic import for Cloudflare-only Sentry module
-      const Sentry = (await import("@sentry/cloudflare")) as {
-        withMonitor: <T>(
-          name: string,
-          handler: () => Promise<T>,
-          options: { schedule: { type: string; value: string } }
-        ) => Promise<T>;
-      };
-      return await Sentry.withMonitor(
-        "article-prune",
-        () => _handleArticlePrune(env),
-        {
-          schedule: { type: "crontab", value: "0 2 * * *" },
-        }
-      );
-    } catch {
-      // Sentry not available, use regular handler
-    }
-  }
-  return _handleArticlePrune(env);
+export function handleRSSFetch(
+  env: Env,
+  stalenessThresholdMinutes: number
+): Promise<void> {
+  return runMonitored(env, "rss-fetch", () =>
+    _handleRSSFetch(env, stalenessThresholdMinutes)
+  );
 }
 
-export async function handleTokenCleanup(env: Env): Promise<{
-  deletedCount: number;
-}> {
-  if (env.RUNTIME === "cloudflare" && env.SENTRY_DSN) {
-    try {
-      // Dynamic import for Cloudflare-only Sentry module
-      const Sentry = (await import("@sentry/cloudflare")) as {
-        withMonitor: <T>(
-          name: string,
-          handler: () => Promise<T>,
-          options: { schedule: { type: string; value: string } }
-        ) => Promise<T>;
-      };
-      return await Sentry.withMonitor(
-        "token-cleanup",
-        () => _handleTokenCleanup(env),
-        {
-          schedule: { type: "crontab", value: "0 * * * *" }, // Every hour
-        }
-      );
-    } catch {
-      // Sentry not available, use regular handler
-    }
-  }
-  return _handleTokenCleanup(env);
+export function handleArticlePrune(
+  env: Env
+): Promise<{ deletedCount: number }> {
+  return runMonitored(env, "article-prune", () => _handleArticlePrune(env));
+}
+
+export function handleTokenCleanup(
+  env: Env
+): Promise<{ deletedCount: number }> {
+  return runMonitored(env, "token-cleanup", () => _handleTokenCleanup(env));
 }

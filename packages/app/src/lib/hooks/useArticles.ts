@@ -1,3 +1,4 @@
+import { getQueryKey } from "@trpc/react-query";
 // tRPC Hooks for Articles
 import { toast } from "sonner";
 import { trpc } from "@/lib/api/trpc";
@@ -23,9 +24,9 @@ export type InfiniteArticlesData = {
  * Includes defensive checks for malformed data
  * Exported for testing
  */
-export function deduplicateArticlesData(
-  data: InfiniteArticlesData
-): InfiniteArticlesData {
+export function deduplicateArticlesData<T extends InfiniteArticlesData>(
+  data: T
+): T {
   // Defensive check: ensure data and pages exist
   if (!data?.pages || !Array.isArray(data.pages)) {
     console.warn("⚠️ useInfiniteArticles select: Invalid data structure", {
@@ -107,24 +108,7 @@ export const useInfiniteArticles = (filters?: {
       ...(filters || {}),
     },
     {
-      getNextPageParam: (lastPage, allPages) => {
-        // Backend returns {items: Article[], total: number, hasMore: boolean}
-        if (!lastPage?.hasMore || lastPage.items.length === 0) {
-          return undefined;
-        }
-
-        // Calculate offset based on UNIQUE article IDs to avoid skipping articles
-        // This is critical because deduplication in select() removes duplicates,
-        // but pagination offset must be based on unique items actually rendered
-        const uniqueIds = new Set<number>();
-        allPages.forEach((page) => {
-          page.items.forEach((article) => uniqueIds.add(article.id));
-        });
-
-        // tRPC automatically sends this as 'cursor' parameter
-        return uniqueIds.size;
-      },
-      initialPageParam: 0,
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
       staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for this long
       // Deduplicate articles by ID to prevent duplicate keys in render
       select: deduplicateArticlesData,
@@ -161,12 +145,12 @@ export const useMarkArticleRead = () => {
 
       // Snapshot the previous value for rollback
       const previousData = queryClient.getQueriesData({
-        queryKey: [["trpc"], ["articles", "list"]],
+        queryKey: getQueryKey(trpc.articles.list),
       });
 
       // Optimistically update all cached queries
       queryClient.setQueriesData<InfiniteArticlesData>(
-        { queryKey: [["trpc"], ["articles", "list"]] },
+        { queryKey: getQueryKey(trpc.articles.list) },
         (old) => {
           if (!old?.pages) return old;
           return {
@@ -183,7 +167,7 @@ export const useMarkArticleRead = () => {
 
       return { previousData };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousData) {
         // getQueriesData returns [QueryKey, TData][] tuples
@@ -212,11 +196,11 @@ export const useMarkArticleUnread = () => {
       await utils.articles.list.cancel();
 
       const previousData = queryClient.getQueriesData({
-        queryKey: [["trpc"], ["articles", "list"]],
+        queryKey: getQueryKey(trpc.articles.list),
       });
 
       queryClient.setQueriesData<InfiniteArticlesData>(
-        { queryKey: [["trpc"], ["articles", "list"]] },
+        { queryKey: getQueryKey(trpc.articles.list) },
         (old) => {
           if (!old?.pages) return old;
           return {
@@ -233,7 +217,7 @@ export const useMarkArticleUnread = () => {
 
       return { previousData };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousData) {
         // getQueriesData returns [QueryKey, TData][] tuples
         // setQueryData accepts QueryKey directly - formats are compatible
@@ -261,11 +245,11 @@ export const useSaveArticle = () => {
       await utils.articles.list.cancel();
 
       const previousData = queryClient.getQueriesData({
-        queryKey: [["trpc"], ["articles", "list"]],
+        queryKey: getQueryKey(trpc.articles.list),
       });
 
       queryClient.setQueriesData<InfiniteArticlesData>(
-        { queryKey: [["trpc"], ["articles", "list"]] },
+        { queryKey: getQueryKey(trpc.articles.list) },
         (old) => {
           if (!old?.pages) return old;
           return {
@@ -282,7 +266,7 @@ export const useSaveArticle = () => {
 
       return { previousData };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousData) {
         // getQueriesData returns [QueryKey, TData][] tuples
         // setQueryData accepts QueryKey directly - formats are compatible
@@ -310,11 +294,11 @@ export const useUnsaveArticle = () => {
       await utils.articles.list.cancel();
 
       const previousData = queryClient.getQueriesData({
-        queryKey: [["trpc"], ["articles", "list"]],
+        queryKey: getQueryKey(trpc.articles.list),
       });
 
       queryClient.setQueriesData<InfiniteArticlesData>(
-        { queryKey: [["trpc"], ["articles", "list"]] },
+        { queryKey: getQueryKey(trpc.articles.list) },
         (old) => {
           if (!old?.pages) return old;
           return {
@@ -331,7 +315,7 @@ export const useUnsaveArticle = () => {
 
       return { previousData };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousData) {
         // getQueriesData returns [QueryKey, TData][] tuples
         // setQueryData accepts QueryKey directly - formats are compatible

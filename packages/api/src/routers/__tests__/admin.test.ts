@@ -13,12 +13,12 @@ import {
   seedTestPlan,
   seedTestSource,
   seedTestSubscription,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { adminRouter } from "../admin";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 
 // Mock Better Auth
-vi.mock("@/auth/better-auth", () => ({
+vi.mock("@api/auth/better-auth", () => ({
   createAuth: vi.fn(() => ({
     api: {
       sendVerificationEmail: vi.fn().mockResolvedValue({ status: true }),

@@ -402,9 +402,9 @@ describe("deduplicateArticlesData", () => {
 
     const result = deduplicateArticlesData(data);
 
-    expect(result.pages[0].items).toHaveLength(2);
-    expect(result.pages[1].items).toHaveLength(1); // Only article 3
-    expect(result.pages[1].items[0].id).toBe(3);
+    expect(result.pages[0]!.items).toHaveLength(2);
+    expect(result.pages[1]!.items).toHaveLength(1); // Only article 3
+    expect(result.pages[1]!.items[0]!.id).toBe(3);
   });
 
   it("should handle empty pages", () => {
@@ -415,8 +415,8 @@ describe("deduplicateArticlesData", () => {
 
     const result = deduplicateArticlesData(data);
 
-    expect(result.pages[0].items).toHaveLength(0);
-    expect(result.pages[1].items).toHaveLength(1);
+    expect(result.pages[0]!.items).toHaveLength(0);
+    expect(result.pages[1]!.items).toHaveLength(1);
   });
 
   it("should handle single page with no duplicates", () => {
@@ -429,7 +429,7 @@ describe("deduplicateArticlesData", () => {
 
     const result = deduplicateArticlesData(data);
 
-    expect(result.pages[0].items).toHaveLength(3);
+    expect(result.pages[0]!.items).toHaveLength(3);
   });
 
   describe("defensive checks", () => {
@@ -490,8 +490,8 @@ describe("deduplicateArticlesData", () => {
 
       const result = deduplicateArticlesData(data);
 
-      expect(result.pages[0].items).toEqual([]);
-      expect(result.pages[0].total).toBe(0);
+      expect(result.pages[0]!.items).toEqual([]);
+      expect(result.pages[0]!.total).toBe(0);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
         expect.any(Object)
@@ -507,7 +507,7 @@ describe("deduplicateArticlesData", () => {
 
       const result = deduplicateArticlesData(data);
 
-      expect(result.pages[0].items).toEqual([]);
+      expect(result.pages[0]!.items).toEqual([]);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
         expect.any(Object)
@@ -523,8 +523,8 @@ describe("deduplicateArticlesData", () => {
 
       const result = deduplicateArticlesData(data);
 
-      expect(result.pages[0].items).toEqual([]);
-      expect(result.pages[0].total).toBe(0);
+      expect(result.pages[0]!.items).toEqual([]);
+      expect(result.pages[0]!.total).toBe(0);
       expect(console.warn).toHaveBeenCalledWith(
         "⚠️ useInfiniteArticles select: Page missing items array",
         expect.any(Object)
@@ -544,9 +544,9 @@ describe("deduplicateArticlesData", () => {
 
       const result = deduplicateArticlesData(data);
 
-      expect(result.pages[0].items).toHaveLength(1);
-      expect(result.pages[1].items).toEqual([]);
-      expect(result.pages[2].items).toHaveLength(1);
+      expect(result.pages[0]!.items).toHaveLength(1);
+      expect(result.pages[1]!.items).toEqual([]);
+      expect(result.pages[2]!.items).toHaveLength(1);
     });
   });
 });

@@ -4,14 +4,14 @@
  * Tests for QueryClient offline and retry configurations
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import {
-  TRPCProvider,
   shouldRetryQuery,
   calculateRetryDelay,
   createFetchWithCredentials,
-} from "../trpc-provider";
+} from "@/lib/api/query-options";
+import { TRPCProvider } from "../trpc-provider";
 import { onlineManager } from "@tanstack/react-query";
 
 describe("TRPCProvider - Offline Configuration", () => {

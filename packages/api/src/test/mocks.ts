@@ -201,3 +201,14 @@ export const MOCK_ADMIN = {
   role: "admin" as const,
   plan: "free",
 };
+
+/** Real streamed response for feed/discovery tests, including a redirect URL. */
+export function createFeedResponse(
+  body: string,
+  url?: string,
+  headers: HeadersInit = { "content-type": "application/xml" }
+): Response {
+  const response = new Response(body, { headers });
+  if (url) Object.defineProperty(response, "url", { value: url });
+  return response;
+}

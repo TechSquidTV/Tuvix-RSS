@@ -5,7 +5,7 @@
  * Works in both Node.js and Cloudflare Workers environments.
  */
 
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 /**
  * Get the base URL for the application

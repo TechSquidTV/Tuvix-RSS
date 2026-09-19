@@ -5,7 +5,7 @@
  * Used in Node.js builds and tests where Sentry is not needed.
  *
  * Build-time aliasing in tsup.config.ts and vitest.config.ts routes
- * imports of "@/utils/sentry" to this file for Node.js/test builds.
+ * imports of "@api/utils/sentry" to this file for Node.js/test builds.
  *
  * All functions match the @sentry/cloudflare API signatures exactly.
  */
@@ -61,13 +61,7 @@ export function captureException(
 export function captureMessage(
   _message: string,
   _levelOrContext?:
-    | "fatal"
-    | "error"
-    | "warning"
-    | "log"
-    | "info"
-    | "debug"
-    | CaptureContext
+    "fatal" | "error" | "warning" | "log" | "info" | "debug" | CaptureContext
 ): string | undefined {
   return undefined;
 }

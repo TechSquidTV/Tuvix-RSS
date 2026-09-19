@@ -295,7 +295,7 @@ describe("SubscriptionFilterManager", () => {
 
     // Click edit button on first filter
     const editButtons = screen.getAllByTitle(/edit filter/i);
-    await user.click(editButtons[0]);
+    await user.click(editButtons[0]!);
 
     // Should show edit form
     await waitFor(() => {
@@ -336,10 +336,13 @@ describe("SubscriptionFilterManager", () => {
 
     // Click delete button on first filter
     const deleteButtons = screen.getAllByTitle(/delete filter/i);
-    await user.click(deleteButtons[0]);
+    await user.click(deleteButtons[0]!);
 
     await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledWith(1);
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        subscriptionId: 1,
+        filterId: 1,
+      });
     });
   });
 

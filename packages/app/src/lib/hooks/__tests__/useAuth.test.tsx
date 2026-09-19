@@ -106,7 +106,7 @@ const expectCalledBefore = (
   second: ReturnType<typeof vi.fn>
 ) => {
   expect(first.mock.invocationCallOrder[0]).toBeLessThan(
-    second.mock.invocationCallOrder[0]
+    second.mock.invocationCallOrder[0]!
   );
 };
 

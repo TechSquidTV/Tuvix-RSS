@@ -10,14 +10,14 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedGlobalSettings,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { authRouter } from "../auth";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 // Mock email service
-vi.mock("@/services/email", async () => {
-  const actual = await vi.importActual("@/services/email");
+vi.mock("@api/services/email", async () => {
+  const actual = await vi.importActual("@api/services/email");
   return {
     ...actual,
     sendPasswordResetEmail: vi.fn(),
@@ -131,7 +131,7 @@ describe("Auth Router", () => {
 
   describe("register", () => {
     it("should send welcome email on successful registration", async () => {
-      const { sendWelcomeEmail } = await import("@/services/email");
+      const { sendWelcomeEmail } = await import("@api/services/email");
       vi.mocked(sendWelcomeEmail).mockResolvedValue({ success: true });
 
       const caller = authRouter.createCaller({
@@ -168,7 +168,7 @@ describe("Auth Router", () => {
     });
 
     it("should succeed registration even if welcome email fails", async () => {
-      const { sendWelcomeEmail } = await import("@/services/email");
+      const { sendWelcomeEmail } = await import("@api/services/email");
       vi.mocked(sendWelcomeEmail).mockResolvedValue({
         success: false,
         error: "Email service unavailable",
@@ -279,7 +279,7 @@ describe("Auth Router", () => {
     });
 
     it("should log email send result to security audit log", async () => {
-      const { sendPasswordResetEmail } = await import("@/services/email");
+      const { sendPasswordResetEmail } = await import("@api/services/email");
       vi.mocked(sendPasswordResetEmail).mockResolvedValue({ success: true });
 
       const caller = authRouter.createCaller({
@@ -328,7 +328,7 @@ describe("Auth Router", () => {
 
     it("should log email failure to security audit log", async () => {
       // Mock sendPasswordResetEmail to fail
-      const { sendPasswordResetEmail } = await import("@/services/email");
+      const { sendPasswordResetEmail } = await import("@api/services/email");
       vi.mocked(sendPasswordResetEmail).mockResolvedValue({
         success: false,
         error: "Email service error",
@@ -386,7 +386,7 @@ describe("Auth Router", () => {
     });
 
     it("should return success even when user does not exist (prevent enumeration)", async () => {
-      const { sendPasswordResetEmail } = await import("@/services/email");
+      const { sendPasswordResetEmail } = await import("@api/services/email");
       // Clear previous calls
       vi.mocked(sendPasswordResetEmail).mockClear();
 

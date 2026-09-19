@@ -431,24 +431,12 @@ export const MyEmail: React.FC<Readonly<MyEmailProps>> = ({
 export default MyEmail;
 
 // Styles
-const main = {
-  /* ... */
-};
-const container = {
-  /* ... */
-};
-const h1 = {
-  /* ... */
-};
-const text = {
-  /* ... */
-};
-const buttonContainer = {
-  /* ... */
-};
-const button = {
-  /* ... */
-};
+const main = {/* ... */};
+const container = {/* ... */};
+const h1 = {/* ... */};
+const text = {/* ... */};
+const buttonContainer = {/* ... */};
+const button = {/* ... */};
 ```
 
 ### Adding a New Email Type

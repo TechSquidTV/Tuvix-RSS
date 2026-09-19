@@ -5,4 +5,4 @@
  * Re-exports everything from main index.
  */
 
-export * from "./index";
+export * from "./index.js";

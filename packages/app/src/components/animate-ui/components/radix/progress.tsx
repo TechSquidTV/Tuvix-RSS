@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
   Progress as ProgressPrimitive,
   ProgressIndicator as ProgressIndicatorPrimitive,

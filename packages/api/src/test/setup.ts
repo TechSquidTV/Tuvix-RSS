@@ -9,11 +9,11 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import bcrypt from "bcrypt";
 import path from "path";
 import { fileURLToPath } from "url";
-import type { Database as AppDatabase } from "@/db/client";
+import type { Database as AppDatabase } from "@api/db/client";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

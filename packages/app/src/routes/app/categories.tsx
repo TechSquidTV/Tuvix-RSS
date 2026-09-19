@@ -86,7 +86,8 @@ function CategoryFeedStatus({
   onCreateFeed: () => void;
 }) {
   const { data: feed, isLoading } = useFeedByCategoryId(category.id);
-  const { data: user } = useCurrentUser();
+  const { data: session } = useCurrentUser();
+  const user = session?.user;
 
   if (isLoading) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;

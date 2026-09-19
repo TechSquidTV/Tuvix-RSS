@@ -5,25 +5,35 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { handleRSSFetch, handleArticlePrune } from "../handlers";
-import { createTestDb, cleanupTestDb, seedTestSource } from "@/test/setup";
-import * as schema from "@/db/schema";
+import {
+  handleRSSFetch,
+  handleArticlePrune,
+  handleTokenCleanup,
+} from "../handlers";
+import { createTestDb, cleanupTestDb, seedTestSource } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
+
+vi.mock("@sentry/cloudflare", () => ({
+  withMonitor: vi.fn((_name: string, handler: () => Promise<void>) =>
+    handler()
+  ),
+}));
 
 // Mock dependencies
-vi.mock("@/services/rss-fetcher", () => ({
+vi.mock("@api/services/rss-fetcher", () => ({
   fetchAllFeeds: vi.fn(),
 }));
 
-vi.mock("@/db/client", () => ({
+vi.mock("@api/db/client", () => ({
   createDatabase: vi.fn(),
 }));
 
-vi.mock("@/services/global-settings", async () => {
+vi.mock("@api/services/global-settings", async () => {
   const actual = await vi.importActual<
-    typeof import("@/services/global-settings")
-  >("@/services/global-settings");
+    typeof import("@api/services/global-settings")
+  >("@api/services/global-settings");
   return {
     ...actual,
     getGlobalSettings: vi.fn().mockImplementation(actual.getGlobalSettings),
@@ -42,7 +52,7 @@ describe("Cron Handlers", () => {
     } as Env;
 
     // Mock createDatabase to return our test db
-    const { createDatabase } = await import("@/db/client");
+    const { createDatabase } = await import("@api/db/client");
     vi.mocked(createDatabase).mockReturnValue(db as any);
   });
 
@@ -51,9 +61,51 @@ describe("Cron Handlers", () => {
     vi.clearAllMocks();
   });
 
+  it.each([
+    ["rss-fetch", 1],
+    ["article-prune", 1440],
+    ["token-cleanup", 10080],
+  ] as const)(
+    "propagates %s failures once and monitors its actual interval",
+    async (name, minutes) => {
+      const { createDatabase } = await import("@api/db/client");
+      const { withMonitor } = await import("@sentry/cloudflare");
+      vi.mocked(createDatabase).mockImplementation(() => {
+        throw new Error("Unavailable database");
+      });
+      env.RUNTIME = "cloudflare";
+      env.SENTRY_DSN = "https://public@example.com/1";
+      const run = () =>
+        name === "rss-fetch"
+          ? handleRSSFetch(env, 45)
+          : name === "article-prune"
+            ? handleArticlePrune(env)
+            : handleTokenCleanup(env);
+      await expect(run()).rejects.toThrow("Unavailable database");
+      expect(createDatabase).toHaveBeenCalledTimes(1);
+      expect(withMonitor).toHaveBeenCalledWith(name, expect.any(Function), {
+        schedule: { type: "interval", value: minutes, unit: "minute" },
+      });
+    }
+  );
+
   describe("handleRSSFetch", () => {
+    it("does not execute a failed monitored batch twice", async () => {
+      const { fetchAllFeeds } = await import("@api/services/rss-fetcher");
+      vi.mocked(fetchAllFeeds).mockRejectedValue(
+        new Error("Database unavailable")
+      );
+      env.RUNTIME = "cloudflare";
+      env.SENTRY_DSN = "https://public@example.com/1";
+
+      await expect(handleRSSFetch(env, 45)).rejects.toThrow(
+        "Database unavailable"
+      );
+      expect(fetchAllFeeds).toHaveBeenCalledTimes(1);
+    });
+
     it("should successfully fetch all RSS feeds", async () => {
-      const { fetchAllFeeds } = await import("@/services/rss-fetcher");
+      const { fetchAllFeeds } = await import("@api/services/rss-fetcher");
       vi.mocked(fetchAllFeeds).mockResolvedValue({
         processedCount: 5,
         successCount: 4,
@@ -67,14 +119,16 @@ describe("Cron Handlers", () => {
         ],
       });
 
-      await handleRSSFetch(env);
+      await handleRSSFetch(env, 45);
 
-      expect(fetchAllFeeds).toHaveBeenCalledWith(db);
+      expect(fetchAllFeeds).toHaveBeenCalledWith(db, {
+        stalenessThresholdMinutes: 45,
+      });
     });
 
     it("should log results when fetch completes", async () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      const { fetchAllFeeds } = await import("@/services/rss-fetcher");
+      const { fetchAllFeeds } = await import("@api/services/rss-fetcher");
       vi.mocked(fetchAllFeeds).mockResolvedValue({
         processedCount: 3,
         successCount: 3,
@@ -82,7 +136,7 @@ describe("Cron Handlers", () => {
         errors: [],
       });
 
-      await handleRSSFetch(env);
+      await handleRSSFetch(env, 45);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         "🔄 Starting scheduled RSS fetch..."
@@ -100,11 +154,11 @@ describe("Cron Handlers", () => {
       const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      const { fetchAllFeeds } = await import("@/services/rss-fetcher");
+      const { fetchAllFeeds } = await import("@api/services/rss-fetcher");
       const error = new Error("Database connection failed");
       vi.mocked(fetchAllFeeds).mockRejectedValue(error);
 
-      await expect(handleRSSFetch(env)).rejects.toThrow(
+      await expect(handleRSSFetch(env, 45)).rejects.toThrow(
         "Database connection failed"
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -146,10 +200,11 @@ describe("Cron Handlers", () => {
       });
 
       // Reset mock to use real implementation (default behavior)
-      const { getGlobalSettings } = await import("@/services/global-settings");
+      const { getGlobalSettings } =
+        await import("@api/services/global-settings");
       const actual = await vi.importActual<
-        typeof import("@/services/global-settings")
-      >("@/services/global-settings");
+        typeof import("@api/services/global-settings")
+      >("@api/services/global-settings");
       vi.mocked(getGlobalSettings).mockReset();
       vi.mocked(getGlobalSettings).mockImplementation(actual.getGlobalSettings);
 
@@ -484,7 +539,8 @@ describe("Cron Handlers", () => {
         .mockImplementation(() => {});
 
       // Mock getGlobalSettings to throw an error
-      const { getGlobalSettings } = await import("@/services/global-settings");
+      const { getGlobalSettings } =
+        await import("@api/services/global-settings");
       vi.mocked(getGlobalSettings).mockRejectedValue(
         new Error("Database connection failed")
       );

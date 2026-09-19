@@ -11,7 +11,7 @@ vi.mock("motion/react", () => ({
     get: vi.fn(() => 0),
     set: vi.fn(),
   })),
-  useTransform: vi.fn((value, input, output) => ({
+  useTransform: vi.fn((_value, _input, output) => ({
     get: vi.fn(() => output[Math.floor(output.length / 2)]),
   })),
   useAnimation: vi.fn(() => ({

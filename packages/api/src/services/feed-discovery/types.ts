@@ -4,7 +4,7 @@
  * Types and interfaces for the extensible feed discovery system.
  */
 
-import type { DiscoveredFeed } from "@/types/feed";
+import type { DiscoveredFeed } from "@api/types/feed";
 
 /**
  * Context shared across discovery services during a single discovery request.
@@ -50,4 +50,4 @@ export interface DiscoveryService {
   priority: number;
 }
 
-export type { DiscoveredFeed } from "@/types/feed";
+export type { DiscoveredFeed } from "@api/types/feed";
