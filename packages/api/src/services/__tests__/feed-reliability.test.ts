@@ -146,4 +146,22 @@ describe("feed reliability", () => {
     }
     expect(alert).toHaveBeenCalledTimes(1);
   });
+
+  it("treats unchanged successful feeds as recovery despite other failures", async () => {
+    const alert = vi.spyOn(Sentry, "captureMessage");
+    const failed = { backlog: 50, errors: 20, added: 0, processed: 20 };
+    await recordFeedBatchHealth(db, failed);
+    await recordFeedBatchHealth(db, failed);
+    for (let batch = 0; batch < 3; batch++) {
+      await recordFeedBatchHealth(db, { ...failed, errors: 1 });
+    }
+    const [health] = await db.select().from(schema.feedFetchHealth);
+    expect(health?.failingBatches).toBe(0);
+    expect(alert).not.toHaveBeenCalled();
+    await recordFeedBatchHealth(db, failed);
+    await recordFeedBatchHealth(db, failed);
+    expect(alert).not.toHaveBeenCalled();
+    await recordFeedBatchHealth(db, failed);
+    expect(alert).toHaveBeenCalledTimes(1);
+  });
 });

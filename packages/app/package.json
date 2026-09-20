@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "generate:routes": "tsr generate",
     "generate:icons": "node scripts/generate-icons.mjs",
-    "type-check": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
+    "type-check": "pnpm run generate:routes && tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "knip": "knip",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

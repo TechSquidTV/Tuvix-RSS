@@ -13,7 +13,7 @@ This release fixes feed starvation, hardens ingestion and authentication, update
 ## 1. Review and validate the PR
 
 - [ ] Review the dependency changes, security changes, migration SQL, and API response changes.
-- [ ] Run `pnpm install --frozen-lockfile`, `pnpm pre-check`, and `pnpm test` with the supported toolchain.
+- [ ] Run `pnpm install --frozen-lockfile`, `pnpm build:tricorder`, `pnpm pre-check`, and `pnpm test` with the supported toolchain. Build Tricorder first on a clean checkout, as CI does, so its workspace exports are available.
 - [ ] Require CI success, including Docker validation. Local verification passed 1,584 tests across 108 files, with five existing skips; lint, formatting, types, builds, Worker dry-run, and desktop/mobile smoke checks passed. Docker validation remains pending because the local daemon was unavailable.
 - [ ] Rehearse an upgrade on a disposable database with existing sources, articles, subscriptions, and read/saved state. Record row counts and representative timestamps before and after. Also verify a fresh installation.
 - [ ] Check staging login/logout, article filters and pagination, read/saved state, feed refresh, error/retry display, and a healthy feed recovering after an induced failure.

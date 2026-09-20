@@ -14,7 +14,8 @@ export async function recordFeedBatchHealth(
   }
 ): Promise<void> {
   if (batch.processed === 0) return;
-  const stalled = batch.errors > 0 && batch.added === 0;
+  // A successful fetch is progress even when the publisher has no new articles.
+  const stalled = batch.errors === batch.processed;
   const [health] = await db
     .insert(feedFetchHealth)
     .values({
