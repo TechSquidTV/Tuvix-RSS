@@ -7,7 +7,7 @@ vi.mock("@sentry/react", () => ({
   captureException: vi.fn(),
   captureMessage: vi.fn(),
   addBreadcrumb: vi.fn(),
-  startSpan: vi.fn((opts, fn) => fn()),
+  startSpan: vi.fn((_opts, fn) => fn()),
 }));
 
 // Mock Audio element with synchronous behavior for testing

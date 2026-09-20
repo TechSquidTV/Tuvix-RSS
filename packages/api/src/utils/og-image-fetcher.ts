@@ -1,3 +1,4 @@
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * OpenGraph Image Fetcher
  *
@@ -36,7 +37,7 @@ export async function extractOgImage(
       const domain = extractDomain(url) || "unknown";
 
       try {
-        const response = await fetch(url, {
+        const response = await safeFetch(url, {
           signal: controller.signal,
           headers: { "User-Agent": userAgent },
         });

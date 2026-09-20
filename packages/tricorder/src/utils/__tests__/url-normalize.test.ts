@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { normalizeFeedUrl } from "../url-normalize";
+import { normalizeFeedUrl } from "../url-normalize.js";
 
 describe("normalizeFeedUrl", () => {
   describe("hostname normalization", () => {

@@ -5,11 +5,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CategorySuggestion } from "@/lib/hooks/useFeedPreview";
-import type { ModelsCategory } from "@/lib/api/generated/types.gen";
+import type { Category } from "@/lib/api/trpc";
 
 interface SubscriptionCategorySelectorProps {
   suggestedCategories: CategorySuggestion[];
-  existingCategories: ModelsCategory[];
+  existingCategories: Category[];
   selectedCategoryIds: number[];
   newCategoryNames: string[];
   onToggleCategory: (categoryId: number) => void;

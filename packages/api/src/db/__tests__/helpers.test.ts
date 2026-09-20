@@ -19,7 +19,7 @@ import {
   seedTestSubscription,
   seedTestCategory,
   seedTestArticle,
-} from "@/test/setup";
+} from "@api/test/setup";
 import * as schema from "../schema";
 import { eq, and } from "drizzle-orm";
 

@@ -11,7 +11,7 @@ import Database from "better-sqlite3";
 import { existsSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

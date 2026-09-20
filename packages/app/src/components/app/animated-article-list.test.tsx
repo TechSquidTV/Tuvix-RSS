@@ -1,3 +1,4 @@
+import { createArticle } from "@/test/fixtures";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { render } from "@/test/test-utils";
@@ -28,12 +29,12 @@ type Article = RouterOutputs["articles"]["list"]["items"][number];
 
 describe("AnimatedArticleList", () => {
   const mockArticles: Article[] = [
-    {
+    createArticle({
       id: 1,
       title: "Article 1",
       description: "Description 1",
       link: "https://example.com/1",
-      publishedAt: new Date().toISOString(),
+      publishedAt: new Date(),
       read: false,
       saved: false,
       source: {
@@ -41,13 +42,13 @@ describe("AnimatedArticleList", () => {
         title: "Source 1",
         url: "https://example.com",
       },
-    },
-    {
+    }),
+    createArticle({
       id: 2,
       title: "Article 2",
       description: "Description 2",
       link: "https://example.com/2",
-      publishedAt: new Date().toISOString(),
+      publishedAt: new Date(),
       read: false,
       saved: false,
       source: {
@@ -55,13 +56,13 @@ describe("AnimatedArticleList", () => {
         title: "Source 2",
         url: "https://example.com",
       },
-    },
-    {
+    }),
+    createArticle({
       id: 3,
       title: "Article 3",
       description: "Description 3",
       link: "https://example.com/3",
-      publishedAt: new Date().toISOString(),
+      publishedAt: new Date(),
       read: false,
       saved: false,
       source: {
@@ -69,7 +70,7 @@ describe("AnimatedArticleList", () => {
         title: "Source 3",
         url: "https://example.com",
       },
-    },
+    }),
   ];
 
   beforeEach(() => {

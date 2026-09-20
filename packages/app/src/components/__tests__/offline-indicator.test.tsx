@@ -80,7 +80,7 @@ describe("OfflineIndicator", () => {
       render(<OfflineIndicator />);
 
       const callArgs = vi.mocked(toast.error).mock.calls[0];
-      expect(callArgs[1]?.duration).toBe(Infinity);
+      expect(callArgs![1]?.duration).toBe(Infinity);
     });
 
     it("should include WifiOff icon in offline toast", () => {
@@ -91,7 +91,7 @@ describe("OfflineIndicator", () => {
       render(<OfflineIndicator />);
 
       const callArgs = vi.mocked(toast.error).mock.calls[0];
-      expect(callArgs[1]?.icon).toBeDefined();
+      expect(callArgs![1]?.icon).toBeDefined();
     });
   });
 
@@ -140,7 +140,7 @@ describe("OfflineIndicator", () => {
       rerender(<OfflineIndicator />);
 
       const callArgs = vi.mocked(toast.success).mock.calls[0];
-      expect(callArgs[1]?.duration).toBe(3000);
+      expect(callArgs![1]?.duration).toBe(3000);
     });
 
     it("should not show success toast if never went offline", () => {
@@ -172,7 +172,7 @@ describe("OfflineIndicator", () => {
       rerender(<OfflineIndicator />);
 
       const callArgs = vi.mocked(toast.success).mock.calls[0];
-      expect(callArgs[1]?.icon).toBeDefined();
+      expect(callArgs![1]?.icon).toBeDefined();
     });
   });
 

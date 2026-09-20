@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vite-plugin-pwa/client", "node"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -30,9 +30,13 @@
     "noImplicitOverride": true,
 
     /* Path Mapping */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@api/utils/http-transport": [
+        "../api/src/utils/http-transport.cloudflare.ts"
+      ],
+      "@api/utils/sentry": ["../api/src/utils/sentry.cloudflare.ts"],
+      "@api/*": ["../api/src/*"],
       "@tuvixrss/api": ["../api/src/index.ts"]
     }
   },

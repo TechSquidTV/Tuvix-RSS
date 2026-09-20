@@ -73,7 +73,7 @@ function AdminSettings() {
           <SettingsField
             id="fetchIntervalMinutes"
             label="Fetch Interval (minutes)"
-            description="How often to check for new articles (5-1440 minutes)"
+            description="Minimum time between checks of each feed (5-1440 minutes). Feeds are processed in batches every minute."
             type="number"
             value={formData.fetchIntervalMinutes}
             onChange={(value) =>

@@ -1,4 +1,5 @@
 import {
+  type ErrorComponentProps,
   createRootRouteWithContext,
   Outlet,
   useRouter,
@@ -36,7 +37,7 @@ const RootLayout = () => {
   );
 };
 
-function RootErrorComponent({ error }: { error: Error }) {
+function RootErrorComponent({ error }: ErrorComponentProps) {
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -57,10 +58,12 @@ function RootErrorComponent({ error }: { error: Error }) {
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted p-4">
               <p className="text-sm font-mono text-muted-foreground break-all">
-                {error.message}
+                {error instanceof Error
+                  ? error.message
+                  : "An unexpected error occurred"}
               </p>
             </div>
-            {import.meta.env.DEV && error.stack && (
+            {import.meta.env.DEV && error instanceof Error && error.stack && (
               <details className="text-xs">
                 <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                   View stack trace

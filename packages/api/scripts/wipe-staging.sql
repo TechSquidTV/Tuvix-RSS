@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS feed_fetch_health;
 -- ============================================================================
 -- Wipe Staging Database
 -- ============================================================================
@@ -74,6 +75,7 @@ DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS blocked_domains;
 
 -- Drop auth tables (reference user)
+DROP TABLE IF EXISTS auth_rate_limits;
 DROP TABLE IF EXISTS session;
 DROP TABLE IF EXISTS account;
 DROP TABLE IF EXISTS verification;

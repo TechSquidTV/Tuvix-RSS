@@ -47,7 +47,15 @@ export const updateUserSettingsSchema = insertUserSettingsSchema.partial();
 // SOURCE SCHEMAS
 // ============================================================================
 
-export const selectSourceSchema = createSelectSchema(schema.sources);
+// Fetch attempts are internal scheduler state, not successful refresh times.
+export const selectSourceSchema = createSelectSchema(schema.sources).omit({
+  lastFetchAttemptAt: true,
+  fetchLeaseToken: true,
+  fetchLeaseUntil: true,
+  nextFetchAt: true,
+  lastFetchError: true,
+  consecutiveFetchFailures: true,
+});
 export const insertSourceSchema = createInsertSchema(schema.sources, {
   url: (s) => s.url(),
   siteUrl: (s) => s.url().optional(),
@@ -95,6 +103,12 @@ export const selectSubscriptionFilterSchema = createSelectSchema(
 export const subscriptionResponseSchema = selectSubscriptionSchema.extend({
   source: selectSourceSchema.extend({
     title: z.string(),
+    fetchHealth: createSelectSchema(schema.sources).pick({
+      lastFetchAttemptAt: true,
+      nextFetchAt: true,
+      lastFetchError: true,
+      consecutiveFetchFailures: true,
+    }),
   }),
   categories: z.array(selectCategorySchema),
   filters: z.array(selectSubscriptionFilterSchema),
@@ -129,7 +143,7 @@ export const articleWithSourceSchema = selectArticleSchema.extend({
     })
     .nullable()
     .optional(),
-  source: createSelectSchema(schema.sources).optional(),
+  source: selectSourceSchema,
 });
 
 // ============================================================================

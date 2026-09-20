@@ -12,8 +12,8 @@ import {
   getBlockedDomainReason,
   getBlockedDomains,
 } from "../domain-checker";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
-import * as schema from "@/db/schema";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 
 describe("extractDomain", () => {
   it("should extract domain from HTTP URL", () => {

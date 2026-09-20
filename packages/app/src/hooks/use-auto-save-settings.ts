@@ -19,7 +19,7 @@ function excludeServerManagedFields<T extends Record<string, unknown>>(
   const filtered: Partial<T> = {};
   Object.keys(obj).forEach((key) => {
     if (!SERVER_MANAGED_FIELDS.has(key)) {
-      filtered[key as keyof T] = obj[key];
+      filtered[key as keyof T] = obj[key as keyof T];
     }
   });
   return filtered;

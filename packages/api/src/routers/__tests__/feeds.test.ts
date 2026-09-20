@@ -11,9 +11,9 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedTestCategory,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { feedsRouter } from "../feeds";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 
 // Helper to seed a test feed
 async function seedTestFeed(

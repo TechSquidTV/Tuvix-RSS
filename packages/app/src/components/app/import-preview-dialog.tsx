@@ -22,8 +22,11 @@ import {
   Filter,
 } from "lucide-react";
 import type { OPMLFeed } from "@/lib/hooks/useImportOPML";
-import type { ModelsCategory } from "@/lib/api/generated/types.gen";
-import { useFeedPreview } from "@/lib/hooks/useFeedPreview";
+import type { Category } from "@/lib/api/trpc";
+import {
+  type CategorySuggestion,
+  useFeedPreview,
+} from "@/lib/hooks/useFeedPreview";
 
 type FeedCategorySelection = {
   selectedCategoryIds: number[];
@@ -34,7 +37,7 @@ type ImportPreviewDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   feeds: OPMLFeed[];
-  existingCategories: ModelsCategory[];
+  existingCategories: Category[];
   onConfirm: (
     selectedUrls: string[],
     categorySelections: Record<string, FeedCategorySelection>
@@ -59,7 +62,7 @@ export function ImportPreviewDialog({
     Record<string, FeedCategorySelection>
   >({});
   const [suggestedCategoriesCache, setSuggestedCategoriesCache] = useState<
-    Record<string, ModelsCategory[]>
+    Record<string, CategorySuggestion[]>
   >({});
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState<string | null>(
     null
@@ -78,7 +81,7 @@ export function ImportPreviewDialog({
       !processedUrlsRef.current.has(currentPreviewUrl)
     ) {
       processedUrlsRef.current.add(currentPreviewUrl);
-      const suggestedCategories = feedPreview.data.suggested_categories || [];
+      const suggestedCategories = feedPreview.data.suggestedCategories || [];
 
       // Batch state updates using startTransition to avoid cascading renders
       React.startTransition(() => {

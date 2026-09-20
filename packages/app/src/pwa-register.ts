@@ -3,6 +3,8 @@ import { toast } from "sonner";
 
 // Register service worker with auto-update
 export function registerPWA() {
+  // Remove sensitive responses stored by older service worker versions.
+  if ("caches" in window) void caches.delete("api-cache");
   // In development, unregister any existing service workers to avoid caching issues
   if (import.meta.env.DEV && "serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {

@@ -23,7 +23,7 @@
 import type {
   CommentLinkExtractor,
   ExtractedCommentLink,
-  FeedItem,
+  ParsedFeedItem,
 } from "./types";
 
 /**
@@ -34,14 +34,14 @@ import type {
 export class HtmlPatternExtractor implements CommentLinkExtractor {
   readonly priority = 30; // Third priority - pattern matching
 
-  canHandle(item: FeedItem): boolean {
+  canHandle(item: ParsedFeedItem): boolean {
     const hasDescription = "description" in item && item.description;
     const hasContent = "content" in item && item.content;
     const hasSummary = "summary" in item && item.summary;
     return !!(hasDescription || hasContent || hasSummary);
   }
 
-  extract(item: FeedItem): ExtractedCommentLink | null {
+  extract(item: ParsedFeedItem): ExtractedCommentLink | null {
     // Try each field in priority order: description -> content -> summary
     const htmlFields = [
       "description" in item ? item.description : "",

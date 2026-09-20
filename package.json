@@ -8,15 +8,15 @@
     "build:api": "cd packages/api && pnpm run build",
     "build:app": "cd packages/app && pnpm run build",
     "build": "pnpm run build:tricorder && pnpm run build:api && pnpm run build:app",
-    "clean:all": "pnpm run clean && rm -rf node_modules packages/app/node_modules packages/api/node_modules",
-    "clean": "rm -rf packages/api/dist packages/app/dist data/*.db",
+    "clean:all": "pnpm run clean && rm -rf node_modules packages/app/node_modules packages/api/node_modules packages/tricorder/node_modules",
+    "clean": "rm -rf packages/api/dist packages/app/dist packages/tricorder/dist",
     "cleanup:all": "./scripts/cleanup-processes.sh --all",
     "cleanup": "./scripts/cleanup-processes.sh",
     "db:generate": "cd packages/api && pnpm run db:generate",
     "db:list-users:d1": "cd packages/api && bash scripts/list-users-d1.sh",
     "db:delete-non-admin-users:d1": "cd packages/api && bash scripts/delete-non-admin-users-d1.sh",
     "db:migrate:d1": "cd packages/api && pnpm run db:migrate:d1",
-    "db:migrate": "cd packages/api && pnpx tsx src/db/migrate-local.ts",
+    "db:migrate": "cd packages/api && pnpm exec tsx src/db/migrate-local.ts",
     "db:reset": "cd packages/api && pnpm run db:reset",
     "db:push": "cd packages/api && pnpm run db:push",
     "db:studio": "cd packages/api && pnpm run db:studio",
@@ -32,8 +32,8 @@
     "docker:test:ci": "docker compose -f docker-compose.yml -f docker-compose.test.yml up --abort-on-container-exit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "generate:routes": "pnpm run --filter app generate:routes",
-    "generate:icons": "pnpm run --filter app generate:icons",
+    "generate:routes": "pnpm --filter @tuvixrss/app run generate:routes",
+    "generate:icons": "pnpm --filter @tuvixrss/app run generate:icons",
     "lint": "pnpm --filter @tuvixrss/tricorder lint && pnpm --filter @tuvixrss/api lint && pnpm --filter @tuvixrss/app lint",
     "lint:fix": "pnpm --filter @tuvixrss/tricorder lint --fix && pnpm --filter @tuvixrss/api lint --fix && pnpm --filter @tuvixrss/app lint --fix",
     "pre-check": "pnpm run lint && pnpm run format:check && pnpm run type-check && pnpm run build",
@@ -42,14 +42,14 @@
     "test:tricorder": "cd packages/tricorder && pnpm test",
     "test:api": "cd packages/api && pnpm test",
     "test:app": "cd packages/app && pnpm test",
-    "test:coverage:tricorder": "cd packages/tricorder && pnpm test:coverage || true",
+    "test:coverage:tricorder": "cd packages/tricorder && pnpm test:coverage",
     "test:coverage:api": "cd packages/api && pnpm test:coverage",
     "test:coverage:app": "cd packages/app && pnpm test:coverage",
     "test:coverage:generate": "pnpm run test:coverage:tricorder && pnpm run test:coverage:api && pnpm run test:coverage:app",
     "test:coverage:merge": "node scripts/merge-coverage.js",
     "test:coverage:report": "nyc report --reporter=html --reporter=text --reporter=text-summary --reporter=lcov --temp-dir=./coverage/.nyc_output --report-dir=./coverage",
     "test:coverage": "pnpm run test:coverage:generate && pnpm run test:coverage:merge && pnpm run test:coverage:report",
-    "test": "pnpm run test:api && pnpm run test:app",
+    "test": "pnpm run test:tricorder && pnpm run test:api && pnpm run test:app",
     "type-check:tricorder": "cd packages/tricorder && pnpm run type-check",
     "type-check:api": "cd packages/api && pnpm run type-check",
     "type-check:app": "cd packages/app && pnpm run type-check",
@@ -57,7 +57,7 @@
     "find-any-types": "node scripts/find-any-types.js",
     "check-types": "pnpm run type-check && pnpm run find-any-types",
     "email:preview": "cd packages/api && pnpm run email:preview",
-    "update:all": "pnpm update --latest -r"
+    "update:all": "pnpm update --latest -r --include-workspace-root"
   },
   "keywords": [
     "rss",
@@ -67,27 +67,15 @@
   ],
   "author": "",
   "license": "MIT",
-  "packageManager": "pnpm@10.19.0",
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:rolldown-vite@7.2.7",
-      "esbuild": ">=0.25.0"
-    },
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "bcrypt",
-      "better-sqlite3",
-      "esbuild",
-      "msw",
-      "sharp",
-      "workerd"
-    ]
-  },
+  "packageManager": "pnpm@12.4.2",
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "eslint-plugin-no-relative-import-paths": "^1.6.1",
-    "nyc": "^17.1.0",
-    "prettier": "^3.7.4",
-    "shadcn": "^3.5.1"
+    "concurrently": "^10.0.5",
+    "node-gyp": "^13.0.2",
+    "nyc": "^18.0.0",
+    "prettier": "^3.9.8",
+    "shadcn": "^4.21.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

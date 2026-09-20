@@ -26,8 +26,8 @@ import {
   seedTestSource,
   seedTestSubscription,
   seedTestCategory,
-} from "@/test/setup";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("User Limits Service", () => {

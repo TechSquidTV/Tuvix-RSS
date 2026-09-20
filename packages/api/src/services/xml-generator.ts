@@ -2,7 +2,7 @@
  * RSS 2.0 XML Generator
  *
  * Uses feedsmith's native RSS generation.
- * For full type safety, import Rss types from "@/types/feed" and use generateRssFeed directly.
+ * For full type safety, import Rss types from "@api/types/feed" and use generateRssFeed directly.
  * https://feedsmith.dev/generating/
  */
 
@@ -82,7 +82,7 @@ export function generateRSS(input: RSSGeneratorInput): string {
         value: item.guid,
         isPermaLink: false,
       },
-      authors: item.author ? [item.author] : undefined,
+      authors: item.author ? [{ name: item.author }] : undefined,
     })),
   };
 

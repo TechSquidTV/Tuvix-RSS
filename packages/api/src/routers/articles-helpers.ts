@@ -1,12 +1,13 @@
+import type { ArticleCursor } from "@api/types/pagination";
 /**
  * Articles Router Helper Functions
  *
  * Extracted helpers to reduce duplication and improve maintainability
  */
 
-import { eq, and, or, isNull, type SQL } from "drizzle-orm";
-import * as schema from "@/db/schema";
-import type { Database } from "@/db/client";
+import { eq, and, or, isNull, lt, type SQL } from "drizzle-orm";
+import * as schema from "@api/db/schema";
+import type { Database } from "@api/db/client";
 
 /**
  * Build base query for articles with all necessary joins
@@ -102,4 +103,22 @@ export function buildArticlesWhereConditions(input: {
   }
 
   return conditions;
+}
+
+/** Match rows strictly after a descending publication-date/id cursor. */
+export function afterArticleCursor(cursor: ArticleCursor): SQL {
+  if (cursor.publishedAt === null) {
+    return and(
+      isNull(schema.articles.publishedAt),
+      lt(schema.articles.id, cursor.id)
+    )!;
+  }
+  return or(
+    lt(schema.articles.publishedAt, cursor.publishedAt),
+    and(
+      eq(schema.articles.publishedAt, cursor.publishedAt),
+      lt(schema.articles.id, cursor.id)
+    ),
+    isNull(schema.articles.publishedAt)
+  )!;
 }

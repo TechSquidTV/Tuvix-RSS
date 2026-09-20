@@ -4,8 +4,8 @@
  * Provides audit logging and request metadata extraction
  */
 
-import { securityAuditLog } from "@/db/schema";
-import type { Database } from "@/db/client";
+import { securityAuditLog } from "@api/db/schema";
+import type { Database } from "@api/db/client";
 
 /**
  * Security audit event types
@@ -98,9 +98,7 @@ export function getUserAgent(
  */
 export function getRequestMetadata(
   reqHeaders:
-    | Headers
-    | Record<string, string | string[] | undefined>
-    | undefined
+    Headers | Record<string, string | string[] | undefined> | undefined
 ): {
   headers: Record<string, string | undefined>;
   ipAddress: string | undefined;
@@ -119,9 +117,7 @@ export function getRequestMetadata(
  */
 export function extractHeaders(
   reqHeaders:
-    | Headers
-    | Record<string, string | string[] | undefined>
-    | undefined
+    Headers | Record<string, string | string[] | undefined> | undefined
 ): Record<string, string | undefined> {
   const headers: Record<string, string | undefined> = {};
 

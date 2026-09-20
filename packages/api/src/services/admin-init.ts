@@ -8,12 +8,11 @@
  */
 
 import { eq } from "drizzle-orm";
-import * as schema from "@/db/schema";
-import type { Database } from "@/db/client";
-import type { Env } from "@/types";
-import { ADMIN_PLAN } from "@/config/plans";
-import { createAuth } from "@/auth/better-auth";
-import { initializeNewUser } from "@/services/user-init";
+import * as schema from "@api/db/schema";
+import type { Database } from "@api/db/client";
+import type { Env } from "@api/types";
+import { ADMIN_PLAN } from "@api/config/plans";
+import { createAuth } from "@api/auth/better-auth";
 
 /**
  * Initialize admin user from environment variables
@@ -51,42 +50,17 @@ export async function initializeAdmin(
     };
   }
 
-  // Create admin user using Better Auth's API
-  // This ensures password is hashed correctly (Better Auth uses scrypt)
-  // We need to create a minimal env object for createAuth
-  const minimalEnv: Env = {
-    RUNTIME: "nodejs",
-    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET || "",
-    DATABASE_PATH: env.DATABASE_PATH,
-    PORT: env.PORT,
-    CORS_ORIGIN: env.CORS_ORIGIN,
-    NODE_ENV: env.NODE_ENV,
-    BASE_URL: env.BASE_URL,
-    BETTER_AUTH_URL: env.BETTER_AUTH_URL,
-    RESEND_API_KEY: env.RESEND_API_KEY,
-    EMAIL_FROM: env.EMAIL_FROM,
-  };
-
-  // Create auth instance - it will use the same database connection
-  // We pass undefined so createAuth creates its own connection, but we'll use the same db for queries
-  const auth = createAuth(minimalEnv);
-
-  // Use Better Auth's signUp API to create the user (handles password hashing correctly)
-  // We'll create a fake request context for this
-  const fakeHeaders = new Headers();
-  fakeHeaders.set("content-type", "application/json");
+  const auth = createAuth(env, db);
 
   try {
-    // Use Better Auth's signUpEmail with username field
-    // According to Better Auth docs, username can be passed in signUpEmail body
-    const signUpResult = await auth.api.signUpEmail({
+    const signUpResult = await auth.api.createUser({
       body: {
         email: adminEmail,
         password: adminPassword,
         name: adminUsername,
-        username: adminUsername, // Pass username directly to signUpEmail
+        role: "admin",
+        data: { username: adminUsername, displayUsername: adminUsername },
       },
-      headers: fakeHeaders,
     });
 
     if (!signUpResult?.user) {
@@ -102,11 +76,6 @@ export async function initializeAdmin(
     // Atomic initialization: role + settings + usage stats
     // Uses D1 batch for atomic operations - all succeed or all fail
     try {
-      await initializeNewUser(db, adminUserId, {
-        role: "admin",
-        plan: ADMIN_PLAN,
-      });
-
       // Log the creation (separate - not part of atomic init)
       await db.insert(schema.securityAuditLog).values({
         userId: adminUserId,

@@ -1,3 +1,4 @@
+import { readFeedResponse } from "../utils/read-feed-response.js";
 /**
  * Standard URL-Based Discovery Service
  *
@@ -11,7 +12,7 @@ import type {
   DiscoveryContext,
   DiscoveryService,
   DiscoveredFeed,
-} from "../core/types";
+} from "../core/types.js";
 
 /**
  * Standard Discovery Service
@@ -152,7 +153,7 @@ export class StandardDiscoveryService implements DiscoveryService {
 
       // Step 2: Fetch HTML and parse for feed links
       try {
-        const response = await fetch(url, {
+        const response = await context.fetch(url, {
           headers: {
             "User-Agent": "TuvixRSS/1.0",
             Accept: "text/html,application/xhtml+xml",
@@ -161,7 +162,7 @@ export class StandardDiscoveryService implements DiscoveryService {
         });
 
         if (response.ok) {
-          const html = await response.text();
+          const html = await readFeedResponse(response);
 
           // Parse for RSS/Atom link tags using regex
           const linkRegex =

@@ -6,7 +6,7 @@
  *
  * @example
  * ```ts
- * import { selectUserSchema, insertUserSchema } from '@/types';
+ * import { selectUserSchema, insertUserSchema } from '@api/types';
  *
  * // Use schemas for validation
  * const user = selectUserSchema.parse(data);
@@ -16,8 +16,9 @@
  * ```
  */
 
+import type { D1Database } from "@cloudflare/workers-types";
 import { z } from "zod";
-import * as dbSchemas from "@/db/schemas.zod";
+import * as dbSchemas from "@api/db/schemas.zod";
 
 // ============================================================================
 // DATABASE SCHEMAS - Auto-generated from Drizzle
@@ -62,7 +63,7 @@ export {
   selectFeedSchema,
   insertFeedSchema,
   updateFeedSchema,
-} from "@/db/schemas.zod";
+} from "@api/db/schemas.zod";
 
 // ============================================================================
 // CUSTOM VALIDATORS & APPLICATION TYPES
@@ -114,6 +115,8 @@ export interface Env {
   RATE_LIMIT_DEBUG?: string; // "true" or "false" - enable debug logging for rate limits
 
   // Optional Services
+  OPENAI_API_KEY?: string;
+  TRUST_PROXY_HEADERS?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   BASE_URL?: string; // Frontend URL for redirects after verification (e.g., https://feed.tuvix.app)

@@ -3,7 +3,6 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
-import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
@@ -16,6 +15,7 @@ export default defineConfig([
     "coverage/**",
     "**/coverage/**",
     "**/*.gen.*",
+    "src/lib/api/generated/**",
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
@@ -28,7 +28,6 @@ export default defineConfig([
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
-      "no-relative-import-paths": noRelativeImportPaths,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -38,7 +37,10 @@ export default defineConfig([
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": [
         "warn",
-        { allowConstantExport: true },
+        {
+          allowConstantExport: true,
+          extraHOCs: ["createFileRoute", "createRootRouteWithContext"],
+        },
       ],
       // Detect explicit any types
       "@typescript-eslint/no-explicit-any": "error",
@@ -49,9 +51,17 @@ export default defineConfig([
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       // Enforce tsconfig path aliases, disallow ../ imports but allow same folder ./
-      "no-relative-import-paths/no-relative-import-paths": [
+      "no-restricted-imports": [
         "error",
-        { allowSameFolder: true, rootDir: "src", prefix: "@" },
+        {
+          patterns: [
+            {
+              group: ["../**"],
+              message:
+                "Use the configured source path alias for parent imports.",
+            },
+          ],
+        },
       ],
     },
   },

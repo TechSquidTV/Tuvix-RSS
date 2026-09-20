@@ -16,19 +16,19 @@ describe("AppSidebar Role-Based Rendering Logic", () => {
     });
 
     it("should not show admin section when user.role === 'user'", () => {
-      const user = { role: "user" as const };
+      const user = { role: "user" as string };
       const shouldShow = user?.role === "admin";
       expect(shouldShow).toBe(false);
     });
 
     it("should not show admin section when user is undefined", () => {
-      const user = undefined;
+      const user = undefined as { role: string } | undefined;
       const shouldShow = user?.role === "admin";
       expect(shouldShow).toBe(false);
     });
 
     it("should not show admin section when user is null", () => {
-      const user = null;
+      const user = null as { role: string } | null;
       const shouldShow = user?.role === "admin";
       expect(shouldShow).toBe(false);
     });
@@ -36,7 +36,7 @@ describe("AppSidebar Role-Based Rendering Logic", () => {
     it("should only show admin section for exactly 'admin' role", () => {
       // Test various role values
       expect(("admin" as const) === "admin").toBe(true);
-      expect(("user" as const) === "admin").toBe(false);
+      expect(("user" as string) === "admin").toBe(false);
       expect(("Admin" as any) === "admin").toBe(false); // Case sensitive
       expect((undefined as any) === "admin").toBe(false);
     });

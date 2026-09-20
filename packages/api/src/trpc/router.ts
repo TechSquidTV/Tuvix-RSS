@@ -6,14 +6,14 @@
  */
 
 import { router } from "./init";
-import { authRouter } from "@/routers/auth";
-import { articlesRouter } from "@/routers/articles";
-import { subscriptionsRouter } from "@/routers/subscriptions";
-import { categoriesRouter } from "@/routers/categories";
-import { feedsRouter } from "@/routers/feeds";
-import { userSettingsRouter } from "@/routers/userSettings";
-import { adminRouter } from "@/routers/admin";
-import { plansRouter } from "@/routers/plans";
+import { authRouter } from "@api/routers/auth";
+import { articlesRouter } from "@api/routers/articles";
+import { subscriptionsRouter } from "@api/routers/subscriptions";
+import { categoriesRouter } from "@api/routers/categories";
+import { feedsRouter } from "@api/routers/feeds";
+import { userSettingsRouter } from "@api/routers/userSettings";
+import { adminRouter } from "@api/routers/admin";
+import { plansRouter } from "@api/routers/plans";
 
 export const appRouter = router({
   auth: authRouter,

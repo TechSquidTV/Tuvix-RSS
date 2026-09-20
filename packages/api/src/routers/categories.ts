@@ -7,18 +7,18 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, sql } from "drizzle-orm";
-import { router, rateLimitedProcedure } from "@/trpc/init";
-import { hexColorValidator } from "@/types";
-import { selectCategorySchema } from "@/db/schemas.zod";
-import * as schema from "@/db/schema";
-import { generateColorFromString } from "@/utils/color-generator";
-import { requireOwnership, categoryNameExists } from "@/db/helpers";
+import { router, rateLimitedProcedure } from "@api/trpc/init";
+import { hexColorValidator } from "@api/types";
+import { selectCategorySchema } from "@api/db/schemas.zod";
+import * as schema from "@api/db/schema";
+import { generateColorFromString } from "@api/utils/color-generator";
+import { requireOwnership, categoryNameExists } from "@api/db/helpers";
 import {
   checkCategoryLimit,
   incrementCategoryCount,
   decrementCategoryCount,
-} from "@/services/limits";
-import { withUndefinedAsEmpty } from "@/types/pagination";
+} from "@api/services/limits";
+import { withUndefinedAsEmpty } from "@api/types/pagination";
 
 export const categoriesRouter = router({
   /**

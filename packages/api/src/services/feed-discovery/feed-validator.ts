@@ -1,3 +1,5 @@
+import { readFeedResponse } from "@tuvixrss/tricorder";
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * Feed Validator Utility
  *
@@ -6,8 +8,8 @@
  */
 
 import { parseFeed } from "feedsmith";
-import { normalizeFeedUrl } from "@/utils/url-normalize";
-import { stripHtml } from "@/utils/text-sanitizer";
+import { normalizeFeedUrl } from "@api/utils/url-normalize";
+import { extractFeedMetadata } from "@tuvixrss/tricorder";
 import type { DiscoveredFeed } from "./types";
 
 /**
@@ -23,7 +25,7 @@ export function createFeedValidator(
 ): (feedUrl: string) => Promise<DiscoveredFeed | null> {
   return async (feedUrl: string): Promise<DiscoveredFeed | null> => {
     try {
-      const response = await fetch(feedUrl, {
+      const response = await safeFetch(feedUrl, {
         headers: {
           "User-Agent": "TuvixRSS/1.0",
           Accept:
@@ -44,7 +46,7 @@ export function createFeedValidator(
       // Mark URL as seen immediately to prevent race conditions with parallel checks
       seenUrls.add(normalizedUrl);
 
-      const feedContent = await response.text();
+      const feedContent = await readFeedResponse(response);
       const result = parseFeed(feedContent);
       const feed = result.feed;
 
@@ -77,14 +79,9 @@ export function createFeedValidator(
               ? "json"
               : "rss";
 
-      const title =
-        "title" in feed && feed.title ? String(feed.title) : "Untitled Feed";
-      const description =
-        "description" in feed && feed.description
-          ? stripHtml(String(feed.description))
-          : "subtitle" in feed && feed.subtitle
-            ? stripHtml(String(feed.subtitle))
-            : undefined;
+      const metadata = extractFeedMetadata(feed);
+      const title = metadata.title || "Untitled Feed";
+      const description = metadata.description;
 
       // Return discovered feed (use original feedUrl, not final redirected URL)
       return {

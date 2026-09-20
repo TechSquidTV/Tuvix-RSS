@@ -4,15 +4,15 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fetchAllFeeds, fetchSingleFeed } from "../rss-fetcher";
-import { createTestDb, cleanupTestDb, seedTestSource } from "@/test/setup";
+import { createTestDb, cleanupTestDb, seedTestSource } from "@api/test/setup";
 import {
   MOCK_RSS_FEED,
   mockFetchRssFeed,
   mockFetchAtomFeed,
   mockFetch404,
   mockFetchError,
-} from "@/test/mocks";
-import * as schema from "@/db/schema";
+} from "@api/test/mocks";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("RSS Fetcher Service", () => {
@@ -56,6 +56,24 @@ describe("RSS Fetcher Service", () => {
 
       expect(result).toBeDefined();
       expect(result.articlesAdded).toBeGreaterThan(0);
+    });
+
+    it("stores Atom structured text and chooses the publisher link", async () => {
+      const source = await seedTestSource(db);
+      const xml = `<feed xmlns="http://www.w3.org/2005/Atom"><title>Atom News</title><entry><id>atom-1</id><title>Readable title</title><summary type="html">&lt;b&gt;Readable summary&lt;/b&gt;</summary><link rel="self" href="https://example.com/entry.xml"/><link rel="alternate" href="https://example.com/story"/><updated>2026-09-01T12:00:00Z</updated></entry></feed>`;
+      global.fetch = vi.fn(
+        async () =>
+          new Response(xml, {
+            headers: { "content-type": "application/atom+xml" },
+          })
+      );
+      await fetchSingleFeed(source.id, source.url, db);
+      const [article] = await db.select().from(schema.articles);
+      expect(article).toMatchObject({
+        title: "Readable title",
+        link: "https://example.com/story",
+        description: "<b>Readable summary</b>",
+      });
     });
 
     it("should store articles in database", async () => {
@@ -242,6 +260,82 @@ describe("RSS Fetcher Service", () => {
   });
 
   describe("fetchAllFeeds", () => {
+    it.each(["http", "parse", "network"] as const)(
+      "advances past a %s failure and retries it only after the cooldown",
+      async (failure) => {
+        const failing = await seedTestSource(db, {
+          url: "https://example.com/failing.xml",
+        });
+        const healthy = await seedTestSource(db, {
+          url: "https://example.com/healthy.xml",
+        });
+        global.fetch =
+          failure === "http"
+            ? mockFetch404()
+            : failure === "network"
+              ? mockFetchError()
+              : mockFetchRssFeed("<html>Not a feed</html>");
+
+        const first = await fetchAllFeeds(db, { maxFeedsPerBatch: 1 });
+        expect(first.errorCount).toBe(1);
+        expect(first.errors[0]?.sourceId).toBe(failing.id);
+        const [failedSource] = await db
+          .select()
+          .from(schema.sources)
+          .where(eq(schema.sources.id, failing.id));
+        expect(failedSource?.lastFetched).toBeNull();
+        expect(failedSource?.lastFetchAttemptAt).toBeInstanceOf(Date);
+
+        global.fetch = mockFetchRssFeed();
+        const second = await fetchAllFeeds(db, { maxFeedsPerBatch: 1 });
+        expect(second.successCount).toBe(1);
+        const articles = await db
+          .select()
+          .from(schema.articles)
+          .where(eq(schema.articles.sourceId, healthy.id));
+        expect(articles.length).toBeGreaterThan(0);
+        expect(
+          (await fetchAllFeeds(db, { maxFeedsPerBatch: 1 })).processedCount
+        ).toBe(0);
+
+        await db
+          .update(schema.sources)
+          .set({
+            lastFetchAttemptAt: new Date(Date.now() - 31 * 60 * 1000),
+            nextFetchAt: new Date(0),
+          })
+          .where(eq(schema.sources.id, failing.id));
+        expect(
+          (await fetchAllFeeds(db, { maxFeedsPerBatch: 1 })).successCount
+        ).toBe(1);
+      }
+    );
+
+    it("orders retries by attempt time instead of pinning never-successful feeds first", async () => {
+      const failing = await seedTestSource(db, {
+        url: "https://example.com/failing.xml",
+      });
+      const healthy = await seedTestSource(db, {
+        url: "https://example.com/healthy.xml",
+      });
+      const old = new Date(Date.now() - 90 * 60 * 1000);
+      await db
+        .update(schema.sources)
+        .set({ lastFetched: old, lastFetchAttemptAt: old })
+        .where(eq(schema.sources.id, healthy.id));
+      await db
+        .update(schema.sources)
+        .set({ lastFetchAttemptAt: new Date(Date.now() - 31 * 60 * 1000) })
+        .where(eq(schema.sources.id, failing.id));
+      global.fetch = mockFetchRssFeed();
+
+      expect(
+        (await fetchAllFeeds(db, { maxFeedsPerBatch: 1 })).successCount
+      ).toBe(1);
+      const [article] = await db.select().from(schema.articles).limit(1);
+      expect(article?.sourceId).toBe(healthy.id);
+    });
+
     it("should fetch all sources in database", async () => {
       await seedTestSource(db, {
         url: "https://example.com/feed1.xml",
@@ -585,7 +679,7 @@ describe("RSS Fetcher Service", () => {
       });
 
       // Create blocked domain entry
-      const { user } = await import("@/test/setup").then((m) =>
+      const { user } = await import("@api/test/setup").then((m) =>
         m.seedTestUser(db, { role: "admin" })
       );
       await db.insert(schema.blockedDomains).values({
@@ -602,6 +696,17 @@ describe("RSS Fetcher Service", () => {
       expect(result.articlesAdded).toBe(0);
       expect(result.articlesSkipped).toBe(0);
       expect(result.sourceUpdated).toBe(false);
+
+      expect(global.fetch).not.toHaveBeenCalled();
+      const [blockedSource] = await db
+        .select()
+        .from(schema.sources)
+        .where(eq(schema.sources.id, source.id));
+      expect(blockedSource?.lastFetched).toBeNull();
+      expect(blockedSource?.lastFetchAttemptAt).toBeInstanceOf(Date);
+      expect(
+        (await fetchAllFeeds(db, { maxFeedsPerBatch: 1 })).processedCount
+      ).toBe(0);
 
       // Verify no articles were stored
       const articles = await db
@@ -642,7 +747,7 @@ describe("RSS Fetcher Service", () => {
       });
 
       // Create blocked domain in DB (not in cache)
-      const { user } = await import("@/test/setup").then((m) =>
+      const { user } = await import("@api/test/setup").then((m) =>
         m.seedTestUser(db, { role: "admin" })
       );
       await db.insert(schema.blockedDomains).values({

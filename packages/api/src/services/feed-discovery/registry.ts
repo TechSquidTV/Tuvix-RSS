@@ -5,7 +5,7 @@
  * Services are executed in priority order (lower priority = higher priority).
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 import { TRPCError } from "@trpc/server";
 import { createFeedValidator } from "./feed-validator";
 import type {

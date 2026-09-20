@@ -1,3 +1,4 @@
+import type { Context } from "@api/trpc/context";
 /**
  * Auth Router
  *
@@ -15,35 +16,39 @@ import {
   publicProcedure,
   protectedProcedure,
   protectedProcedureWithoutVerification,
-} from "@/trpc/init";
-import { createAuth } from "@/auth/better-auth";
+} from "@api/trpc/init";
+import { createAuth } from "@api/auth/better-auth";
 import { fromNodeHeaders } from "better-auth/node";
-import { hasAdminUser } from "@/services/admin-init";
-import { getGlobalSettings } from "@/services/global-settings";
-import { initializeNewUser } from "@/services/user-init";
-import * as schema from "@/db/schema";
+import { getGlobalSettings } from "@api/services/global-settings";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
-import { DEFAULT_USER_PLAN, ADMIN_PLAN } from "@/config/plans";
+import { DEFAULT_USER_PLAN } from "@api/config/plans";
 import {
   usernameValidator,
   emailValidator,
   passwordValidator,
-} from "@/types/validators";
-import { getBaseUrl } from "@/utils/base-url";
-import * as Sentry from "@/utils/sentry";
-import { emitCounter, emitMetrics } from "@/utils/metrics";
+} from "@api/types/validators";
+import { getBaseUrl } from "@api/utils/base-url";
+import * as Sentry from "@api/utils/sentry";
+import { emitCounter, emitMetrics } from "@api/utils/metrics";
 import {
   logSecurityEvent,
   getClientIp,
   getUserAgent,
   getRequestMetadata,
-} from "@/auth/security";
+} from "@api/auth/security";
 import type {
   BetterAuthUser,
-  SignUpEmailResult,
   SignInUsernameResult,
   SignInEmailResult,
-} from "@/types/better-auth";
+} from "@api/types/better-auth";
+
+function forwardAuthCookies(ctx: Context, headers: Headers): void {
+  // Split only at a new cookie name, preserving commas inside Expires dates.
+  const cookies = headers.get("set-cookie")?.split(/,(?=\s*[^;,\s]+=)/) ?? [];
+  for (const cookie of cookies)
+    ctx.responseHeaders?.append("set-cookie", cookie.trim());
+}
 
 export const authRouter = router({
   /**
@@ -130,7 +135,8 @@ export const authRouter = router({
               },
               async (span) => {
                 try {
-                  const result: SignUpEmailResult = await auth.api.signUpEmail({
+                  const authResult = await auth.api.signUpEmail({
+                    returnHeaders: true,
                     body: {
                       email: input.email,
                       password: input.password,
@@ -140,6 +146,8 @@ export const authRouter = router({
                     headers: authHeaders,
                   });
 
+                  forwardAuthCookies(ctx, authResult.headers);
+                  const result = authResult.response;
                   span?.setAttributes({
                     "auth.user_created": !!result.user,
                   });
@@ -212,190 +220,11 @@ export const authRouter = router({
               });
             }
 
-            // Ensure username is set (fallback for Better Auth compatibility)
-            // The username plugin should set this automatically, but ensure it's populated
-            if (!dbUser.username) {
-              await ctx.db
-                .update(schema.user)
-                .set({ username: input.username })
-                .where(eq(schema.user.id, userId));
-            }
-
-            // STEP 2: Determine Role and Plan
-            const roleData = await Sentry.startSpan(
-              {
-                name: "auth.signup.determine_role",
-                op: "db.query",
-              },
-              async (span) => {
-                let role: "user" | "admin" =
-                  (dbUser.role as "user" | "admin") || "user";
-                let plan: string = dbUser.plan || DEFAULT_USER_PLAN;
-
-                const allowFirstUserAdmin =
-                  ctx.env.ALLOW_FIRST_USER_ADMIN !== "false";
-                if (allowFirstUserAdmin) {
-                  const hasAdmin = await hasAdminUser(ctx.db);
-                  if (!hasAdmin) {
-                    role = "admin";
-                    plan = ADMIN_PLAN;
-                    isFirstUser = true;
-
-                    // Emit metric for first user admin assignment
-                    emitCounter("signup.first_user_admin", 1, {
-                      user_id: userId!.toString(),
-                    });
-
-                    Sentry.addBreadcrumb({
-                      category: "auth",
-                      message: "First user assigned admin role",
-                      level: "info",
-                      data: {
-                        user_id: userId!,
-                      },
-                    });
-                  }
-                }
-
-                span?.setAttributes({
-                  "auth.is_first_user": isFirstUser,
-                  "auth.role_assigned": role,
-                  "auth.plan": plan,
-                });
-
-                return { role, plan };
-              }
-            );
-
-            // STEP 3: Atomic User Initialization (role + settings + usage stats)
-            // Uses D1 batch for atomic operations - all succeed or all fail
-            await Sentry.startSpan(
-              {
-                name: "auth.signup.init_user",
-                op: "db.batch",
-              },
-              async (span) => {
-                try {
-                  await initializeNewUser(ctx.db, userId!, {
-                    role: roleData.role,
-                    plan: roleData.plan,
-                  });
-
-                  span?.setAttributes({
-                    "auth.user_initialized": true,
-                    "auth.role": roleData.role,
-                    "auth.plan": roleData.plan,
-                  });
-
-                  // Emit funnel progress: user initialized
-                  emitCounter("signup.funnel", 1, {
-                    stage: "initialized",
-                    user_id: userId!.toString(),
-                  });
-
-                  emitCounter("signup.user_initialized", 1, {
-                    role: roleData.role,
-                    plan: roleData.plan,
-                    is_first_user: isFirstUser ? "true" : "false",
-                  });
-                } catch (initError) {
-                  const initErrorMessage =
-                    initError instanceof Error
-                      ? initError.message
-                      : String(initError);
-                  const initErrorType =
-                    initError instanceof Error
-                      ? initError.name
-                      : "UnknownError";
-
-                  // Capture error with full context for debugging
-                  span?.setAttributes({
-                    "auth.init_error": true,
-                    "auth.error_message": initErrorMessage,
-                  });
-
-                  // Emit initialization failure metric
-                  emitCounter("signup.init_failed", 1, {
-                    error_type: initErrorType,
-                    user_id: userId!.toString(),
-                  });
-
-                  console.error(
-                    "User initialization failed, rolling back user creation:",
-                    initError
-                  );
-
-                  Sentry.captureException(initError, {
-                    tags: {
-                      flow: "signup",
-                      step: "init_rollback",
-                    },
-                    extra: {
-                      userId: userId!,
-                      email: input.email,
-                      role: roleData.role,
-                      plan: roleData.plan,
-                    },
-                  });
-
-                  // Rollback: Delete the incomplete user
-                  // Emit metrics AFTER successful deletion to ensure accuracy
-                  try {
-                    await ctx.db
-                      .delete(schema.user)
-                      .where(eq(schema.user.id, userId!));
-
-                    // Rollback successful - emit success metrics
-                    emitCounter("signup.rollback_executed", 1, {
-                      reason: "init_failed",
-                      user_id: userId!.toString(),
-                    });
-
-                    emitCounter("signup.user_deleted", 1, {
-                      reason: "rollback",
-                      user_id: userId!.toString(),
-                    });
-                  } catch (rollbackError) {
-                    // Rollback failed - emit failure metric for observability
-                    // This indicates orphaned user data that may need manual cleanup
-                    emitCounter("signup.rollback_failed", 1, {
-                      reason: "delete_failed",
-                      user_id: userId!.toString(),
-                      error_type:
-                        rollbackError instanceof Error
-                          ? rollbackError.name
-                          : "UnknownError",
-                    });
-
-                    Sentry.captureException(rollbackError, {
-                      level: "error",
-                      tags: {
-                        flow: "signup",
-                        step: "rollback_delete",
-                        severity: "critical",
-                      },
-                      extra: {
-                        userId: userId!,
-                        email: input.email,
-                        originalError: initErrorMessage,
-                      },
-                    });
-
-                    console.error(
-                      "CRITICAL: Failed to rollback user creation - orphaned user data:",
-                      rollbackError
-                    );
-                  }
-
-                  throw new TRPCError({
-                    code: "INTERNAL_SERVER_ERROR",
-                    message:
-                      "Failed to complete registration. Please try again.",
-                    cause: initError,
-                  });
-                }
-              }
-            );
+            const roleData = {
+              role: dbUser.role ?? "user",
+              plan: dbUser.plan ?? DEFAULT_USER_PLAN,
+            };
+            isFirstUser = roleData.role === "admin";
 
             // STEP 4: Security Audit Logging
             await Sentry.startSpan(
@@ -608,22 +437,28 @@ export const authRouter = router({
 
             if (isEmail) {
               // Use email signin
-              result = await auth.api.signInEmail({
+              const authResult = await auth.api.signInEmail({
+                returnHeaders: true,
                 body: {
                   email: input.username,
                   password: input.password,
                 },
                 headers: authHeaders,
               });
+              forwardAuthCookies(ctx, authResult.headers);
+              result = authResult.response;
             } else {
               // Use username signin
-              result = await auth.api.signInUsername({
+              const authResult = await auth.api.signInUsername({
+                returnHeaders: true,
                 body: {
                   username: input.username,
                   password: input.password,
                 },
                 headers: authHeaders,
               });
+              forwardAuthCookies(ctx, authResult.headers);
+              result = authResult.response;
             }
 
             // Update span attribute to show detected method
@@ -860,9 +695,11 @@ export const authRouter = router({
 
         try {
           // Call Better Auth signOut API
-          await auth.api.signOut({
+          const result = await auth.api.signOut({
             headers: authHeaders,
+            returnHeaders: true,
           });
+          forwardAuthCookies(ctx, result.headers);
 
           // Log successful logout to security audit (best effort)
           if (userId) {
@@ -1022,7 +859,7 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ ctx }) => {
-      const { checkRateLimit } = await import("@/services/rate-limiter");
+      const { checkRateLimit } = await import("@api/services/rate-limiter");
 
       // Check if email verification is required
       const settings = await getGlobalSettings(ctx.db);

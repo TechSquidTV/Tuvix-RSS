@@ -1,3 +1,4 @@
+import { createFeedResponse } from "@api/test/mocks";
 /**
  * Feed Discovery Tests
  *
@@ -7,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
 import { subscriptionsRouter } from "../subscriptions";
 
 describe("Feed Discovery - Deduplication", () => {
@@ -32,10 +33,8 @@ describe("Feed Discovery - Deduplication", () => {
    * Helper to create a mock RSS feed response
    */
   function createMockRssResponse(url: string, title: string = "Test Feed") {
-    return {
-      ok: true,
-      url: url, // Final URL after redirects
-      text: async () => `<?xml version="1.0"?>
+    return createFeedResponse(
+      `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>${title}</title>
@@ -43,23 +42,23 @@ describe("Feed Discovery - Deduplication", () => {
     <description>Test feed description</description>
   </channel>
 </rss>`,
-    } as Response;
+      url
+    ) as Response;
   }
 
   /**
    * Helper to create a mock Atom feed response
    */
   function createMockAtomResponse(url: string, title: string = "Test Feed") {
-    return {
-      ok: true,
-      url: url,
-      text: async () => `<?xml version="1.0"?>
+    return createFeedResponse(
+      `<?xml version="1.0"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>${title}</title>
   <link href="https://example.com"/>
   <subtitle>Test feed description</subtitle>
 </feed>`,
-    } as Response;
+      url
+    ) as Response;
   }
 
   /**
@@ -72,10 +71,8 @@ describe("Feed Discovery - Deduplication", () => {
           `<link rel="alternate" type="application/rss+xml" href="${url}">`
       )
       .join("\n");
-    return {
-      ok: true,
-      url: "https://example.com",
-      text: async () => `<!DOCTYPE html>
+    return createFeedResponse(
+      `<!DOCTYPE html>
 <html>
 <head>
   <title>Example Site</title>
@@ -83,7 +80,8 @@ describe("Feed Discovery - Deduplication", () => {
 </head>
 <body>Content</body>
 </html>`,
-    } as Response;
+      "https://example.com"
+    ) as Response;
   }
 
   /**
@@ -128,7 +126,7 @@ describe("Feed Discovery - Deduplication", () => {
         if (url.includes("/rss") && !url.includes("/feed")) {
           return Promise.resolve(mockResponses[1]);
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(mockResponses[mockResponses.length - 1]);
         }
         return Promise.resolve({ ok: false });
@@ -147,7 +145,7 @@ describe("Feed Discovery - Deduplication", () => {
 
       // Mock: All common paths fail, HTML has links that redirect to same feed
       (global.fetch as any).mockImplementation((url: string) => {
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse([
               "https://example.com/feed",
@@ -195,7 +193,7 @@ describe("Feed Discovery - Deduplication", () => {
             )
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse([
               "https://example.com/feed?utm_source=twitter",
@@ -234,7 +232,7 @@ describe("Feed Discovery - Deduplication", () => {
             )
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse([
               "https://example.com/feed?category=tech",
@@ -272,7 +270,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockRssResponse("https://example.com/feed", "Feed")
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -298,7 +296,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockRssResponse("https://Example.com/feed", "Feed")
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -322,7 +320,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockRssResponse("https://example.com/feed.xml", "Feed")
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -346,7 +344,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockRssResponse("https://example.com/feed", "RSS Feed")
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -366,7 +364,7 @@ describe("Feed Discovery - Deduplication", () => {
             createMockAtomResponse("https://example.com/atom", "Atom Feed")
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -424,7 +422,7 @@ describe("Feed Discovery - Deduplication", () => {
             )
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse([
               "https://example.com/feed",
@@ -465,20 +463,22 @@ describe("Feed Discovery - Deduplication", () => {
       (global.fetch as any).mockImplementation((url: string) => {
         // Both /atom and /atom.xml return 200 with same content
         if (url === "https://example.com/atom") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom", // No redirect
-            text: async () => atomFeedContent,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              atomFeedContent,
+              "https://example.com/atom"
+            ) as Response
+          );
         }
         if (url === "https://example.com/atom.xml") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom.xml", // No redirect
-            text: async () => atomFeedContent,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              atomFeedContent,
+              "https://example.com/atom.xml"
+            ) as Response
+          );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse(["https://example.com/atom.xml"])
           );
@@ -518,20 +518,22 @@ describe("Feed Discovery - Deduplication", () => {
 
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/atom") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom",
-            text: async () => feed1Content,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              feed1Content,
+              "https://example.com/atom"
+            ) as Response
+          );
         }
         if (url === "https://example.com/atom.xml") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom.xml",
-            text: async () => feed2Content,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              feed2Content,
+              "https://example.com/atom.xml"
+            ) as Response
+          );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(
             createMockHtmlResponse([
               "https://example.com/atom",
@@ -561,20 +563,22 @@ describe("Feed Discovery - Deduplication", () => {
 
       (global.fetch as any).mockImplementation((url: string) => {
         if (url === "https://example.com/atom") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom",
-            text: async () => feedContent,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              feedContent,
+              "https://example.com/atom"
+            ) as Response
+          );
         }
         if (url === "https://example.com/atom.xml") {
-          return Promise.resolve({
-            ok: true,
-            url: "https://example.com/atom.xml",
-            text: async () => feedContent,
-          } as Response);
+          return Promise.resolve(
+            createFeedResponse(
+              feedContent,
+              "https://example.com/atom.xml"
+            ) as Response
+          );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -690,7 +694,7 @@ describe("Feed Discovery - Deduplication", () => {
           );
         }
         // HTML fetch
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });
@@ -716,7 +720,7 @@ describe("Feed Discovery - Deduplication", () => {
             )
           );
         }
-        if (url === "https://example.com") {
+        if (url === "https://example.com/") {
           return Promise.resolve(createMockHtmlResponse([]));
         }
         return Promise.resolve({ ok: false });

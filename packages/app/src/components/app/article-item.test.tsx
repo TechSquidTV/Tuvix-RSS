@@ -1,3 +1,4 @@
+import { createArticle } from "@/test/fixtures";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -20,7 +21,7 @@ describe("ArticleItem", () => {
   const mockSaveArticle = vi.fn();
   const mockUnsaveArticle = vi.fn();
 
-  const mockArticle: Article = {
+  const mockArticle: Article = createArticle({
     id: 1,
     sourceId: 1,
     guid: "test-guid",
@@ -28,8 +29,8 @@ describe("ArticleItem", () => {
     description: "This is a test article description",
     link: "https://example.com/article",
     content: null,
-    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    createdAt: new Date().toISOString(),
+    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    createdAt: new Date(),
     author: "Test Author",
     read: false,
     saved: false,
@@ -46,10 +47,10 @@ describe("ArticleItem", () => {
       iconType: "auto",
       iconUpdatedAt: null,
       lastFetched: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -101,7 +102,7 @@ describe("ArticleItem", () => {
   it("formats relative time correctly - just now", () => {
     const recentArticle = {
       ...mockArticle,
-      publishedAt: new Date().toISOString(),
+      publishedAt: new Date(),
     };
     render(<ArticleItem article={recentArticle} />);
     expect(screen.getAllByText(/just now/i).length).toBeGreaterThan(0);
@@ -110,7 +111,7 @@ describe("ArticleItem", () => {
   it("formats relative time correctly - minutes ago", () => {
     const recentArticle = {
       ...mockArticle,
-      publishedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+      publishedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
     };
     render(<ArticleItem article={recentArticle} />);
     expect(screen.getAllByText(/30 minutes ago/i).length).toBeGreaterThan(0);
@@ -273,7 +274,7 @@ describe("ArticleItem", () => {
   it("formats relative time correctly - days ago", () => {
     const oldArticle = {
       ...mockArticle,
-      publishedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+      publishedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
     };
     render(<ArticleItem article={oldArticle} />);
     expect(screen.getAllByText(/3 days ago/i).length).toBeGreaterThan(0);
@@ -381,7 +382,7 @@ describe("ArticleItem", () => {
   });
 
   it("does not display image when imageUrl is not provided", () => {
-    const articleWithoutImage = { ...mockArticle, imageUrl: undefined };
+    const articleWithoutImage = { ...mockArticle, imageUrl: null };
     render(<ArticleItem article={articleWithoutImage} />);
 
     const image = screen.queryByRole("img", { name: /test article title/i });

@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
   DropdownMenu as DropdownMenuPrimitive,
   DropdownMenuContent as DropdownMenuContentPrimitive,

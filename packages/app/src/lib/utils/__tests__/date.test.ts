@@ -33,6 +33,16 @@ describe("Date Utilities", () => {
       expect(getRelativeTime(date)).toBe("Just now");
     });
 
+    it("handles invalid and future publication dates", () => {
+      expect(getRelativeTime("invalid")).toBe("Unknown");
+      expect(getRelativeTime(new Date("2024-01-15T12:05:00Z"))).toBe(
+        "in 5 minutes"
+      );
+      expect(formatDistanceToNow(new Date("2024-01-15T11:55:00Z"))).toBe(
+        "5 minutes"
+      );
+    });
+
     it("should return singular minute for 1 minute ago", () => {
       const date = new Date("2024-01-15T11:59:00Z");
       expect(getRelativeTime(date)).toBe("1 minute ago");

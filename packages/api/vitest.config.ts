@@ -55,20 +55,27 @@ export default defineConfig({
   // Path resolution - match tsconfig.json
   resolve: {
     alias: {
-      // IMPORTANT: Sentry no-op alias must come BEFORE the general @/utils alias
-      // to ensure @/utils/sentry resolves to the no-op implementation in tests
-      "@/utils/sentry": path.resolve(__dirname, "./src/utils/sentry.noop.ts"),
-      "@/utils": path.resolve(__dirname, "./src/utils"),
-      "@/db": path.resolve(__dirname, "./src/db"),
-      "@/services": path.resolve(__dirname, "./src/services"),
-      "@/routers": path.resolve(__dirname, "./src/routers"),
-      "@/trpc": path.resolve(__dirname, "./src/trpc"),
-      "@/adapters": path.resolve(__dirname, "./src/adapters"),
-      "@/auth": path.resolve(__dirname, "./src/auth"),
-      "@/cron": path.resolve(__dirname, "./src/cron"),
-      "@/config": path.resolve(__dirname, "./src/config"),
-      "@/types": path.resolve(__dirname, "./src/types"),
-      "@": path.resolve(__dirname, "./src"),
+      // IMPORTANT: Sentry no-op alias must come BEFORE the general @api/utils alias
+      // to ensure @api/utils/sentry resolves to the no-op implementation in tests
+      "@api/utils/http-transport": path.resolve(
+        import.meta.dirname,
+        "./src/utils/http-transport.cloudflare.ts"
+      ),
+      "@api/utils/sentry": path.resolve(
+        import.meta.dirname,
+        "./src/utils/sentry.noop.ts"
+      ),
+      "@api/utils": path.resolve(import.meta.dirname, "./src/utils"),
+      "@api/db": path.resolve(import.meta.dirname, "./src/db"),
+      "@api/services": path.resolve(import.meta.dirname, "./src/services"),
+      "@api/routers": path.resolve(import.meta.dirname, "./src/routers"),
+      "@api/trpc": path.resolve(import.meta.dirname, "./src/trpc"),
+      "@api/adapters": path.resolve(import.meta.dirname, "./src/adapters"),
+      "@api/auth": path.resolve(import.meta.dirname, "./src/auth"),
+      "@api/cron": path.resolve(import.meta.dirname, "./src/cron"),
+      "@api/config": path.resolve(import.meta.dirname, "./src/config"),
+      "@api/types": path.resolve(import.meta.dirname, "./src/types"),
+      "@api": path.resolve(import.meta.dirname, "./src"),
     },
   },
 });

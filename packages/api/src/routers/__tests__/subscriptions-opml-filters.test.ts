@@ -1,3 +1,4 @@
+import { createFeedResponse } from "@api/test/mocks";
 /**
  * OPML Filter and Category Export/Import Tests
  *
@@ -12,8 +13,8 @@ import {
   seedTestSource,
   seedTestSubscription,
   seedTestCategory,
-} from "@/test/setup";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { subscriptionsRouter } from "../subscriptions";
 import { parseOpml } from "feedsmith";
 import { eq, and } from "drizzle-orm";
@@ -123,34 +124,31 @@ function createRealisticFeedFetcher(
 
     if (!feed) {
       // Default realistic RSS feed if not specified
-      return {
-        ok: true,
-        url: urlStr,
-        headers: new Headers({
-          "content-type": "application/rss+xml; charset=utf-8",
+      return createFeedResponse(
+        createRealisticRSSFeed({
+          title: "Default Test Feed",
+          link: urlStr,
+          description: "A test RSS feed",
+          items: [
+            { title: "Test Article 1", link: `${urlStr}/article-1` },
+            { title: "Test Article 2", link: `${urlStr}/article-2` },
+          ],
         }),
-        text: async () =>
-          createRealisticRSSFeed({
-            title: "Default Test Feed",
-            link: urlStr,
-            description: "A test RSS feed",
-            items: [
-              { title: "Test Article 1", link: `${urlStr}/article-1` },
-              { title: "Test Article 2", link: `${urlStr}/article-2` },
-            ],
-          }),
-      } as Response;
+        urlStr,
+        new Headers({
+          "content-type": "application/rss+xml; charset=utf-8",
+        })
+      ) as Response;
     }
 
-    return {
-      ok: true,
-      url: urlStr,
-      headers: new Headers({
+    return createFeedResponse(
+      feed.content,
+      urlStr,
+      new Headers({
         "content-type":
           feed.contentType || "application/rss+xml; charset=utf-8",
-      }),
-      text: async () => feed.content,
-    } as Response;
+      })
+    ) as Response;
   };
 }
 
@@ -743,9 +741,8 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Mock fetch for feed validation
       global.fetch = async () => {
-        return {
-          ok: true,
-          text: async () => `<?xml version="1.0"?>
+        return createFeedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>New Feed</title>
@@ -755,7 +752,8 @@ describe("OPML Filter and Category Export/Import", () => {
     </item>
   </channel>
 </rss>`,
-        } as Response;
+          undefined
+        ) as Response;
       };
 
       const result = await caller.import({
@@ -1141,9 +1139,8 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Mock fetch for feed validation
       global.fetch = async () => {
-        return {
-          ok: true,
-          text: async () => `<?xml version="1.0"?>
+        return createFeedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>New Feed</title>
@@ -1153,7 +1150,8 @@ describe("OPML Filter and Category Export/Import", () => {
     </item>
   </channel>
 </rss>`,
-        } as Response;
+          undefined
+        ) as Response;
       };
 
       const result = await caller.import({
@@ -1291,9 +1289,8 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Mock fetch for feed validation
       global.fetch = async () => {
-        return {
-          ok: true,
-          text: async () => `<?xml version="1.0"?>
+        return createFeedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>New Feed</title>
@@ -1303,7 +1300,8 @@ describe("OPML Filter and Category Export/Import", () => {
     </item>
   </channel>
 </rss>`,
-        } as Response;
+          undefined
+        ) as Response;
       };
 
       const result = await caller.import({
@@ -1398,9 +1396,8 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Mock fetch for feed validation
       global.fetch = async () => {
-        return {
-          ok: true,
-          text: async () => `<?xml version="1.0"?>
+        return createFeedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>New Feed</title>
@@ -1410,7 +1407,8 @@ describe("OPML Filter and Category Export/Import", () => {
     </item>
   </channel>
 </rss>`,
-        } as Response;
+          undefined
+        ) as Response;
       };
 
       const result = await caller.import({
@@ -1765,15 +1763,15 @@ describe("OPML Filter and Category Export/Import", () => {
 
       // Mock fetch
       global.fetch = async () => {
-        return {
-          ok: true,
-          text: async () => `<?xml version="1.0"?>
+        return createFeedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>Test Feed</title>
   </channel>
 </rss>`,
-        } as Response;
+          undefined
+        ) as Response;
       };
 
       // Import only selected URLs
@@ -2439,12 +2437,10 @@ describe("OPML Filter and Category Export/Import", () => {
         opmlContent: opmlXml,
       });
 
-      // Verify RSS and Atom feeds were imported successfully
-      // Note: JSON Feed format is not currently supported by feedsmith parser
-      expect(result.successCount).toBe(2);
-      expect(result.errorCount).toBe(1);
-      expect(result.errors[0]?.url).toBe("https://json.example.com/feed.json");
-      expect(result.errors[0]?.error).toContain("Unrecognized feed format");
+      // RSS, Atom, and JSON Feed are all supported by feedsmith.
+      expect(result.successCount).toBe(3);
+      expect(result.errorCount).toBe(0);
+      expect(result.errors).toEqual([]);
 
       // Verify all successfully imported feeds
       const importedSubs = await db
@@ -2456,8 +2452,8 @@ describe("OPML Filter and Category Export/Import", () => {
         )
         .where(eq(schema.subscriptions.userId, testUser.id));
 
-      // Should have RSS and Atom feeds (plus testSubscription from beforeEach)
-      expect(importedSubs.length).toBeGreaterThanOrEqual(2);
+      // Includes the existing fixture subscription and three imported feeds.
+      expect(importedSubs).toHaveLength(4);
 
       // CRITICAL: Verify metadata was extracted correctly for each supported format
       // This ensures schema changes and parsing logic changes would break the test
@@ -2478,11 +2474,13 @@ describe("OPML Filter and Category Export/Import", () => {
       // Atom feeds use "subtitle" which maps to description
       expect(atomSource?.sources.description).toBe("Atom format feed");
 
-      // Verify JSON Feed was NOT imported (unsupported format)
+      // Verify JSON Feed metadata is preserved.
       const jsonSource = importedSubs.find((s) =>
         s.sources.url.includes("json.example.com")
       );
-      expect(jsonSource).toBeUndefined();
+      expect(jsonSource?.sources.title).toBe("JSON Feed");
+      expect(jsonSource?.sources.siteUrl).toBe("https://json.example.com");
+      expect(jsonSource?.sources.description).toBe("JSON Feed format");
     });
 
     it("should verify exported data matches database schema exactly", async () => {

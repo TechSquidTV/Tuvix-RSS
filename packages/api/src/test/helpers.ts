@@ -32,13 +32,12 @@ export function wait(ms: number): Promise<void> {
 /**
  * Assert that an error was thrown
  */
-export async function expectError(
-  fn: () => Promise<any>,
+export async function expectError<T>(
+  fn: () => Promise<T>,
   expectedMessage?: string | RegExp
 ): Promise<Error> {
   try {
     await fn();
-    throw new Error("Expected function to throw an error, but it did not");
   } catch (error) {
     if (error instanceof Error) {
       if (expectedMessage) {
@@ -60,6 +59,7 @@ export async function expectError(
     }
     throw new Error(`Expected Error instance, got ${typeof error}`);
   }
+  throw new Error("Expected function to throw an error, but it did not");
 }
 
 /**
@@ -80,7 +80,7 @@ export function createMockResponse(
   });
 }
 
-import type { Database } from "@/db/client";
+import type { Database } from "@api/db/client";
 
 /**
  * Get count of records in a table

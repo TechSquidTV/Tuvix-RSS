@@ -1,4 +1,5 @@
-import { cn } from "@/lib/utils";
+import { getRelativeTime } from "@/lib/utils/date";
+import { cn, openArticleLink } from "@/lib/utils";
 import {
   Item,
   ItemContent,
@@ -83,7 +84,7 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
 
   const handleOpenLink = () => {
     if (article.link) {
-      window.open(article.link, "_blank", "noopener,noreferrer");
+      openArticleLink(article.link);
     }
   };
 
@@ -101,29 +102,8 @@ export function ArticleItem({ article, className }: ArticleItemProps) {
 
     // Only open link on mobile and if not dragging
     if (isMobile && !isDragging && article.link) {
-      window.open(article.link, "_blank", "noopener,noreferrer");
+      openArticleLink(article.link);
     }
-  };
-
-  // Format relative time
-
-  const getRelativeTime = (dateString?: string) => {
-    if (!dateString) return "Unknown";
-
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60)
-      return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
-    if (diffHours < 24)
-      return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-    return date.toLocaleDateString();
   };
 
   return (

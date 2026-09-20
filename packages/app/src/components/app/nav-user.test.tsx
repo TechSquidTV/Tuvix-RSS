@@ -47,7 +47,9 @@ const SidebarWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <Wrapper>
       <SidebarProvider defaultOpen={true}>
-        <Highlight>{children}</Highlight>
+        <Highlight mode="children" controlledItems>
+          {children}
+        </Highlight>
       </SidebarProvider>
     </Wrapper>
   );
@@ -77,7 +79,7 @@ describe("NavUser", () => {
       id: 1,
       username: "testuser",
       email: "test@example.com",
-      role: "user" as const,
+      role: "user" as string,
       plan: "free",
       banned: false,
     };
@@ -95,7 +97,7 @@ describe("NavUser", () => {
       id: 1,
       username: "testuser",
       email: "test@example.com",
-      role: "user" as const,
+      role: "user" as string,
       plan: "free",
       banned: false,
     };
@@ -155,7 +157,7 @@ describe("NavUser", () => {
     // This test just confirms the logic: user.role === "admin"
 
     // Test case 1: role is "user" - should not show badge
-    const userRole = "user" as const;
+    const userRole = "user" as string;
     expect(userRole === "admin").toBe(false);
 
     // Test case 2: role is "admin" - should show badge
@@ -182,7 +184,7 @@ describe("NavUser", () => {
       id: 1,
       username: "testuser",
       email: "test@example.com",
-      role: "user" as const,
+      role: "user" as string,
       plan: "free",
       banned: false,
     };
@@ -217,7 +219,7 @@ describe("NavUser", () => {
       id: 1,
       username: undefined,
       email: "test@example.com",
-      role: "user" as const,
+      role: "user" as string,
       plan: "free",
       banned: false,
     };
@@ -235,7 +237,7 @@ describe("NavUser", () => {
       id: 1,
       username: "testuser",
       email: "test@example.com",
-      role: "user" as const,
+      role: "user" as string,
       plan: "pro",
       banned: false,
     };

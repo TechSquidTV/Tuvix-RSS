@@ -78,7 +78,7 @@ packages/api/
 
 ### Prerequisites
 
-- Node.js 18+ (for Docker deployment)
+- Node.js 24+ (for Docker deployment)
 - pnpm (package manager)
 - SQLite (for local development)
 
@@ -521,3 +521,13 @@ Same as parent project (TuvixRSS)
 ✅ **Production Ready** - All core features are implemented and tested.
 
 The API is fully functional with complete CRUD operations for articles, subscriptions, categories, feeds, and user settings. All endpoints are documented and type-safe.
+
+## Security and upgrade notes
+
+Use Node.js 24 or newer. Apply migration `0012_overrated_toxin.sql` before starting this version. It adds persistent authentication attempt limits shared by all credential endpoints. Existing session-cookie caches are disabled so revoked sessions and role changes take effect on the next request.
+
+**Breaking change:** server-side feed discovery, fetching, and image requests reject private, loopback, and reserved network destinations, including redirects. Private-network feeds must be exposed through a public endpoint to be used.
+
+Node deployments ignore client-supplied IP forwarding headers by default. Set `TRUST_PROXY_HEADERS=true` only when the API is reachable exclusively through a trusted reverse proxy that overwrites these headers; otherwise the proxy's address shares one authentication limit. Cloudflare uses its platform-provided client address.
+
+Set `API_URL` (or `BETTER_AUTH_URL`) to the API's public origin. Frontend public-feed links use `VITE_API_URL`, with an optional `VITE_PUBLIC_URL` override. `BASE_URL` remains the frontend origin for email links. Set `OPENAI_API_KEY` in the Node/Docker environment to enable configured AI categorization.

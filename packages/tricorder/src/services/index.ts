@@ -4,6 +4,6 @@
  * Exported discovery service implementations.
  */
 
-export { StandardDiscoveryService } from "./standard-discovery";
-export { AppleDiscoveryService } from "./apple-discovery";
-export { RedditDiscoveryService } from "./reddit-discovery";
+export { StandardDiscoveryService } from "./standard-discovery.js";
+export { AppleDiscoveryService } from "./apple-discovery.js";
+export { RedditDiscoveryService } from "./reddit-discovery.js";

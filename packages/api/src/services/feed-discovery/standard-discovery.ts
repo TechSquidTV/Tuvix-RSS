@@ -1,3 +1,5 @@
+import { readFeedResponse } from "@tuvixrss/tricorder";
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * Standard URL-Based Discovery Service
  *
@@ -7,7 +9,7 @@
  * - HTML link tag parsing
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 import type {
   DiscoveryContext,
   DiscoveryService,
@@ -150,7 +152,7 @@ export class StandardDiscoveryService implements DiscoveryService {
 
           // Step 2: Fetch HTML and parse for feed links
           try {
-            const response = await fetch(url, {
+            const response = await safeFetch(url, {
               headers: {
                 "User-Agent": "TuvixRSS/1.0",
                 Accept: "text/html,application/xhtml+xml",
@@ -161,7 +163,7 @@ export class StandardDiscoveryService implements DiscoveryService {
             span.setAttribute("html_fetch_status", response.status);
 
             if (response.ok) {
-              const html = await response.text();
+              const html = await readFeedResponse(response);
               span.setAttribute("html_size", html.length);
 
               // Parse for RSS/Atom link tags using regex

@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { initCronJobs } from "../scheduler";
-import { createTestDb, cleanupTestDb } from "@/test/setup";
-import type { Env } from "@/types";
+import { createTestDb, cleanupTestDb } from "@api/test/setup";
+import type { Env } from "@api/types";
 
 // Mock node-cron
 vi.mock("node-cron", () => ({
@@ -26,7 +26,7 @@ vi.mock("../executor", () => ({
   }),
 }));
 
-vi.mock("@/db/client", () => ({
+vi.mock("@api/db/client", () => ({
   createDatabase: vi.fn(),
 }));
 
@@ -43,7 +43,7 @@ describe("Cron Scheduler", () => {
     } as Env;
 
     // Mock createDatabase to return our test db
-    const { createDatabase } = await import("@/db/client");
+    const { createDatabase } = await import("@api/db/client");
     vi.mocked(createDatabase).mockReturnValue(db as any);
 
     // Get the mocked cron schedule function

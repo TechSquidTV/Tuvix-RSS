@@ -76,7 +76,7 @@ function AdminDashboard() {
     onSuccess: () => {
       toast.success("Feed refresh started");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to refresh feeds");
     },
   });

@@ -5,9 +5,9 @@
  */
 
 import * as Sentry from "@sentry/cloudflare";
-import { createHonoApp } from "@/hono/app";
-import { getSentryConfig } from "@/config/sentry";
-import type { Env } from "@/types";
+import { createHonoApp } from "@api/hono/app";
+import { getSentryConfig } from "@api/config/sentry";
+import type { Env } from "@api/types";
 
 /**
  * Prepare environment with D1 instrumentation

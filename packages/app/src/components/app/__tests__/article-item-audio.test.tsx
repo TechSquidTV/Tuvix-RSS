@@ -1,3 +1,4 @@
+import { createArticle } from "@/test/fixtures";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,7 +27,7 @@ describe("ArticleItemAudio", () => {
   const mockSaveArticle = vi.fn();
   const mockUnsaveArticle = vi.fn();
 
-  const mockArticle: Article = {
+  const mockArticle: Article = createArticle({
     id: 1,
     sourceId: 1,
     guid: "test-guid",
@@ -34,8 +35,8 @@ describe("ArticleItemAudio", () => {
     description: "This is a test audio episode description",
     link: "https://example.com/episode",
     content: null,
-    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
+    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    createdAt: new Date(),
     author: "Test Author",
     read: false,
     saved: false,
@@ -52,10 +53,10 @@ describe("ArticleItemAudio", () => {
       iconType: "auto",
       iconUpdatedAt: null,
       lastFetched: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

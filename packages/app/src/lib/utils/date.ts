@@ -6,6 +6,7 @@ export function formatDistanceToNow(
   date: Date,
   options?: { addSuffix?: boolean }
 ): string {
+  if (Number.isNaN(date.getTime())) return "Unknown";
   const rtf = new Intl.RelativeTimeFormat("en", {
     numeric: "auto",
     style: "long",
@@ -36,7 +37,7 @@ export function formatDistanceToNow(
         return formatted;
       }
       // Remove the suffix when addSuffix is false
-      return formatted.replace(/^(in |ago )/, "").trim();
+      return formatted.replace(/^in | ago$/g, "").trim();
     }
   }
 
@@ -44,7 +45,7 @@ export function formatDistanceToNow(
   const formatted = rtf.format(0, "second");
   return options?.addSuffix
     ? formatted
-    : formatted.replace(/^(in |ago )/, "").trim();
+    : formatted.replace(/^in | ago$/g, "").trim();
 }
 
 /**
@@ -57,6 +58,8 @@ export function getRelativeTime(dateString?: string | Date | null): string {
   const date =
     typeof dateString === "string" ? new Date(dateString) : dateString;
   const now = new Date();
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  if (date > now) return formatDistanceToNow(date, { addSuffix: true });
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);

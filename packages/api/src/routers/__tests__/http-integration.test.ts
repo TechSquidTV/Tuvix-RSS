@@ -8,9 +8,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createTestDb, cleanupTestDb, seedGlobalSettings } from "@/test/setup";
-import { createHonoApp } from "@/hono/app";
-import type { Env } from "@/types";
+import {
+  createTestDb,
+  cleanupTestDb,
+  seedGlobalSettings,
+} from "@api/test/setup";
+import { createHonoApp } from "@api/hono/app";
+import type { Env } from "@api/types";
 import * as SentryNode from "@sentry/node";
 
 /**
@@ -63,6 +67,21 @@ describe("HTTP Integration - tRPC Batch Requests", () => {
 
   afterEach(() => {
     cleanupTestDb(db);
+  });
+
+  it("does not expose Sentry diagnostics outside development", async () => {
+    const response = await app.request("/debug-sentry");
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain("sentryDsn");
+  });
+
+  it("hides internal error details outside development", async () => {
+    app.get("/test-internal-error", () => {
+      throw new Error("sensitive database details");
+    });
+    const response = await app.request("/test-internal-error");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Internal server error" });
   });
 
   it("should handle batch GET request without path truncation", async () => {

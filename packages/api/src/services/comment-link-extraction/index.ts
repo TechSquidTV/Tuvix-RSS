@@ -8,7 +8,7 @@ import { CommentLinkRegistry } from "./registry";
 import { RssElementExtractor } from "./rss-element-extractor";
 import { AtomLinkExtractor } from "./atom-link-extractor";
 import { HtmlPatternExtractor } from "./html-pattern-extractor";
-import type { FeedItem } from "./types";
+import type { ParsedFeedItem } from "./types";
 
 // Create singleton registry with default extractors
 const registry = new CommentLinkRegistry();
@@ -27,7 +27,7 @@ registry.register(new HtmlPatternExtractor());
  * @param item - Feed item to extract comment link from
  * @returns Comment link URL or null if none found
  */
-export function extractCommentLink(item: FeedItem): string | null {
+export function extractCommentLink(item: ParsedFeedItem): string | null {
   return registry.extract(item);
 }
 

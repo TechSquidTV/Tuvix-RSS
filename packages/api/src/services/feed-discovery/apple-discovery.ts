@@ -1,3 +1,4 @@
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * Apple Podcast Discovery Service
  *
@@ -5,8 +6,8 @@
  * to look up podcast metadata and extract the RSS feed URL.
  */
 
-import * as Sentry from "@/utils/sentry";
-import { isSubdomainOf } from "@/utils/domain-matcher";
+import * as Sentry from "@api/utils/sentry";
+import { isSubdomainOf } from "@api/utils/domain-matcher";
 import type {
   DiscoveryContext,
   DiscoveryService,
@@ -118,7 +119,7 @@ export class AppleDiscoveryService implements DiscoveryService {
 
           // Call iTunes Search API
           const apiUrl = `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`;
-          const response = await fetch(apiUrl, {
+          const response = await safeFetch(apiUrl, {
             headers: {
               "User-Agent": "TuvixRSS/1.0",
             },

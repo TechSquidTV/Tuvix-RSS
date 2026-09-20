@@ -10,7 +10,7 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedTestCategory,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { categoriesRouter } from "../categories";
 
 describe("Categories Router", () => {

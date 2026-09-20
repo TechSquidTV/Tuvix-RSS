@@ -5,7 +5,7 @@
  * Includes Span Metrics and Sentry Metrics configuration.
  */
 
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 // Define types for Sentry callbacks
 interface SentryMetric {
@@ -73,9 +73,8 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
     // Enable logs for better debugging
     enableLogs: true,
 
-    // Send default PII (request headers, IP) for better context
-    // Safe to enable because we filter sensitive fields via beforeSend callbacks
-    sendDefaultPii: true,
+    // Avoid automatic credential-bearing request metadata.
+    sendDefaultPii: false,
 
     // Debug mode (verbose logging - useful for development)
     debug: environment === "development",
@@ -101,6 +100,12 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
         "user_email",
         "username",
         "password",
+        "currentPassword",
+        "newPassword",
+        "token",
+        "authorization",
+        "cookie",
+        "set-cookie",
       ];
 
       // Remove any PII from metric attributes
@@ -133,6 +138,12 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
         "user_email",
         "username",
         "password",
+        "currentPassword",
+        "newPassword",
+        "token",
+        "authorization",
+        "cookie",
+        "set-cookie",
       ];
 
       // Helper to recursively remove PII from an object
@@ -145,12 +156,21 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
         }
         // Recursively clean nested objects
         for (const [key, value] of Object.entries(cleaned)) {
-          if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (Array.isArray(value)) {
+            cleaned[key] = value.map((item: unknown) =>
+              item && typeof item === "object"
+                ? removePII(item as Record<string, unknown>)
+                : item
+            );
+          } else if (value && typeof value === "object") {
             cleaned[key] = removePII(value as Record<string, unknown>);
           }
         }
         return cleaned;
       };
+
+      // Request bodies, cookies, and query strings can contain credentials.
+      delete event.request;
 
       // Remove PII from breadcrumbs
       if (event.breadcrumbs) {
@@ -190,6 +210,12 @@ export function getSentryConfig(env: Env): Record<string, unknown> | null {
         "user_email",
         "username",
         "password",
+        "currentPassword",
+        "newPassword",
+        "token",
+        "authorization",
+        "cookie",
+        "set-cookie",
       ];
 
       // Initialize data object if it doesn't exist

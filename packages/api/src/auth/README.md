@@ -92,7 +92,7 @@ Better Auth uses the `user` table as the single source of truth for user data.
 For tests that need password hashing:
 
 ```typescript
-import { hashPassword } from "@/auth/password";
+import { hashPassword } from "@api/auth/password";
 
 const hash = await hashPassword("TestPass123!");
 ```

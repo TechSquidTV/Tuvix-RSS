@@ -18,20 +18,10 @@ export function AnimatedArticleList({
   children,
   className,
 }: AnimatedArticleListProps) {
-  // Track if we've rendered articles before to detect initial appearance after skeleton
-  const [hasRendered, setHasRendered] = React.useState(false);
-  const isInitialAppearance = !hasRendered && articles.length > 0;
-
-  React.useEffect(() => {
-    if (articles.length > 0) {
-      setHasRendered(true);
-    }
-  }, [articles.length]);
-
   return (
     <motion.div
       className={cn("flex flex-col gap-4", className)}
-      initial={isInitialAppearance ? { opacity: 0 } : undefined}
+      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >

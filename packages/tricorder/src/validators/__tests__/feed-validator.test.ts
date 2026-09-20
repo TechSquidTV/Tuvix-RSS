@@ -6,7 +6,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createFeedValidator } from "../feed-validator";
+import { createFeedValidator } from "../feed-validator.js";
+
+function feedResponse(body: string, url: string): Response {
+  const response = new Response(body, {
+    headers: { "content-type": "application/xml" },
+  });
+  Object.defineProperty(response, "url", { value: url });
+  return response;
+}
 
 describe("createFeedValidator", () => {
   let seenUrls: Set<string>;
@@ -22,10 +30,8 @@ describe("createFeedValidator", () => {
    * Helper to create a mock RSS feed response
    */
   function createMockRssResponse(url: string, title: string = "Test Feed") {
-    return {
-      ok: true,
-      url: url, // Final URL after redirects
-      text: async () => `<?xml version="1.0"?>
+    return feedResponse(
+      `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>${title}</title>
@@ -33,7 +39,8 @@ describe("createFeedValidator", () => {
     <description>Test feed description</description>
   </channel>
 </rss>`,
-    } as Response;
+      url
+    );
   }
 
   /**
@@ -44,17 +51,16 @@ describe("createFeedValidator", () => {
     feedId: string,
     title: string = "Test Feed"
   ) {
-    return {
-      ok: true,
-      url: url,
-      text: async () => `<?xml version="1.0"?>
+    return feedResponse(
+      `<?xml version="1.0"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>${feedId}</id>
   <title>${title}</title>
   <link href="https://example.com"/>
   <subtitle>Test feed description</subtitle>
 </feed>`,
-    } as Response;
+      url
+    );
   }
 
   describe("basic validation", () => {
@@ -410,17 +416,18 @@ describe("createFeedValidator", () => {
 
   describe("edge cases", () => {
     it("should handle feeds without description", async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        url: "https://example.com/feed",
-        text: async () => `<?xml version="1.0"?>
+      const fetchMock = vi.fn().mockResolvedValue(
+        feedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <title>Test Feed</title>
     <link>https://example.com</link>
   </channel>
 </rss>`,
-      });
+          "https://example.com/feed"
+        )
+      );
       global.fetch = fetchMock as any;
 
       const validator = createFeedValidator(seenUrls, seenFeedIds);
@@ -435,17 +442,18 @@ describe("createFeedValidator", () => {
     });
 
     it("should handle feeds without title", async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        url: "https://example.com/feed",
-        text: async () => `<?xml version="1.0"?>
+      const fetchMock = vi.fn().mockResolvedValue(
+        feedResponse(
+          `<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
     <link>https://example.com</link>
     <description>Test description</description>
   </channel>
 </rss>`,
-      });
+          "https://example.com/feed"
+        )
+      );
       global.fetch = fetchMock as any;
 
       const validator = createFeedValidator(seenUrls, seenFeedIds);
@@ -455,11 +463,11 @@ describe("createFeedValidator", () => {
     });
 
     it("should handle malformed XML gracefully", async () => {
-      const fetchMock = vi.fn().mockResolvedValue({
-        ok: true,
-        url: "https://example.com/feed",
-        text: async () => "not valid xml",
-      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          feedResponse("not valid xml", "https://example.com/feed")
+        );
       global.fetch = fetchMock as any;
 
       const validator = createFeedValidator(seenUrls, seenFeedIds);

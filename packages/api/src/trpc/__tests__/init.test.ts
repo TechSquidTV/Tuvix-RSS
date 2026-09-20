@@ -16,13 +16,13 @@ import {
 } from "vitest";
 import { router, publicProcedure, rateLimitedProcedure } from "../init";
 import { TRPCError } from "@trpc/server";
-import { createTestDb, seedTestUser, cleanupTestDb } from "@/test/setup";
+import { createTestDb, seedTestUser, cleanupTestDb } from "@api/test/setup";
 import { createContext } from "../context";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 // Mock Better Auth
 // Set up default mock that returns empty auth (no session)
-vi.mock("@/auth/better-auth", () => {
+vi.mock("@api/auth/better-auth", () => {
   const mockCreateAuth = vi.fn(() => ({
     api: {
       getSession: vi.fn().mockResolvedValue({ data: null }),
@@ -34,7 +34,7 @@ vi.mock("@/auth/better-auth", () => {
 });
 
 // Mock database client
-vi.mock("@/db/client", () => ({
+vi.mock("@api/db/client", () => ({
   createDatabase: vi.fn(),
 }));
 
@@ -51,7 +51,7 @@ afterAll(() => {
 
 beforeEach(async () => {
   // Set default mock return value for all tests
-  const { createDatabase } = await import("@/db/client");
+  const { createDatabase } = await import("@api/db/client");
   vi.mocked(createDatabase).mockReturnValue(globalTestDb as any);
 });
 
@@ -115,7 +115,7 @@ describe("rateLimitedProcedure", () => {
     } as Env;
 
     // Mock createDatabase to return our test db
-    const { createDatabase } = await import("@/db/client");
+    const { createDatabase } = await import("@api/db/client");
     vi.mocked(createDatabase).mockReturnValue(db as any);
   });
 
@@ -155,7 +155,7 @@ describe("rateLimitedProcedure", () => {
     };
 
     // Override the default mock to return our test user session
-    const authModule = await import("@/auth/better-auth");
+    const authModule = await import("@api/auth/better-auth");
     const createAuthMock = vi.mocked(authModule.createAuth);
 
     // Better Auth's getSession returns the session object directly (with user property)

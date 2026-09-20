@@ -10,9 +10,9 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedTestCategory,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { userSettingsRouter } from "../userSettings";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("User Settings Router", () => {

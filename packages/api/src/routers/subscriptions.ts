@@ -1,10 +1,12 @@
+import { readFeedResponse } from "@tuvixrss/tricorder";
+import { safeFetch } from "@api/utils/safe-fetch";
 /**
  * Subscriptions Router
  *
  * Handles RSS feed subscriptions, OPML import/export, filters, and discovery.
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 
 // Retry configuration for transient HTTP failures
 const MAX_RETRIES = 2;
@@ -13,58 +15,63 @@ const TRANSIENT_STATUS_CODES = [502, 503, 504, 429];
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
-import { router, rateLimitedProcedure } from "@/trpc/init";
-import { withQueryMetrics } from "@/utils/db-metrics";
-import type { Opml } from "@/types/feed";
+import { router, rateLimitedProcedure } from "@api/trpc/init";
+import { withQueryMetrics } from "@api/utils/db-metrics";
+import type { Opml, ParsedFeed } from "@api/types/feed";
 import {
   urlValidator,
   customTitleValidator,
   categoryNamesArrayValidator,
   idArrayValidator,
   STRING_LIMITS,
-} from "@/types/validators";
+} from "@api/types/validators";
 import {
   extractDomain,
   isDomainBlocked,
   getBlockedDomainReason,
   getBlockedDomains,
-} from "@/utils/domain-checker";
+} from "@api/utils/domain-checker";
 import {
   checkSourceLimit,
   incrementSourceCount,
   decrementSourceCount,
   recalculateUsage,
-} from "@/services/limits";
-import { CategorySuggestionSchema, ImportJobSchema } from "@/types";
+} from "@api/services/limits";
+import { CategorySuggestionSchema, ImportJobSchema } from "@api/types";
 import {
   subscriptionResponseSchema,
   selectSubscriptionFilterSchema,
-} from "@/db/schemas.zod";
+} from "@api/db/schemas.zod";
 import {
   createPaginatedSchema,
   paginationInputSchema,
   createPaginatedResponse,
   withUndefinedAsEmpty,
-} from "@/types/pagination";
-import * as schema from "@/db/schema";
-import { generateColorFromString } from "@/utils/color-generator";
-import { requireOwnership, findOrCreateCategory } from "@/db/helpers";
+} from "@api/types/pagination";
+import * as schema from "@api/db/schema";
+import { generateColorFromString } from "@api/utils/color-generator";
+import { requireOwnership, findOrCreateCategory } from "@api/db/helpers";
 import {
   transformSubscriptionFilter,
   fetchSubscriptionCategories,
   fetchSubscriptionFilters,
   buildSubscriptionResponse,
-} from "@/db/transformers";
-import { fetchAndDiscoverCategories } from "@/services/category-discovery";
-import { stripHtml } from "@/utils/text-sanitizer";
-import { discoverFavicon } from "@/services/favicon-fetcher";
+} from "@api/db/transformers";
+import { fetchAndDiscoverCategories } from "@api/services/category-discovery";
+import { discoverFavicon } from "@api/services/favicon-fetcher";
 import {
   parseFiltersJson,
   parseCategoriesJson,
   parseBoolean,
   type FilterData,
-} from "@/utils/opml-parser";
-import { extractItunesImage } from "@/utils/feed-utils";
+} from "@api/utils/opml-parser";
+import {
+  extractItunesImage,
+  extractFeedItems,
+  extractCategoryNames,
+  countFeedCategories,
+} from "@api/utils/feed-utils";
+import { extractFeedMetadata, feedText } from "@tuvixrss/tricorder";
 
 /**
  * Normalize Reddit feed URLs to use old.reddit.com for consistency.
@@ -79,7 +86,8 @@ function normalizeRedditUrl(url: string): string {
     const parsedUrl = new URL(url);
     // Check if this is a Reddit domain with an RSS feed
     if (
-      parsedUrl.hostname.includes("reddit.com") &&
+      (parsedUrl.hostname === "reddit.com" ||
+        parsedUrl.hostname.endsWith(".reddit.com")) &&
       parsedUrl.pathname.endsWith(".rss")
     ) {
       // Normalize to old.reddit.com (matches RedditDiscoveryService)
@@ -114,6 +122,7 @@ export const subscriptionsRouter = router({
               eq(schema.subscriptions.sourceId, schema.sources.id)
             )
             .where(eq(schema.subscriptions.userId, userId))
+            .orderBy(schema.subscriptions.id)
             .limit(input.limit + 1)
             .offset(input.offset),
         {
@@ -305,7 +314,7 @@ export const subscriptionsRouter = router({
       const { parseFeed } = await import("feedsmith");
 
       let feedUrl = input.url;
-      let feedData;
+      let feedData: ParsedFeed | undefined;
       let feedContent: string | undefined;
       let lastError: Error | undefined;
       let lastStatusCode: number | undefined;
@@ -334,7 +343,7 @@ export const subscriptionsRouter = router({
             });
           }
 
-          const response = await fetch(feedUrl, {
+          const response = await safeFetch(feedUrl, {
             headers: {
               "User-Agent": "TuvixRSS/1.0",
               Accept:
@@ -360,7 +369,7 @@ export const subscriptionsRouter = router({
             throw new Error(errorMessage);
           }
 
-          feedContent = await response.text();
+          feedContent = await readFeedResponse(response);
 
           // Parse feed - parsing errors should NOT be retried
           try {
@@ -489,24 +498,11 @@ export const subscriptionsRouter = router({
       }
 
       // Step 3: Extract metadata from feed
-      const feedTitle =
-        "title" in feedData && feedData.title
-          ? feedData.title
-          : "Untitled Feed";
-      const feedDescription =
-        "description" in feedData && feedData.description
-          ? stripHtml(feedData.description)
-          : "subtitle" in feedData && feedData.subtitle
-            ? stripHtml(feedData.subtitle)
-            : undefined;
-      const siteUrl =
-        "link" in feedData && feedData.link
-          ? feedData.link
-          : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
-            ? feedData.links[0].href
-            : undefined;
+      const {
+        title: feedTitle = "Untitled Feed",
+        description: feedDescription,
+        siteUrl,
+      } = extractFeedMetadata(feedData);
 
       // Step 3.5: Extract icon URL from feed
       let feedIconUrl: string | undefined;
@@ -514,7 +510,8 @@ export const subscriptionsRouter = router({
         // First, try platform-specific discovery for the original input URL
         // This handles Apple Podcasts, Reddit, etc. with high-quality icons
         if (!input.iconUrl && (!input.iconType || input.iconType === "auto")) {
-          const { discoverFeeds } = await import("@/services/feed-discovery");
+          const { discoverFeeds } =
+            await import("@api/services/feed-discovery");
           try {
             const discoveredFeeds = await discoverFeeds(input.url);
             // Use iconUrl from discovery if available (platform-specific high-quality icons)
@@ -598,7 +595,6 @@ export const subscriptionsRouter = router({
             ...((!input.iconType || input.iconType === "auto") && feedIconUrl
               ? { iconUrl: input.iconUrl || feedIconUrl }
               : {}),
-            lastFetched: new Date(),
           })
           .where(eq(schema.sources.id, sourceId));
       } else {
@@ -612,7 +608,6 @@ export const subscriptionsRouter = router({
             siteUrl,
             iconUrl: input.iconUrl || feedIconUrl || null,
             iconType: input.iconType || "auto",
-            lastFetched: new Date(),
           })
           .returning();
 
@@ -683,7 +678,7 @@ export const subscriptionsRouter = router({
       // Step 7.5: Immediately fetch articles for the new subscription
       // This provides instant feedback to the user instead of waiting for batch processing
       try {
-        const { fetchSingleFeed } = await import("@/services/rss-fetcher");
+        const { fetchSingleFeed } = await import("@api/services/rss-fetcher");
         await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
 
         Sentry.addBreadcrumb({
@@ -975,13 +970,14 @@ export const subscriptionsRouter = router({
         FeedDiscoveryError,
       } = await import("@tuvixrss/tricorder");
       const { sentryTelemetryAdapter } =
-        await import("@/adapters/sentry-telemetry");
+        await import("@api/adapters/sentry-telemetry");
 
       // Use the extensible discovery system with Sentry telemetry
       let discoveredFeeds;
       try {
         discoveredFeeds = await discoverFeeds(input.url, {
           telemetry: sentryTelemetryAdapter,
+          fetch: safeFetch,
         });
       } catch (error) {
         // Convert tricorder errors to TRPC errors
@@ -1061,7 +1057,7 @@ export const subscriptionsRouter = router({
       });
 
       // Step 1: Fetch and parse the feed
-      let feedData;
+      let feedData: ParsedFeed | undefined;
       let feedUrl = input.url;
       let feedContent: string | undefined;
       let lastError: Error | undefined;
@@ -1085,7 +1081,7 @@ export const subscriptionsRouter = router({
             });
           }
 
-          const response = await fetch(feedUrl, {
+          const response = await safeFetch(feedUrl, {
             headers: {
               "User-Agent": "TuvixRSS/1.0",
               Accept:
@@ -1111,7 +1107,7 @@ export const subscriptionsRouter = router({
             throw new Error(errorMessage);
           }
 
-          feedContent = await response.text();
+          feedContent = await readFeedResponse(response);
 
           // Parse feed - parsing errors should NOT be retried
           try {
@@ -1238,31 +1234,17 @@ export const subscriptionsRouter = router({
         });
       }
 
-      // Step 2: Extract metadata
-      const title =
-        "title" in feedData && feedData.title
-          ? feedData.title
-          : "Untitled Feed";
-      const description =
-        "description" in feedData && feedData.description
-          ? stripHtml(feedData.description)
-          : "subtitle" in feedData && feedData.subtitle
-            ? stripHtml(feedData.subtitle)
-            : undefined;
-      const siteUrl =
-        "link" in feedData && feedData.link
-          ? feedData.link
-          : "links" in feedData &&
-              Array.isArray(feedData.links) &&
-              feedData.links[0]?.href
-            ? feedData.links[0].href
-            : undefined;
+      const {
+        title = "Untitled Feed",
+        description,
+        siteUrl,
+      } = extractFeedMetadata(feedData);
 
       // Step 3: Try to get favicon URL
       let iconUrl: string | undefined;
       try {
         // First, try platform-specific discovery (Apple Podcasts, Reddit, etc.)
-        const { discoverFeeds } = await import("@/services/feed-discovery");
+        const { discoverFeeds } = await import("@api/services/feed-discovery");
         try {
           const discoveredFeeds = await discoverFeeds(input.url);
           // Use iconUrl from discovery if available (platform-specific high-quality icons)
@@ -1339,46 +1321,7 @@ export const subscriptionsRouter = router({
         count: number;
         color: string;
       }[] = [];
-      const categoryMap = new Map<string, number>();
-
-      // Helper to extract category name from various formats
-      const extractCategoryName = (cat: unknown): string | null => {
-        if (typeof cat === "string") return cat;
-        if (typeof cat === "object" && cat !== null) {
-          const obj = cat as Record<string, unknown>;
-          return (
-            (obj.term as string) ||
-            (obj.label as string) ||
-            (obj.name as string) ||
-            null
-          );
-        }
-        return null;
-      };
-
-      // Extract categories from feed metadata
-      if ("categories" in feedData && Array.isArray(feedData.categories)) {
-        for (const cat of feedData.categories) {
-          const catName = extractCategoryName(cat);
-          if (catName) {
-            categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
-          }
-        }
-      }
-
-      // Extract categories from first few entries
-      if ("entries" in feedData && Array.isArray(feedData.entries)) {
-        for (const entry of feedData.entries.slice(0, 10)) {
-          if (entry.categories && Array.isArray(entry.categories)) {
-            for (const cat of entry.categories) {
-              const catName = extractCategoryName(cat);
-              if (catName) {
-                categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
-              }
-            }
-          }
-        }
-      }
+      const categoryMap = countFeedCategories(feedData);
 
       // Convert to array and sort by count
       for (const [name, count] of categoryMap.entries()) {
@@ -1390,6 +1333,7 @@ export const subscriptionsRouter = router({
       }
 
       suggestedCategories.sort((a, b) => b.count - a.count);
+      const previewItems = extractFeedItems(feedData).slice(0, 10);
 
       return {
         title,
@@ -1400,11 +1344,12 @@ export const subscriptionsRouter = router({
         aiSuggestions: await Sentry.startSpan(
           { name: "ai.getSuggestions", op: "ai.categorize" },
           async () => {
-            const { checkAiFeatureAccess } = await import("@/services/limits");
+            const { checkAiFeatureAccess } =
+              await import("@api/services/limits");
             const { suggestCategories } =
-              await import("@/services/ai-category-suggester");
+              await import("@api/services/ai-category-suggester");
 
-            const env = ctx.env as { OPENAI_API_KEY?: string };
+            const env = ctx.env;
             const access = await checkAiFeatureAccess(ctx.db, userId, env);
 
             if (!access.allowed) {
@@ -1422,24 +1367,9 @@ export const subscriptionsRouter = router({
             const entryCategories: string[] = [];
             const entryTitles: string[] = [];
 
-            // Cast feedData to access items/entries safely (handles RSS, Atom, RDF)
-            const feedWithItems = feedData as {
-              entries?: Array<{ title?: string; categories?: unknown[] }>;
-              items?: Array<{ title?: string; categories?: unknown[] }>;
-            };
-
-            const items = feedWithItems.entries || feedWithItems.items || [];
-
-            if (Array.isArray(items)) {
-              for (const item of items.slice(0, 10)) {
-                entryTitles.push(item.title || "");
-                if (item.categories && Array.isArray(item.categories)) {
-                  for (const cat of item.categories) {
-                    const catName = extractCategoryName(cat);
-                    if (catName) entryCategories.push(catName);
-                  }
-                }
-              }
+            for (const item of previewItems) {
+              entryTitles.push(feedText(item.title) ?? "");
+              entryCategories.push(...extractCategoryNames(item));
             }
 
             if (!env.OPENAI_API_KEY) {
@@ -2007,7 +1937,7 @@ export const subscriptionsRouter = router({
               async (feedSpan) => {
                 try {
                   // Fetch and validate feed
-                  const response = await fetch(feedInfo.url, {
+                  const response = await safeFetch(feedInfo.url, {
                     headers: {
                       "User-Agent": "TuvixRSS/1.0",
                       Accept:
@@ -2020,29 +1950,15 @@ export const subscriptionsRouter = router({
                     throw new Error(`HTTP ${response.status}`);
                   }
 
-                  const feedContent = await response.text();
+                  const feedContent = await readFeedResponse(response);
                   const feedResult = parseFeed(feedContent);
                   const feedData = feedResult.feed;
 
-                  // Extract metadata
-                  const feedTitle =
-                    "title" in feedData && feedData.title
-                      ? feedData.title
-                      : feedInfo.title;
-                  const feedDescription =
-                    "description" in feedData && feedData.description
-                      ? stripHtml(feedData.description)
-                      : "subtitle" in feedData && feedData.subtitle
-                        ? stripHtml(feedData.subtitle)
-                        : undefined;
-                  const siteUrl =
-                    "link" in feedData && feedData.link
-                      ? feedData.link
-                      : "links" in feedData &&
-                          Array.isArray(feedData.links) &&
-                          feedData.links[0]?.href
-                        ? feedData.links[0].href
-                        : undefined;
+                  const {
+                    title: feedTitle = feedInfo.title,
+                    description: feedDescription,
+                    siteUrl,
+                  } = extractFeedMetadata(feedData);
 
                   // Check if source exists
                   // Normalize Reddit URLs to prevent duplicates across different domains
@@ -2064,7 +1980,6 @@ export const subscriptionsRouter = router({
                         title: feedTitle,
                         description: feedDescription,
                         siteUrl,
-                        lastFetched: new Date(),
                       })
                       .where(eq(schema.sources.id, sourceId));
                   } else {
@@ -2076,7 +1991,6 @@ export const subscriptionsRouter = router({
                         description: feedDescription,
                         siteUrl,
                         iconType: "auto",
-                        lastFetched: new Date(),
                       })
                       .returning();
                     const source = newSource[0];
@@ -2231,7 +2145,7 @@ export const subscriptionsRouter = router({
                   // This matches single subscription behavior and provides instant feedback
                   try {
                     const { fetchSingleFeed } =
-                      await import("@/services/rss-fetcher");
+                      await import("@api/services/rss-fetcher");
                     await fetchSingleFeed(sourceId, normalizedFeedUrl, ctx.db);
 
                     Sentry.addBreadcrumb({

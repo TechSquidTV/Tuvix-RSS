@@ -1,7 +1,8 @@
+import { getQueryKey } from "@trpc/react-query";
 // tRPC Hooks for Categories, Subscriptions, Feeds
 import { toast } from "sonner";
 import { trpc } from "@/lib/api/trpc";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { InfiniteArticlesData } from "./useArticles";
 import * as Sentry from "@sentry/react";
@@ -59,7 +60,28 @@ export const useDeleteCategory = () => {
 
 // Subscriptions
 export const useSubscriptions = () => {
-  return trpc.subscriptions.list.useQuery({ limit: 100, offset: 0 });
+  const utils = trpc.useUtils();
+  return useQuery({
+    queryKey: getQueryKey(trpc.subscriptions.list, undefined, "query"),
+    queryFn: async ({ signal }) => {
+      const page = await utils.client.subscriptions.list.query(
+        { limit: 100, offset: 0 },
+        { signal }
+      );
+      const items = [...page.items];
+      let hasMore = page.hasMore;
+      while (hasMore) {
+        const next = await utils.client.subscriptions.list.query(
+          { limit: 100, offset: items.length },
+          { signal }
+        );
+        if (next.items.length === 0) break;
+        items.push(...next.items);
+        hasMore = next.hasMore;
+      }
+      return { items, total: items.length, hasMore: false };
+    },
+  });
 };
 
 export const useSubscription = (id: number) => {
@@ -155,7 +177,7 @@ export const useCreateSubscriptionWithRefetch = () => {
   }) => {
     // Prevent concurrent executions - if already executing, ignore this call
     if (isExecutingRef.current) {
-      return;
+      throw new Error("Subscription creation is already in progress");
     }
 
     isExecutingRef.current = true;
@@ -180,7 +202,7 @@ export const useCreateSubscriptionWithRefetch = () => {
 
       // Get initial article count for this source
       const initialResult = queryClient.getQueriesData<InfiniteArticlesData>({
-        queryKey: [["trpc"], ["articles", "list"]],
+        queryKey: getQueryKey(trpc.articles.list),
       });
 
       let initialCount = 0;
@@ -209,7 +231,7 @@ export const useCreateSubscriptionWithRefetch = () => {
         // Refetch articles list and wait for cache update
         // The await ensures the cache is updated before we read from it
         await queryClient.refetchQueries({
-          queryKey: [["trpc"], ["articles", "list"]],
+          queryKey: getQueryKey(trpc.articles.list),
         });
 
         // Check if component unmounted during async refetch
@@ -218,7 +240,7 @@ export const useCreateSubscriptionWithRefetch = () => {
         // Count articles from the new source (cache is guaranteed fresh after await above)
         // Optimized: reduce instead of nested loops with filter
         const results = queryClient.getQueriesData<InfiniteArticlesData>({
-          queryKey: [["trpc"], ["articles", "list"]],
+          queryKey: getQueryKey(trpc.articles.list),
         });
 
         const currentCount = results.reduce((total, [, data]) => {
@@ -292,6 +314,7 @@ export const useCreateSubscriptionWithRefetch = () => {
         poll,
         POLL_INTERVAL_MS
       ) as NodeJS.Timeout;
+      return subscription;
     } catch (error) {
       // Reset polling state if subscription creation fails
       // stopPolling() will reset isExecutingRef
@@ -410,7 +433,7 @@ export const useCreateSubscriptionFilter = (subscriptionId: number) => {
       utils.subscriptions.getById.invalidate({ id: subscriptionId });
       toast.success("Filter created");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to create filter");
     },
   });
@@ -425,7 +448,7 @@ export const useUpdateSubscriptionFilter = (subscriptionId: number) => {
       utils.subscriptions.getById.invalidate({ id: subscriptionId });
       toast.success("Filter updated");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to update filter");
     },
   });

@@ -8,7 +8,7 @@
 import type {
   CommentLinkExtractor,
   ExtractedCommentLink,
-  FeedItem,
+  ParsedFeedItem,
 } from "./types";
 
 /**
@@ -19,7 +19,7 @@ import type {
 export class RssElementExtractor implements CommentLinkExtractor {
   readonly priority = 10; // Highest priority - explicit element
 
-  canHandle(item: FeedItem): boolean {
+  canHandle(item: ParsedFeedItem): boolean {
     return (
       "comments" in item &&
       typeof item.comments === "string" &&
@@ -27,7 +27,7 @@ export class RssElementExtractor implements CommentLinkExtractor {
     );
   }
 
-  extract(item: FeedItem): ExtractedCommentLink | null {
+  extract(item: ParsedFeedItem): ExtractedCommentLink | null {
     if ("comments" in item && item.comments) {
       return {
         url: item.comments,

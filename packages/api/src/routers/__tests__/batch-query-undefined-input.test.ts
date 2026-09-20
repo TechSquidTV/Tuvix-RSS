@@ -14,9 +14,9 @@ import {
   seedTestUser,
   seedTestSource,
   seedTestSubscription,
-} from "@/test/setup";
-import { appRouter } from "@/trpc/router";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import { appRouter } from "@api/trpc/router";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Batch Query Input Handling (TUVIX-API-14)", () => {

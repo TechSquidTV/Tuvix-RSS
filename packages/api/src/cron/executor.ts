@@ -1,3 +1,4 @@
+import { CRON_SCHEDULES } from "./schedules";
 /**
  * Cron Executor (Shared)
  *
@@ -5,7 +6,7 @@
  * Used by both Cloudflare Workers (scheduled events) and Node.js (node-cron).
  *
  * This ensures consistent behavior across runtimes:
- * - RSS fetch: based on fetchIntervalMinutes from global_settings
+ * - RSS batches: every minute; individual feeds use fetchIntervalMinutes
  * - Article prune: every 24 hours
  * - Token cleanup: every 7 days (weekly)
  */
@@ -13,24 +14,25 @@
 import { eq } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "@/db/schema";
-import { getGlobalSettings } from "@/services/global-settings";
+import * as schema from "@api/db/schema";
+import { getGlobalSettings } from "@api/services/global-settings";
 import {
   handleRSSFetch,
   handleArticlePrune,
   handleTokenCleanup,
 } from "./handlers";
-import { emitCounter } from "@/utils/metrics";
-import type { Env } from "@/types";
+import { emitCounter } from "@api/utils/metrics";
+import type { Env } from "@api/types";
 
 // Generic database type that works with both D1 and better-sqlite3
 type Database =
-  | DrizzleD1Database<typeof schema>
-  | BetterSQLite3Database<typeof schema>;
+  DrizzleD1Database<typeof schema> | BetterSQLite3Database<typeof schema>;
 
 // Interval constants
-const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const TOKEN_CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const RSS_BATCH_INTERVAL_MS = CRON_SCHEDULES["rss-fetch"].minutes * 60 * 1000;
+const PRUNE_INTERVAL_MS = CRON_SCHEDULES["article-prune"].minutes * 60 * 1000; // 24 hours
+const TOKEN_CLEANUP_INTERVAL_MS =
+  CRON_SCHEDULES["token-cleanup"].minutes * 60 * 1000; // 7 days
 
 /**
  * Result of executing scheduled tasks
@@ -99,13 +101,13 @@ export async function executeScheduledTasks(
     tokenCleanup: { executed: false },
   };
 
-  // RSS Fetch - based on fetchIntervalMinutes from settings
-  const rssFetchIntervalMs = settings.fetchIntervalMinutes * 60 * 1000;
-  if (shouldRunTask(settings.lastRssFetchAt, rssFetchIntervalMs)) {
+  // Drain the bounded queue every minute. The configured refresh interval
+  // applies to each feed, not to the entire queue between batches.
+  if (shouldRunTask(settings.lastRssFetchAt, RSS_BATCH_INTERVAL_MS)) {
     console.log("🔄 Executing RSS fetch...");
     emitCounter("cron.rss_fetch_triggered", 1, { status: "executed" });
 
-    await handleRSSFetch(env);
+    await handleRSSFetch(env, settings.fetchIntervalMinutes);
     await updateCronTimestamp(db, "lastRssFetchAt", now);
 
     result.rssFetch.executed = true;
@@ -114,7 +116,7 @@ export async function executeScheduledTasks(
     const minutesSinceLastFetch = Math.floor(
       (now.getTime() - settings.lastRssFetchAt.getTime()) / (60 * 1000)
     );
-    result.rssFetch.skippedReason = `Last fetch was ${minutesSinceLastFetch} minutes ago (interval: ${settings.fetchIntervalMinutes} minutes)`;
+    result.rssFetch.skippedReason = `Last fetch was ${minutesSinceLastFetch} minutes ago (batch interval: 1 minute)`;
     console.log(`⏭️ Skipping RSS fetch: ${result.rssFetch.skippedReason}`);
     emitCounter("cron.rss_fetch_triggered", 1, { status: "skipped" });
   }

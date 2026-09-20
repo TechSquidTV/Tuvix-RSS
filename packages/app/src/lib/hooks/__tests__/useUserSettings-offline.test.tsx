@@ -13,23 +13,24 @@ import { createWrapper } from "@/test/test-utils";
 // Mock the useNetworkStatus hook
 vi.mock("@/hooks/use-network-status");
 
-// Mock TRPC
+const { mockUseUsageQuery } = vi.hoisted(() => ({
+  mockUseUsageQuery: vi.fn<
+    (
+      _input: undefined,
+      options: {
+        refetchInterval: () => number | false;
+        placeholderData: (previous: { feedsUsed: number }) => {
+          feedsUsed: number;
+        };
+      }
+    ) => { isLoading: boolean }
+  >(() => ({ isLoading: false })),
+}));
 vi.mock("@/lib/api/trpc", () => ({
   trpc: {
     createClient: vi.fn(() => ({})),
     Provider: ({ children }: { children: React.ReactNode }) => children,
-    userSettings: {
-      getUsage: {
-        useQuery: vi.fn((_, options) => {
-          // Return the options so we can test refetchInterval behavior
-          return {
-            data: { feedsUsed: 5, feedsLimit: 10 },
-            isLoading: false,
-            refetchInterval: options?.refetchInterval,
-          };
-        }),
-      },
-    },
+    userSettings: { getUsage: { useQuery: mockUseUsageQuery } },
     useUtils: vi.fn(),
   },
 }));
@@ -56,16 +57,17 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
       // Get the refetchInterval function
-      const refetchInterval = result.current.refetchInterval;
+      const refetchInterval =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
 
       if (typeof refetchInterval === "function") {
         // Call it with a mock query
-        const interval = refetchInterval({} as any);
+        const interval = refetchInterval();
         expect(interval).toBe(10000); // Should poll every 10 seconds
       } else {
         throw new Error("refetchInterval should be a function");
@@ -78,14 +80,15 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: false,
       });
 
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval = result.current.refetchInterval;
+      const refetchInterval =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
 
       if (typeof refetchInterval === "function") {
-        const interval = refetchInterval({} as any);
+        const interval = refetchInterval();
         expect(interval).toBe(false); // Should pause polling
       }
     });
@@ -102,14 +105,15 @@ describe("useUserUsage - offline behavior", () => {
         value: true,
       });
 
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval = result.current.refetchInterval;
+      const refetchInterval =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
 
       if (typeof refetchInterval === "function") {
-        const interval = refetchInterval({} as any);
+        const interval = refetchInterval();
         expect(interval).toBe(false); // Should pause polling
       }
     });
@@ -126,14 +130,15 @@ describe("useUserUsage - offline behavior", () => {
         value: true,
       });
 
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval = result.current.refetchInterval;
+      const refetchInterval =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
 
       if (typeof refetchInterval === "function") {
-        const interval = refetchInterval({} as any);
+        const interval = refetchInterval();
         expect(interval).toBe(false); // Should pause polling
       }
     });
@@ -143,14 +148,15 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval = result.current.refetchInterval;
+      const refetchInterval =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
 
       if (typeof refetchInterval === "function") {
-        const interval = refetchInterval({} as any);
+        const interval = refetchInterval();
         expect(interval).toBe(10000); // 10 seconds
       }
     });
@@ -163,13 +169,13 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: false,
       });
 
-      const { result, rerender } = renderHook(() => useUserUsage(), {
+      const { rerender } = renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      let refetchInterval = result.current.refetchInterval;
+      let refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(false);
+        expect(refetchInterval()).toBe(false);
       }
 
       // Go online
@@ -179,9 +185,9 @@ describe("useUserUsage - offline behavior", () => {
 
       rerender();
 
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(10000);
+        expect(refetchInterval()).toBe(10000);
       }
     });
 
@@ -196,13 +202,13 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result, rerender } = renderHook(() => useUserUsage(), {
+      const { rerender } = renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      let refetchInterval = result.current.refetchInterval;
+      let refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(false);
+        expect(refetchInterval()).toBe(false);
       }
 
       // Make tab visible
@@ -213,9 +219,9 @@ describe("useUserUsage - offline behavior", () => {
 
       rerender();
 
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(10000);
+        expect(refetchInterval()).toBe(10000);
       }
     });
 
@@ -225,13 +231,13 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result, rerender } = renderHook(() => useUserUsage(), {
+      const { rerender } = renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      let refetchInterval = result.current.refetchInterval;
+      let refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(10000);
+        expect(refetchInterval()).toBe(10000);
       }
 
       // Go offline
@@ -241,9 +247,9 @@ describe("useUserUsage - offline behavior", () => {
 
       rerender();
 
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(false);
+        expect(refetchInterval()).toBe(false);
       }
     });
 
@@ -252,14 +258,14 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result, rerender } = renderHook(() => useUserUsage(), {
+      const { rerender } = renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
       // Online - should poll
-      let refetchInterval = result.current.refetchInterval;
+      let refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(10000);
+        expect(refetchInterval()).toBe(10000);
       }
 
       // Offline - should pause
@@ -267,9 +273,9 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: false,
       });
       rerender();
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(false);
+        expect(refetchInterval()).toBe(false);
       }
 
       // Online - should resume
@@ -277,9 +283,9 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
       rerender();
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(10000);
+        expect(refetchInterval()).toBe(10000);
       }
 
       // Offline again - should pause
@@ -287,9 +293,9 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: false,
       });
       rerender();
-      refetchInterval = result.current.refetchInterval;
+      refetchInterval = mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval === "function") {
-        expect(refetchInterval({} as any)).toBe(false);
+        expect(refetchInterval()).toBe(false);
       }
     });
   });
@@ -302,12 +308,14 @@ describe("useUserUsage - offline behavior", () => {
 
       // The hook should have placeholderData configured
       // This is tested by checking the query options
-      const { result } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
       // Verify data is available even when offline
-      expect(result.current.data).toBeDefined();
+      expect(
+        mockUseUsageQuery.mock.lastCall![1].placeholderData({ feedsUsed: 5 })
+      ).toEqual({ feedsUsed: 5 });
     });
   });
 
@@ -337,13 +345,14 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: true,
       });
 
-      const { result: result1 } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval1 = result1.current.refetchInterval;
+      const refetchInterval1 =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval1 === "function") {
-        expect(refetchInterval1({} as any)).toBe(10000);
+        expect(refetchInterval1()).toBe(10000);
       }
 
       // Test with offline
@@ -351,13 +360,14 @@ describe("useUserUsage - offline behavior", () => {
         isOnline: false,
       });
 
-      const { result: result2 } = renderHook(() => useUserUsage(), {
+      renderHook(() => useUserUsage(), {
         wrapper: createWrapper(),
       });
 
-      const refetchInterval2 = result2.current.refetchInterval;
+      const refetchInterval2 =
+        mockUseUsageQuery.mock.lastCall![1].refetchInterval;
       if (typeof refetchInterval2 === "function") {
-        expect(refetchInterval2({} as any)).toBe(false);
+        expect(refetchInterval2()).toBe(false);
       }
     });
   });

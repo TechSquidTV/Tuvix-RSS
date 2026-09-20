@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
 import { subscriptionsRouter } from "../subscriptions";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Subscription Creation - Immediate Article Fetching", () => {
@@ -36,17 +36,13 @@ describe("Subscription Creation - Immediate Article Fetching", () => {
     xmlContent: string,
     status: number = 200
   ): Response {
-    return {
-      ok: status >= 200 && status < 300,
+    const response = new Response(xmlContent, {
       status,
       statusText: status === 200 ? "OK" : "Error",
-      url,
-      headers: {
-        get: (key: string) =>
-          key.toLowerCase() === "content-type" ? "application/xml" : null,
-      } as any,
-      text: async () => xmlContent,
-    } as Response;
+      headers: { "content-type": "application/xml" },
+    });
+    Object.defineProperty(response, "url", { value: url });
+    return response;
   }
 
   /**
@@ -97,7 +93,7 @@ describe("Subscription Creation - Immediate Article Fetching", () => {
     const feedXml = createRssWithArticles("Test Feed", 3);
 
     // Mock all fetch calls to return the feed with articles
-    (global.fetch as any).mockResolvedValue(
+    vi.mocked(global.fetch).mockImplementation(async () =>
       createMockResponse(feedUrl, feedXml)
     );
 
@@ -165,7 +161,7 @@ describe("Subscription Creation - Immediate Article Fetching", () => {
     const feedXml = createRssWithArticles("Test Feed", 2);
 
     // Mock fetch to return feed with articles
-    (global.fetch as any).mockResolvedValue(
+    vi.mocked(global.fetch).mockImplementation(async () =>
       createMockResponse(feedUrl, feedXml)
     );
 
@@ -199,7 +195,7 @@ describe("Subscription Creation - Immediate Article Fetching", () => {
     const feedXml = createRssWithArticles("Large Feed", 50);
 
     // Mock fetch to return large feed
-    (global.fetch as any).mockResolvedValue(
+    vi.mocked(global.fetch).mockImplementation(async () =>
       createMockResponse(feedUrl, feedXml)
     );
 
@@ -226,7 +222,7 @@ describe("Subscription Creation - Immediate Article Fetching", () => {
     const feedXml = createRssWithArticles("Test Feed", 3);
 
     // Mock fetch to always return same feed
-    (global.fetch as any).mockResolvedValue(
+    vi.mocked(global.fetch).mockImplementation(async () =>
       createMockResponse(feedUrl, feedXml)
     );
 

@@ -1,16 +1,13 @@
+import { dataTableFeatures, type DataTableFeatures } from "./table-features";
 import * as React from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
   PaginationState,
   SortingState,
-  VisibilityState,
+  ColumnVisibilityState,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 
 import {
@@ -25,16 +22,15 @@ import {
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+interface DataTableProps<TData extends object> {
+  columns: ColumnDef<DataTableFeatures, TData>[];
   data: TData[];
   pageCount?: number;
   totalCount?: number;
   pagination?: PaginationState;
   onPaginationChange?: (
     updaterOrValue:
-      | PaginationState
-      | ((old: PaginationState) => PaginationState)
+      PaginationState | ((old: PaginationState) => PaginationState)
   ) => void;
   sorting?: SortingState;
   onSortingChange?: (
@@ -42,7 +38,7 @@ interface DataTableProps<TData, TValue> {
   ) => void;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends object>({
   columns,
   data,
   pageCount,
@@ -51,7 +47,7 @@ export function DataTable<TData, TValue>({
   onPaginationChange,
   sorting: controlledSorting,
   onSortingChange,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>(
     []
   );
@@ -59,7 +55,7 @@ export function DataTable<TData, TValue>({
     []
   );
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+    React.useState<ColumnVisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [internalPagination, setInternalPagination] =
     React.useState<PaginationState>({
@@ -73,9 +69,10 @@ export function DataTable<TData, TValue>({
   const sorting = controlledSorting ?? internalSorting;
   const setSorting = onSortingChange ?? setInternalSorting;
 
-  const isServerSidePagination = !!pageCount;
+  const isServerSidePagination = pageCount !== undefined;
 
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
     pageCount,
@@ -91,19 +88,9 @@ export function DataTable<TData, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    // Only use client-side models when NOT using server-side pagination
-    ...(isServerSidePagination
-      ? {
-          manualPagination: true,
-          manualSorting: true,
-          manualFiltering: true,
-        }
-      : {
-          getFilteredRowModel: getFilteredRowModel(),
-          getPaginationRowModel: getPaginationRowModel(),
-          getSortedRowModel: getSortedRowModel(),
-        }),
+    manualPagination: isServerSidePagination,
+    manualSorting: isServerSidePagination,
+    manualFiltering: isServerSidePagination,
   });
 
   return (

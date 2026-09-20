@@ -80,13 +80,13 @@ describe("App Route beforeLoad", () => {
 
     // Expect the beforeLoad to throw a redirect
     await expect(
-      routeModule.Route.options.beforeLoad({ context: mockContext } as any)
+      routeModule.Route.options.beforeLoad!({ context: mockContext } as any)
     ).rejects.toThrow("redirect:/");
   });
 
   it("redirects when auth context is missing", async () => {
     await expect(
-      routeModule.Route.options.beforeLoad({ context: {} } as any)
+      routeModule.Route.options.beforeLoad!({ context: {} } as any)
     ).rejects.toThrow("redirect:/");
   });
 
@@ -98,7 +98,7 @@ describe("App Route beforeLoad", () => {
     };
 
     await expect(
-      routeModule.Route.options.beforeLoad({ context: mockContext } as any)
+      routeModule.Route.options.beforeLoad!({ context: mockContext } as any)
     ).rejects.toThrow("redirect:/");
   });
 
@@ -121,7 +121,7 @@ describe("App Route beforeLoad", () => {
     };
 
     // Should not throw when offline with valid session
-    const result = await routeModule.Route.options.beforeLoad({
+    const result = await routeModule.Route.options.beforeLoad!({
       context: mockContext,
     } as any);
 
@@ -149,7 +149,7 @@ describe("App Route beforeLoad", () => {
     };
 
     // Should complete without throwing
-    const result = await routeModule.Route.options.beforeLoad({
+    const result = await routeModule.Route.options.beforeLoad!({
       context: mockContext,
     } as any);
 

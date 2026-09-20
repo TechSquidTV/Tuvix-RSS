@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PWAInstallCard } from "../pwa-install-card";
 import * as usePWAInstallModule from "@/hooks/use-pwa-install";
-import { toast } from "sonner";
 
 // Mock dependencies
 vi.mock("@/hooks/use-pwa-install");

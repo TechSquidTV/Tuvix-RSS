@@ -19,6 +19,9 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
       - BASE_URL=${BASE_URL:-http://localhost:5173}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-}
+      - API_URL=${API_URL:-http://localhost:3001}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
       - ALLOW_FIRST_USER_ADMIN=${ALLOW_FIRST_USER_ADMIN:-false}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-}

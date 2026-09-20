@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { trpc } from "@/lib/api/trpc";
+import { trpc, type RouterOutputs } from "@/lib/api/trpc";
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -104,19 +104,15 @@ const REASON_COLORS: Record<
   other: "outline",
 };
 
-type BlockedDomain = {
-  id: number;
-  domain: string;
-  reason: string | null;
-  notes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: number | null;
-};
+type BlockedDomain =
+  RouterOutputs["admin"]["listBlockedDomains"]["items"][number];
+type BlockedReason = NonNullable<BlockedDomain["reason"]>;
+const parseReason = (value: string): BlockedReason | null =>
+  Object.hasOwn(REASON_DISPLAY_NAMES, value) ? (value as BlockedReason) : null;
 
 function AdminBlockedDomains() {
   const [search, setSearch] = useState("");
-  const [reasonFilter, setReasonFilter] = useState<string | undefined>();
+  const [reasonFilter, setReasonFilter] = useState<BlockedReason | undefined>();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -127,12 +123,13 @@ function AdminBlockedDomains() {
     null
   );
   const [bulkImportText, setBulkImportText] = useState("");
-  const [bulkImportReason, setBulkImportReason] = useState<string | null>(null);
+  const [bulkImportReason, setBulkImportReason] =
+    useState<BlockedReason | null>(null);
   const [bulkImportNotes, setBulkImportNotes] = useState<string | null>(null);
 
   // Form state
   const [domainInput, setDomainInput] = useState("");
-  const [reasonInput, setReasonInput] = useState<string | null>(null);
+  const [reasonInput, setReasonInput] = useState<BlockedReason | null>(null);
   const [notesInput, setNotesInput] = useState("");
 
   const debouncedSearch = useDebounce(search, 500);
@@ -159,7 +156,7 @@ function AdminBlockedDomains() {
       setReasonInput(null);
       setNotesInput("");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to block domain");
     },
   });
@@ -173,7 +170,7 @@ function AdminBlockedDomains() {
       setReasonInput(null);
       setNotesInput("");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to update domain");
     },
   });
@@ -186,7 +183,7 @@ function AdminBlockedDomains() {
       setDeleteDomainId(null);
       setSelectedIds(new Set());
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to remove domain");
     },
   });
@@ -206,7 +203,7 @@ function AdminBlockedDomains() {
       setBulkImportReason(null);
       setBulkImportNotes(null);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to import domains");
     },
   });
@@ -217,7 +214,7 @@ function AdminBlockedDomains() {
       refetch();
       setSelectedIds(new Set());
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to remove domains");
     },
   });
@@ -334,8 +331,8 @@ function AdminBlockedDomains() {
 
   const isAllSelected = useMemo(() => {
     return (
-      blockedDomains?.items.length > 0 &&
-      selectedIds.size === blockedDomains.items.length
+      (blockedDomains?.items.length ?? 0) > 0 &&
+      selectedIds.size === blockedDomains?.items.length
     );
   }, [selectedIds.size, blockedDomains?.items.length]);
 
@@ -410,7 +407,7 @@ function AdminBlockedDomains() {
         <Select
           value={reasonFilter || "all"}
           onValueChange={(value) =>
-            setReasonFilter(value === "all" ? undefined : value)
+            setReasonFilter(parseReason(value) ?? undefined)
           }
         >
           <SelectTrigger className="w-[180px]">
@@ -652,7 +649,7 @@ function AdminBlockedDomains() {
               <Label htmlFor="reason">Reason (Optional)</Label>
               <Select
                 value={reasonInput || ""}
-                onValueChange={(value) => setReasonInput(value || null)}
+                onValueChange={(value) => setReasonInput(parseReason(value))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a reason" />
@@ -715,7 +712,7 @@ function AdminBlockedDomains() {
                 <Label htmlFor="edit-reason">Reason (Optional)</Label>
                 <Select
                   value={reasonInput || ""}
-                  onValueChange={(value) => setReasonInput(value || null)}
+                  onValueChange={(value) => setReasonInput(parseReason(value))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a reason" />
@@ -795,7 +792,9 @@ function AdminBlockedDomains() {
               <Label htmlFor="bulk-reason">Reason (Optional)</Label>
               <Select
                 value={bulkImportReason || ""}
-                onValueChange={(value) => setBulkImportReason(value || null)}
+                onValueChange={(value) =>
+                  setBulkImportReason(parseReason(value))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a reason" />

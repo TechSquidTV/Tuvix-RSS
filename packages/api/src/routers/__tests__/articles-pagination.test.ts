@@ -11,8 +11,8 @@ import {
   seedTestUser,
   seedTestSource,
   seedTestSubscription,
-} from "@/test/setup";
-import * as schema from "@/db/schema";
+} from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 import { articlesRouter } from "../articles";
 
@@ -74,6 +74,69 @@ describe("Articles Router - Pagination & Count", () => {
       req: {} as any,
     });
   }
+
+  describe("Stable article cursors", () => {
+    it("does not skip unread articles when earlier rows are read and new rows arrive", async () => {
+      await createArticles(5);
+      const caller = createCaller();
+      const original = await caller.list({ limit: 100, read: false });
+      const first = await caller.list({ limit: 2, read: false });
+      expect(first.nextCursor).not.toBeNull();
+      const firstId = first.items[0]!.id;
+      await db
+        .insert(schema.userArticleStates)
+        .values({ userId: testUser.id, articleId: firstId, read: true });
+      await db.insert(schema.articles).values({
+        sourceId: testSource.id,
+        guid: "arrived-later",
+        title: "Newest",
+        publishedAt: new Date(Date.now() + 60000),
+      });
+      const next = await caller.list({
+        limit: 100,
+        read: false,
+        cursor: first.nextCursor!,
+      });
+      expect(next.items.map((a) => a.id)).toEqual(
+        original.items.slice(2).map((a) => a.id)
+      );
+      expect(next.nextCursor).toBeNull();
+    });
+
+    it("orders equal timestamps and null dates without losing rows", async () => {
+      await db.insert(schema.articles).values(
+        Array.from({ length: 6 }, (_, i) => ({
+          sourceId: testSource.id,
+          guid: `ties-${i}`,
+          title: `Story ${i}`,
+          publishedAt: i < 3 ? new Date("2026-01-01T00:00:00Z") : null,
+        }))
+      );
+      const caller = createCaller();
+      const expected = await caller.list({ limit: 100 });
+      const first = await caller.list({ limit: 2 });
+      const second = await caller.list({ limit: 2, cursor: first.nextCursor! });
+      const third = await caller.list({ limit: 2, cursor: second.nextCursor! });
+      expect(
+        [...first.items, ...second.items, ...third.items].map((a) => a.id)
+      ).toEqual(expected.items.map((a) => a.id));
+      expect(third.nextCursor).toBeNull();
+    });
+
+    it("keeps the cursor valid after its anchor article is deleted", async () => {
+      await createArticles(5);
+      const caller = createCaller();
+      const original = await caller.list({ limit: 100 });
+      const first = await caller.list({ limit: 2 });
+      await db
+        .delete(schema.articles)
+        .where(eq(schema.articles.id, first.nextCursor!.id));
+      const next = await caller.list({ limit: 100, cursor: first.nextCursor! });
+      expect(next.items.map((a) => a.id)).toEqual(
+        original.items.slice(2).map((a) => a.id)
+      );
+    });
+  });
 
   describe("Total Count Accuracy", () => {
     it("should return accurate total count without subscription filters", async () => {

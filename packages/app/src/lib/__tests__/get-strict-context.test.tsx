@@ -5,7 +5,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { getStrictContext } from "../get-strict-context";
-import React from "react";
 
 describe("getStrictContext", () => {
   it("should create a provider and hook pair", () => {

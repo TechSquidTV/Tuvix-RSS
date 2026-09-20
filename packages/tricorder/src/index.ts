@@ -5,38 +5,38 @@
  */
 
 // Core
-export { DiscoveryRegistry } from "./core/registry";
+export { DiscoveryRegistry } from "./core/registry.js";
 export type {
   DiscoveredFeed,
   DiscoveryService,
   DiscoveryContext,
   TelemetryAdapter,
-} from "./core/types";
+} from "./core/types.js";
 export {
   FeedDiscoveryError,
   NoFeedsFoundError,
   FeedValidationError,
-} from "./core/errors";
+} from "./core/errors.js";
 
 // Services
-export { StandardDiscoveryService } from "./services/standard-discovery";
-export { AppleDiscoveryService } from "./services/apple-discovery";
-export { RedditDiscoveryService } from "./services/reddit-discovery";
+export { StandardDiscoveryService } from "./services/standard-discovery.js";
+export { AppleDiscoveryService } from "./services/apple-discovery.js";
+export { RedditDiscoveryService } from "./services/reddit-discovery.js";
 
 // Import for use in factory functions
-import { DiscoveryRegistry } from "./core/registry";
-import { StandardDiscoveryService } from "./services/standard-discovery";
-import { AppleDiscoveryService } from "./services/apple-discovery";
-import { RedditDiscoveryService } from "./services/reddit-discovery";
-import type { DiscoveredFeed, TelemetryAdapter } from "./core/types";
+import { DiscoveryRegistry } from "./core/registry.js";
+import { StandardDiscoveryService } from "./services/standard-discovery.js";
+import { AppleDiscoveryService } from "./services/apple-discovery.js";
+import { RedditDiscoveryService } from "./services/reddit-discovery.js";
+import type { DiscoveredFeed, TelemetryAdapter } from "./core/types.js";
 
 // Validators
-export { createFeedValidator } from "./validators/feed-validator";
+export { createFeedValidator } from "./validators/feed-validator.js";
 
 // Utilities
-export { isSubdomainOf } from "./utils/domain-matcher";
-export { normalizeFeedUrl } from "./utils/url-normalize";
-export { stripHtml } from "./utils/text-sanitizer";
+export { isSubdomainOf } from "./utils/domain-matcher.js";
+export { normalizeFeedUrl } from "./utils/url-normalize.js";
+export { stripHtml } from "./utils/text-sanitizer.js";
 
 /**
  * Create a discovery registry with default services registered.
@@ -88,8 +88,9 @@ export { stripHtml } from "./utils/text-sanitizer";
  */
 export function createDefaultRegistry(options?: {
   telemetry?: TelemetryAdapter;
+  fetch?: typeof globalThis.fetch;
 }): DiscoveryRegistry {
-  const registry = new DiscoveryRegistry(options?.telemetry);
+  const registry = new DiscoveryRegistry(options?.telemetry, options?.fetch);
   registry.register(new AppleDiscoveryService());
   registry.register(new RedditDiscoveryService());
   registry.register(new StandardDiscoveryService());
@@ -178,8 +179,15 @@ export function createDefaultRegistry(options?: {
  */
 export async function discoverFeeds(
   url: string,
-  options?: { telemetry?: TelemetryAdapter }
+  options?: { telemetry?: TelemetryAdapter; fetch?: typeof globalThis.fetch }
 ): Promise<DiscoveredFeed[]> {
   const registry = createDefaultRegistry(options);
   return registry.discover(url);
 }
+
+export { feedText, extractFeedMetadata } from "./utils/feed-metadata.js";
+
+export {
+  readFeedResponse,
+  MAX_FEED_BYTES,
+} from "./utils/read-feed-response.js";

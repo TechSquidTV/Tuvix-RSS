@@ -105,12 +105,12 @@ wrangler secret put SENTRY_DSN --name tuvix-api-staging --env staging
 
 ### What Happens During Deployment
 
-1. **Build & Test**: Runs linting, type checking, and tests
-2. **Deploy API**: Deploys Worker to `tuvix-api-staging`
-3. **Deploy App**: Deploys Pages to `tuvix-app-staging`
-4. **Wipe Database**: Drops all tables from staging database
-5. **Apply Migrations**: Runs all migrations from scratch
-6. **Seed Data** (optional): Loads test data if selected
+1. **Build & Test API**: Runs type checking, tests, and the API build
+2. **Wipe Database**: Drops all tables from the staging database
+3. **Apply Migrations**: Runs all migrations from scratch
+4. **Seed Data** (optional): Loads test data if selected
+5. **Deploy API**: Deploys Worker to `tuvix-api-staging` after database setup succeeds
+6. **Build, Test & Deploy App**: Checks and builds the app, then deploys Pages to `tuvix-app-staging`
 
 ### Accessing Staging
 

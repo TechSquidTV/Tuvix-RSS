@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { trpc } from "@/lib/api/trpc";
 import { useState, useMemo, useCallback } from "react";
-import type { PaginationState } from "@tanstack/react-table";
+import type {
+  PaginationState,
+  SortingState,
+  OnChangeFn,
+} from "@tanstack/react-table";
 import { toast } from "sonner";
 import {
   Card,
@@ -63,20 +67,9 @@ function AdminUsers() {
     pageIndex: 0,
     pageSize: 20,
   });
-  const [sorting, setSorting] = useState<
-    { id: string; desc: boolean }[] | undefined
-  >(undefined);
-
-  // Wrap setSorting to reset pagination when sorting changes
-  const handleSortingChange = useCallback(
-    (
-      updaterOrValue:
-        | { id: string; desc: boolean }[]
-        | undefined
-        | ((
-            old: { id: string; desc: boolean }[] | undefined
-          ) => { id: string; desc: boolean }[] | undefined)
-    ) => {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const handleSortingChange = useCallback<OnChangeFn<SortingState>>(
+    (updaterOrValue) => {
       setSorting(updaterOrValue);
       // Reset to first page when sorting changes
       setPagination((prev) => ({
@@ -125,7 +118,7 @@ function AdminUsers() {
       refetch();
       setBanUserId(null);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to update user status");
     },
   });
@@ -136,7 +129,7 @@ function AdminUsers() {
       refetch();
       setDeleteUserId(null);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to delete user");
     },
   });
@@ -148,7 +141,7 @@ function AdminUsers() {
       setChangePlanUserId(null);
       setSelectedPlan("");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to update plan");
     },
   });
@@ -164,7 +157,7 @@ function AdminUsers() {
         maxCategories: "",
       });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to set custom limits");
     },
   });
@@ -174,7 +167,7 @@ function AdminUsers() {
       toast.success("Usage recalculated");
       refetch();
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(error.message || "Failed to recalculate usage");
     },
   });
@@ -189,7 +182,7 @@ function AdminUsers() {
         }
         refetch();
       },
-      onError: (error: Error) => {
+      onError: (error) => {
         toast.error(error.message || "Failed to resend verification email");
       },
     });

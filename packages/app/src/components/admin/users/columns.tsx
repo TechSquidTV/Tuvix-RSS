@@ -1,3 +1,4 @@
+import type { DataTableFeatures } from "./table-features";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ type ColumnActions = {
 
 export const createColumns = (
   actions: ColumnActions
-): ColumnDef<AdminUser>[] => [
+): ColumnDef<DataTableFeatures, AdminUser>[] => [
   {
     accessorKey: "username",
     header: ({ column }) => (
@@ -85,7 +86,7 @@ export const createColumns = (
         </div>
       );
     },
-    filterFn: (row, id, value) => {
+    filterFn: (row, _id, value) => {
       const user = row.original;
       const searchValue = String(value).toLowerCase();
       return (
@@ -219,7 +220,7 @@ export const createColumns = (
       return <div className={colorClass}>{relativeTime}</div>;
     },
     enableSorting: true,
-    sortingFn: (rowA, rowB) => {
+    sortFn: (rowA, rowB) => {
       const a = rowA.getValue("lastSeenAt") as Date | null;
       const b = rowB.getValue("lastSeenAt") as Date | null;
       // Sort nulls last

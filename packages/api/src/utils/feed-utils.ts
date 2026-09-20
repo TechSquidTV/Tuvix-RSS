@@ -1,3 +1,44 @@
+import type { ParsedFeed, ParsedFeedItem } from "@api/types/feed";
+
+/** RSS/RDF/JSON use items; Atom uses entries. */
+export function extractFeedItems(feed: ParsedFeed): ParsedFeedItem[] {
+  if ("items" in feed) return feed.items ?? [];
+  if ("entries" in feed) return feed.entries ?? [];
+  return [];
+}
+
+/** Read publisher categories consistently across every supported format. */
+export function extractCategoryNames(
+  value: ParsedFeed | ParsedFeedItem
+): string[] {
+  if ("tags" in value) return value.tags ?? [];
+  if (!("categories" in value)) return [];
+  return (value.categories ?? []).flatMap((category) => {
+    const name =
+      typeof category === "string"
+        ? category
+        : "term" in category
+          ? category.term || category.label
+          : "name" in category
+            ? category.name
+            : undefined;
+    const trimmed = name?.trim();
+    return trimmed ? [trimmed] : [];
+  });
+}
+
+export function countFeedCategories(
+  feed: ParsedFeed,
+  maxEntries = 10
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of [feed, ...extractFeedItems(feed).slice(0, maxEntries)]) {
+    for (const name of extractCategoryNames(value))
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /**
  * Utility functions for RSS/Atom/JSON feed processing
  */

@@ -1,3 +1,4 @@
+import { readFeedResponse } from "../utils/read-feed-response.js";
 /**
  * Feed Validator Utility
  *
@@ -6,9 +7,9 @@
  */
 
 import { parseFeed } from "feedsmith";
-import { normalizeFeedUrl } from "../utils/url-normalize";
-import { stripHtml } from "../utils/text-sanitizer";
-import type { DiscoveredFeed } from "../core/types";
+import { normalizeFeedUrl } from "../utils/url-normalize.js";
+import { extractFeedMetadata } from "../utils/feed-metadata.js";
+import type { DiscoveredFeed } from "../core/types.js";
 
 /**
  * Create a feed validator function bound to deduplication sets.
@@ -19,7 +20,8 @@ import type { DiscoveredFeed } from "../core/types";
  */
 export function createFeedValidator(
   seenUrls: Set<string>,
-  seenFeedIds: Set<string>
+  seenFeedIds: Set<string>,
+  fetch: typeof globalThis.fetch = globalThis.fetch
 ): (feedUrl: string) => Promise<DiscoveredFeed | null> {
   // Track in-flight requests to prevent concurrent validation of the same URL
   const inFlightRequests = new Map<string, Promise<DiscoveredFeed | null>>();
@@ -75,7 +77,7 @@ export function createFeedValidator(
             seenUrls.add(normalizedFinalUrl);
           }
 
-          const feedContent = await response.text();
+          const feedContent = await readFeedResponse(response);
           const result = parseFeed(feedContent);
           const feed = result.feed;
 
@@ -108,16 +110,9 @@ export function createFeedValidator(
                   ? "json"
                   : "rss";
 
-          const title =
-            "title" in feed && feed.title
-              ? String(feed.title)
-              : "Untitled Feed";
-          const description =
-            "description" in feed && feed.description
-              ? stripHtml(String(feed.description))
-              : "subtitle" in feed && feed.subtitle
-                ? stripHtml(String(feed.subtitle))
-                : undefined;
+          const metadata = extractFeedMetadata(feed);
+          const title = metadata.title || "Untitled Feed";
+          const description = metadata.description;
 
           // Return discovered feed (preserve original URL for better UX)
           // We use the original feedUrl instead of finalUrl so users see clean URLs

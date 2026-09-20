@@ -16,10 +16,6 @@ export function useControlledState<T, Rest extends unknown[] = []>(
     value !== undefined ? value : (defaultValue as T)
   );
 
-  React.useEffect(() => {
-    if (value !== undefined) setInternalState(value);
-  }, [value]);
-
   const setState = React.useCallback(
     (next: T, ...args: Rest) => {
       setInternalState(next);
@@ -28,5 +24,5 @@ export function useControlledState<T, Rest extends unknown[] = []>(
     [onChange]
   );
 
-  return [state, setState] as const;
+  return [value !== undefined ? value : state, setState] as const;
 }

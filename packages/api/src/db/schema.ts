@@ -112,10 +112,12 @@ export const verification = sqliteTable("verification", {
     .notNull(),
 });
 
-// Rate limiting table removed - Better Auth rate limiting is disabled
-// The rate_limit table was previously used by Better Auth for database-backed
-// rate limiting, but we've disabled Better Auth's internal rate limiting
-// in favor of our custom Cloudflare Workers rate limit bindings system.
+export const authRateLimits = sqliteTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  attempts: integer("attempts").notNull(),
+  windowStartedAt: integer("window_started_at").notNull(),
+  lockedUntil: integer("locked_until").notNull().default(0),
+});
 
 // ============================================================================
 // SOURCES (RSS Feeds)
@@ -134,7 +136,15 @@ export const sources = sqliteTable(
       enum: ["auto", "custom", "none"],
     }).default("auto"),
     iconUpdatedAt: integer("icon_updated_at", { mode: "timestamp" }),
+    fetchLeaseToken: text("fetch_lease_token"),
+    fetchLeaseUntil: integer("fetch_lease_until", { mode: "timestamp" }),
+    nextFetchAt: integer("next_fetch_at", { mode: "timestamp" }),
+    lastFetchError: text("last_fetch_error"),
+    consecutiveFetchFailures: integer("consecutive_fetch_failures")
+      .notNull()
+      .default(0),
     lastFetched: integer("last_fetched", { mode: "timestamp" }),
+    lastFetchAttemptAt: integer("last_fetch_attempt_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -146,6 +156,7 @@ export const sources = sqliteTable(
     index("idx_sources_url").on(table.url),
     index("idx_sources_icon_url").on(table.iconUrl),
     index("idx_sources_last_fetched").on(table.lastFetched),
+    index("idx_sources_last_fetch_attempt_at").on(table.lastFetchAttemptAt),
   ]
 );
 
@@ -697,3 +708,12 @@ export const blockedDomains = sqliteTable(
     index("idx_blocked_domains_created_at").on(table.createdAt),
   ]
 );
+
+/** Persistent ingestion alert state, shared by workers and Node instances. */
+export const feedFetchHealth = sqliteTable("feed_fetch_health", {
+  id: integer("id").primaryKey(),
+  backlog: integer("backlog").notNull().default(0),
+  failingBatches: integer("failing_batches").notNull().default(0),
+  growingBatches: integer("growing_batches").notNull().default(0),
+  lastAlertAt: integer("last_alert_at", { mode: "timestamp" }),
+});

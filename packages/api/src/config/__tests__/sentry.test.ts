@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import { getSentryConfig } from "../sentry";
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 describe("getSentryConfig", () => {
   it("should return null when DSN is not provided", () => {
@@ -58,5 +58,23 @@ describe("getSentryConfig", () => {
 
     const config = getSentryConfig(env);
     expect(config?.environment).toBe("staging");
+  });
+  it("removes credential-bearing request data and nested secrets", () => {
+    const config = getSentryConfig({
+      RUNTIME: "nodejs",
+      BETTER_AUTH_SECRET: "test-secret",
+      SENTRY_DSN: "https://test@test.ingest.sentry.io/123",
+    });
+    const event = config!.beforeSend({
+      request: {
+        data: "password=secret",
+        headers: { cookie: "session=secret" },
+      },
+      extra: {
+        calls: [{ newPassword: "secret", token: "secret", operation: "reset" }],
+      },
+    });
+    expect(event).not.toHaveProperty("request");
+    expect(event?.extra).toEqual({ calls: [{ operation: "reset" }] });
   });
 });

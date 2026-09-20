@@ -10,9 +10,9 @@ import {
   cleanupTestDb,
   seedTestUser,
   seedTestPlan,
-} from "@/test/setup";
+} from "@api/test/setup";
 import { plansRouter } from "../plans";
-import * as schema from "@/db/schema";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Plans Router", () => {

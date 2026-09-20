@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@api/utils/sentry": ["./src/utils/sentry.node.ts"],
+      "@api/utils/http-transport": ["./src/utils/http-transport.node.ts"],
+      "@api/*": ["./src/*"]
+    }
+  }
+}

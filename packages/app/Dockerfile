@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Install pnpm
-RUN npm install -g pnpm@10.19.0
+RUN npm install -g pnpm@12.4.2
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -31,6 +31,9 @@ ARG VITE_API_URL=http://localhost:3001/trpc
 ARG VITE_APP_VERSION
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+
+# Compile workspace types before checking the application
+RUN pnpm --filter @tuvixrss/tricorder build
 
 # Build the application
 RUN pnpm --filter @tuvixrss/app build

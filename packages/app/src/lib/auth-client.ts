@@ -6,7 +6,11 @@
  */
 
 import { createAuthClient } from "better-auth/react";
-import { customSessionClient } from "better-auth/client/plugins";
+import {
+  customSessionClient,
+  usernameClient,
+  adminClient,
+} from "better-auth/client/plugins";
 import type { createAuth } from "@tuvixrss/api";
 
 // Better Auth needs to point to the API server, not the frontend
@@ -44,6 +48,8 @@ export const authClient = createAuthClient({
     credentials: "include",
   },
   plugins: [
+    usernameClient(),
+    adminClient(),
     // Custom session plugin for type inference
     // This ensures TypeScript knows about the banned field we added via customSession
     customSessionClient<ReturnType<typeof createAuth>>(),

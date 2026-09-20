@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { AtomLinkExtractor } from "./atom-link-extractor";
-import type { FeedItem } from "./types";
+import type { ParsedFeedItem } from "./types";
 
 describe("AtomLinkExtractor", () => {
   const extractor = new AtomLinkExtractor();
@@ -20,41 +20,43 @@ describe("AtomLinkExtractor", () => {
 
   describe("canHandle", () => {
     it("should return true when item has links array", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         links: [
           { href: "https://example.com/article", rel: "alternate" },
           { href: "https://example.com/comments", rel: "replies" },
         ],
       };
-      expect(extractor.canHandle(item as FeedItem)).toBe(true);
+      expect(extractor.canHandle(item as ParsedFeedItem)).toBe(true);
     });
 
     it("should return false when item has no links field", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Test Article",
         link: "https://example.com/article",
       };
-      expect(extractor.canHandle(item as FeedItem)).toBe(false);
+      expect(extractor.canHandle(item as ParsedFeedItem)).toBe(false);
     });
 
     it("should return false when links is not an array", () => {
       const item = {
         links: "not-an-array",
       };
-      expect(extractor.canHandle(item as unknown as FeedItem)).toBe(false);
+      expect(extractor.canHandle(item as unknown as ParsedFeedItem)).toBe(
+        false
+      );
     });
 
     it("should return false when links array is empty", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         links: [],
       };
-      expect(extractor.canHandle(item as FeedItem)).toBe(false);
+      expect(extractor.canHandle(item as ParsedFeedItem)).toBe(false);
     });
   });
 
   describe("extract", () => {
     it("should extract comment URL from link with rel='replies'", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Atom Feed Article",
         links: [
           { href: "https://example.com/article", rel: "alternate" },
@@ -62,7 +64,7 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toEqual({
         url: "https://example.com/article/comments",
@@ -71,7 +73,7 @@ describe("AtomLinkExtractor", () => {
     });
 
     it("should extract comment URL from link with rel='comments'", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Atom Feed Article",
         links: [
           { href: "https://example.com/article", rel: "alternate" },
@@ -79,7 +81,7 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toEqual({
         url: "https://example.com/comments",
@@ -88,7 +90,7 @@ describe("AtomLinkExtractor", () => {
     });
 
     it("should extract comment URL from link with rel='discussion'", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Atom Feed Article",
         links: [
           { href: "https://example.com/article", rel: "alternate" },
@@ -96,7 +98,7 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toEqual({
         url: "https://example.com/discussion",
@@ -105,7 +107,7 @@ describe("AtomLinkExtractor", () => {
     });
 
     it("should return first matching link when multiple comment links exist", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article with multiple comment links",
         links: [
           { href: "https://example.com/article", rel: "alternate" },
@@ -114,7 +116,7 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toEqual({
         url: "https://example.com/replies",
@@ -123,7 +125,7 @@ describe("AtomLinkExtractor", () => {
     });
 
     it("should return null when no comment-related links exist", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article without comment links",
         links: [
           { href: "https://example.com/article", rel: "alternate" },
@@ -131,45 +133,45 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toBeNull();
     });
 
     it("should return null when links array is empty", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article with empty links",
         links: [],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toBeNull();
     });
 
     it("should return null when no links field exists", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article without links field",
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toBeNull();
     });
 
     it("should handle links without href field", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article with malformed links",
         links: [{ rel: "replies" } as { href: string; rel: string }],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toBeNull();
     });
 
     it("should handle links without rel field", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article with links missing rel",
         links: [
           { href: "https://example.com/something" } as {
@@ -179,13 +181,13 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toBeNull();
     });
 
     it("should be case-insensitive for rel values", () => {
-      const item: Partial<FeedItem> = {
+      const item: Partial<ParsedFeedItem> = {
         title: "Article with uppercase rel",
         links: [
           { href: "https://example.com/article", rel: "ALTERNATE" },
@@ -193,7 +195,7 @@ describe("AtomLinkExtractor", () => {
         ],
       };
 
-      const result = extractor.extract(item as FeedItem);
+      const result = extractor.extract(item as ParsedFeedItem);
 
       expect(result).toEqual({
         url: "https://example.com/comments",

@@ -30,7 +30,7 @@ export function useAudioProgressSync(articleId: number) {
         },
       });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       Sentry.addBreadcrumb({
         category: "audio",
         message: "Audio progress saved",
@@ -209,7 +209,7 @@ export function useMarkAudioCompleted() {
   const utils = trpc.useUtils();
 
   return trpc.articles.markAudioCompleted.useMutation({
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       Sentry.addBreadcrumb({
         category: "audio",
         message: "Marked audio as completed",
@@ -238,7 +238,7 @@ export function useClearAudioProgress() {
   const utils = trpc.useUtils();
 
   return trpc.articles.clearAudioProgress.useMutation({
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       Sentry.addBreadcrumb({
         category: "audio",
         message: "Cleared audio progress",

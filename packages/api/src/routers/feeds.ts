@@ -1,3 +1,6 @@
+import { chunkArray, D1_MAX_PARAMETERS } from "@api/db/utils";
+import type { Database } from "@api/db/client";
+import { generatePublicFeed } from "@api/services/public-feed";
 /**
  * Feeds Router
  *
@@ -6,26 +9,53 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
-import { router, publicProcedure, rateLimitedProcedure } from "@/trpc/init";
-import { slugValidator } from "@/types";
-import { selectFeedSchema } from "@/db/schemas.zod";
+import { eq, and, inArray } from "drizzle-orm";
+import { router, publicProcedure, rateLimitedProcedure } from "@api/trpc/init";
+import { slugValidator } from "@api/types";
+import { selectFeedSchema } from "@api/db/schemas.zod";
 import {
   checkPublicFeedLimit,
   incrementPublicFeedCount,
   decrementPublicFeedCount,
-} from "@/services/limits";
+} from "@api/services/limits";
 import {
   createPaginatedSchema,
   paginationInputSchema,
   createPaginatedResponse,
-} from "@/types/pagination";
-import * as schema from "@/db/schema";
-import { requireOwnership, slugExists, updateManyToMany } from "@/db/helpers";
-import { fetchFeedCategories } from "@/db/transformers";
-import { generateRSS } from "@/services/xml-generator";
-import { emitCounter, withTiming } from "@/utils/metrics";
-import { withQueryMetrics } from "@/utils/db-metrics";
+} from "@api/types/pagination";
+import * as schema from "@api/db/schema";
+import {
+  requireOwnership,
+  slugExists,
+  updateManyToMany,
+} from "@api/db/helpers";
+import { fetchFeedCategories } from "@api/db/transformers";
+
+async function validateCategoryOwnership(
+  db: Database,
+  userId: number,
+  categoryIds: number[]
+): Promise<void> {
+  for (const ids of chunkArray(
+    [...new Set(categoryIds)],
+    D1_MAX_PARAMETERS - 1
+  )) {
+    const categories = await db
+      .select()
+      .from(schema.categories)
+      .where(
+        and(
+          eq(schema.categories.userId, userId),
+          inArray(schema.categories.id, ids)
+        )
+      );
+    if (categories.length !== ids.length)
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Category not found or not accessible",
+      });
+  }
+}
 
 // Feed list response schema (includes extra fields not in database)
 const feedListItemSchema = z.object({
@@ -198,12 +228,17 @@ export const feedsRouter = router({
         slug: slugValidator,
         description: z.string().optional(),
         public: z.boolean().default(true),
-        categoryIds: z.array(z.number()).optional(),
+        categoryIds: z
+          .array(z.number().int().positive())
+          .transform((ids) => [...new Set(ids)])
+          .optional(),
       })
     )
     .output(selectFeedSchema)
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
+
+      await validateCategoryOwnership(ctx.db, userId, input.categoryIds ?? []);
 
       // Check if slug already exists for this user
       const exists = await slugExists(ctx.db, schema.feeds, userId, input.slug);
@@ -286,12 +321,17 @@ export const feedsRouter = router({
         slug: slugValidator.optional(),
         description: z.string().optional(),
         public: z.boolean().optional(),
-        categoryIds: z.array(z.number()).optional(),
+        categoryIds: z
+          .array(z.number().int().positive())
+          .transform((ids) => [...new Set(ids)])
+          .optional(),
       })
     )
     .output(selectFeedSchema)
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx.user;
+
+      await validateCategoryOwnership(ctx.db, userId, input.categoryIds ?? []);
 
       // Verify feed exists and belongs to user
       const existingFeed = await requireOwnership<
@@ -443,282 +483,5 @@ export const feedsRouter = router({
       })
     )
     .output(z.string()) // RSS 2.0 XML
-    .query(async ({ ctx, input }) => {
-      return await withTiming(
-        "public_feed.generation_duration",
-        async () => {
-          // Step 1: Find user by username
-          const users = await withQueryMetrics(
-            "public_feed.getUser",
-            async () =>
-              ctx.db
-                .select()
-                .from(schema.user)
-                .where(
-                  sql`COALESCE(${schema.user.username}, ${schema.user.name}) = ${input.username}`
-                )
-                .limit(1),
-            {
-              "db.table": "user",
-              "db.operation": "select",
-              "db.username": input.username,
-            }
-          );
-
-          if (!users.length) {
-            emitCounter("public_feed.generated", 1, {
-              status: "user_not_found",
-              username: input.username,
-            });
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "User not found",
-            });
-          }
-
-          const user = users[0];
-
-          if (!user) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "User not found",
-            });
-          }
-
-          // Step 2: Find feed by user ID and slug
-          const feeds = await withQueryMetrics(
-            "public_feed.getFeed",
-            async () =>
-              ctx.db
-                .select()
-                .from(schema.feeds)
-                .where(
-                  and(
-                    eq(schema.feeds.userId, user.id),
-                    eq(schema.feeds.slug, input.slug)
-                  )
-                )
-                .limit(1),
-            {
-              "db.table": "feeds",
-              "db.operation": "select",
-              "db.user_id": user.id,
-              "db.slug": input.slug,
-            }
-          );
-
-          if (!feeds.length) {
-            emitCounter("public_feed.generated", 1, {
-              status: "feed_not_found",
-              username: input.username,
-              slug: input.slug,
-            });
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Feed not found",
-            });
-          }
-
-          const feed = feeds[0]!;
-
-          // Step 3: Verify feed is public
-          if (!feed.public) {
-            emitCounter("public_feed.generated", 1, {
-              status: "feed_private",
-              username: input.username,
-              slug: input.slug,
-            });
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Feed not found",
-            });
-          }
-
-          // Step 4: Get category IDs for this feed
-          const categoryLinks = await withQueryMetrics(
-            "public_feed.getCategories",
-            async () =>
-              ctx.db
-                .select()
-                .from(schema.feedCategories)
-                .where(eq(schema.feedCategories.feedId, feed.id)),
-            {
-              "db.table": "feedCategories",
-              "db.operation": "select",
-              "db.feed_id": feed.id,
-            }
-          );
-
-          const categoryIds = categoryLinks.map((link) => link.categoryId);
-
-          // Step 5: Get articles from these categories
-          let articles: Array<{
-            title: string;
-            link: string | null;
-            description: string | null;
-            author: string | null;
-            publishedAt: Date | null;
-            guid: string;
-          }> = [];
-
-          if (categoryIds.length > 0) {
-            // Get subscription IDs that match these categories
-            const subscriptionLinks = await withQueryMetrics(
-              "public_feed.getSubscriptionLinks",
-              async () =>
-                ctx.db
-                  .select()
-                  .from(schema.subscriptionCategories)
-                  .where(
-                    inArray(
-                      schema.subscriptionCategories.categoryId,
-                      categoryIds
-                    )
-                  ),
-              {
-                "db.table": "subscriptionCategories",
-                "db.operation": "select",
-                "db.category_count": categoryIds.length,
-              }
-            );
-
-            const subscriptionIds = subscriptionLinks.map(
-              (link) => link.subscriptionId
-            );
-
-            if (subscriptionIds.length > 0) {
-              // Get subscriptions for this user
-              const subscriptions = await withQueryMetrics(
-                "public_feed.getSubscriptions",
-                async () =>
-                  ctx.db
-                    .select()
-                    .from(schema.subscriptions)
-                    .where(
-                      and(
-                        eq(schema.subscriptions.userId, user.id),
-                        inArray(schema.subscriptions.id, subscriptionIds)
-                      )
-                    ),
-                {
-                  "db.table": "subscriptions",
-                  "db.operation": "select",
-                  "db.user_id": user.id,
-                  "db.subscription_count": subscriptionIds.length,
-                }
-              );
-
-              const sourceIds = subscriptions.map((sub) => sub.sourceId);
-
-              if (sourceIds.length > 0) {
-                // Get articles from these sources
-                const articlesResult = await withQueryMetrics(
-                  "public_feed.getArticles",
-                  async () =>
-                    ctx.db
-                      .select()
-                      .from(schema.articles)
-                      .where(inArray(schema.articles.sourceId, sourceIds))
-                      .orderBy(desc(schema.articles.publishedAt))
-                      .limit(50),
-                  {
-                    "db.table": "articles",
-                    "db.operation": "select",
-                    "db.source_count": sourceIds.length,
-                    "db.has_category_filter": true,
-                  }
-                );
-
-                articles = articlesResult.map((article) => ({
-                  title: article.title,
-                  link: article.link,
-                  description: article.description,
-                  author: article.author,
-                  publishedAt: article.publishedAt,
-                  guid: article.guid,
-                }));
-              }
-            }
-          } else {
-            // No category filter - get all articles from user's subscriptions
-            const subscriptions = await withQueryMetrics(
-              "public_feed.getSubscriptions",
-              async () =>
-                ctx.db
-                  .select()
-                  .from(schema.subscriptions)
-                  .where(eq(schema.subscriptions.userId, user.id)),
-              {
-                "db.table": "subscriptions",
-                "db.operation": "select",
-                "db.user_id": user.id,
-              }
-            );
-
-            const sourceIds = subscriptions.map((sub) => sub.sourceId);
-
-            if (sourceIds.length > 0) {
-              const articlesResult = await withQueryMetrics(
-                "public_feed.getArticles",
-                async () =>
-                  ctx.db
-                    .select()
-                    .from(schema.articles)
-                    .where(inArray(schema.articles.sourceId, sourceIds))
-                    .orderBy(desc(schema.articles.publishedAt))
-                    .limit(50),
-                {
-                  "db.table": "articles",
-                  "db.operation": "select",
-                  "db.source_count": sourceIds.length,
-                  "db.has_category_filter": false,
-                }
-              );
-
-              articles = articlesResult.map((article) => ({
-                title: article.title,
-                link: article.link,
-                description: article.description,
-                author: article.author,
-                publishedAt: article.publishedAt,
-                guid: article.guid,
-              }));
-            }
-          }
-
-          // Step 6: Generate RSS 2.0 XML
-          const feedUrl = `${ctx.env.BASE_URL || "http://localhost:3000"}/public/${input.username}/${input.slug}`;
-
-          const xml = generateRSS({
-            title: feed.title,
-            link: feedUrl,
-            description: feed.description || feed.title,
-            items: articles.map((article) => ({
-              title: article.title,
-              link: article.link || feedUrl,
-              description: article.description,
-              author: article.author,
-              pubDate: article.publishedAt,
-              guid: article.guid,
-            })),
-          });
-
-          // Emit success metric
-          emitCounter("public_feed.generated", 1, {
-            status: "success",
-            username: input.username,
-            slug: input.slug,
-            article_count: articles.length.toString(),
-            category_count: categoryIds.length.toString(),
-          });
-
-          return xml;
-        },
-        {
-          operation: "public_feed_generation",
-          username: input.username,
-          slug: input.slug,
-        }
-      );
-    }),
+    .query(({ ctx, input }) => generatePublicFeed(ctx, input)),
 });

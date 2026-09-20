@@ -12,8 +12,8 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { eq, sql } from "drizzle-orm";
-import * as schema from "@/db/schema";
-import { promoteToAdmin } from "@/services/admin-init";
+import * as schema from "@api/db/schema";
+import { promoteToAdmin } from "@api/services/admin-init";
 import { resolve } from "path";
 import { existsSync } from "fs";
 

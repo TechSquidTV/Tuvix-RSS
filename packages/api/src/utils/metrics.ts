@@ -8,7 +8,7 @@
  * Works in both Node.js and Cloudflare Workers runtimes.
  */
 
-import * as Sentry from "@/utils/sentry";
+import * as Sentry from "@api/utils/sentry";
 
 /**
  * Emit a counter metric

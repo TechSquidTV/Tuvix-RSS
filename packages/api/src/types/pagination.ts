@@ -49,7 +49,7 @@ export const paginationInputSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
   // Cursor-based pagination: cumulative count of items fetched (used as offset for infinite scroll)
-  cursor: z.number().int().optional(),
+  cursor: z.number().int().min(0).optional(),
 });
 
 /**
@@ -63,7 +63,11 @@ export const paginationInputSchema = z.object({
  * ```
  */
 export const withUndefinedAsEmpty = <T extends z.ZodType>(schema: T) =>
-  z.preprocess((val) => (val === undefined ? {} : val), schema);
+  schema
+    .optional()
+    .transform((value): z.output<T> =>
+      value === undefined ? schema.parse({}) : value
+    );
 
 /**
  * Infer TypeScript type from pagination input
@@ -155,3 +159,10 @@ export function calculatePaginationMeta(
     itemsPerPage: limit,
   };
 }
+
+/** Stable article ordering, including feeds with no publication date. */
+export const articleCursorSchema = z.object({
+  publishedAt: z.date().nullable(),
+  id: z.number().int().positive(),
+});
+export type ArticleCursor = z.infer<typeof articleCursorSchema>;

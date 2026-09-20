@@ -1,4 +1,5 @@
-import { Table } from "@tanstack/react-table";
+import type { DataTableFeatures } from "./table-features";
+import { ReactTable } from "@tanstack/react-table";
 import { Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/animate-ui/components/radix/dropdown-menu";
 
-interface DataTableViewOptionsProps<TData> {
-  table: Table<TData>;
+interface DataTableViewOptionsProps<TData extends object> {
+  table: ReactTable<DataTableFeatures, TData>;
 }
 
-export function DataTableViewOptions<TData>({
+export function DataTableViewOptions<TData extends object>({
   table,
 }: DataTableViewOptionsProps<TData>) {
   return (

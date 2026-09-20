@@ -7,7 +7,7 @@
  * Rate limiting is disabled for Docker Compose deployments.
  */
 
-import type { Env } from "@/types";
+import type { Env } from "@api/types";
 
 // ============================================================================
 // TYPES

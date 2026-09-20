@@ -7,9 +7,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { parseFeed } from "feedsmith";
-import { sanitizeHtml } from "@/utils/text-sanitizer";
-import { createTestDb, cleanupTestDb, seedTestUser } from "@/test/setup";
-import * as schema from "@/db/schema";
+import { sanitizeHtml } from "@api/utils/text-sanitizer";
+import { createTestDb, cleanupTestDb, seedTestUser } from "@api/test/setup";
+import * as schema from "@api/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchSingleFeed } from "../rss-fetcher";
 

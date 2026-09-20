@@ -23,8 +23,8 @@
  * while allowing enterprise users to opt-in to blocked domains if needed.
  */
 
-import type { Database } from "@/db/client";
-import * as schema from "@/db/schema";
+import type { Database } from "@api/db/client";
+import * as schema from "@api/db/schema";
 
 /**
  * Extract domain from URL

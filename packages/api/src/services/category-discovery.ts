@@ -1,3 +1,4 @@
+import { countFeedCategories } from "@api/utils/feed-utils";
 /**
  * Category Discovery Service
  *
@@ -5,49 +6,12 @@
  * Analyzes feed metadata and entry tags to suggest relevant categories.
  */
 
-import { fetchAndParseFeed } from "@/services/rss-fetcher";
-import type { Rss, Atom, Rdf, Json } from "@/types/feed";
-
-// Union type for feeds (feedsmith returns dates as strings)
-type AnyFeed =
-  | Rss.Feed<string>
-  | Atom.Feed<string>
-  | Rdf.Feed<string>
-  | Json.Feed<string>;
+import { fetchAndParseFeed } from "@api/services/rss-fetcher";
+import type { ParsedFeed } from "@api/types/feed";
 
 export interface CategorySuggestion {
   name: string;
   confidence: number;
-}
-
-/**
- * Extract category name from various feed category formats
- *
- * Handles different feed formats:
- * - String: "Technology"
- * - Object with term: { term: "Technology" }
- * - Object with label: { label: "Technology" }
- * - Object with name: { name: "Technology" }
- *
- * @param cat Category in unknown format
- * @returns Category name string or null if unable to extract
- */
-function extractCategoryName(cat: unknown): string | null {
-  if (typeof cat === "string") {
-    return cat;
-  }
-
-  if (typeof cat === "object" && cat !== null) {
-    const obj = cat as Record<string, unknown>;
-    return (
-      (obj.term as string) ||
-      (obj.label as string) ||
-      (obj.name as string) ||
-      null
-    );
-  }
-
-  return null;
 }
 
 /**
@@ -61,39 +25,10 @@ function extractCategoryName(cat: unknown): string | null {
  * @returns Array of category suggestions sorted by confidence
  */
 export function discoverCategoriesFromFeed(
-  feedData: AnyFeed,
+  feedData: ParsedFeed,
   maxEntries: number = 10
 ): CategorySuggestion[] {
-  const categoryMap = new Map<string, number>();
-
-  // Extract feed-level categories
-  if ("categories" in feedData && Array.isArray(feedData.categories)) {
-    for (const cat of feedData.categories) {
-      const catName = extractCategoryName(cat);
-      if (catName) {
-        categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
-      }
-    }
-  }
-
-  // Extract entry-level categories
-  if ("items" in feedData && Array.isArray(feedData.items)) {
-    const entries = feedData.items.slice(0, maxEntries);
-    for (const entry of entries) {
-      if (
-        "categories" in entry &&
-        entry.categories &&
-        Array.isArray(entry.categories)
-      ) {
-        for (const cat of entry.categories) {
-          const catName = extractCategoryName(cat);
-          if (catName) {
-            categoryMap.set(catName, (categoryMap.get(catName) || 0) + 1);
-          }
-        }
-      }
-    }
-  }
+  const categoryMap = countFeedCategories(feedData, maxEntries);
 
   // Convert to suggestions with confidence scores
   const totalMentions = Array.from(categoryMap.values()).reduce(

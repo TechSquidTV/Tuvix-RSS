@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, openArticleLink } from "@/lib/utils";
 import {
   Item,
   ItemContent,
@@ -101,14 +101,14 @@ export function ArticleItemAudio({
 
   const handleOpenLink = useCallback(() => {
     if (article.link) {
-      window.open(article.link, "_blank", "noopener,noreferrer");
+      openArticleLink(article.link);
     }
   }, [article.link]);
 
   const handleCardClick = useCallback(() => {
     // Only open link on mobile and if not dragging
     if (isMobile && !isDragging && article.link) {
-      window.open(article.link, "_blank", "noopener,noreferrer");
+      openArticleLink(article.link);
     }
   }, [isMobile, isDragging, article.link]);
 

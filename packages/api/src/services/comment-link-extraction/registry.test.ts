@@ -9,18 +9,18 @@ import { CommentLinkRegistry } from "./registry";
 import type {
   CommentLinkExtractor,
   ExtractedCommentLink,
-  FeedItem,
+  ParsedFeedItem,
 } from "./types";
 
 // Mock extractors for testing
 class HighPriorityExtractor implements CommentLinkExtractor {
   readonly priority = 10;
 
-  canHandle(_item: FeedItem): boolean {
+  canHandle(_item: ParsedFeedItem): boolean {
     return "highPriority" in _item;
   }
 
-  extract(_item: FeedItem): ExtractedCommentLink | null {
+  extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
     if ("highPriority" in _item) {
       return {
         url: "https://high-priority.com/comments",
@@ -34,11 +34,11 @@ class HighPriorityExtractor implements CommentLinkExtractor {
 class MediumPriorityExtractor implements CommentLinkExtractor {
   readonly priority = 20;
 
-  canHandle(_item: FeedItem): boolean {
+  canHandle(_item: ParsedFeedItem): boolean {
     return "mediumPriority" in _item;
   }
 
-  extract(_item: FeedItem): ExtractedCommentLink | null {
+  extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
     if ("mediumPriority" in _item) {
       return {
         url: "https://medium-priority.com/comments",
@@ -52,11 +52,11 @@ class MediumPriorityExtractor implements CommentLinkExtractor {
 class LowPriorityExtractor implements CommentLinkExtractor {
   readonly priority = 30;
 
-  canHandle(_item: FeedItem): boolean {
+  canHandle(_item: ParsedFeedItem): boolean {
     return "lowPriority" in _item;
   }
 
-  extract(_item: FeedItem): ExtractedCommentLink | null {
+  extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
     if ("lowPriority" in _item) {
       return {
         url: "https://low-priority.com/comments",
@@ -70,11 +70,11 @@ class LowPriorityExtractor implements CommentLinkExtractor {
 class AlwaysMatchExtractor implements CommentLinkExtractor {
   readonly priority = 40;
 
-  canHandle(_item: FeedItem): boolean {
+  canHandle(_item: ParsedFeedItem): boolean {
     return true;
   }
 
-  extract(_item: FeedItem): ExtractedCommentLink | null {
+  extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
     return {
       url: "https://always-match.com/comments",
       source: "url-pattern",
@@ -94,7 +94,7 @@ describe("CommentLinkRegistry", () => {
       const extractor = new HighPriorityExtractor();
       registry.register(extractor);
 
-      const item = { highPriority: true } as unknown as FeedItem;
+      const item = { highPriority: true } as unknown as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBe("https://high-priority.com/comments");
@@ -105,7 +105,7 @@ describe("CommentLinkRegistry", () => {
       registry.register(new MediumPriorityExtractor());
       registry.register(new LowPriorityExtractor());
 
-      const item = { lowPriority: true } as unknown as FeedItem;
+      const item = { lowPriority: true } as unknown as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBe("https://low-priority.com/comments");
@@ -122,7 +122,7 @@ describe("CommentLinkRegistry", () => {
         highPriority: true,
         mediumPriority: true,
         lowPriority: true,
-      } as unknown as FeedItem;
+      } as unknown as ParsedFeedItem;
 
       const result = registry.extract(item);
 
@@ -142,7 +142,7 @@ describe("CommentLinkRegistry", () => {
       const item = {
         mediumPriority: true,
         lowPriority: true,
-      } as unknown as FeedItem;
+      } as unknown as ParsedFeedItem;
 
       const result = registry.extract(item);
 
@@ -151,28 +151,28 @@ describe("CommentLinkRegistry", () => {
     });
 
     it("should return first match found", () => {
-      const item = { highPriority: true } as unknown as FeedItem;
+      const item = { highPriority: true } as unknown as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBe("https://high-priority.com/comments");
     });
 
     it("should skip extractors that cannot handle item", () => {
-      const item = { lowPriority: true } as unknown as FeedItem;
+      const item = { lowPriority: true } as unknown as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBe("https://low-priority.com/comments");
     });
 
     it("should return null when no extractors can handle item", () => {
-      const item = { unknown: true } as unknown as FeedItem;
+      const item = { unknown: true } as unknown as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBeNull();
     });
 
     it("should return null when extractor returns null", () => {
-      const item = { title: "Test" } as FeedItem;
+      const item = { title: "Test" } as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBeNull();
@@ -185,7 +185,7 @@ describe("CommentLinkRegistry", () => {
       const item = {
         highPriority: true,
         mediumPriority: true,
-      } as unknown as FeedItem;
+      } as unknown as ParsedFeedItem;
 
       const result = registry.extract(item);
 
@@ -210,7 +210,7 @@ describe("CommentLinkRegistry", () => {
         highPriority: true,
         mediumPriority: true,
         lowPriority: true,
-      } as unknown as FeedItem;
+      } as unknown as ParsedFeedItem;
 
       const result = registry.extract(item);
 
@@ -221,20 +221,20 @@ describe("CommentLinkRegistry", () => {
     it("should handle extractors with same priority (stable sort)", () => {
       class FirstExtractor implements CommentLinkExtractor {
         readonly priority = 10;
-        canHandle(_item: FeedItem): boolean {
+        canHandle(_item: ParsedFeedItem): boolean {
           return true;
         }
-        extract(_item: FeedItem): ExtractedCommentLink | null {
+        extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
           return { url: "https://first.com", source: "rss-comments-element" };
         }
       }
 
       class SecondExtractor implements CommentLinkExtractor {
         readonly priority = 10;
-        canHandle(_item: FeedItem): boolean {
+        canHandle(_item: ParsedFeedItem): boolean {
           return true;
         }
-        extract(_item: FeedItem): ExtractedCommentLink | null {
+        extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
           return { url: "https://second.com", source: "atom-link" };
         }
       }
@@ -242,7 +242,7 @@ describe("CommentLinkRegistry", () => {
       registry.register(new FirstExtractor());
       registry.register(new SecondExtractor());
 
-      const item = { title: "Test" } as FeedItem;
+      const item = { title: "Test" } as ParsedFeedItem;
       const result = registry.extract(item);
 
       // Should use first registered extractor when priorities are equal
@@ -252,7 +252,7 @@ describe("CommentLinkRegistry", () => {
 
   describe("edge cases", () => {
     it("should handle empty registry", () => {
-      const item = { title: "Test" } as FeedItem;
+      const item = { title: "Test" } as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBeNull();
@@ -261,10 +261,10 @@ describe("CommentLinkRegistry", () => {
     it("should handle extractor throwing error gracefully", () => {
       class ErrorExtractor implements CommentLinkExtractor {
         readonly priority = 10;
-        canHandle(_item: FeedItem): boolean {
+        canHandle(_item: ParsedFeedItem): boolean {
           return true;
         }
-        extract(_item: FeedItem): ExtractedCommentLink | null {
+        extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
           throw new Error("Extractor error");
         }
       }
@@ -272,7 +272,7 @@ describe("CommentLinkRegistry", () => {
       registry.register(new ErrorExtractor());
       registry.register(new AlwaysMatchExtractor());
 
-      const item = { title: "Test" } as FeedItem;
+      const item = { title: "Test" } as ParsedFeedItem;
 
       // Should catch error and continue to next extractor
       const result = registry.extract(item);
@@ -284,17 +284,17 @@ describe("CommentLinkRegistry", () => {
     it("should handle canHandle returning false for all extractors", () => {
       class NeverMatchExtractor implements CommentLinkExtractor {
         readonly priority = 10;
-        canHandle(_item: FeedItem): boolean {
+        canHandle(_item: ParsedFeedItem): boolean {
           return false;
         }
-        extract(_item: FeedItem): ExtractedCommentLink | null {
+        extract(_item: ParsedFeedItem): ExtractedCommentLink | null {
           return { url: "https://never.com", source: "html-pattern" };
         }
       }
 
       registry.register(new NeverMatchExtractor());
 
-      const item = { title: "Test" } as FeedItem;
+      const item = { title: "Test" } as ParsedFeedItem;
       const result = registry.extract(item);
 
       expect(result).toBeNull();

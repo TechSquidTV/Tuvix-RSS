@@ -6,10 +6,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 type InstallationStatus =
-  | "not-supported"
-  | "installable"
-  | "installed"
-  | "ios-instructions";
+  "not-supported" | "installable" | "installed" | "ios-instructions";
 
 interface UsePWAInstallReturn {
   isInstallable: boolean;

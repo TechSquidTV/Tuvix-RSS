@@ -1,3 +1,7 @@
+import {
+  createSessionResult,
+  createSubscriptionsResult,
+} from "@/test/fixtures";
 /**
  * AppSidebar Component Tests
  *
@@ -112,19 +116,16 @@ describe("AppSidebar", () => {
   });
 
   it("should render sidebar with basic navigation", async () => {
-    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
-      data: {
-        user: {
-          id: 1,
-          name: "testuser",
-          username: "testuser",
-          email: "test@example.com",
-          role: "user",
-          plan: "free",
-        },
-      },
-      isPending: false,
-    } as ReturnType<typeof useAuthModule.useCurrentUser>);
+    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue(
+      createSessionResult({
+        id: "1",
+        name: "testuser",
+        username: "testuser",
+        email: "test@example.com",
+        role: "user",
+        plan: "free",
+      })
+    );
 
     render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -141,19 +142,16 @@ describe("AppSidebar", () => {
   });
 
   it("should not show admin section for regular user", () => {
-    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
-      data: {
-        user: {
-          id: 1,
-          name: "testuser",
-          username: "testuser",
-          email: "test@example.com",
-          role: "user",
-          plan: "free",
-        },
-      },
-      isPending: false,
-    } as ReturnType<typeof useAuthModule.useCurrentUser>);
+    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue(
+      createSessionResult({
+        id: "1",
+        name: "testuser",
+        username: "testuser",
+        email: "test@example.com",
+        role: "user",
+        plan: "free",
+      })
+    );
 
     render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -165,19 +163,16 @@ describe("AppSidebar", () => {
   });
 
   it("should show admin section for admin user", async () => {
-    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
-      data: {
-        user: {
-          id: 1,
-          name: "adminuser",
-          username: "adminuser",
-          email: "admin@example.com",
-          role: "admin",
-          plan: "free",
-        },
-      },
-      isPending: false,
-    } as ReturnType<typeof useAuthModule.useCurrentUser>);
+    vi.mocked(useAuthModule.useCurrentUser).mockReturnValue(
+      createSessionResult({
+        id: "1",
+        name: "adminuser",
+        username: "adminuser",
+        email: "admin@example.com",
+        role: "admin",
+        plan: "free",
+      })
+    );
 
     render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -222,7 +217,7 @@ describe("AppSidebar", () => {
     // This test just confirms the logic: user?.role === "admin"
 
     // Test case 1: role is "user" - should not show
-    const userRole = "user" as const;
+    const userRole = "user" as string;
     expect(userRole === "admin").toBe(false);
 
     // Test case 2: role is "admin" - should show
@@ -236,19 +231,16 @@ describe("AppSidebar", () => {
 
   describe("Subscriptions Dropdown", () => {
     beforeEach(() => {
-      vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
-        data: {
-          user: {
-            id: 1,
-            name: "testuser",
-            username: "testuser",
-            email: "test@example.com",
-            role: "user",
-            plan: "free",
-          },
-        },
-        isPending: false,
-      } as ReturnType<typeof useAuthModule.useCurrentUser>);
+      vi.mocked(useAuthModule.useCurrentUser).mockReturnValue(
+        createSessionResult({
+          id: "1",
+          name: "testuser",
+          username: "testuser",
+          email: "test@example.com",
+          role: "user",
+          plan: "free",
+        })
+      );
     });
 
     it("should render subscriptions dropdown with top 10 subscriptions", async () => {
@@ -266,10 +258,9 @@ describe("AppSidebar", () => {
         filterMode: "include" as const,
       }));
 
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: mockSubscriptions },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult(mockSubscriptions)
+      );
 
       render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -309,10 +300,9 @@ describe("AppSidebar", () => {
         filterMode: "include" as const,
       }));
 
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: mockSubscriptions },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult(mockSubscriptions)
+      );
 
       render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -358,10 +348,9 @@ describe("AppSidebar", () => {
         },
       ];
 
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: mockSubscriptions },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult(mockSubscriptions)
+      );
 
       render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -407,10 +396,9 @@ describe("AppSidebar", () => {
         },
       ];
 
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: mockSubscriptions },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult(mockSubscriptions)
+      );
 
       // Mock useLocation to return subscription_id=1
       vi.mocked(routerModule.useLocation).mockReturnValue({
@@ -437,10 +425,9 @@ describe("AppSidebar", () => {
     });
 
     it("should handle empty subscriptions list", async () => {
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: [] },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult([])
+      );
 
       render(<AppSidebar />, { wrapper: SidebarWrapper });
 
@@ -459,19 +446,16 @@ describe("AppSidebar", () => {
 
   describe("Sidebar Collapse Behavior", () => {
     beforeEach(() => {
-      vi.mocked(useAuthModule.useCurrentUser).mockReturnValue({
-        data: {
-          user: {
-            id: 1,
-            name: "testuser",
-            username: "testuser",
-            email: "test@example.com",
-            role: "user",
-            plan: "free",
-          },
-        },
-        isPending: false,
-      } as ReturnType<typeof useAuthModule.useCurrentUser>);
+      vi.mocked(useAuthModule.useCurrentUser).mockReturnValue(
+        createSessionResult({
+          id: "1",
+          name: "testuser",
+          username: "testuser",
+          email: "test@example.com",
+          role: "user",
+          plan: "free",
+        })
+      );
     });
 
     it("should open sidebar when clicking menu items while collapsed", async () => {
@@ -669,10 +653,9 @@ describe("AppSidebar", () => {
         },
       ];
 
-      vi.mocked(useDataModule.useSubscriptions).mockReturnValue({
-        data: { items: mockSubscriptions },
-        isLoading: false,
-      } as ReturnType<typeof useDataModule.useSubscriptions>);
+      vi.mocked(useDataModule.useSubscriptions).mockReturnValue(
+        createSubscriptionsResult(mockSubscriptions)
+      );
 
       render(<AppSidebar />, { wrapper: CollapsedSidebarWrapper });
 

@@ -1,3 +1,5 @@
+import type { z } from "zod";
+import type { subscriptionResponseSchema } from "./schemas.zod";
 /**
  * Database Row Transformers
  *
@@ -5,9 +7,10 @@
  * Includes N+1 query prevention through bulk fetching.
  */
 
+import { chunkArray, D1_MAX_PARAMETERS } from "@api/db/utils";
 import { eq, inArray } from "drizzle-orm";
-import type { Database } from "@/db/client";
-import * as schema from "@/db/schema";
+import type { Database } from "@api/db/client";
+import * as schema from "@api/db/schema";
 
 /**
  * Transform subscription filter row to properly typed filter
@@ -49,16 +52,22 @@ export async function fetchSubscriptionCategories(
     return new Map();
   }
 
-  const categoryLinks = await db
-    .select()
-    .from(schema.subscriptionCategories)
-    .innerJoin(
-      schema.categories,
-      eq(schema.subscriptionCategories.categoryId, schema.categories.id)
-    )
-    .where(
-      inArray(schema.subscriptionCategories.subscriptionId, subscriptionIds)
+  const categoryLinks: {
+    subscription_categories: typeof schema.subscriptionCategories.$inferSelect;
+    categories: typeof schema.categories.$inferSelect;
+  }[] = [];
+  for (const ids of chunkArray(subscriptionIds, D1_MAX_PARAMETERS)) {
+    categoryLinks.push(
+      ...(await db
+        .select()
+        .from(schema.subscriptionCategories)
+        .innerJoin(
+          schema.categories,
+          eq(schema.subscriptionCategories.categoryId, schema.categories.id)
+        )
+        .where(inArray(schema.subscriptionCategories.subscriptionId, ids)))
     );
+  }
 
   // Group by subscription ID
   const categoriesMap = new Map<
@@ -94,10 +103,15 @@ export async function fetchSubscriptionFilters(
     return new Map();
   }
 
-  const filters = await db
-    .select()
-    .from(schema.subscriptionFilters)
-    .where(inArray(schema.subscriptionFilters.subscriptionId, subscriptionIds));
+  const filters: (typeof schema.subscriptionFilters.$inferSelect)[] = [];
+  for (const ids of chunkArray(subscriptionIds, D1_MAX_PARAMETERS)) {
+    filters.push(
+      ...(await db
+        .select()
+        .from(schema.subscriptionFilters)
+        .where(inArray(schema.subscriptionFilters.subscriptionId, ids)))
+    );
+  }
 
   // Group by subscription ID
   const filtersMap = new Map<
@@ -135,31 +149,7 @@ export function buildSubscriptionResponse(
   source: typeof schema.sources.$inferSelect,
   categories: (typeof schema.categories.$inferSelect)[],
   filters: ReturnType<typeof transformSubscriptionFilter>[]
-): {
-  id: number;
-  userId: number;
-  sourceId: number;
-  customTitle: string | null;
-  filterEnabled: boolean;
-  filterMode: "include" | "exclude";
-  createdAt: Date;
-  updatedAt: Date;
-  source: {
-    id: number;
-    url: string;
-    title: string;
-    description: string | null;
-    siteUrl: string | null;
-    iconUrl: string | null;
-    iconType: "auto" | "custom" | "none" | null;
-    iconUpdatedAt: Date | null;
-    lastFetched: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-  categories: (typeof schema.categories.$inferSelect)[];
-  filters: ReturnType<typeof transformSubscriptionFilter>[];
-} {
+): z.infer<typeof subscriptionResponseSchema> {
   return {
     id: subscription.id,
     userId: subscription.userId,
@@ -179,6 +169,12 @@ export function buildSubscriptionResponse(
       iconType: source.iconType,
       iconUpdatedAt: source.iconUpdatedAt,
       lastFetched: source.lastFetched,
+      fetchHealth: {
+        lastFetchAttemptAt: source.lastFetchAttemptAt,
+        nextFetchAt: source.nextFetchAt,
+        lastFetchError: source.lastFetchError,
+        consecutiveFetchFailures: source.consecutiveFetchFailures,
+      },
       createdAt: source.createdAt,
       updatedAt: source.updatedAt,
     },
@@ -202,10 +198,15 @@ export async function fetchFeedCategories(
     return new Map();
   }
 
-  const categoryLinks = await db
-    .select()
-    .from(schema.feedCategories)
-    .where(inArray(schema.feedCategories.feedId, feedIds));
+  const categoryLinks: (typeof schema.feedCategories.$inferSelect)[] = [];
+  for (const ids of chunkArray(feedIds, D1_MAX_PARAMETERS)) {
+    categoryLinks.push(
+      ...(await db
+        .select()
+        .from(schema.feedCategories)
+        .where(inArray(schema.feedCategories.feedId, ids)))
+    );
+  }
 
   // Group by feed ID
   const categoriesMap = new Map<number, number[]>();

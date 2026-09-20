@@ -56,6 +56,7 @@ export interface DiscoveryService {
  * Used for deduplication and feed validation.
  */
 export interface DiscoveryContext {
+  fetch: typeof globalThis.fetch;
   /** Normalized URLs already discovered (for deduplication) */
   seenUrls: Set<string>;
   /** Atom feed IDs already discovered (for content-based deduplication) */

@@ -5,14 +5,14 @@
  * Services are executed in priority order (lower priority = higher priority).
  */
 
-import { createFeedValidator } from "../validators/feed-validator";
-import { NoFeedsFoundError } from "./errors";
+import { createFeedValidator } from "../validators/feed-validator.js";
+import { NoFeedsFoundError } from "./errors.js";
 import type {
   DiscoveryContext,
   DiscoveryService,
   DiscoveredFeed,
   TelemetryAdapter,
-} from "./types";
+} from "./types.js";
 
 /**
  * Discovery Registry - Main orchestrator for feed discovery.
@@ -74,7 +74,10 @@ import type {
 export class DiscoveryRegistry {
   private services: DiscoveryService[] = [];
 
-  constructor(private telemetry?: TelemetryAdapter) {}
+  constructor(
+    private telemetry?: TelemetryAdapter,
+    private fetch: typeof globalThis.fetch = globalThis.fetch
+  ) {}
 
   /**
    * Register a discovery service.
@@ -201,9 +204,10 @@ export class DiscoveryRegistry {
     const seenFeedIds = new Set<string>();
 
     // Create feed validator function
-    const validateFeed = createFeedValidator(seenUrls, seenFeedIds);
+    const validateFeed = createFeedValidator(seenUrls, seenFeedIds, this.fetch);
 
     const context: DiscoveryContext = {
+      fetch: this.fetch,
       seenUrls,
       seenFeedIds,
       validateFeed,
